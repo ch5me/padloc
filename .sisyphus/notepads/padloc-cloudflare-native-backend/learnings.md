@@ -1,34 +1,52 @@
-# Learnings — padloc-cloudflare-native-backend
+# Padloc Cloudflare Native Backend — Learnings
 
-## 2026-05-04: T4 Architecture ADRs
+> Appended by Task 1 (API Contract Inventory)
 
-- The existing `packages/server/src/config.ts` defines a deeply nested config
-  hierarchy (`PL_DATA_BACKEND`, `PL_DATA_POSTGRES_HOST`, etc.) that maps cleanly
-  to Cloudflare Wrangler environment bindings. The key insight is that the
-  current config's "backend selector" pattern (e.g., `PL_DATA_BACKEND=postgres`)
-  must be replaced with direct binding access in Workers (e.g.,
-  `env.DB.prepare(...)`) rather than a config-driven factory pattern.
+## Patterns Discovered
 
-- ADR-001 anti-goals need to be explicit because the repo already has
-  DigitalOcean App Platform deployment (`.do/deploy.template.yaml`) and Docker
-  Compose examples (`docs/examples/hosting/docker/`). These are not just legacy
-  files -- someone might try to adapt them. The ADR must explicitly state they
-  are superseded.
+### 1. Decorator-Driven API Definition
 
-- Feature scope for WebAuthn is "required-parity-gated" meaning it ships if the
-  library works on Workers' Web Crypto API. This is the only feature with a
-  conditional gate. All others are definitive Required/Defer/Drop.
+- API handlers are defined via `@Handler(ParamType, ResponseType)` decorator on methods of the `API` class.
+- The decorator populates `API.handlerDefinitions[]` at decoration time — a reflection table used by the transport layer.
+- `String` constructor is mapped to `undefined` in handlerDefinitions (line 433: `input: input === String ? undefined : ...`).
+- Param types that are `Serializable` subclasses get auto-deserialized via `def.input().fromRaw(param)` in `Controller.process()`.
 
-- KV is explicitly non-authoritative in ADR-002. This is a security decision:
-  any system that reads KV to validate session truth creates a race condition
-  where a stale KV entry could bypass auth. D1 must always be checked for
-  auth-critical paths.
+### 2. Transport Protocol
 
-- Durable Objects replace the in-memory `_requestQueue` at
-  `packages/core/src/server.ts:2188`. This is not optional -- it is required for
-  correctness when the backend has multiple concurrent requests hitting the same
-  account.
+- Single HTTP POST endpoint serves all API methods.
+- Request envelope: `{ method: string, params?: any[], auth?: RequestAuthentication, device?: DeviceInfo }`
+- Response envelope: `{ result: any, error?: { code: string, message: string }, auth?: RequestAuthentication }`
+- Request/response serialization via `marshal/unmarshal` in `@padloc/core/src/encoding`.
+- Authentication via session-based signature verification (not HTTP headers/cookies).
+- All errors returned in `Response.error` field with HTTP 200, except transport-level errors (400/405).
 
-- The environment topology uses a 3-tier model: dev (local wrangler), preview
-  (branch-based), production (main/tag). Preview and production share the same
-  codebase but never the same D1/R2/KV resources.
+### 3. Error Handling Shape
+
+- `Err.toRaw()` returns `{ code: string, message: string, stack?: string }`.
+- Error codes are snake_case strings (e.g., `"invalid_session"`).
+- Quota errors are commented out in error.ts — org/vault/member limits defined but not active.
+- Provisioning errors exist: `PROVISIONING_QUOTA_EXCEEDED`, `PROVISIONING_NOT_ALLOWED`.
+- MFA errors use email-specific naming: `"email_verification_required"`, `"email_verification_failed"`, `"email_verification_tries_exceeded"`.
+
+### 4. Auth Flow
+
+- Four-step SRP-based authentication with email verification:
+  1. `startAuthRequest` → initiate with email, get request ID
+  2. `completeAuthRequest` → submit code/proof, get verified token
+  3. `startCreateSession` → get SRP params (B, srpId, keyParams)
+  4. `completeCreateSession` → submit SRP proof (A, M), get Session
+- Device trust model: trusted devices can skip email verification.
+- `updateAuth` between auth and session steps allows password change.
+- Admin login uses `asAdmin` flag in `startCreateSession`.
+
+### 5. Handler Count
+
+- Total: 39 handlers
+- Account-related: ~10
+- Org-related: ~4
+- Vault-related: ~4
+- Auth-related: ~9
+- Admin/List: ~4
+- Legacy/Migration: ~2
+- Attachment: ~3
+- KeyStore: ~3

@@ -1,0 +1,38 @@
+{
+    "name": "@padloc/worker",
+    "version": "4.3.0",
+    "description": "Cloudflare Worker backend for Padloc",
+    "private": true,
+    "files": [
+        "src",
+        "wrangler.jsonc"
+    ],
+    "main": "src/index.ts",
+    "author": "Martin Kleinschrodt <martin@maklesoft.com>",
+    "license": "GPLv3",
+    "dependencies": {
+        "@padloc/core": "workspace:*"
+    },
+    "devDependencies": {
+        "@cloudflare/workers-types": "^4.20240117.0",
+        "typescript": "4.4.3",
+        "wrangler": "^3.24.0"
+    },
+    "scripts": {
+        "typecheck": "tsc --noEmit",
+        "dev": "wrangler dev",
+        "deploy": "wrangler deploy",
+        "deploy:dry": "wrangler deploy --dry-run --outdir=/tmp/wrangler-dry-run",
+        "proof:worker": "bash ../../scripts/proof-lanes/proof-worker.sh",
+        "proof:migration": "bash ../../scripts/proof-lanes/proof-migration.sh"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/padloc/padloc.git",
+        "directory": "packages/worker"
+    },
+    "engines": {
+        "node": "16.x",
+        "npm": "8.x"
+    }
+}

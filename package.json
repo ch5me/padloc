@@ -62,6 +62,13 @@
         "prettier:check": "prettier --check .",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
+        "proof:contract": "bash scripts/proof-lanes/proof-contract.sh",
+        "proof:crypto": "bash scripts/proof-lanes/proof-crypto.sh",
+        "proof:worker": "bash scripts/proof-lanes/proof-worker.sh",
+        "proof:client": "bash scripts/proof-lanes/proof-client.sh",
+        "proof:migration": "bash scripts/proof-lanes/proof-migration.sh",
+        "proof:help": "bash scripts/proof-lanes/help.sh",
+        "proof:all": "npm run proof:contract && npm run proof:crypto && npm run proof:worker && npm run proof:client && npm run proof:migration",
         "update-version": "lerna version $1 --yes",
         "version": "lerna version $1 --yes",
         "publish": "lerna publish"
