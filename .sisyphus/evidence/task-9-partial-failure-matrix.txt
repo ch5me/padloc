@@ -1,0 +1,39 @@
+# Task 9 Evidence — Partial Failure Matrix
+
+Source: `docs/architecture/adr-006-attachments.md`
+
+## Upload Matrix
+
+| # | D1 INSERT | R2 PUT  | Result                           | Rollback needed? |
+|---| --------- | ------- | -------------------------------- | ----------------- |
+| 1 | FAIL      | —       | No DB row, no R2 object           | No                |
+| 2 | PASS      | FAIL    | DB row exists, no R2 object      | YES → DELETE D1 row |
+| 3 | PASS      | PASS    | DB row + R2 object               | No                |
+
+## Delete Matrix
+
+| # | R2 DELETE | D1 DELETE | Result                              | Cleanup needed?   |
+|---| ---------- | --------- | ----------------------------------- | ----------------- |
+| 1 | FAIL       | —         | R2 intact, D1 intact                | Retry DELETE      |
+| 2 | PASS       | FAIL      | R2 clean, D1 row stale              | Record orphan     |
+| 3 | PASS       | PASS      | Both clean                          | No                |
+
+## Download Matrix
+
+| # | D1 SELECT | R2 GET   | Result                  | Action              |
+|---| --------- | -------- | ----------------------- | ------------------- |
+| 1 | FAIL      | —        | No data transferred     | 404 + retry         |
+| 2 | PASS      | FAIL     | D1 row stale / R2 miss  | 502 + retry         |
+
+## Coverage Verification
+
+- DB write fail: ✅ case U1, U2, D1
+- R2 write fail: ✅ case U2
+- Delete fail: ✅ cases D1, D2
+- Retry behavior: ✅ documented for each case
+
+## Contract Decision
+
+Backend-mediated flow preserved as default. Signed-URL upgrade path documented for >5 MB files.
+
+Evidence generated: 2026-05-04
