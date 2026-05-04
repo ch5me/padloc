@@ -1,0 +1,37 @@
+=== Task 4: No Hybrid Backend Verification ===
+Date: 2026-05-04
+Agent: Sisyphus-Junior
+
+=== Test: No hybrid dependency described as implementation path ===
+
+Command: grep -rn -i "VPS|LXC|Docker host|proxy-to-node|sidecar" docs/architecture/
+
+Findings:
+
+ADR-001 (worker-native.md):
+  Section "Anti-Goals" explicitly lists as forbidden:
+  - Docker containers for the Padloc backend
+  - LXC/VM hosting
+  - Node.js compatibility mode on Workers
+  - Reverse proxy to a Node.js backend
+  - Sidecar processes
+  - Hybrid deployments splitting edge and origin
+  - Kubernetes, ECS, container orchestration
+  These are listed ONLY as anti-goals, never as implementation paths.
+
+ADR-002 (storage-ownership.md):
+  Mentions legacy backends (leveldb, mongodb, postgres, fs, s3, smtp, mixpanel)
+  only in the context of what is being replaced, not as future targets.
+
+ADR-003 (feature-scope.md):
+  No mention of VPS, LXC, Docker, or hosting infrastructure at all.
+  Features are classified by business need, not deployment target.
+
+ADR-004 (environment-topology.md):
+  All three environments (dev, preview, production) target Cloudflare Workers.
+  No mention of non-Cloudflare hosting targets.
+
+ADR-005 (secret-management.md):
+  No mention of VPS, LXC, Docker, or hosting infrastructure.
+
+Status: PASS - No hybrid backend described as implementation path in any ADR.

@@ -1,0 +1,41 @@
+=== Task 4: Scope Matrix Verification ===
+Date: 2026-05-04
+Agent: Sisyphus-Junior
+
+=== Test 1: No TODO/TBD/unknown in scope tables ===
+
+Command: grep -rn -i "TODO|TBD|unknown" docs/architecture/adr-003-feature-scope.md
+Result: No matches found (exit code 1 = no results)
+
+Status: PASS - All feature scope entries are classified as Required, Defer, or Drop.
+
+=== Test 2: Hybrid/Node/VPS/Docker not described as implementation path ===
+
+Command: grep -rn -i "VPS|LXC|Docker|proxy-to-node|sidecar|Node.js emulation" docs/architecture/
+
+Results:
+- ADR-001 mentions Docker and Node.js only in the "Anti-Goals" section as explicitly forbidden patterns.
+- ADR-002 mentions current server backends (leveldb, mongodb, postgres, fs, s3, smtp, mixpanel) only as legacy config classes being replaced.
+- No ADR describes Docker, VPS, LXC, or Node.js as an implementation target.
+
+Status: PASS - All references to legacy hosting are in anti-goal or replacement-context sections.
+
+=== Feature Scope Matrix (Complete) ===
+
+| Feature Area                 | v1 Status       | Classification Reason                                          |
+| ---------------------------- | --------------- | ------------------------------------------------------------- |
+| Account create/login/session | Required        | Core user functionality                                       |
+| Vault CRUD/sync              | Required        | Core user functionality                                       |
+| Organizations/shared vaults  | Required-core   | Client-visible paths, defer enterprise admin/SCIM             |
+| Attachments                  | Required        | R2 backend with D1 metadata gate                              |
+| Email verification/invites   | Required        | Resend API integration                                        |
+| TOTP                         | Required        | MFA parity                                                    |
+| WebAuthn                     | Required-parity-gated | Deferral ADR required if library incompat blocks       |
+| OAuth auth/provisioning       | Defer           | Scope explosion risk                                          |
+| SCIM/directory provisioning  | Defer           | Enterprise feature                                            |
+| Stripe/billing               | Drop            | Private fork, no commercial billing needed                    |
+| Mixpanel/analytics           | Drop            | Cloudflare Logs preferred                                     |
+| GeoIP local DB               | Drop            | CF request metadata available later                           |
+| Legacy v3 migration          | Defer           | Source data format unconfirmed                                |
+
+All 13 feature areas classified. No unknown entries.
