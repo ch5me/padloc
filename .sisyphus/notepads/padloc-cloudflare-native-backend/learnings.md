@@ -109,3 +109,48 @@
   on D1 failure.
 - `acceptInvite` is the only flow requiring two locks (org AND account) — sorted
   ID order makes it deadlock-free.
+
+## T7 — wrangler.toml / bindings
+
+- `durable_objects` uses `[[env.<env>.durable_objects.bindings]]` with `name`
+  and `class_name` fields. Not `binding` — the config field is `name`.
+- D1/R2/KV bindings use array syntax with `binding` and resource name fields.
+  Automatic provisioning omits `database_id`/`bucket_name`/`id` — resources are
+  created on deploy and IDs written back.
+- The "Missing entry-point" error from `--dry-run` with no Worker source is
+  expected — it proves config parses correctly. Only happens because
+  `src/index.ts` doesn't exist yet (T14).
+- The "no migrations" warning is expected — `AccountLockDO` is T17; migrations
+  added then.
+
+## T8 — D1 schema and migrations
+
+- Drizzle ORM (`drizzle-orm` + `drizzle-kit`) chosen for typed schema and
+  generated migrations. Schema at `packages/worker/src/storage/schema.ts`;
+  storage impl at `packages/worker/src/storage/d1.ts`.
+- Blob-shaped storage: each Storable's full `toRaw()` JSON in a single `data`
+  TEXT column — mirrors the Postgres backend's JSONB approach but adapted for
+  SQLite's lack of native JSON operators.
+- `wrangler.toml` needs `database_id` field even for local migrations — Wrangler
+  4.x resolves D1 databases by ID, not just name. The `database_id` is obtained
+  from `wrangler d1 create`.
+- Migration SQL must start with `PRAGMA defer_foreign_keys=on` — D1's SQLite
+  does not support `PRAGMA foreign_keys=OFF`.
+- SQLite has no native regex. The StorageQuery `regex`/`negex` translator uses
+  `simpleRegexToLike()` which maps `.*` → `%` and `.` → `_`. Complex patterns
+  (character classes, alternation, quantifiers, anchors) throw
+  `ErrorCode.NOT_IMPLEMENTED`. Callers must filter client-side for advanced
+  regex.
+- `IF NOT EXISTS` guards on all CREATE TABLE/INDEX statements provide
+  idempotency. Wrangler's `_migrations` tracking prevents re-application.
+- 12 domain tables + 2 audit tables created. 15 indexes including one UNIQUE
+  constraint on `accounts.email`.
+- D1 row-size limit of 10 MB means vault blobs exceeding this must spill to R2
+  with a `vault-blob/` key prefix — the D1 pointer row remains with an R2 key
+  reference.
+- Composite primary key `(org_id, account_id)` on `org_members` replaces the
+  Postgres approach of a synthetic id + unique constraint.
+- Append-only audit tables (`change_log`, `request_log`) have no indexes —
+  truncate by cron (T26) keeps them from growing unbounded.
+- Schema ownership map links each D1 table to its `@padloc/core` domain type and
+  source file, documented in `migrations/README.md`.

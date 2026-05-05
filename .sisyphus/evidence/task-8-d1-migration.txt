@@ -1,0 +1,63 @@
+# Task 8 — D1 Schema/Migrations Evidence
+
+## Migration Application
+
+Command: `wrangler d1 migrations apply --local DB`
+Result: ✅ 29 commands executed successfully, 0000_init.sql applied
+
+## Tables Created (12 domain tables)
+
+- accounts (PK id, UNIQUE email, data blob, timestamps)
+- auth (PK id, FK account_id, email, data blob)
+- sessions (PK id, account_id, key_blob, expires_at, revoked_at nullable, last_used_at, device_json)
+- vaults (PK id, owner_account_id, org_id nullable, data blob, revision, updated_at)
+- orgs (PK id, name, owner_account_id, data blob, revision)
+- org_members (PK org_id+account_id, role, status)
+- invites (PK id, org_id, email, data blob, expires_at)
+- key_store_entries (PK id, account_id, data blob)
+- attachments (PK id, vault_id, owner_account_id, r2_key, size_bytes, hash, created_at)
+- email_verifications (PK id, email, code_hash, purpose, expires_at, consumed_at nullable)
+- change_log (append-only audit: id, action, object_type, object_id, data, timestamp)
+- request_log (append-only audit: id, method, path, status, duration_ms, ip, timestamp)
+
+## Indexes Created (15)
+
+- accounts_email_unique (UNIQUE)
+- accounts_owner_account_id_idx
+- auth_account_id_idx
+- auth_email_idx
+- email_verifications_email_idx
+- email_verifications_purpose_idx
+- invites_email_idx
+- invites_org_id_idx
+- key_store_entries_account_id_idx
+- org_members_account_id_idx
+- orgs_owner_account_id_idx
+- sessions_account_id_idx
+- sessions_expires_at_idx
+- vaults_org_id_idx
+- vaults_owner_account_id_idx
+
+## Idempotency Test
+
+Re-running `wrangler d1 migrations apply --local DB` after initial application:
+Result: ✅ "No migrations to apply!" — deterministic, no duplicate table/index errors
+
+## Schema Design Decisions
+
+- Blob-shaped: each Storable's full serialized form in a single `data` TEXT column
+- Encrypted-at-rest: no plaintext that the Postgres backend encrypts
+- ULID-style TEXT PRIMARY KEY for all domain tables
+- Composite PK (org_id, account_id) for org_members
+- `PRAGMA defer_foreign_keys=on` at migration head (D1 constraint: no `PRAGMA foreign_keys=OFF`)
+- 10 MB row size limit documented in schema — vault blobs >10 MB spill to R2
+- SQLite LIKE fallback for regex/negex queries (complex patterns throw NOT_IMPLEMENTED)
+
+## Files Created
+
+- packages/worker/src/storage/schema.ts — Drizzle ORM schema definitions
+- packages/worker/src/storage/d1.ts — D1Storage + StorageQuery translator
+- packages/worker/migrations/0000_init.sql — Initial migration
+- packages/worker/migrations/README.md — Rollback strategy docs
+- packages/worker/wrangler.toml — Added migrations_dir to all D1 bindings
+- packages/worker/package.json — Added drizzle-orm + drizzle-kit

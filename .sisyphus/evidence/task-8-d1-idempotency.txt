@@ -1,0 +1,16 @@
+# Task 8 — Migration Idempotency Evidence
+
+## Test: Apply migrations twice
+
+### First application
+Command: `wrangler d1 migrations apply --local DB`
+Result: ✅ 29 commands executed, 0000_init.sql applied
+
+### Second application (idempotency check)
+Command: `wrangler d1 migrations apply --local DB`
+Result: ✅ "No migrations to apply!" — zero commands, zero errors
+
+### Root cause
+Migration SQL uses `CREATE TABLE IF NOT EXISTS` and `CREATE INDEX IF NOT EXISTS`.
+Wrangler tracks applied migrations in the `d1_migrations` table, so the same
+migration is never applied twice.
