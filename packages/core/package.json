@@ -11,7 +11,7 @@
         "tsconfig.json"
     ],
     "dependencies": {
-        "@padloc/locale": "4.3.0",
+        "@padloc/locale": "workspace:*",
         "typescript": "4.4.3"
     },
     "devDependencies": {

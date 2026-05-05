@@ -1,0 +1,13 @@
+== Task 6 Malformed POST Evidence ==
+Date: 2026-05-05
+
+Request:
+  POST http://localhost:8787/
+  Content-Type: application/json
+  Body: not-json
+
+Response:
+  HTTP/1.1 400 Bad Request
+  {"error":{"code":"invalid_request","message":"Failed to parse request body"}}
+
+Worker did NOT crash. Deterministic error response returned.

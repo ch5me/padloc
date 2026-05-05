@@ -2,9 +2,6 @@ name = "padloc-worker"
 main = "src/index.ts"
 compatibility_date = "2025-04-01"
 
-[build]
-fallback_workers_json = "workers.json"
-
 [[migrations]]
 tag = "v1"
 new_classes = ["AccountLockDO"]

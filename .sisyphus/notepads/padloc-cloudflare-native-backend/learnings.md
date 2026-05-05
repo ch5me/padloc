@@ -154,3 +154,28 @@
   truncate by cron (T26) keeps them from growing unbounded.
 - Schema ownership map links each D1 table to its `@padloc/core` domain type and
   source file, documented in `migrations/README.md`.
+
+## T6 — Worker package and fetch transport bootstrap
+
+- `packages/worker/` already existed from prior tasks with pre-created files. T6
+  fixed a critical type bug: `Request` and `Response` imported from
+  `@padloc/core/src/transport` shadow Web Fetch API `Request`/`Response`. Fix:
+  rename imports to `PlRequest`/`PlResponse` so `new Response(...)` calls use
+  the Web API constructor.
+- `@padloc/core` transitively imports `@padloc/locale/src/translate`. Wrangler's
+  esbuild cannot resolve this through tsconfig path aliases alone. Fix: symlink
+  `@padloc/locale` into `packages/core/node_modules/@padloc/` so esbuild's
+  node_modules resolution finds it.
+- `wrangler dev --local` starts successfully on port 8787. `--local` is
+  deprecated in wrangler 4.x but still works; plain `wrangler dev` is
+  equivalent.
+- Healthcheck pings D1 via `SELECT 1` (local SQLite works), R2 via
+  `bucket.list({limit:0})`, and checks `RESEND_API_KEY` secret presence.
+  Degraded status (not 500) when any dependency is unavailable — correct
+  behavior.
+- `server-factory.ts` remains a stub throwing `"not implemented"` — POST `/`
+  will fail with this error once `createServer()` is wired. Healthcheck and
+  OPTIONS do not touch it.
+- `package.json` uses `"@padloc/core": "workspace:*"` and
+  `"@padloc/locale": "workspace:*"` for pnpm workspace resolution. Removed
+  pinned version `"4.3.0"` which pnpm tried to fetch from npm registry.

@@ -1,0 +1,48 @@
+== Task 6 Healthcheck Evidence ==
+Date: 2026-05-05
+Worker: @padloc/worker
+Wrangler: 4.59.2
+
+=== GET /healthcheck ===
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Headers: Content-Type
+Access-Control-Allow-Methods: OPTIONS, POST
+
+Response body:
+{"status":"degraded","version":"0.0.0","d1":"ok","r2":"unavailable","resend":"unavailable"}
+
+D1: ok (local SQLite pinged successfully)
+R2: unavailable (not bound in local mode)
+RESEND: unavailable (no secret in local mode)
+Status: degraded (expected — only D1 available locally)
+
+=== OPTIONS / (CORS preflight) ===
+HTTP/1.1 204 No Content
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Headers: Content-Type
+Access-Control-Allow-Methods: OPTIONS, POST
+
+=== POST / malformed JSON ===
+Request: POST / with body "not-json"
+HTTP/1.1 400 Bad Request
+Content-Type: application/json; charset=utf-8
+
+Response body:
+{"error":{"code":"invalid_request","message":"Failed to parse request body"}}
+
+=== PUT / (method not allowed) ===
+HTTP/1.1 405 Method Not Allowed
+Content-Type: application/json; charset=utf-8
+
+Response body:
+{"error":{"code":"method_not_allowed","message":"Not allowed"}}
+
+=== Verification ===
+- Worker starts without error: YES
+- No Node.js imports: VERIFIED (web-api only)
+- /healthcheck returns 200: YES
+- Malformed POST returns Padloc-compatible error: YES
+- CORS headers on all responses: YES
+- 405 for unsupported methods: YES

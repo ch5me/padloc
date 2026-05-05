@@ -1,0 +1,15 @@
+{
+    "compilerOptions": {
+        "target": "es2020",
+        "module": "esnext",
+        "moduleResolution": "node",
+        "baseUrl": ".",
+        "lib": ["es2020", "webworker"],
+        "paths": {
+            "@padloc/core/*": ["../core/*"],
+            "@padloc/locale/*": ["../locale/*"]
+        }
+    },
+    "include": ["src/**/*.ts", "test/**/*.ts"],
+    "exclude": ["node_modules/**/*.ts"]
+}
