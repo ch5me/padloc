@@ -41,11 +41,11 @@
         "workbox-cli": "6.5.3",
         "workbox-webpack-plugin": "6.5.3"
     },
-    "description": "Padloc Progressive Web App",
     "scripts": {
-        "build": "webpack",
-        "dev": "webpack serve",
-        "start": "http-server ${PL_PWA_DIR:-dist} -s -p ${PL_PWA_PORT:-8080} --proxy ${PL_PWA_URL:-http://0.0.0.0:${PL_PWA_PORT:-8080}}?",
-        "build_and_start": "npm run build && npm start"
-    }
+        "build": "NODE_OPTIONS=--openssl-legacy-provider webpack --config webpack.config.js",
+        "start": "PL_PWA_PORT=${PL_PWA_PORT:-3000} http-server ${PL_PWA_DIR:-./dist} -p ${PL_PWA_PORT:-3000}",
+        "build_and_start": "npm run build && npm run start",
+        "dev": "webpack serve --config webpack.config.js"
+    },
+    "description": "Padloc Progressive Web App"
 }
