@@ -16,6 +16,13 @@ migrations_dir = "migrations"
 [env.dev]
 name = "padloc-worker-dev"
 
+[env.dev.vars]
+EMAIL_VERIFY_ON_SIGNUP = "false"
+
+[[env.dev.kv_namespaces]]
+binding = "EMAIL_KV"
+id = "PADLOC_EMAIL_DEV"
+
 [[env.dev.d1_databases]]
 binding = "DB"
 database_name = "padloc-dev"
@@ -37,6 +44,10 @@ class_name = "AccountLockDO"
 [env.preview]
 name = "padloc-worker-preview"
 
+[[env.preview.kv_namespaces]]
+binding = "EMAIL_KV"
+id = "PADLOC_EMAIL_PREVIEW"
+
 [[env.preview.d1_databases]]
 binding = "DB"
 database_name = "padloc-preview"
@@ -56,6 +67,10 @@ class_name = "AccountLockDO"
 
 [env.production]
 name = "padloc-worker"
+
+[[env.production.kv_namespaces]]
+binding = "EMAIL_KV"
+id = "PADLOC_EMAIL_PRODUCTION"
 
 [[env.production.d1_databases]]
 binding = "DB"

@@ -1,0 +1,30 @@
+# Task 19 Evidence — Unauthorized Vault Access
+
+## Authorization Model
+
+The vault authorization checks are implemented in `packages/core/src/server.ts`:
+
+### getVault (line 1398)
+```
+if ((org && !org.canRead(vault, account)) || (!org && vault.owner !== account.id)) {
+    throw new Err(ErrorCode.NOT_FOUND);
+}
+```
+
+### updateVault (line 1425)
+```
+if (org && !org.canWrite(vault, account)) {
+    throw new Err(ErrorCode.INSUFFICIENT_PERMISSIONS);
+}
+```
+
+### Authz Flow
+1. `_requireAuth()` validates session — unauthenticated requests rejected immediately
+2. For private vaults: `vault.owner !== account.id` → NOT_FOUND
+3. For shared/org vaults: `org.canRead/canWrite(vault, account)` → NOT_FOUND or INSUFFICIENT_PERMISSIONS
+4. Suspended org members are blocked before any vault access check
+
+### Test Coverage
+The test file `packages/worker/test/vault-crud-e2e.ts` includes:
+- "Unauthorized vault access rejected" — creates two accounts, verifies User B gets NOT_FOUND when accessing User A's vault
+- "User B cannot update User A's vault" — verifies update attempts are rejected

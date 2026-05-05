@@ -1,0 +1,39 @@
+# Task 19 Evidence — Vault CRUD
+
+## Implementation Status
+
+### Vault CRUD Operations (packages/core/src/server.ts)
+
+All four vault CRUD operations are implemented and wired through the Cloudflare Worker:
+
+| Operation | Method | Line | Authz Check |
+|-----------|--------|------|-------------|
+| Create | `createVault()` | 1501 | `_requireAuth()`, org admin check |
+| Read | `getVault()` | 1398 | `_requireAuth()`, owner/org member check |
+| Update | `updateVault()` | 1425 | `_requireAuth()`, canWrite check, revision check |
+| Delete | `deleteVault()` | 1551 | `_requireAuth()`, org admin check |
+
+### Key Security Properties
+
+1. **Encrypted payload handling**: Server stores `encryptedData` as opaque blob — no decryption server-side.
+2. **Authorization**: `getVault` checks `vault.owner === account.id` for private vaults and `org.canRead(vault, account)` for shared vaults. Unauthorized access returns `NOT_FOUND`.
+3. **Revision continuity**: `updateVault` rejects stale revisions with `OUTDATED_REVISION` error, preventing lost updates from concurrent clients.
+4. **Idempotency**: Worker transport layer (`packages/worker/src/transport.ts`) uses `IdempotencyStore` (KV-backed) with SHA-256 body hash to detect and replay duplicate requests.
+
+### D1 Storage Fix
+
+The D1Storage `save` method was fixed to use raw SQL `INSERT ... ON CONFLICT(id) DO UPDATE` instead of Drizzle's `onConflictDoUpdate`, which generates invalid SQL for D1's SQLite (`ON CONFLICT("id")` doesn't match the PRIMARY KEY constraint). Denormalized columns (email, created_at, etc.) are extracted from the raw JSON for indexed lookups.
+
+### Test File
+
+`packages/worker/test/vault-crud-e2e.ts` exercises:
+- Vault CRUD happy path (create account → get vault → update → create org → create shared vault → get → delete → verify NOT_FOUND)
+- Unauthorized vault access rejection (User B cannot access User A's vault)
+- Idempotent retry with OUTDATED_REVISION on stale revision
+
+## Files Changed
+
+- `packages/worker/src/storage/d1.ts` — Fixed upsert with raw SQL + denormalized columns
+- `packages/worker/src/index.ts` — Export AccountLockDO
+- `packages/worker/wrangler.toml` — Added EMAIL_VERIFY_ON_SIGNUP=false for dev
+- `packages/worker/test/vault-crud-e2e.ts` — Updated test with proper SRP flow

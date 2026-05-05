@@ -1,298 +1,455 @@
-import { D1Database } from "@cloudflare/workers-types";
+/**
+ * D1Storage — SQLite storage via Drizzle ORM.
+ *
+ * Implements the @padloc/core Storage interface:
+ *   save / get / delete / clear / list / count
+ *
+ * Serialization strategy:
+ *   Each Storable's full toRaw() JSON lives in the `data` column.
+ *   Domain tables declare additional denormalized columns for indexed lookups;
+ *   the authoritative payload is always `data`.
+ *
+ * Transactional writes use db.batch() for atomic multi-row writes.
+ */
+import { eq, and, or, not, asc, desc, sql, SQLWrapper, getTableName } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/d1";
+import { SQLiteColumn } from "drizzle-orm/sqlite-core";
+
 import { Storable, StorableConstructor, Storage, StorageListOptions, StorageQuery } from "@padloc/core/src/storage";
 import { Err, ErrorCode } from "@padloc/core/src/error";
 
-const DOMAIN_TABLES = [
-    "account",
-    "session",
-    "vault",
-    "org",
-    "orgmember",
-    "invite",
-    "keystoreentry",
-    "attachment",
-    "emailverification",
-    "auth",
-];
+import {
+    accounts,
+    auth,
+    sessions,
+    vaults,
+    orgs,
+    orgMembers,
+    invites,
+    keyStoreEntries,
+    attachments,
+    emailVerifications,
+    changeLog,
+    requestLog,
+} from "./schema";
 
-/**
- * Best-effort conversion of simple regex patterns to SQLite LIKE patterns.
- * Returns null for patterns that cannot be safely converted.
- *
- * Handles:
- *   - `.*` → `%`
- *   - literal characters
- * Rejects: character classes `[...]`, alternation `|`, quantifiers `+?{}`,
- * anchors `^$`, groups `()`.
- */
-function simpleRegexToLike(regex: string): string | null {
-    if (/[([{|^$+?{}]/.test(regex) || /\[\^?/.test(regex) || /\|/.test(regex)) {
-        return null;
+// ──────────────────────────────────────────────────────────────
+// Table map — kind → Drizzle table
+// ──────────────────────────────────────────────────────────────
+
+const TABLES = {
+    account: accounts,
+    session: sessions,
+    vault: vaults,
+    org: orgs,
+    orgmember: orgMembers,
+    invite: invites,
+    keystoreentry: keyStoreEntries,
+    attachment: attachments,
+    emailverification: emailVerifications,
+    auth: auth,
+    changelog: changeLog,
+    requestlog: requestLog,
+} as const;
+
+type KnownKind = keyof typeof TABLES;
+
+function tableFor(kind: string): (typeof TABLES)[KnownKind] {
+    const canonical = kind.toLowerCase() as KnownKind;
+    const tbl = TABLES[canonical];
+    if (!tbl) {
+        throw new Err(ErrorCode.NOT_FOUND, `D1 storage: unknown table for kind "${kind}"`);
     }
-    const likePattern = regex.replace(/\.\*/g, "%").replace(/\./g, "_");
-    return `%${likePattern}%`;
+    return tbl;
 }
 
-function queryToSqlWhere(query: StorageQuery): { sql: string; params: (string | number | boolean)[] } {
+// ──────────────────────────────────────────────────────────────
+// getTableColumns helper — extract column map from a Drizzle table
+// ──────────────────────────────────────────────────────────────
+
+function getTableColumns(tbl: (typeof TABLES)[KnownKind]): Record<string, SQLiteColumn> {
+    return tbl as any as Record<string, SQLiteColumn>;
+}
+
+// ──────────────────────────────────────────────────────────────
+// Query builder: StorageQuery → Drizzle SQL
+// ──────────────────────────────────────────────────────────────
+
+/** Build WHERE clause for any StorageQuery */
+function buildWhere<T extends (typeof TABLES)[KnownKind]>(table: T, query: StorageQuery): SQLWrapper {
+    const cols = getTableColumns(table);
     switch (query.op) {
-        case "and": {
-            const parts = query.queries.map(queryToSqlWhere);
-            return {
-                sql: `(${parts.map((p) => p.sql).join(" AND ")})`,
-                params: parts.flatMap((p) => p.params),
-            };
-        }
-        case "or": {
-            const parts = query.queries.map(queryToSqlWhere);
-            return {
-                sql: `(${parts.map((p) => p.sql).join(" OR ")})`,
-                params: parts.flatMap((p) => p.params),
-            };
-        }
-        case "not": {
-            const inner = queryToSqlWhere(query.query);
-            return { sql: `NOT (${inner.sql})`, params: inner.params };
-        }
+        case "and":
+            return and(...query.queries.map((q) => buildWhere(table, q)))!;
+        case "or":
+            return or(...query.queries.map((q) => buildWhere(table, q)))!;
+        case "not":
+            return not(buildWhere(table, query.query));
         case "regex": {
-            const pattern = query.value as string;
-            const likePattern = simpleRegexToLike(pattern);
-            if (likePattern !== null) {
-                return { sql: `${query.path} LIKE ?`, params: [likePattern] };
-            }
-            throw new Err(
-                ErrorCode.NOT_SUPPORTED,
-                `D1 storage: regex pattern "${pattern}" cannot be translated to SQLite LIKE`,
-            );
+            const col = resolveSqlColumn(cols, query.path);
+            return sql`${col} REGEXP ${query.value}`;
         }
         case "negex": {
-            const pattern = query.value as string;
-            const likePattern = simpleRegexToLike(pattern);
-            if (likePattern !== null) {
-                return { sql: `${query.path} NOT LIKE ?`, params: [likePattern] };
-            }
-            throw new Err(
-                ErrorCode.NOT_SUPPORTED,
-                `D1 storage: negex pattern "${pattern}" cannot be translated to SQLite LIKE`,
-            );
+            const col = resolveSqlColumn(cols, query.path);
+            return sql`NOT (${col} REGEXP ${query.value})`;
+        }
+        case "gt": {
+            const col = resolveSqlColumn(cols, query.path);
+            return sql`${col} > ${query.value}`;
+        }
+        case "gte": {
+            const col = resolveSqlColumn(cols, query.path);
+            return sql`${col} >= ${query.value}`;
+        }
+        case "lt": {
+            const col = resolveSqlColumn(cols, query.path);
+            return sql`${col} < ${query.value}`;
+        }
+        case "lte": {
+            const col = resolveSqlColumn(cols, query.path);
+            return sql`${col} <= ${query.value}`;
+        }
+        case "ne": {
+            const col = resolveSqlColumn(cols, query.path);
+            return sql`${col} <> ${query.value}`;
         }
         default: {
-            const op = {
-                eq: "=",
-                ne: "!=",
-                gt: ">",
-                gte: ">=",
-                lt: "<",
-                lte: "<=",
-            }[query.op || "eq"];
-            const value = query.value;
-            if (value === null || value === undefined) {
-                const check = query.op === "eq" ? "IS NULL" : "IS NOT NULL";
-                return { sql: `${query.path} ${check}`, params: [] };
+            if (query.value === null || query.value === undefined) {
+                const col = resolveSqlColumn(cols, query.path);
+                return sql`${col} IS NULL`;
             }
-            return {
-                sql: `${query.path} ${op} ?`,
-                params: [value as string | number | boolean],
-            };
+            const col = resolveSqlColumn(cols, query.path);
+            return sql`${col} = ${query.value}`;
         }
     }
 }
 
+/** Resolve path to a Drizzle column (or SQL fallback for nested json fields) */
+function resolveSqlColumn(cols: Record<string, SQLiteColumn>, path: string): SQLiteColumn | SQLWrapper {
+    const parts = path.split(".");
+    const topLevel = parts[0].toLowerCase();
+    if (cols[topLevel]) {
+        return cols[topLevel];
+    }
+    return sql`json_extract(data, ${`$.${parts.join(".")}`})`;
+}
+
+// ──────────────────────────────────────────────────────────────
+// D1Storage
+// ──────────────────────────────────────────────────────────────
+
 export class D1Storage implements Storage {
-    constructor(private db: D1Database) {}
+    private db: ReturnType<typeof drizzle>;
 
-    private tableFor(kind: string): string {
-        return kind
-            .replace(/([A-Z])/g, "_$1")
-            .toLowerCase()
-            .replace(/^_/, "");
+    constructor(d1Database: any) {
+        this.db = drizzle(d1Database);
     }
 
-    private serializeColumns(kind: string): string {
-        switch (kind) {
-            case "Account":
-                return "id, data, created_at, updated_at";
-            case "Session": {
-                return "id, data, expires_at, revoked_at, last_used_at, device_json";
-            }
-            case "Vault":
-                return "id, data, owner_account_id, org_id, revision, updated_at";
-            case "Org":
-                return "id, data, name, owner_account_id, revision";
-            case "Invite":
-                return "id, data, org_id, email, expires_at";
-            case "KeyStoreEntry":
-                return "id, data, account_id";
-            case "Attachment":
-                return "id, vault_id, owner_account_id, r2_key, size_bytes, hash, created_at";
-            case "Auth":
-                return "id, account_id, email, data, updated_at";
-            default:
-                return "";
-        }
+    get client() {
+        return this.db;
     }
 
-    private serializeParams(obj: Storable): (string | number | boolean | null)[] {
-        const raw = obj.toRaw();
-        const kind = obj.kind;
-
-        switch (kind) {
-            case "Account":
-                return [
-                    obj.id,
-                    JSON.stringify(raw),
-                    raw.created?.toISOString?.() ?? raw.created,
-                    raw.updated?.toISOString?.() ?? raw.updated,
-                ];
-            case "Session":
-                return [
-                    obj.id,
-                    JSON.stringify(raw),
-                    raw.expires?.toISOString?.() ?? raw.expires,
-                    raw.revokedAt?.toISOString?.() ?? raw.revokedAt ?? null,
-                    raw.lastUsed?.toISOString?.() ?? raw.lastUsed,
-                    raw.device ? JSON.stringify(raw.device) : null,
-                ];
-            case "Vault":
-                return [
-                    obj.id,
-                    JSON.stringify(raw),
-                    raw.owner,
-                    raw.org?.id ?? null,
-                    raw.revision,
-                    raw.updated?.toISOString?.() ?? raw.updated,
-                ];
-            case "Org":
-                return [obj.id, JSON.stringify(raw), raw.name, raw.owner?.accountId ?? "", raw.revision];
-            case "Invite":
-                return [
-                    obj.id,
-                    JSON.stringify(raw),
-                    raw.org?.id ?? "",
-                    raw.email,
-                    raw.expires?.toISOString?.() ?? raw.expires,
-                ];
-            case "KeyStoreEntry":
-                return [obj.id, JSON.stringify(raw), raw.accountId];
-            case "Attachment":
-                return [
-                    obj.id,
-                    raw.vaultId,
-                    raw.ownerAccountId,
-                    raw.r2Key,
-                    raw.sizeBytes,
-                    raw.hash,
-                    raw.createdAt?.toISOString?.() ?? raw.createdAt,
-                ];
-            case "Auth":
-                return [
-                    obj.id,
-                    raw.accountId,
-                    raw.email,
-                    JSON.stringify(raw),
-                    raw.updatedAt?.toISOString?.() ?? raw.updatedAt,
-                ];
-            default:
-                return [obj.id, JSON.stringify(raw)];
-        }
-    }
+    // save
 
     async save<T extends Storable>(obj: T): Promise<void> {
-        const tableName = this.tableFor(obj.kind);
-        const columns = this.serializeColumns(obj.kind);
-        const placeholders = columns
-            .split(",")
-            .map(() => "?")
-            .join(", ");
-        const params = this.serializeParams(obj);
+        const tbl = tableFor(obj.kind);
+        const raw = obj.toRaw();
+
+        try {
+            if (obj.kind === "orgmember") {
+                await this.saveOrgMember(tbl as typeof orgMembers, raw);
+            } else {
+                // Drizzle's onConflictDoUpdate generates ON CONFLICT("id") which
+                // D1's SQLite rejects. Use raw SQL via the underlying D1 client.
+                // Also extract denormalized columns from the raw data for indexed lookups.
+                const tableName = getTableName(tbl);
+                const email = (raw as any).email || null;
+                const createdAt = (raw as any).created || (raw as any).created_at || new Date().toISOString();
+                const updatedAt = (raw as any).updated || (raw as any).updated_at || new Date().toISOString();
+
+                let stmt: string;
+                let bindings: unknown[];
+
+                if (tableName === "accounts") {
+                    stmt = `INSERT INTO ${tableName} (id, email, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET email = ?, data = ?, updated_at = ?`;
+                    bindings = [
+                        obj.id,
+                        email,
+                        JSON.stringify(raw),
+                        createdAt,
+                        updatedAt,
+                        email,
+                        JSON.stringify(raw),
+                        updatedAt,
+                    ];
+                } else if (tableName === "auth") {
+                    const accountId = (raw as any).account || (raw as any).account_id || "";
+                    stmt = `INSERT INTO ${tableName} (id, account_id, email, data, updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET account_id = ?, email = ?, data = ?, updated_at = ?`;
+                    bindings = [
+                        obj.id,
+                        accountId,
+                        email,
+                        JSON.stringify(raw),
+                        updatedAt,
+                        accountId,
+                        email,
+                        JSON.stringify(raw),
+                        updatedAt,
+                    ];
+                } else if (tableName === "sessions") {
+                    const accountId = (raw as any).account || (raw as any).account_id || "";
+                    const keyBlob = (raw as any).key || "";
+                    const expiresAt = (raw as any).expires ? new Date(raw.expires).toISOString() : "";
+                    const lastUsedAt = (raw as any).lastUsed
+                        ? new Date(raw.lastUsed).toISOString()
+                        : new Date().toISOString();
+                    const deviceJson = (raw as any).device ? JSON.stringify(raw.device) : null;
+                    stmt = `INSERT INTO ${tableName} (id, account_id, key_blob, expires_at, last_used_at, device_json) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET account_id = ?, key_blob = ?, expires_at = ?, last_used_at = ?, device_json = ?`;
+                    bindings = [
+                        obj.id,
+                        accountId,
+                        keyBlob,
+                        expiresAt,
+                        lastUsedAt,
+                        deviceJson,
+                        accountId,
+                        keyBlob,
+                        expiresAt,
+                        lastUsedAt,
+                        deviceJson,
+                    ];
+                } else if (tableName === "vaults") {
+                    const ownerId = (raw as any).owner || "";
+                    const orgId = (raw as any).org?.id || null;
+                    const revision = (raw as any).revision || "";
+                    stmt = `INSERT INTO ${tableName} (id, owner_account_id, org_id, data, revision, updated_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET owner_account_id = ?, org_id = ?, data = ?, revision = ?, updated_at = ?`;
+                    bindings = [
+                        obj.id,
+                        ownerId,
+                        orgId,
+                        JSON.stringify(raw),
+                        revision,
+                        updatedAt,
+                        ownerId,
+                        orgId,
+                        JSON.stringify(raw),
+                        revision,
+                        updatedAt,
+                    ];
+                } else if (tableName === "orgs") {
+                    const ownerId = (raw as any).owner?.accountId || (raw as any).owner_account_id || "";
+                    const revision = (raw as any).revision || "";
+                    stmt = `INSERT INTO ${tableName} (id, name, owner_account_id, data, revision) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = ?, owner_account_id = ?, data = ?, revision = ?`;
+                    const orgName = (raw as any).name || "";
+                    bindings = [
+                        obj.id,
+                        orgName,
+                        ownerId,
+                        JSON.stringify(raw),
+                        revision,
+                        orgName,
+                        ownerId,
+                        JSON.stringify(raw),
+                        revision,
+                    ];
+                } else {
+                    // Generic fallback: just id and data
+                    stmt = `INSERT INTO ${tableName} (id, data) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET data = ?`;
+                    bindings = [obj.id, JSON.stringify(raw), JSON.stringify(raw)];
+                }
+
+                const d1Client = (this.db as any).session.client;
+                await d1Client
+                    .prepare(stmt)
+                    .bind(...bindings)
+                    .run();
+            }
+        } catch (err: any) {
+            if (isUniqueViolation(err)) {
+                throw new Err(ErrorCode.ACCOUNT_EXISTS, `Duplicate entry for ${obj.kind}: ${obj.id}`, {
+                    error: err,
+                });
+            }
+            throw new Err(ErrorCode.SERVER_ERROR, `D1 storage save failed: ${err.message}`, { error: err });
+        }
+    }
+
+    private async saveOrgMember(tbl: typeof orgMembers, raw: any) {
+        const orgId = raw.orgId ?? raw.org_id;
+        const accountId = raw.accountId ?? raw.account_id;
 
         await this.db
-            .prepare(`INSERT OR REPLACE INTO ${tableName} (${columns}) VALUES (${placeholders})`)
-            .bind(...params)
-            .run();
+            .insert(tbl)
+            .values({
+                org_id: orgId,
+                account_id: accountId,
+                role: raw.role,
+                status: raw.status,
+            })
+            .onConflictDoUpdate({
+                target: [tbl.org_id, tbl.account_id],
+                set: { role: raw.role, status: raw.status },
+            });
     }
+
+    // get
 
     async get<T extends Storable>(cls: StorableConstructor<T> | T, id: string): Promise<T> {
         const res = cls instanceof Storable ? cls : new cls();
-        const tableName = this.tableFor(res.kind);
+        const tbl = tableFor(res.kind);
 
-        const result = await this.db
-            .prepare(`SELECT data FROM ${tableName} WHERE id = ?`)
-            .bind(id)
-            .first<{ data: string }>();
+        const results: Array<{ data: string }> = await this.db
+            .select({ data: (tbl as any).data })
+            .from(tbl)
+            .where(eq((tbl as any).id, id))
+            .limit(1);
 
-        if (!result) {
+        if (!results || results.length === 0) {
             throw new Err(ErrorCode.NOT_FOUND, `Cannot find object: ${res.kind}_${id}`);
         }
 
-        return res.fromRaw(JSON.parse(result.data));
+        try {
+            return res.fromRaw(JSON.parse(results[0].data));
+        } catch {
+            throw new Err(ErrorCode.ENCODING_ERROR, `Failed to deserialize ${res.kind}_${id}`);
+        }
     }
+
+    // delete
 
     async delete<T extends Storable>(obj: T): Promise<void> {
-        const tableName = this.tableFor(obj.kind);
+        const tbl = tableFor(obj.kind);
 
-        await this.db.prepare(`DELETE FROM ${tableName} WHERE id = ?`).bind(obj.id).run();
+        if (obj.kind === "orgmember") {
+            const raw = obj.toRaw();
+            const orgId = raw.orgId ?? raw.org_id;
+            const accountId = raw.accountId ?? raw.account_id;
+            await this.db
+                .delete(tbl)
+                .where(and(eq((tbl as any).org_id, orgId), eq((tbl as any).account_id, accountId)));
+            return;
+        }
+
+        await this.db.delete(tbl).where(eq((tbl as any).id, obj.id));
     }
+
+    // clear
 
     async clear(): Promise<void> {
-        const stmts = DOMAIN_TABLES.map((t) => this.db.prepare(`DELETE FROM ${t}`));
-        await this.db.batch(stmts);
+        const domainKinds: KnownKind[] = [
+            "account",
+            "session",
+            "vault",
+            "org",
+            "orgmember",
+            "invite",
+            "keystoreentry",
+            "attachment",
+            "emailverification",
+            "auth",
+        ];
+
+        await this.db.batch(domainKinds.map((kind) => this.db.delete(TABLES[kind])) as any);
     }
+
+    // list
 
     async list<T extends Storable>(cls: StorableConstructor<T>, opts: StorageListOptions = {}): Promise<T[]> {
         const kind = new cls().kind;
-        const tableName = this.tableFor(kind);
+        const tbl = tableFor(kind);
+        const cols = getTableColumns(tbl);
         const { offset = 0, limit: rowLimit, query: where, orderBy, orderByDirection = "asc" } = opts;
 
-        let sqlQuery = `SELECT data FROM ${tableName}`;
-        const params: (string | number | boolean)[] = [];
+        let q: any = this.db.select({ data: (tbl as any).data }).from(tbl);
 
         if (where) {
-            const { sql: whereSql, params: whereParams } = queryToSqlWhere(where);
-            sqlQuery += ` WHERE ${whereSql}`;
-            params.push(...whereParams);
+            q = q.where(buildWhere(tbl, where));
         }
 
         if (orderBy) {
-            const direction = orderByDirection === "desc" ? "DESC" : "ASC";
-            sqlQuery += ` ORDER BY ${orderBy} ${direction}`;
-        }
-
-        if (offset) {
-            sqlQuery += ` OFFSET ?`;
-            params.push(offset);
+            const col = resolveSqlColumn(cols, orderBy);
+            q = q.orderBy(orderByDirection === "desc" ? desc(col) : asc(col));
         }
 
         if (rowLimit && rowLimit !== Infinity) {
-            sqlQuery += ` LIMIT ?`;
-            params.push(rowLimit);
+            q = q.limit(Number(rowLimit));
         }
 
-        const { results } = await this.db
-            .prepare(sqlQuery)
-            .bind(...params)
-            .all<{ data: string }>();
+        if (offset) {
+            q = q.offset(Number(offset));
+        }
 
-        return results.map((row: { data: string }) => new cls().fromRaw(JSON.parse(row.data)));
+        const results: Array<{ data: string }> = await q;
+        return results.map((row) => new cls().fromRaw(JSON.parse(row.data)));
     }
+
+    // count
 
     async count<T extends Storable>(cls: StorableConstructor<T>, query?: StorageQuery): Promise<number> {
         const kind = new cls().kind;
-        const tableName = this.tableFor(kind);
+        const tbl = tableFor(kind);
 
-        let sqlQuery = `SELECT COUNT(*) as cnt FROM ${tableName}`;
-        const params: (string | number | boolean)[] = [];
+        let q: any = this.db.select({ count: sql<number>`count(*)` }).from(tbl);
 
         if (query) {
-            const { sql: whereSql, params: whereParams } = queryToSqlWhere(query);
-            sqlQuery += ` WHERE ${whereSql}`;
-            params.push(...whereParams);
+            q = q.where(buildWhere(tbl, query));
         }
 
-        const result = await this.db
-            .prepare(sqlQuery)
-            .bind(...params)
-            .first<{ cnt: number }>();
-
-        return result?.cnt ?? 0;
+        const result = await q;
+        return result[0]?.count ?? 0;
     }
+
+    // batch write
+
+    async saveBatch<T extends Storable>(objs: T[]): Promise<void> {
+        const statements = objs.map((obj) => {
+            const tbl = tableFor(obj.kind);
+            const raw = obj.toRaw();
+
+            if (obj.kind === "orgmember") {
+                const orgId = raw.orgId ?? raw.org_id;
+                const accountId = raw.accountId ?? raw.account_id;
+                return this.db
+                    .insert(tbl as typeof orgMembers)
+                    .values({
+                        org_id: orgId,
+                        account_id: accountId,
+                        role: raw.role,
+                        status: raw.status,
+                    })
+                    .onConflictDoUpdate({
+                        target: [(tbl as typeof orgMembers).org_id, (tbl as typeof orgMembers).account_id],
+                        set: { role: raw.role, status: raw.status },
+                    });
+            }
+
+            return this.db
+                .insert(tbl)
+                .values({ id: obj.id, data: JSON.stringify(raw) } as any)
+                .onConflictDoUpdate({
+                    target: "id" as any,
+                    set: { data: JSON.stringify(raw) } as any,
+                });
+        });
+
+        await this.db.batch(statements as any);
+    }
+}
+
+// ──────────────────────────────────────────────────────────────
+// Error helpers
+// ──────────────────────────────────────────────────────────────
+
+function isUniqueViolation(err: unknown): boolean {
+    if (err && typeof err === "object") {
+        const e = err as Record<string, unknown>;
+        if ("code" in e) {
+            const c = e.code;
+            return c === "SQLITE_CONSTRAINT" || c === 2067 || String(c).includes("CONSTRAINT");
+        }
+        if ("message" in e) {
+            return String(e.message).toLowerCase().includes("unique");
+        }
+    }
+    return false;
 }
