@@ -1,0 +1,51 @@
+{
+    "taskId": "T16",
+    "description": "Resend-backed messenger implementation verification",
+    "timestamp": "2026-05-04",
+    "results": {
+        "mockMessengerEmailCapture": {
+            "test": "EmailAuthMessage payload capture",
+            "recipient": "test@example.com",
+            "template": "email-auth",
+            "subject": "Email Verification (Request ID: req-999)",
+            "htmlContainsCode": true,
+            "codeValue": "123456"
+        },
+        "orgInviteMessage": {
+            "test": "JoinOrgInviteMessage payload",
+            "recipient": "user@example.com",
+            "template": "join-org-invite",
+            "data": {
+                "orgName": "Acme Corp",
+                "invitedBy": "alice@example.com",
+                "acceptInviteUrl": "https://app.padloc.app/invite/abc123"
+            }
+        },
+        "failedLoginMessage": {
+            "test": "FailedLoginAttemptMessage payload",
+            "recipient": "admin@example.com",
+            "template": "failed-login-attempt",
+            "location": "Chicago, IL"
+        },
+        "allTemplatesVerified": ["email-auth", "join-org-invite", "failed-login-attempt"],
+        "totalMessagesSent": 3,
+        "mockBackendCapture": "PASS - MockMessenger captures all sent payloads in-memory without external API calls"
+    },
+    "acceptanceCriteria": {
+        "requiredMessageTypesProduceResendPayloads": "PASS - 3 message types tested, all produce correctly structured payloads",
+        "resendErrorResponsesMapToApplicationErrors": "PASS - ResendMessenger maps non-2xx responses to Err(SERVER_ERROR)",
+        "testModeCapturesEmailWithoutExternalSend": "PASS - MockMessenger records all payloads in-memory, no network calls"
+    },
+    "artifacts": {
+        "resendMessenger": "packages/worker/src/email/resend.ts",
+        "mockMessenger": "packages/worker/src/email/resend.ts",
+        "templates": "packages/worker/src/email/templates.ts (auto-generated from assets/email/*.{html,txt})",
+        "bundleScript": "scripts/bundle-templates.ts",
+        "envBindings": "wrangler.toml with EMAIL_KV for all envs (dev/preview/production)"
+    },
+    "constraints": {
+        "noNodemailer": "CONFIRMED - no nodemailer imports",
+        "noRuntimeFsAccess": "CONFIRMED - templates bundled as compile-time TS constants",
+        "noVerificationCodeLogging": "CONFIRMED - code value only interpolated into templates, never logged"
+    }
+}
