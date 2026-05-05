@@ -1,0 +1,64 @@
+T13 — Worker crypto/platform adapter evidence
+Date: 2026-05-05
+
+Implementation:
+- packages/worker/src/crypto.ts implements WorkerCryptoProvider with Web Crypto only:
+  crypto.getRandomValues, crypto.subtle.digest/importKey/sign/verify/encrypt/decrypt/generateKey/exportKey/deriveBits.
+- packages/worker/src/platform.ts exposes WorkerCryptoProvider and a Web Fetch wrapper.
+- packages/core/src/srp.ts now has constantTimeEqual() with XOR reduction over Uint8Array values.
+- packages/core/src/server.ts already verifies SRP M1 via getCryptoProvider().timingSafeEqual(); the stale srp.ts byte-identity example was replaced.
+- AES-CCM is explicitly not supported in Worker v1 because Cloudflare Web Crypto does not provide AES-CCM.
+
+Static guard:
+- Searched packages/worker and packages/core/src for `crypto` / `node:crypto` imports reachable from Worker path.
+- Result: no matches outside the Node server implementation.
+- LSP diagnostics are clean for changed TypeScript files:
+  packages/core/src/srp.ts, packages/worker/src/crypto.ts, packages/worker/src/platform.ts,
+  packages/worker/test/crypto-parity.ts, packages/worker/test/crypto-parity.worker.ts.
+
+Context7:
+- Required Context7 lookup was attempted for Web Crypto APIs, but the configured Context7 account returned monthly quota exceeded.
+- Fallback docs checked: MDN SubtleCrypto / deriveBits and Cloudflare Workers Web Crypto docs.
+
+Local Worker runtime proof:
+
+Command:
+  npm run test:crypto-parity
+
+Result:
+  PASS — 7/7 T2 parity vectors passed in wrangler dev --local:
+  - Worker Web Crypto runtime availability
+  - SRP/session negotiation M1/M2 verification
+  - HMAC request signature contract
+  - PBES2/PBKDF2 and AES-GCM vector
+  - RSA wrapping and signing fixtures
+  - TOTP RFC 6238 vectors
+  - WebAuthn verifier input shape
+
+Local CPU-budget smoke:
+
+Command:
+  node test/run-crypto-parity-worker.mjs --local --benchmark
+
+Result:
+  PASS — 8/8 checks passed.
+  completeAuthRequest crypto budget: 128 ms wall, threshold 200 ms.
+  Benchmark exercises PBKDF2-HMAC-SHA-256 1,000,000 iterations + SRP-4096 + RSA-PSS verify.
+
+Remote Worker Paid proof attempt:
+
+Command:
+  CLOUDFLARE_API_TOKEN=[from 1Password: CLOUD_FLARE_MASTER_API_TOKEN]
+  CLOUDFLARE_ACCOUNT_ID=25bb5f8d9ec4a36106f0ff6b519133b1
+  npm run test:crypto-parity:remote
+
+Result:
+  FAIL — wrangler dev --remote reached Cloudflare runtime and all 7 T2 parity vectors passed,
+  but the required CPU-budget benchmark failed before timing:
+
+  Pbkdf2 failed: iteration counts above 100000 are not supported (requested 1000000).
+
+Disposition:
+- T2 parity vectors pass in local and remote Worker runtime.
+- The security requirement to keep PBKDF2 at 1,000,000 iterations cannot currently be satisfied by Cloudflare Workers Web Crypto remote runtime via crypto.subtle.deriveBits.
+- Iterations were not weakened. Node crypto was not imported. The remote benchmark is intentionally failing rather than silently lowering security.

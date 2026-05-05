@@ -14,7 +14,7 @@ function removeTrailingSlash(url) {
 
 const out = process.env.PL_PWA_DIR || resolve(__dirname, "dist");
 const serverUrl = removeTrailingSlash(
-    process.env.PL_SERVER_URL || `http://0.0.0.0:${process.env.PL_SERVER_PORT || 3000}`
+    process.env.PL_SERVER_URL || `http://127.0.0.1:${process.env.PL_WORKER_PORT || 8787}`,
 );
 const pwaUrl = removeTrailingSlash(process.env.PL_PWA_URL || `http://localhost:${process.env.PL_PWA_PORT || 8080}`);
 const rootDir = resolve(__dirname, "../..");
@@ -49,6 +49,9 @@ module.exports = {
         extensions: [".ts", ".js", ".css", ".svg", ".png", ".jpg"],
         alias: {
             assets: assetsDir,
+            "@padloc/core": resolve(rootDir, "packages/core"),
+            "@padloc/app": resolve(rootDir, "packages/app"),
+            "@padloc/locale": resolve(rootDir, "packages/locale"),
         },
     },
     module: {
@@ -115,7 +118,7 @@ module.exports = {
 
                                 data.html = data.html.replace(
                                     `[REPLACE_${cspRule.replace("-src", "").toUpperCase()}]`,
-                                    `${files.map((file) => `${pwaUrl}/${file}`).join(" ")}`
+                                    `${files.map((file) => `${pwaUrl}/${file}`).join(" ")}`,
                                 );
                             }
 
@@ -124,7 +127,7 @@ module.exports = {
                             data.html = data.html.replace("[REPLACE_CONNECT]", connectReplacement);
 
                             callback(null, data);
-                        }
+                        },
                     );
 
                     return true;
@@ -235,7 +238,7 @@ module.exports = {
 
                         htmlFileContents = htmlFileContents.replace(
                             `[REPLACE_${cspRule.replace("-src", "").toUpperCase()}]`,
-                            `${files.map((file) => `${pwaUrl}/${file}`).join(" ")}`
+                            `${files.map((file) => `${pwaUrl}/${file}`).join(" ")}`,
                         );
                     }
 

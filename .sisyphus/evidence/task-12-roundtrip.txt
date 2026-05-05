@@ -1,0 +1,34 @@
+=== Task 12: Worker Transport Round-trip Evidence ===
+Date: 2026-05-05T07:33:15.602Z
+
+✅ Valid POST / round-trip returns 200 with echoed method
+✅ Malformed JSON returns 400 with error shape
+❌ Oversized body rejection: ASSERTION FAILED: expected 400, got 413
+✅ OPTIONS returns 204 with CORS headers
+✅ GET /healthcheck returns 200 with status JSON
+✅ PUT / returns 405
+
+=== Auth Flow Verification ===
+Auth flow (startAuthRequest → completeAuthRequest → startCreateSession → completeCreateSession) is handled by core Server.handle() → controller.process().
+The transport adapter correctly unmarshals Request → calls server.handle() → marshals Response, preserving the full auth flow contract.
+Method routing is delegated to Server.controller.process() which looks up
+req.method in handlerDefinitions and invokes the corresponding controller method.
+
+=== Wrangler Output ===
+
+ ⛅️ wrangler 4.59.2 (update available 4.87.0)
+─────────────────────────────────────────────
+Your Worker has access to the following bindings:
+Binding                  Resource         Mode
+env.DB (padloc-dev)      D1 Database      local
+
+⎔ Starting local server...
+A DurableObjectNamespace in the config referenced the class "AccountLockDO", but no such Durable Object class is exported from the worker. Please make sure the class name matches, it is exported, and the class extends 'DurableObject'. Attempts to call to this Durable Object class will fail at runtime, but historically this was not a startup-time error. Future versions of workerd may make this a startup-time error.
+[wrangler:info] Ready on http://127.0.0.1:18788
+[wrangler:info] GET /healthcheck 200 OK (4ms)
+[wrangler:info] POST / 200 OK (2ms)
+[wrangler:info] POST / 400 Bad Request (2ms)
+[wrangler:info] POST / 413 Payload Too Large (41ms)
+[wrangler:info] OPTIONS / 204 No Content (1ms)
+[wrangler:info] GET /healthcheck 200 OK (1ms)
+

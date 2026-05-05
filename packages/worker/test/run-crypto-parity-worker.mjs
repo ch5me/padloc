@@ -2,9 +2,20 @@ import http from "http";
 import { spawn } from "child_process";
 
 const mode = process.argv.includes("--remote") ? "--remote" : "--local";
+const includeBenchmark = process.argv.includes("--benchmark") || mode === "--remote";
+const enforceBudget = process.argv.includes("--enforce-budget") || mode === "--remote";
 const port = Number(process.env.CRYPTO_PARITY_PORT || 18787);
 const packageRoot = new URL("..", import.meta.url);
 const wranglerArgs = ["dev", "test/crypto-parity.worker.ts", mode, "--ip", "127.0.0.1", "--port", String(port)];
+const query = new URLSearchParams();
+
+if (includeBenchmark) {
+    query.set("benchmark", "1");
+}
+
+if (enforceBudget) {
+    query.set("enforceBudget", "1");
+}
 
 const child = spawn("wrangler", wranglerArgs, {
     cwd: packageRoot,
@@ -28,7 +39,9 @@ child.on("error", (error) => {
 
 function requestReport() {
     return new Promise((resolve, reject) => {
-        const req = http.get(`http://127.0.0.1:${port}/crypto-parity`, (res) => {
+        const queryString = query.toString();
+        const path = `/crypto-parity${queryString ? `?${queryString}` : ""}`;
+        const req = http.get(`http://127.0.0.1:${port}${path}`, (res) => {
             let body = "";
             res.setEncoding("utf8");
             res.on("data", (chunk) => {

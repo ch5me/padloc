@@ -1,0 +1,40 @@
+# Task 11: Transactionality Audit Evidence
+
+Generated: 2026-05-04
+Plan: .sisyphus/plans/padloc-cloudflare-native-backend.md §1192–1284
+
+## Multi-Write Flow Inventory
+
+All 10 flows documented in docs/architecture/adr-008-transactionality.md:
+
+1. ✅ createAccount → DO lock (email-derived id) + db.batch(accounts + auth + email_verifications)
+2. ✅ completeCreateSession → DO lock (account.id) + db.batch(sessions + auth read)
+3. ✅ revokeSession → DO lock (account.id) + single UPDATE
+4. ✅ updateAuth → DO lock (account.id) + db.batch
+5. ✅ createOrg/updateOrg/deleteOrg → DO lock (org.id) + db.batch(orgs + org_members + vaults cleanup)
+6. ✅ acceptInvite → DO lock (org.id AND account.id, sorted order) + db.batch(org_members + invites + vaults)
+7. ✅ createVault/updateVault → DO lock (owner id) + single statement
+8. ✅ createAttachment → DO lock (vault owner); D1 write BEFORE R2 PUT; R2 failure → D1 rollback
+9. ✅ deleteAttachment → DO lock (vault owner); R2 DELETE BEFORE D1 delete; D1 failure → orphan record
+10. ✅ deleteAccount → DO lock (account.id) + db.batch cascades + R2 prefix delete + Provisioner
+
+## Lock Acquisition Rule
+
+- All identities [account.id, ...account.orgs.map(o => o.id)] sorted lexicographically
+- Locks acquired in sorted order, preventing deadlock on overlapping identity sets
+- Single AccountLockDO class, one instance per identity key
+
+## KV Guardrail
+
+- KV forbidden as authoritative consistency owner
+- KV permitted only for: rate-limit hints, ephemeral cache, session presence hints
+- All auth/session/vault/org/account state: D1 is sole SSOT
+
+## Source Files Analyzed
+
+- packages/core/src/server.ts:2188 (_requestQueue declaration)
+- packages/core/src/server.ts:2237-2257 (_addToQueue implementation)
+- packages/core/src/vault.ts (Vault entity, owner field)
+- packages/core/src/org.ts (Org entity, member management, vault pointers)
+- packages/core/src/invite.ts (Invite lifecycle, acceptOrg interaction)
+- packages/core/src/session.ts (Session entity, account relationship)

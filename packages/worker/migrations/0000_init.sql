@@ -38,6 +38,7 @@ CREATE INDEX IF NOT EXISTS auth_email_idx ON auth(email);
 CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY,
     account_id TEXT NOT NULL,
+    data TEXT NOT NULL,
     key_blob TEXT NOT NULL,
     expires_at TEXT NOT NULL,
     revoked_at TEXT,

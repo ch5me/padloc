@@ -1,0 +1,567 @@
+{
+    "generatedAt": "2026-05-04T00:00:00Z",
+    "sourceDirectory": "packages/server/src",
+    "methodology": "AST-grep + regex grep across 28 TypeScript files; dependency analysis from package.json",
+    "blockers": [
+        {
+            "category": "node-builtin",
+            "module": "fs / fs-extra",
+            "files": [
+                {
+                    "path": "email/smtp.ts",
+                    "import": "import { readFileSync, readdirSync } from \"fs\"",
+                    "usage": "Synchronous file reading for email template loading at construction time",
+                    "classification": "keep-outside",
+                    "rationale": "Template loading requires runtime filesystem access. Replace with preloaded templates or R2/KV fetch in Worker path. Not needed in Worker bundle — use Durable Objects or separate email service.",
+                    "workerAlternative": "Pre-render templates at build time, store in KV. Or delegate to external email microservice."
+                },
+                {
+                    "path": "attachments/fs.ts",
+                    "import": "import { readFile, writeFile, ensureDir, remove, readdir, stat } from \"fs-extra\"",
+                    "usage": "Full filesystem operations for attachment CRUD",
+                    "classification": "replace",
+                    "rationale": "This is the FS-based attachment storage backend. The Worker equivalent is Cloudflare R2 for blob storage.",
+                    "workerAlternative": "R2 storage backend (already exists as S3AttachmentStorage pattern — swap S3Client for R2 binding)."
+                },
+                {
+                    "path": "storage/postgres.ts",
+                    "import": "import { readFileSync } from \"fs\"",
+                    "usage": "Reading TLS CA certificate file contents",
+                    "classification": "replace",
+                    "rationale": "TLS CA file reading can be replaced with inline cert string from env binding.",
+                    "workerAlternative": "Read from env.TLS_CA_FILE_CONTENTS or store in KV. D1 doesn't need TLS CA since it's internal."
+                },
+                {
+                    "path": "tools/mongo2postgres.ts",
+                    "import": "import { readFileSync } from \"fs\"",
+                    "usage": "Dev migration tool — reads config files",
+                    "classification": "delete",
+                    "rationale": "Dev-only one-shot migration tool. Never belongs in Worker bundle.",
+                    "workerAlternative": "None needed — dev tool only."
+                }
+            ]
+        },
+        {
+            "category": "node-builtin",
+            "module": "path",
+            "files": [
+                {
+                    "path": "attachments/fs.ts",
+                    "import": "import { join } from \"path\"",
+                    "usage": "Path construction for file-based attachment storage",
+                    "classification": "replace",
+                    "rationale": "Used alongside fs operations. When FSAttachmentStorage is replaced with R2, path.join is no longer needed.",
+                    "workerAlternative": "String template literals `${vault}/${id}` for R2 object keys."
+                },
+                {
+                    "path": "config.ts",
+                    "import": "import { resolve } from \"path\"",
+                    "usage": "Resolving .env file path from CLI args",
+                    "classification": "keep-outside",
+                    "rationale": "Config loading is init-time only. Workers use env bindings — no path resolution needed.",
+                    "workerAlternative": "Workers receive config via env bindings — no file resolution."
+                },
+                {
+                    "path": "storage/postgres.ts",
+                    "import": "import { resolve } from \"path\"",
+                    "usage": "Resolving TLS CA file path",
+                    "classification": "replace",
+                    "rationale": "Same as fs usage — TLS CA resolution becomes env binding in Worker.",
+                    "workerAlternative": "Env binding or inline string."
+                },
+                {
+                    "path": "storage/mongodb.ts",
+                    "import": "import path from \"path\"",
+                    "usage": "Resolving TLS CA file path for MongoDB connection",
+                    "classification": "keep-outside",
+                    "rationale": "MongoDB storage backend itself is not Worker-compatible. Path usage goes with it.",
+                    "workerAlternative": "None — entire MongoDB storage backend is keep-outside."
+                },
+                {
+                    "path": "init.ts",
+                    "import": "import { resolve, join } from \"path\"",
+                    "usage": "Resolving root directory and assets directory paths",
+                    "classification": "keep-outside",
+                    "rationale": "Init-time path resolution for server bootstrap. Workers don't have cwd() or file system.",
+                    "workerAlternative": "Workers use env bindings and pre-configured values."
+                },
+                {
+                    "path": "tools/mongo2postgres.ts",
+                    "import": "import { resolve } from \"path\"",
+                    "usage": "Dev migration tool config path resolution",
+                    "classification": "delete",
+                    "rationale": "Dev tool — never in Worker bundle.",
+                    "workerAlternative": "None needed."
+                },
+                {
+                    "path": "email/smtp.ts",
+                    "import": "import { resolve } from \"path\"",
+                    "usage": "Template directory path resolution",
+                    "classification": "keep-outside",
+                    "rationale": "Part of email/SMTP subsystem that stays outside Worker.",
+                    "workerAlternative": "None — SMTP sender is keep-outside."
+                }
+            ]
+        },
+        {
+            "category": "node-builtin",
+            "module": "http",
+            "files": [
+                {
+                    "path": "transport/http.ts",
+                    "import": "import { createServer, IncomingMessage } from \"http\"",
+                    "usage": "Primary HTTP server for receiving requests",
+                    "classification": "replace",
+                    "rationale": "Core transport layer. Workers use fetch handler instead of http.createServer.",
+                    "workerAlternative": "export default { async fetch(request, env, ctx) }"
+                },
+                {
+                    "path": "transport/http.ts",
+                    "import": "import { request as requestHttp } from \"http\"",
+                    "usage": "Outbound HTTP requests from HTTPSender",
+                    "classification": "replace",
+                    "rationale": "Outbound requests use global fetch() in Workers.",
+                    "workerAlternative": "global fetch() function."
+                },
+                {
+                    "path": "legacy.ts",
+                    "import": "import * as http from \"http\"",
+                    "usage": "Legacy server HTTP client for migration compatibility",
+                    "classification": "keep-outside",
+                    "rationale": "Legacy migration feature — not core Worker functionality.",
+                    "workerAlternative": "fetch() if needed, but legacy migration should remain a separate service."
+                },
+                {
+                    "path": "scim.ts",
+                    "import": "import { createServer, IncomingMessage, ServerResponse } from \"http\"",
+                    "usage": "Standalone SCIM server listening on separate port (5000)",
+                    "classification": "keep-outside",
+                    "rationale": "SCIM runs as independent HTTP server on its own port. Not composable into Worker fetch handler.",
+                    "workerAlternative": "Could be rewritten as a separate Cloudflare Worker route, but SCIM's complex stateful handling makes it better as a separate service."
+                },
+                {
+                    "path": "provisioning/stripe.ts",
+                    "import": "import { createServer, IncomingMessage, ServerResponse } from \"http\"",
+                    "usage": "Stripe portal server listening on separate port (4000)",
+                    "classification": "keep-outside",
+                    "rationale": "Stripe billing portal runs as independent HTTP micro-server. Not part of main request pipeline.",
+                    "workerAlternative": "Separate Cloudflare Worker for billing portal, or redirect to Stripe-hosted billing portal."
+                },
+                {
+                    "path": "provisioning/api.ts",
+                    "import": "import { createServer, IncomingMessage, ServerResponse } from \"http\"",
+                    "usage": "API provisioner server on separate port (4000)",
+                    "classification": "keep-outside",
+                    "rationale": "Provisioning API runs as independent server. Could potentially be merged into main Worker routes.",
+                    "workerAlternative": "Merged into main Worker fetch handler routes OR separate Worker."
+                }
+            ]
+        },
+        {
+            "category": "node-builtin",
+            "module": "https",
+            "files": [
+                {
+                    "path": "transport/http.ts",
+                    "import": "import { request as requestHttps } from \"https\"",
+                    "usage": "Outbound HTTPS requests from HTTPSender",
+                    "classification": "replace",
+                    "rationale": "Same as http — Workers use global fetch() for all outbound requests.",
+                    "workerAlternative": "global fetch() handles both HTTP and HTTPS."
+                },
+                {
+                    "path": "legacy.ts",
+                    "import": "import * as https from \"https\"",
+                    "usage": "Legacy server HTTPS client",
+                    "classification": "keep-outside",
+                    "rationale": "Part of legacy migration subsystem.",
+                    "workerAlternative": "fetch() if needed, but legacy stays outside Worker."
+                }
+            ]
+        },
+        {
+            "category": "node-builtin",
+            "module": "stream",
+            "files": [
+                {
+                    "path": "attachments/s3.ts",
+                    "import": "import { Readable } from \"stream\"",
+                    "usage": "Converting S3 response body stream to Uint8Array via Buffer.concat",
+                    "classification": "replace",
+                    "rationale": "S3 GetObject returns a Node Readable stream. In Workers, response.body is a Web ReadableStream of Uint8Array.",
+                    "workerAlternative": "response.arrayBuffer() or new Uint8Array(await response.arrayBuffer()) for R2 blob reads."
+                }
+            ]
+        },
+        {
+            "category": "node-builtin",
+            "module": "crypto",
+            "files": [
+                {
+                    "path": "crypto/node.ts",
+                    "import": "import { randomBytes, createHash, createHmac, sign, verify, constants, generateKeyPair, pbkdf2, createCipheriv, createDecipheriv, publicEncrypt, privateDecrypt, timingSafeEqual } from \"crypto\"",
+                    "usage": "Complete cryptographic provider — hashing, AES, RSA, HMAC, PBKDF2, signing",
+                    "classification": "replace",
+                    "rationale": "The entire crypto provider must be rewritten. Workers support Web Crypto API (crypto.subtle) with equivalent operations: SHA-256/512, AES-GCM, RSA-OAEP, HMAC, PBKDF2, ECDH.",
+                    "workerAlternative": "crypto.subtle: digest(), importKey(), sign(), verify(), encrypt(), decrypt(), deriveBits(). Note: Web Crypto uses Async-only API, unlike Node's sync+async mix."
+                }
+            ]
+        },
+        {
+            "category": "node-builtin",
+            "module": "Buffer (global)",
+            "files": [
+                {
+                    "path": "attachments/s3.ts",
+                    "import": "implicit global Buffer",
+                    "usage": "Buffer.concat() on stream chunks",
+                    "classification": "replace",
+                    "rationale": "Used with Node Readable stream. Web streams produce Uint8Array natively.",
+                    "workerAlternative": "native Uint8Array from Web ReadableStream chunks."
+                },
+                {
+                    "path": "transport/http.ts",
+                    "import": "implicit global Buffer",
+                    "usage": "Buffer[] array for request body accumulation, Buffer.concat(), Buffer.byteLength()",
+                    "classification": "replace",
+                    "rationale": "IncomingMessage chunks in Node are Buffer. Workers request.body is a Web ReadableStream.",
+                    "workerAlternative": "await request.arrayBuffer() or await request.text() — native Web APIs."
+                },
+                {
+                    "path": "crypto/node.ts",
+                    "import": "implicit global Buffer",
+                    "usage": "Buffer.from() for encoding key material, Buffer.concat() for cipher output",
+                    "classification": "replace",
+                    "rationale": "Web Crypto API uses ArrayBuffer/Uint8Array directly — no Buffer needed.",
+                    "workerAlternative": "Uint8Array.from(), new Uint8Array(arrayBuffer), direct ArrayBuffer usage."
+                }
+            ]
+        },
+        {
+            "category": "node-builtin",
+            "module": "url",
+            "files": [
+                {
+                    "path": "provisioning/stripe.ts",
+                    "import": "import { URLSearchParams } from \"url\"",
+                    "usage": "URL parameter signing and verification for portal URLs",
+                    "classification": "replace",
+                    "rationale": "URLSearchParams is available as a global in Workers (Web API).",
+                    "workerAlternative": "Global URLSearchParams class — no import needed."
+                }
+            ]
+        },
+        {
+            "category": "node-builtin",
+            "module": "repl / net (commented out)",
+            "files": [
+                {
+                    "path": "repl.ts",
+                    "import": "// import repl from \"repl\"; // import net from \"net\";",
+                    "usage": "REPL server for interactive console — all commented out",
+                    "classification": "delete",
+                    "rationale": "Fully commented out. Dev/ops tool only.",
+                    "workerAlternative": "None needed."
+                },
+                {
+                    "path": "init-repl-client.ts",
+                    "import": "process.env.PL_REPL_PORT (commented)",
+                    "usage": "REPL client entry point — commented out",
+                    "classification": "delete",
+                    "rationale": "Entire file is commented out.",
+                    "workerAlternative": "None needed."
+                }
+            ]
+        },
+        {
+            "category": "node-builtin",
+            "module": "process.env / process.argv / process.exit",
+            "files": [
+                {
+                    "path": "config.ts",
+                    "import": "implicit process",
+                    "usage": "process.argv for --env flags, process.env for config, process.cwd()",
+                    "classification": "keep-outside",
+                    "rationale": "Config bootstrapping — Workers use env bindings from wrangler.toml.",
+                    "workerAlternative": "env object passed to fetch handler. No process.argv or process.cwd()."
+                },
+                {
+                    "path": "init.ts",
+                    "import": "implicit process",
+                    "usage": "process.env.PL_ASSETS_DIR, process.env.PL_LEGACY_URL, process.env.PL_LEGACY_KEY, process.argv.includes('--dryrun'), process.exit(), process.on('uncaughtException')",
+                    "classification": "keep-outside",
+                    "rationale": "Server lifecycle management — Workers don't have process events or explicit exit calls.",
+                    "workerAlternative": "env bindings for config. No uncaughtException handling — Worker handles errors per-request. No process.exit."
+                },
+                {
+                    "path": "storage/postgres.ts",
+                    "import": "implicit process",
+                    "usage": "process.cwd() for resolving TLS CA file path",
+                    "classification": "replace",
+                    "rationale": "Workers have no working directory concept.",
+                    "workerAlternative": "Env binding with full path or inline content."
+                },
+                {
+                    "path": "storage/mongodb.ts",
+                    "import": "implicit process",
+                    "usage": "process.cwd() for TLS CA file resolution",
+                    "classification": "keep-outside",
+                    "rationale": "MongoDB backend stays outside Worker entirely.",
+                    "workerAlternative": "None — whole backend is keep-outside."
+                }
+            ]
+        },
+        {
+            "category": "npm-package",
+            "module": "level",
+            "files": [
+                {
+                    "path": "storage/leveldb.ts",
+                    "import": "import level from \"level\"",
+                    "usage": "LevelDB key-value storage backend — the DEFAULT data storage",
+                    "classification": "replace",
+                    "rationale": "LevelDB is a native Node.js database. Workers use D1 (SQLite) or KV for equivalent functionality.",
+                    "workerAlternative": "Cloudflare D1 for structured data, KV for simple key-value. D1 is preferred since the storage API expects complex queries."
+                }
+            ]
+        },
+        {
+            "category": "npm-package",
+            "module": "pg",
+            "files": [
+                {
+                    "path": "storage/postgres.ts",
+                    "import": "import { Pool } from \"pg\"",
+                    "usage": "PostgreSQL connection pool — alternative data storage backend",
+                    "classification": "replace",
+                    "rationale": "pg package uses Node.js net sockets. Workers cannot open raw TCP connections.",
+                    "workerAlternative": "Cloudflare D1 (SQLite via Hyperdrive) is the Worker-native relational DB. Migration SQL needed for PostgreSQL->D1 schema conversion."
+                },
+                {
+                    "path": "tools/mongo2postgres.ts",
+                    "import": "import { Pool } from \"pg\"",
+                    "usage": "Dev migration tool — writes to PostgreSQL",
+                    "classification": "delete",
+                    "rationale": "Dev-only migration tool.",
+                    "workerAlternative": "None needed."
+                }
+            ]
+        },
+        {
+            "category": "npm-package",
+            "module": "mongodb",
+            "files": [
+                {
+                    "path": "storage/mongodb.ts",
+                    "import": "import { MongoClient, Db, Collection, ObjectId, Filter, FindOptions } from \"mongodb\"",
+                    "usage": "MongoDB connection and operations — alternative data storage backend",
+                    "classification": "replace",
+                    "rationale": "MongoDB driver requires TCP connections. Workers cannot connect to MongoDB directly.",
+                    "workerAlternative": "Cloudflare D1. Or keep MongoDB but access via a separate Node.js microservice proxied through Workers."
+                },
+                {
+                    "path": "logging/mongodb.ts",
+                    "import": "import { ObjectId } from \"mongodb\"",
+                    "usage": "ObjectId usage for MongoDB log storage",
+                    "classification": "keep-outside",
+                    "rationale": "Follows MongoDBStorage — stays outside Worker if MongoDB is externalized.",
+                    "workerAlternative": "None — MongoDB logging stays outside."
+                },
+                {
+                    "path": "tools/mongo2postgres.ts",
+                    "import": "import { MongoClient } from \"mongodb\"",
+                    "usage": "Dev migration tool — reads from MongoDB",
+                    "classification": "delete",
+                    "rationale": "Dev tool only.",
+                    "workerAlternative": "None needed."
+                }
+            ]
+        },
+        {
+            "category": "npm-package",
+            "module": "nodemailer",
+            "files": [
+                {
+                    "path": "email/smtp.ts",
+                    "import": "import { createTransport, Transporter, TransportOptions } from \"nodemailer\"",
+                    "usage": "SMTP email delivery",
+                    "classification": "keep-outside",
+                    "rationale": "nodemailer uses TCP sockets for SMTP. Workers cannot make raw TCP connections. Email sending should be delegated to a separate Node.js service or use an API-based email provider.",
+                    "workerAlternative": "Email API service (Resend, SendGrid, SES) called via HTTP fetch from Worker. Or delegate to separate email microservice."
+                }
+            ]
+        },
+        {
+            "category": "npm-package",
+            "module": "@aws-sdk/client-s3",
+            "files": [
+                {
+                    "path": "attachments/s3.ts",
+                    "import": "import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, ListObjectsCommand, DeleteObjectsCommand, S3Client } from \"@aws-sdk/client-s3\"",
+                    "usage": "S3-based attachment storage",
+                    "classification": "replace",
+                    "rationale": "@aws-sdk/client-s3 can work in Workers with nodejs_compat but is heavy. Cloudflare R2 is the native equivalent with S3-compatible API and zero egress fees.",
+                    "workerAlternative": "Cloudflare R2 binding — env.R2_BUCKET.get/put/delete/list. S3-compatible API makes migration straightforward."
+                }
+            ]
+        },
+        {
+            "category": "npm-package",
+            "module": "geolite2-redist",
+            "files": [
+                {
+                    "path": "geoip.ts",
+                    "import": "import geolite2 from \"geolite2-redist\"",
+                    "usage": "Downloads MaxMind GeoLite2 database files from filesystem",
+                    "classification": "replace",
+                    "rationale": "Downloads and opens .dat database files using Node fs. Workers cannot write to or read from filesystem.",
+                    "workerAlternative": "Cloudflare's built-in geolocation is available via request.cf.country, request.cf.city, request.cf.region. No external database needed."
+                }
+            ]
+        },
+        {
+            "category": "npm-package",
+            "module": "maxmind",
+            "files": [
+                {
+                    "path": "geoip.ts",
+                    "import": "import maxmind, { CityResponse } from \"maxmind\"",
+                    "usage": "Opens and queries MaxMind database files for IP -> location lookup",
+                    "classification": "replace",
+                    "rationale": "Requires loading database files into memory. Replaced by Cloudflare's native geolocation.",
+                    "workerAlternative": "request.cf object provides country, city, region, latitude, longitude natively."
+                }
+            ]
+        },
+        {
+            "category": "npm-package",
+            "module": "jsdom",
+            "files": [
+                {
+                    "path": "tools/dompurify.ts",
+                    "import": "import { JSDOM } from \"jsdom\"",
+                    "usage": "Creates DOMParser environment for DOMPurify HTML sanitization",
+                    "classification": "replace",
+                    "rationale": "JSDOM emulates a full DOM environment — very heavy and unnecessary in Workers which have native DOMParser.",
+                    "workerAlternative": "Workers have native DOMParser API. Initialize DOMPurify with DOMPurify(new DOMParser()) or use native DOMParser directly."
+                }
+            ]
+        },
+        {
+            "category": "npm-package",
+            "module": "dompurify",
+            "files": [
+                {
+                    "path": "tools/dompurify.ts",
+                    "import": "import dompurify from \"dompurify\"",
+                    "usage": "HTML sanitization for email template interpolation",
+                    "classification": "replace",
+                    "rationale": "DOMPurify requires a DOM environment. Workers can use DOMParser-based sanitization or trusted-types approach.",
+                    "workerAlternative": "Native DOMParser with sanitization, or use a lighter library like 'sanitize-html' that doesn't need a DOM."
+                }
+            ]
+        },
+        {
+            "category": "npm-package",
+            "module": "dotenv",
+            "files": [
+                {
+                    "path": "config.ts",
+                    "import": "import dotenv from \"dotenv\"",
+                    "usage": "Loading .env file for development configuration",
+                    "classification": "keep-outside",
+                    "rationale": "Workers use wrangler.toml env and secret bindings — no .env file loading.",
+                    "workerAlternative": "wrangler.toml [vars] and wrangler secret put."
+                }
+            ]
+        },
+        {
+            "category": "npm-package",
+            "module": "stripe",
+            "files": [
+                {
+                    "path": "provisioning/stripe.ts",
+                    "import": "import Stripe from \"stripe\"",
+                    "usage": "Stripe SDK for billing, subscriptions, and checkout sessions",
+                    "classification": "keep-outside",
+                    "rationale": "Stripe SDK uses Node.js HTTP module and is designed for server-side. Can work in Workers with compatibility mode, but billing is better handled as a separate service.",
+                    "workerAlternative": "Stripe REST API via fetch() calls from Worker. Or keep as separate Node.js billing microservice called from Worker via HTTP."
+                }
+            ]
+        },
+        {
+            "category": "npm-package",
+            "module": "mixpanel",
+            "files": [
+                {
+                    "path": "logging/mixpanel.ts",
+                    "import": "import { Mixpanel, init } from \"mixpanel\"",
+                    "usage": "Mixpanel analytics event logging",
+                    "classification": "keep-outside",
+                    "rationale": "Mixpanel SDK uses Node http module. Workers can send events via fetch() to Mixpanel's HTTP API directly.",
+                    "workerAlternative": "Direct fetch() to Mixpanel API endpoint: https://api.mixpanel.com/track"
+                }
+            ]
+        },
+        {
+            "category": "npm-package",
+            "module": "@simplewebauthn/server",
+            "files": [
+                {
+                    "path": "auth/webauthn.ts",
+                    "import": "@simplewebauthn/server (indirect via usage)",
+                    "usage": "WebAuthn authentication — credential verification and generation",
+                    "classification": "replace",
+                    "rationale": "@simplewebauthn/server depends on Node.js crypto module for CBOR decoding of credential public keys and signature verification. Not directly compatible with Workers.",
+                    "workerAlternative": "Manual WebAuthn verification using crypto.subtle and CBOR parsing, or use a Workers-compatible WebAuthn library."
+                }
+            ]
+        },
+        {
+            "category": "runtime-concept",
+            "module": "Buffer global",
+            "files": [
+                {
+                    "path": "auth/webauthn.ts",
+                    "import": "implicit global Buffer",
+                    "usage": "Buffer.from(base64ToBytes(...)) for WebAuthn credential ID and public key conversion",
+                    "classification": "replace",
+                    "rationale": "Buffer usage for data conversion. Works with Uint8Array directly.",
+                    "workerAlternative": "Uint8Array.from() or direct Uint8Array usage."
+                }
+            ]
+        }
+    ],
+    "summary": {
+        "totalBlockers": 24,
+        "byClassification": {
+            "replace": 11,
+            "isolate": 0,
+            "delete": 3,
+            "keep-outside": 10
+        },
+        "byCategory": {
+            "node-builtin": 10,
+            "npm-package": 12,
+            "runtime-concept": 2
+        },
+        "criticalPath": [
+            "crypto/node.ts — must rewrite entire crypto provider to crypto.subtle (blocks ALL auth, encryption, signing)",
+            "transport/http.ts — must replace http.createServer with Worker fetch handler (blocks request handling)",
+            "storage/leveldb.ts — default storage backend must become D1 or KV",
+            "storage/postgres.ts — pg Pool must become D1 Hyperdrive",
+            "attachments/s3.ts — S3 stream/Buffer must become R2 binding",
+            "attachments/fs.ts — fs-extra must become R2 binding",
+            "init.ts — entire server bootstrap must be restructured for Worker lifecycle"
+        ]
+    },
+    "notes": [
+        "No `node:` prefix imports found — all use bare module names.",
+        "@padloc/core dependency was NOT analyzed for Node imports — this task scoped to packages/server/src only.",
+        "The repl.ts and init-repl-client.ts files are fully commented out and classified as delete.",
+        "tools/mongo2postgres.ts is a one-shot migration tool classified as delete.",
+        "Worker-native alternatives leverage: crypto.subtle, fetch(), D1, KV, R2, Cloudflare geolocation (request.cf).",
+        "nodejs_compat is NOT considered a resolution per task requirements.",
+        "Some keep-outside services (Stripe, SMTP, SCIM) should become separate Workers or external microservices."
+    ]
+}

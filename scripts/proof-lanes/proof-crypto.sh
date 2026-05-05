@@ -16,6 +16,21 @@
 
 set -euo pipefail
 
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  echo "Usage: npm run proof:crypto"
+  echo ""
+  echo "Proves: @padloc/core crypto primitives match expected Cloudflare bindings"
+  echo "        (subtlecrypto API availability, argon2id availability, HMAC-SHA256)."
+  echo ""
+  echo "Required env/bindings:"
+  echo "  NODE_ENV=test — Ensures test-only crypto paths are exercised"
+  echo ""
+  echo "Exit codes:"
+  echo "  0 — All crypto parity checks pass"
+  echo "  1 — One or more crypto checks failed"
+  exit 0
+fi
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m'

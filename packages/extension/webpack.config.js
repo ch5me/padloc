@@ -6,7 +6,7 @@ const manifest = require("./src/manifest.json");
 const sharp = require("sharp");
 const { version } = require("./package.json");
 
-const serverUrl = process.env.PL_SERVER_URL || `http://0.0.0.0:${process.env.PL_SERVER_PORT || 3000}`;
+const serverUrl = process.env.PL_SERVER_URL || `http://127.0.0.1:${process.env.PL_WORKER_PORT || 8787}`;
 const rootDir = resolve(__dirname, "../..");
 const assetsDir = resolve(rootDir, process.env.PL_ASSETS_DIR || "assets");
 
@@ -31,6 +31,9 @@ module.exports = {
         extensions: [".ts", ".js", ".css", ".svg", ".png", ".jpg"],
         alias: {
             assets: assetsDir,
+            "@padloc/core": resolve(rootDir, "packages/core"),
+            "@padloc/app": resolve(rootDir, "packages/app"),
+            "@padloc/locale": resolve(rootDir, "packages/locale"),
         },
     },
     module: {
@@ -94,7 +97,7 @@ module.exports = {
                             description: web_extension?.description || `${name} Browser Extension`,
                         },
                         null,
-                        4
+                        4,
                     );
 
                     compilation.assets["manifest.json"] = {

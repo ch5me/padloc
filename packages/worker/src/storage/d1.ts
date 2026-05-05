@@ -17,6 +17,7 @@ import { SQLiteColumn } from "drizzle-orm/sqlite-core";
 
 import { Storable, StorableConstructor, Storage, StorageListOptions, StorageQuery } from "@padloc/core/src/storage";
 import { Err, ErrorCode } from "@padloc/core/src/error";
+import { hexToBytes } from "@padloc/core/src/encoding";
 
 import {
     accounts,
@@ -53,6 +54,17 @@ const TABLES = {
 } as const;
 
 type KnownKind = keyof typeof TABLES;
+
+/** Convert a BigInteger session key to Uint8Array so @AsBytes() serializes correctly */
+function normalizeSessionKey(obj: Storable): void {
+    if (obj.kind === "session") {
+        const key = (obj as any).key;
+        if (key && !(key instanceof Uint8Array)) {
+            const hex = key.toString(16);
+            (obj as any).key = hexToBytes(hex.length % 2 ? "0" + hex : hex);
+        }
+    }
+}
 
 function tableFor(kind: string): (typeof TABLES)[KnownKind] {
     const canonical = kind.toLowerCase() as KnownKind;
@@ -152,6 +164,7 @@ export class D1Storage implements Storage {
     // save
 
     async save<T extends Storable>(obj: T): Promise<void> {
+        normalizeSessionKey(obj);
         const tbl = tableFor(obj.kind);
         const raw = obj.toRaw();
 
@@ -204,15 +217,18 @@ export class D1Storage implements Storage {
                         ? new Date(raw.lastUsed).toISOString()
                         : new Date().toISOString();
                     const deviceJson = (raw as any).device ? JSON.stringify(raw.device) : null;
-                    stmt = `INSERT INTO ${tableName} (id, account_id, key_blob, expires_at, last_used_at, device_json) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET account_id = ?, key_blob = ?, expires_at = ?, last_used_at = ?, device_json = ?`;
+                    const dataJson = JSON.stringify(raw);
+                    stmt = `INSERT INTO ${tableName} (id, account_id, data, key_blob, expires_at, last_used_at, device_json) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET account_id = ?, data = ?, key_blob = ?, expires_at = ?, last_used_at = ?, device_json = ?`;
                     bindings = [
                         obj.id,
                         accountId,
+                        dataJson,
                         keyBlob,
                         expiresAt,
                         lastUsedAt,
                         deviceJson,
                         accountId,
+                        dataJson,
                         keyBlob,
                         expiresAt,
                         lastUsedAt,

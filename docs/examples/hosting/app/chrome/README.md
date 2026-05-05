@@ -18,7 +18,7 @@ This example assumes you already have `Node` and `NPM` installed.
    pointing to your server (via `PL_SERVER_URL` variable):
 
     ```sh
-    npm ci && PL_SERVER_URL=https://example.com/server/ npm run web-extension:build
+    npm ci && PL_SERVER_URL=https://example.com/ npm run web-extension:build
     ```
 
 That's it! You should now have a directory with the unsigned extension in in

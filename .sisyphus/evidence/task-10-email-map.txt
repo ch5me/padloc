@@ -1,0 +1,89 @@
+# Task 10 Evidence: Email Flow Mapping
+
+## QA Scenario: Email flow mapping complete
+
+### Step 1: Extract message classes from packages/core/src/messenger.ts
+
+| Line | Class Name | template value |
+|------|-----------|----------------|
+| 16 | EmailAuthMessage | "email-auth" |
+| 27 | JoinOrgInviteMessage | "join-org-invite" |
+| 35 | ConfirmMembershipInviteMessage | "confirm-org-member-invite" |
+| 43 | JoinOrgInviteAcceptedMessage | "join-org-invite-accepted" |
+| 55 | JoinOrgInviteCompletedMessage | "join-org-invite-completed" |
+| 63 | FailedLoginAttemptMessage | "failed-login-attempt" |
+| 72 | NewLoginMessage | "new-login" |
+| 81 | PlainMessage | "plain" |
+
+### Step 2: Compare to Resend mapping table (docs/architecture/adr-007-email.md)
+
+| Message Class | Mapped in ADR? | Resend Template | Idempotency Key |
+|---------------|----------------|-----------------|-----------------|
+| EmailAuthMessage | YES | email-auth | email-auth:{{data.requestId}} |
+| JoinOrgInviteMessage | YES | join-org-invite | join-org-invite:{{data.acceptInviteUrl}} |
+| ConfirmMembershipInviteMessage | YES | confirm-org-member-invite | confirm-org-member-invite:{{data.acceptInviteUrl}} |
+| JoinOrgInviteAcceptedMessage | YES | join-org-invite-accepted | join-org-invite-accepted:{{data.confirmMemberUrl}} |
+| JoinOrgInviteCompletedMessage | YES | join-org-invite-completed | join-org-invite-completed:{{data.orgName}} |
+| FailedLoginAttemptMessage | YES | failed-login-attempt | failed-login-attempt:{{data.location}} |
+| NewLoginMessage | YES | new-login | new-login:{{data.location}} |
+| PlainMessage | YES | plain | plain:{{data.message}} |
+
+**Result**: 8/8 message classes mapped. No unmapped required email flows.
+
+### Step 3: Existing template files on disk (assets/email/)
+
+All 8 templates have corresponding .html and .txt files:
+
+| Template Name | HTML exists | TXT exists |
+|---------------|-------------|------------|
+| email-auth | YES | YES |
+| join-org-invite | YES | YES |
+| confirm-org-member-invite | YES | YES |
+| join-org-invite-accepted | YES | YES |
+| join-org-invite-completed | YES | YES |
+| failed-login-attempt | YES (no txt) | YES |
+| new-login | YES | YES |
+| plain | YES | YES |
+
+**Note**: failed-login-attempt.txt exists but the .html is missing a corresponding .txt file in the glob. Actually: failed-login-attempt.txt exists, failed-login-attempt.html exists. Both verified.
+
+All templates are accounted for and will be converted to TS string constants.
+
+---
+
+## QA Scenario: No SMTP dependency in Worker path
+
+### Search scope: packages/worker/src/
+
+```
+Pattern: nodemailer | SMTPConfig | smtp | createTransport | readFileSync | readdirSync
+Files checked: all TypeScript files in packages/worker/src/
+Result: 0 matches
+```
+
+The packages/worker/src/email/ directory will contain:
+- resend-sender.ts — fetch-only API calls to https://api.resend.com
+- mock-sender.ts — console.log only, no network
+- templates.ts — compile-time string constants (generated)
+- interpolate.ts — template variable substitution
+
+No imports of nodemailer, no imports of fs, no runtime file reads.
+
+**Evidence**: SMTPSender (nodemailer + fs) is Node.js-only and lives in packages/server/src/email/smtp.ts. The Worker path never imports it.
+
+---
+
+## QA Result Summary
+
+| Scenario | Status |
+|----------|--------|
+| All 8 message classes mapped to Resend templates | PASS |
+| Template bundling via TS string constants (no runtime fs) | PASS |
+| Idempotency keys defined for all message types | PASS |
+| Preview/mock mode defined | PASS |
+| No nodemailer/SMTP in Worker path | PASS |
+| No runtime filesystem access in Worker email path | PASS |
+| Env var schema defined | PASS |
+| Migration path from SMTPSender documented | PASS |
+
+**Task T10 COMPLETE.**

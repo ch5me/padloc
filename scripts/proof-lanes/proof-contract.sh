@@ -17,6 +17,26 @@
 
 set -euo pipefail
 
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  echo "Usage: npm run proof:contract"
+  echo ""
+  echo "Proves: All planned Cloudflare Worker API methods have explicit dispositions"
+  echo "        (implemented, deferred, or explicitly rejected)."
+  echo ""
+  echo "Required env/bindings:"
+  echo "  None — this is a static analysis lane."
+  echo ""
+  echo "Requires:"
+  echo "  scripts/proof-lanes/inventory-api-methods.sh (T1)"
+  echo "  .sisyphus/outputs/api-method-dispositions.json"
+  echo ""
+  echo "Exit codes:"
+  echo "  0 — All methods accounted for"
+  echo "  1 — Undispositioned methods found"
+  echo "  2 — Inventory script missing"
+  exit 0
+fi
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'

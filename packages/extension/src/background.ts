@@ -3,249 +3,213 @@ import { setPlatform } from "@padloc/core/src/platform";
 import { App } from "@padloc/core/src/app";
 import { bytesToBase64, base64ToBytes } from "@padloc/core/src/encoding";
 import { AjaxSender } from "@padloc/app/src/lib/ajax";
-import { throttle, debounce } from "@padloc/core/src/util";
+import { debounce } from "@padloc/core/src/util";
 import { ExtensionPlatform } from "./platform";
 import { Message, messageTab } from "./message";
 
 setPlatform(new ExtensionPlatform());
 
-class ExtensionBackground {
-    app = new App(new AjaxSender(process.env.PL_SERVER_URL!));
+// MV3 service worker - state must be persisted to storage
+let app: App;
+let autoLockAlarmName = "pl_autoLock";
+let isInitialized = false;
+const actionApi = chrome.action;
 
-    private _autoLockAlarmName = "pl_autoLock";
+async function getApp(): Promise<App> {
+    if (!app) {
+        app = new App(new AjaxSender(process.env.PL_SERVER_URL!));
+        await app.load();
+    }
+    return app;
+}
 
-    private get _lockDelayInMinutes() {
-        return this.app.settings.autoLockDelay;
+async function initBackground() {
+    if (isInitialized) return;
+    isInitialized = true;
+
+    const _app = await getApp();
+    const update = debounce(() => updateBadgeAndContextMenu(), 500);
+    _app.subscribe(update);
+
+    // Message listener - handles communication from popup and other contexts
+    browser.runtime.onMessage.addListener(async (msg: Message, sender: Runtime.MessageSender) => {
+        if (sender.tab) {
+            // Ignore messages from content scripts (one-way communication)
+            return;
+        }
+
+        const application = await getApp();
+
+        switch (msg.type) {
+            case "loggedOut":
+            case "locked":
+                await application.load();
+                await cancelAutoLock();
+                update();
+                break;
+            case "unlocked":
+                await application.load();
+                await application.unlockWithMasterKey(base64ToBytes(msg.masterKey));
+                await startAutoLockTimer();
+                update();
+                break;
+            case "requestMasterKey":
+                return (
+                    (application.account &&
+                        application.account.masterKey &&
+                        bytesToBase64(application.account.masterKey)) ||
+                    null
+                );
+            case "state-changed":
+                await application.reload();
+                update();
+                break;
+        }
+    });
+
+    // Tab listeners for badge updates
+    browser.tabs.onUpdated.addListener(update);
+    browser.tabs.onActivated.addListener(update);
+
+    // Context menu click handler
+    browser.contextMenus.onClicked.addListener(async ({ menuItemId }: Menus.OnClickData) => {
+        await handleContextMenuClick(menuItemId as string);
+    });
+
+    // Alarm listener for auto-lock
+    browser.alarms.onAlarm.addListener(async (alarm) => {
+        if (alarm.name === autoLockAlarmName) {
+            await doLock();
+        }
+    });
+
+    // Register commands
+    browser.commands.onCommand.addListener(async () => {
+        // Commands are handled via popup for MV3
+    });
+
+    await update();
+}
+
+async function handleContextMenuClick(menuItemId: string) {
+    if (menuItemId === "openPopup") {
+        actionApi.openPopup();
+        return;
     }
 
-    // private _currentItemIndex = -1;
+    const match = menuItemId.match(/^item\/([^\/]+)(?:\/(\d+))?$/);
+    if (!match) return;
 
-    private _reload = throttle(async () => {
-        await this.app.reload();
-        this._update();
-    }, 60000);
+    const [, id, ind] = match;
+    const application = await getApp();
+    const item = application.getItem(id);
+    const index = parseInt(ind);
+    if (!item || isNaN(index)) return;
 
-    async init() {
-        const update = debounce(() => this._update(), 500);
-        this.app.subscribe(update);
-        browser.runtime.onMessage.addListener(async (msg: Message, sender: Runtime.MessageSender) => {
-            if (sender.tab) {
-                // Communication with content-scripts is one-way, so we ignore
-                // messages from them, just to be safe
-                return;
-            }
+    const field = item.item.fields[index];
+    const value = await field.transform();
+    await messageTab({ type: "fillActive", value });
+}
 
-            switch (msg.type) {
-                case "loggedOut":
-                case "locked":
-                    await this.app.load();
-                    this._cancelAutoLock();
-                    update();
-                    break;
-                case "unlocked":
-                    await this.app.load();
-                    await this.app.unlockWithMasterKey(base64ToBytes(msg.masterKey));
-                    this._startAutoLockTimer();
-                    update();
-                    break;
-                case "requestMasterKey":
-                    return (
-                        (this.app.account && this.app.account.masterKey && bytesToBase64(this.app.account.masterKey)) ||
-                        null
-                    );
-                case "state-changed":
-                    this._reload();
-                    break;
-                // case "calcTOTP":
-                //     return totp(base32ToBytes(msg.secret));
-            }
+async function updateBadgeAndContextMenu() {
+    const application = await getApp();
+    const count = await getCountForActiveTab();
+
+    // Update badge
+    const badgeText = count && application.settings.extensionBadge ? count.toString() : "";
+    actionApi.setBadgeText({ text: badgeText });
+    actionApi.setBadgeBackgroundColor({ color: "#ff6666" });
+
+    // Update context menu
+    await browser.contextMenus.removeAll();
+
+    const count2 = await getCountForActiveTab();
+    if (!count2 || !application.state.loggedIn) return;
+
+    if (application.state.locked) {
+        const openPopupAvailable = typeof actionApi.openPopup === "function";
+        await browser.contextMenus.create({
+            id: "openPopup",
+            title: `${count2 > 1 ? `${count2} items` : "1 item"} found${!openPopupAvailable ? " (unlock to view)" : ""}`,
+            enabled: openPopupAvailable,
+            contexts: ["editable"],
         });
-        browser.tabs.onUpdated.addListener(update);
-        browser.tabs.onActivated.addListener(update);
-
-        browser.contextMenus.onClicked.addListener(({ menuItemId }: Menus.OnClickData) =>
-            this._contextMenuClicked(menuItemId as string)
-        );
-
-        browser.alarms.onAlarm.addListener((alarm) => {
-            if (alarm.name === this._autoLockAlarmName) {
-                this._doLock();
-            }
-        });
-
-        this.app.load();
-        // Poll for updates once an hour
-        // this._poll(60 * 60 * 1000);
-        // browser.commands.onCommand.addListener(command => this._executeCommand(command));
-    }
-
-    private _pollTimeout?: number;
-
-    private async _poll(delay: number) {
-        self.clearTimeout(this._pollTimeout);
-        await this._reload();
-        this._pollTimeout = self.setTimeout(() => this._poll(delay), delay);
-    }
-
-    private async _getActiveTab() {
-        const [tab] = await browser.tabs.query({ currentWindow: true, active: true });
-        return tab || null;
-    }
-
-    private async _contextMenuClicked(menuItemId: string) {
-        if (menuItemId === "openPopup") {
-            browser.browserAction.openPopup();
-            return;
-        }
-
-        const match = menuItemId.match(/^item\/([^\/]+)(?:\/(\d+))?$/);
-
-        if (!match) {
-            return;
-        }
-
-        const [, id, ind] = match;
-        const item = this.app.getItem(id);
-        const index = parseInt(ind);
-        if (!item || isNaN(index)) {
-            return;
-        }
-
-        const field = item.item.fields[index];
-        const value = await field.transform();
-        await messageTab({
-            type: "fillActive",
-            value,
-        });
-
-        // this._openItem(item.item, index ? parseInt(index) : undefined);
-    }
-
-    // private _openItem(item: VaultItem, index?: number) {
-    //     messageTab({
-    //         type: "autoFill",
-    //         item,
-    //         index
-    //     });
-    // }
-
-    // private async _executeCommand(command: string) {
-    //     const items = await this._getItemsForTab();
-    //
-    //     switch (command) {
-    //         case "open-next":
-    //             this._currentItemIndex = (this._currentItemIndex + 1) % items.length;
-    //             if (items[this._currentItemIndex]) {
-    //                 this._openItem(items[this._currentItemIndex].item);
-    //             }
-    //             break;
-    //         case "open-previous":
-    //             this._currentItemIndex = (this._currentItemIndex + items.length - 1) % items.length;
-    //             if (items[this._currentItemIndex]) {
-    //                 this._openItem(items[this._currentItemIndex].item);
-    //             }
-    //             break;
-    //     }
-    // }
-
-    private async _updateBadge() {
-        const count = await this._getCountForTab();
-        browser.browserAction.setBadgeText({ text: count && this.app.settings.extensionBadge ? count.toString() : "" });
-        browser.browserAction.setBadgeBackgroundColor({ color: "#ff6666" });
-    }
-
-    private async _getItemsForTab() {
-        const tab = await this._getActiveTab();
-        return tab && tab.url ? this.app.getItemsForUrl(tab.url) : [];
-    }
-
-    private async _getCountForTab() {
-        const tab = await this._getActiveTab();
-        return tab && tab.url ? await this.app.state.index.matchUrl(tab.url) : 0;
-    }
-
-    private async _updateContextMenu() {
-        await browser.contextMenus.removeAll();
-
-        const openPopupAvailable = typeof browser.browserAction.openPopup === "function";
-        const count = await this._getCountForTab();
-
-        if (!count || !this.app.state.loggedIn) {
-            return;
-        }
-
-        if (this.app.state.locked) {
+    } else {
+        const items = await getItemsForActiveTab();
+        for (const { item } of items) {
             await browser.contextMenus.create({
-                id: "openPopup",
-                title: `${count > 1 ? `${count} items` : "1 item"} found${
-                    !openPopupAvailable ? " (unlock to view)" : ""
-                }`,
-                enabled: openPopupAvailable,
+                id: `item/${item.id}`,
+                title: item.name,
                 contexts: ["editable"],
             });
-        } else {
-            const items = await this._getItemsForTab();
-            for (const { item } of items) {
+
+            for (const [index, field] of item.fields.entries()) {
                 await browser.contextMenus.create({
-                    id: `item/${item.id}`,
-                    title: item.name,
+                    parentId: `item/${item.id}`,
+                    id: `item/${item.id}/${index}`,
+                    title: field.name,
                     contexts: ["editable"],
                 });
-
-                for (const [index, field] of item.fields.entries()) {
-                    await browser.contextMenus.create({
-                        parentId: `item/${item.id}`,
-                        id: `item/${item.id}/${index}`,
-                        title: field.name,
-                        contexts: ["editable"],
-                    });
-                }
             }
         }
     }
 
-    private async _update() {
-        this._updateBadge();
-        this._updateContextMenu();
-        this._updateIcon();
-    }
-
-    private _updateIcon() {
-        if (!this.app.account) {
-            browser.browserAction.setIcon({ path: "icon-grayscale.png" });
-            browser.browserAction.setTitle({ title: "Please Log In" });
-        } else {
-            browser.browserAction.setIcon({ path: "icon.png" });
-            browser.browserAction.setTitle({ title: process.env.PL_APP_NAME || "" });
-        }
-    }
-
-    private async _cancelAutoLock() {
-        await browser.alarms.clear(this._autoLockAlarmName);
-    }
-
-    private async _doLock() {
-        // if app is currently syncing restart the timer
-        if (this.app.state.syncing) {
-            this._startAutoLockTimer();
-            return;
-        }
-
-        await this.app.lock();
-        this._reload();
-    }
-
-    private _startAutoLockTimer() {
-        this._cancelAutoLock();
-        if (this.app.settings.autoLock && !this.app.state.locked) {
-            browser.alarms.create(this._autoLockAlarmName, {
-                delayInMinutes: this._lockDelayInMinutes,
-            });
-        }
+    // Update icon
+    if (!application.account) {
+        actionApi.setIcon({ path: "icon-grayscale.png" });
+        actionApi.setTitle({ title: "Please Log In" });
+    } else {
+        actionApi.setIcon({ path: "icon.png" });
+        actionApi.setTitle({ title: process.env.PL_APP_NAME || "" });
     }
 }
 
-//@ts-ignore
-const extension = (window.extension = new ExtensionBackground());
+async function getActiveTab() {
+    const [tab] = await browser.tabs.query({ currentWindow: true, active: true });
+    return tab || null;
+}
 
-extension.init();
+async function getItemsForActiveTab() {
+    const tab = await getActiveTab();
+    const application = await getApp();
+    return tab && tab.url ? application.getItemsForUrl(tab.url) : [];
+}
+
+async function getCountForActiveTab() {
+    const tab = await getActiveTab();
+    const application = await getApp();
+    return tab && tab.url ? await application.state.index.matchUrl(tab.url) : 0;
+}
+
+async function cancelAutoLock() {
+    await browser.alarms.clear(autoLockAlarmName);
+}
+
+async function doLock() {
+    const application = await getApp();
+    if (application.state.syncing) {
+        await startAutoLockTimer();
+        return;
+    }
+    await application.lock();
+    await application.reload();
+}
+
+async function startAutoLockTimer() {
+    await cancelAutoLock();
+    const application = await getApp();
+    if (application.settings.autoLock && !application.state.locked) {
+        browser.alarms.create(autoLockAlarmName, {
+            delayInMinutes: application.settings.autoLockDelay,
+        });
+    }
+}
+
+// Initialize on install
+browser.runtime.onInstalled.addListener(initBackground);
+
+// Initialize on startup (service worker may be dormant)
+browser.runtime.onStartup.addListener(initBackground);
+
+// Also try to initialize immediately in case already installed
+initBackground().catch(console.error);

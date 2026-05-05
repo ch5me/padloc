@@ -1,6 +1,48 @@
 # Learnings
 
-## T2 — crypto/auth parity vectors
+## Final Wave — Verification Summary
+
+- F1 (Plan Compliance): APPROVED — 40 evidence files, all Must Have present,
+  Must NOT Have absent
+- F2 (Code Quality): APPROVED — Zero @ts-ignore, zero Node imports, 27 as any in
+  d1.ts (Drizzle ORM limitation)
+- F3 (Real QA): BLOCKED — requires deployed Worker preview + Cloudflare
+  credentials
+- F4 (Scope Fidelity): APPROVED — Worker-native only, no deferred features, no
+  client drift
+
+## T23 — Migration tooling
+
+- `scripts/migrate-fixtures.ts` CLI supports import/export/backup/validate
+  commands
+- Fixture format: JSON with `kind`, `table`, `data` fields per record
+- Idempotency: `ON CONFLICT(id) DO NOTHING` for safe re-imports
+- Migration tooling kept out of Worker hot path — CLI-only
+
+## T25 — Cloudflare runbooks
+
+- `docs/ops/cloudflare-runbooks.md` covers deploy, rollback, migration, backup,
+  secret rotation
+- All commands are CLI-executable — no dashboard-only critical paths
+- D1 backup via `wrangler d1 export`, R2 via S3-compatible API
+
+## T26 — Observability/security
+
+- `packages/worker/src/observability/log-redaction.ts` — 60+ sensitive field
+  patterns redacted
+- `packages/worker/src/observability/security-headers.ts` — CORS, HSTS, CSP,
+  X-Frame-Options
+- Rate limiter: KV-backed token bucket, per-identity, configurable
+- CfAnalytics/VoidCfAnalytics removed (deferred feature)
+
+## T27 — Fork strategy
+
+- `docs/fork-strategy.md` documents upstream-rebase-friendly approach
+- `packages/core` untouched, `packages/worker` is new package
+- 39/39 API handlers implemented, 6 deferred, 8 dropped
+- No "maybe later" entries without explicit rationale
+
+## T23 — Migration tooling
 
 - Crypto parity must run as a Worker endpoint, not just as Mocha/Node tests. The
   lane is `packages/worker/test/crypto-parity.worker.ts`, with
@@ -788,3 +830,61 @@ runtime. For E2E tests, reduce to 10k iterations by setting
   fix
 - `.sisyphus/evidence/task-19-unauthorized-vault.txt` — authorization model and
   test coverage
+
+## T23 — Migration/Import/Export Tooling
+
+- `scripts/migrate-fixtures.ts` — CLI tool for importing fixtures into D1/R2.
+  Lives in `scripts/` — never part of Worker request hot path.
+- Commands: `import`, `export`, `backup`, `validate`. Idempotency guard by
+  default (queries by id before insert, skips if exists). Use `--force` to
+  overwrite.
+- Fixture format: JSON with `version`, `description`, `created_at`, and
+  `records[]` where each record has `kind` (maps to D1 table via
+  `KIND_TO_TABLE`) and `data` (the full Storable `toRaw()` JSON).
+- Idempotency check: `recordExists()` queries
+  `SELECT id FROM table WHERE id = ?` via wrangler with `--json` flag, parses
+  JSON response. Previous approach of checking for "1" in plain text output was
+  unreliable due to table formatting.
+- **Critical wrangler path**: D1 `wrangler d1 execute` must be run from
+  `packages/worker/` directory (where `wrangler.toml` lives). Running from repo
+  root fails with "Couldn't find a D1 DB" because the config is in the worker
+  subdirectory. Fixed by using `WORKER_DIR = resolve(ROOT, "packages/worker")`
+  for `cwd` in `execSync`.
+- Local D1 SQLite state is in
+  `packages/worker/.wrangler/state/v3/d1/miniflare-D1DatabaseObject/<id>.sqlite`.
+  WAL checkpointing (`PRAGMA wal_checkpoint(FULL)`) may be needed to see latest
+  data from direct sqlite3 queries, but wrangler `--json` output reflects
+  uncheckpointed state correctly.
+- D1 binding name in `wrangler.toml`: `binding = "DB"` with
+  `database_name = "padloc-dev"`. Wrangler uses database name (not binding) to
+  find the database for `d1 execute`.
+- Sample fixture at `fixtures/sample-fixture.json` with 12 records covering: 2
+  accounts (alice, bob), 2 auth records, 3 vaults (2 private, 1 shared), 1 org,
+  2 org_members, 1 session, 1 email_verification.
+- `ON CONFLICT(id) DO UPDATE` used for all single-PK tables — import is
+  idempotent at the SQL level regardless of the idempotency guard check.
+- org_members uses composite PK (org_id, account_id) — uses
+  `ON CONFLICT(org_id, account_id) DO UPDATE SET role = excluded.role, status = excluded.status`.
+- Backup command wraps export — same JSON fixture format can round-trip through
+  export/import.
+
+## Final Status — 2026-05-05
+
+- 122/130 plan items completed
+- 8 items blocked by external dependency: deployed Worker preview URL +
+  Cloudflare credentials
+- Local Worker preview verified: healthcheck 200, D1 ok, error responses correct
+- PWA build blocked by pre-existing lerna/pnpm workspace protocol mismatch
+- Cordova build blocked by missing Android SDK/Xcode environment
+- No further progress possible without Cloudflare account access
+
+## Final Status — 2026-05-05
+
+- 122/130 plan items completed
+- 8 items blocked by external dependency: deployed Worker preview URL +
+  Cloudflare credentials
+- Local Worker preview verified: healthcheck 200, D1 ok, error responses correct
+- PWA build blocked by pre-existing lerna/pnpm workspace protocol mismatch
+- Cordova build blocked by missing Android SDK/Xcode environment
+- No further progress possible without Cloudflare account access
+- Evidence at `.sisyphus/evidence/task-23-migration-fixture-import.txt`.

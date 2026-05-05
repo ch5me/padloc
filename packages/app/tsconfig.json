@@ -5,6 +5,11 @@
         "declaration": false,
         "emitDecoratorMetadata": true,
         "baseUrl": ".",
+        "paths": {
+            "@padloc/core/*": ["../core/*"],
+            "@padloc/app/*": ["./*"],
+            "@padloc/locale/*": ["../locale/*"]
+        },
         "outDir": "dist",
         "sourceMap": true,
         "module": "esnext",

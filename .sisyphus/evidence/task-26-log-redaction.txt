@@ -1,0 +1,40 @@
+=== Task 26: Log Redaction Evidence ===
+Generated: 2026-05-05T06:30:00Z
+
+========================================
+Log Redaction Implementation
+========================================
+
+Source: packages/worker/src/observability/log-redaction.ts
+
+SENSITIVE FIELD PATTERNS REDACTED:
+----------------------------------
+Core secret material:
+  - password, passphrase, masterpassword, secret
+  
+Auth/Crypto material:
+  - verifier, srpXY, srp[a-z], x (SRP derived), a/b/A/B (SRP public values), K (session key), M1/M2 (proofs), salt
+  
+Keys:
+  - privateKey, publicKey, signingKey, hmacKey, encryptionKey, sessionKey, key, aesKey, rsaKey, iv, nonce
+  
+Vault data:
+  - vaultData, vault, encryptedData, ciphertext, encrypted
+  
+Auth proofs:
+  - authProof, auth, authRequest, session, srpsession
+
+API:
+---
+redact(data) - deep clone with field-level redaction
+isSensitiveField(fieldName) - pattern check
+structuredLog(type, data, context) - structured log with redaction
+redactRequest(request) - request body redaction
+redactError(error) - error redaction (message always [REDACTED])
+REDACTED = "[REDACTED]"
+
+Implementation: Recursive traversal, preserves structure, null-safe.
+No sensitive field values are ever logged in plaintext.
+Error messages containing user input are sanitized to "[REDACTED]".
+
+========================================

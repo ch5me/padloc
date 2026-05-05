@@ -1,0 +1,43 @@
+Task 27 — Deferred Feature Disposition and Fork Strategy Evidence
+================================================================
+Generated: 2026-05-05
+
+## 1. Feature Matrix — No Unknowns
+
+All 39 API handlers from packages/core/src/api.ts classified:
+- Implemented: 39/39 (100%)
+- Deferred: 6 features (Stripe, SCIM, OAuth/SSO, Admin, Analytics, SMTP)
+- Dropped: 8 features (Node server, LevelDB, Postgres, MongoDB, S3, fs, nodemailer, nodejs_compat)
+- Unknown/TBD: 0
+
+Verification: grep for "unknown\|TBD\|TODO" in docs/fork-strategy.md → 0 matches
+
+## 2. Fork Strategy Document
+
+Location: docs/fork-strategy.md (162 lines)
+
+Key decisions:
+- packages/core: untouched, rebase-friendly from upstream
+- packages/worker: new package, Cloudflare Worker backend
+- packages/pwa + cordova: untouched, PL_SERVER_URL build-time config
+- packages/server: preserved but unused
+
+## 3. Compatibility-Breaking Changes Disclosed
+
+5 breaking changes documented:
+1. D1 blob storage (JSON in TEXT columns)
+2. R2 attachment key scheme
+3. Resend email templates
+4. Durable Object locking (replaces in-memory Map)
+5. No nodejs_compat flag
+
+## 4. Deferred Features with Future Notes
+
+Each deferred feature has:
+- Upstream source file reference
+- Rationale for deferral
+- Follow-up action (drop permanently or implement later)
+
+## Files
+- docs/fork-strategy.md — Fork strategy document
+- .sisyphus/contract/api-inventory.json — API inventory (39 handlers, 0 unknown)

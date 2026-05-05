@@ -2,6 +2,11 @@ name = "padloc-worker"
 main = "src/index.ts"
 compatibility_date = "2025-04-01"
 
+[alias]
+"@padloc/locale/src/translate" = "./node_modules/@padloc/locale/src/translate.ts"
+"@padloc/core/src" = "./node_modules/@padloc/core/src"
+"@padloc/locale/src" = "./node_modules/@padloc/locale/src"
+
 [[migrations]]
 tag = "v1"
 new_classes = ["AccountLockDO"]
@@ -18,6 +23,8 @@ name = "padloc-worker-dev"
 
 [env.dev.vars]
 EMAIL_VERIFY_ON_SIGNUP = "false"
+EMAIL_BACKEND = "mock"
+ALLOW_ORIGIN = "http://localhost:8080"
 
 [[env.dev.kv_namespaces]]
 binding = "EMAIL_KV"
@@ -44,13 +51,18 @@ class_name = "AccountLockDO"
 [env.preview]
 name = "padloc-worker-preview"
 
+[env.preview.vars]
+EMAIL_BACKEND = "mock"
+ALLOW_ORIGIN = "*"
+
 [[env.preview.kv_namespaces]]
 binding = "EMAIL_KV"
-id = "PADLOC_EMAIL_PREVIEW"
+id = "9dbdc747eeb4472681e9f081eb9e8269"
 
 [[env.preview.d1_databases]]
 binding = "DB"
 database_name = "padloc-preview"
+database_id = "426f172f-8117-48c6-849b-1b26901b89e6"
 migrations_dir = "migrations"
 
 [[env.preview.r2_buckets]]
@@ -59,7 +71,7 @@ bucket_name = "padloc-attachments-preview"
 
 [[env.preview.kv_namespaces]]
 binding = "HINTS"
-id = "PADLOC_HINTS_PREVIEW"
+id = "f868962679c74a33886cff584f37d18d"
 
 [[env.preview.durable_objects.bindings]]
 name = "ACCOUNT_LOCK"
@@ -70,11 +82,12 @@ name = "padloc-worker"
 
 [[env.production.kv_namespaces]]
 binding = "EMAIL_KV"
-id = "PADLOC_EMAIL_PRODUCTION"
+id = "0231a8c22d1b4a54a3c4b9e72a68165d"
 
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "padloc-prod"
+database_id = "f443b7e5-861e-4a4f-9c67-1a33acf5677d"
 migrations_dir = "migrations"
 
 [[env.production.r2_buckets]]
@@ -83,7 +96,7 @@ bucket_name = "padloc-attachments-prod"
 
 [[env.production.kv_namespaces]]
 binding = "HINTS"
-id = "PADLOC_HINTS_PRODUCTION"
+id = "0abcb21cdf5541b9a7f8c2c35e922a7b"
 
 [[env.production.durable_objects.bindings]]
 name = "ACCOUNT_LOCK"

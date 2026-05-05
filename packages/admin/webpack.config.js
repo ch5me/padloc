@@ -13,7 +13,7 @@ function removeTrailingSlash(url) {
 }
 
 const out = process.env.PL_ADMIN_DIR || resolve(__dirname, "dist");
-const serverUrl = process.env.PL_SERVER_URL || `http://0.0.0.0:${process.env.PL_SERVER_PORT || 3000}`;
+const serverUrl = process.env.PL_SERVER_URL || `http://127.0.0.1:${process.env.PL_WORKER_PORT || 8787}`;
 const pwaUrl = process.env.PL_PWA_URL || `http://localhost:${process.env.PL_ADMIN_PORT || 9090}`;
 const rootDir = resolve(__dirname, "../..");
 const assetsDir = resolve(rootDir, process.env.PL_ASSETS_DIR || "assets");
@@ -39,6 +39,9 @@ module.exports = {
         extensions: [".ts", ".js", ".css", ".svg", ".png", ".jpg"],
         alias: {
             assets: assetsDir,
+            "@padloc/core": resolve(rootDir, "packages/core"),
+            "@padloc/app": resolve(rootDir, "packages/app"),
+            "@padloc/locale": resolve(rootDir, "packages/locale"),
         },
     },
     module: {
@@ -101,7 +104,7 @@ module.exports = {
 
                                 data.html = data.html.replace(
                                     `[REPLACE_${cspRule.replace("-src", "").toUpperCase()}]`,
-                                    `${files.map((file) => `${adminUrl}/${file}`).join(" ")}`
+                                    `${files.map((file) => `${adminUrl}/${file}`).join(" ")}`,
                                 );
                             }
 
@@ -112,7 +115,7 @@ module.exports = {
                             data.html = data.html.replace("[REPLACE_CONNECT]", connectReplacement);
 
                             callback(null, data);
-                        }
+                        },
                     );
 
                     return true;
@@ -224,7 +227,7 @@ module.exports = {
 
                         htmlFileContents = htmlFileContents.replace(
                             `[REPLACE_${cspRule.replace("-src", "").toUpperCase()}]`,
-                            `${files.map((file) => `${adminUrl}/${file}`).join(" ")}`
+                            `${files.map((file) => `${adminUrl}/${file}`).join(" ")}`,
                         );
                     }
 
@@ -235,7 +238,7 @@ module.exports = {
                     if (adminUrlPath !== "/") {
                         htmlFileContents = htmlFileContents.replaceAll(
                             `"/favicon.png"`,
-                            `"${adminUrlPath}favicon.png"`
+                            `"${adminUrlPath}favicon.png"`,
                         );
                     }
 

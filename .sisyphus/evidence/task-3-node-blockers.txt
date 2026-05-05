@@ -1,0 +1,228 @@
+=========================================================================
+Task 3: Node-only Dependency Inventory — Evidence File
+Generated: 2026-05-04
+Methodology: Grep + AST-grep across packages/server/src/**/*.ts
+=========================================================================
+
+=== SECTION 1: Node built-in imports (fs, path, http, https, stream, crypto, url, repl, net) ===
+
+--- fs / fs-extra ---
+email/smtp.ts:4:  import { readFileSync, readdirSync } from "fs";
+attachments/fs.ts:2: import { readFile, writeFile, ensureDir, remove, readdir, stat } from "fs-extra";
+storage/postgres.ts:6: import { readFileSync } from "fs";
+tools/mongo2postgres.ts:1: import { readFileSync } from "fs";
+
+--- path ---
+attachments/fs.ts:1:  import { join } from "path";
+config.ts:18: import { resolve } from "path";
+storage/mongodb.ts:4: import path from "path";
+storage/postgres.ts:7: import { resolve } from "path";
+init.ts:34: import { resolve, join } from "path";
+tools/mongo2postgres.ts:3: import { resolve } from "path";
+email/smtp.ts:6: import { resolve } from "path";
+
+--- http ---
+legacy.ts:1:  import * as http from "http";
+transport/http.ts:1: import { createServer, IncomingMessage } from "http";
+transport/http.ts:7: import { request as requestHttp } from "http";
+scim.ts:5: import { createServer, IncomingMessage, ServerResponse } from "http";
+provisioning/stripe.ts:20: import { createServer, IncomingMessage, ServerResponse } from "http";
+provisioning/api.ts:12: import { createServer, IncomingMessage, ServerResponse } from "http";
+
+--- https ---
+legacy.ts:2:  import * as https from "https";
+transport/http.ts:6: import { request as requestHttps } from "https";
+
+--- stream ---
+attachments/s3.ts:12: import { Readable } from "stream";
+
+--- crypto ---
+crypto/node.ts:1-17: import { randomBytes, createHash, createHmac, sign, verify, constants,
+                generateKeyPair, pbkdf2, createCipheriv, createDecipheriv,
+                publicEncrypt, privateDecrypt, timingSafeEqual } from "crypto";
+
+--- url ---
+provisioning/stripe.ts:24: import { URLSearchParams } from "url";
+
+--- repl (COMMENTED OUT) ---
+repl.ts:12: // import repl from "repl";
+
+--- net (COMMENTED OUT) ---
+repl.ts:13: // import net from "net";
+
+=== SECTION 2: Buffer global usage ===
+
+attachments/s3.ts:20: stream.on("end", () => resolve(new Uint8Array(Buffer.concat(chunks))));
+transport/http.ts:12: const body: Buffer[] = [];
+transport/http.ts:28: resolve(Buffer.concat(body).toString());
+transport/http.ts:95: httpRes.setHeader("Content-Length", Buffer.byteLength(resBody));
+crypto/node.ts:59:  hash.update(Buffer.from(input));
+crypto/node.ts:77:  publicExponent: Buffer.from(params.publicExponent).readUIntBE(...)
+crypto/node.ts:90:  (err, publicKey: Buffer, privateKey: Buffer) => { ... }
+crypto/node.ts:214: cipher.setAAD(params.additionalData as Buffer);
+crypto/node.ts:216: return new Uint8Array(Buffer.concat([cipher.update(data), cipher.final(), ...]));
+crypto/node.ts:232: cipher.setAAD(params.additionalData as Buffer);
+crypto/node.ts:235: return new Uint8Array(Buffer.concat([cipher.update(enc), cipher.final()]));
+crypto/node.ts:246: key: Buffer.from(publicKey)
+crypto/node.ts:263: key: Buffer.from(privateKey)
+crypto/node.ts:278: const hmac = createHmac(hash, Buffer.from(key));
+crypto/node.ts:279: hmac.update(Buffer.from(data));
+crypto/node.ts:294: const sig = sign(hashToNode(params.hash), Buffer.from(data), { ... });
+crypto/node.ts:295: key: Buffer.from(key)
+crypto/node.ts:309: Buffer.from(data)
+crypto/node.ts:311: key: Buffer.from(key)
+auth/webauthn.ts:178: credentialID: Buffer.from(base64ToBytes(credentialID)),
+auth/webauthn.ts:179: credentialPublicKey: Buffer.from(base64ToBytes(credentialPublicKey)),
+
+=== SECTION 3: Node-only npm package imports ===
+
+--- level ---
+storage/leveldb.ts:2: import level from "level";
+
+--- pg ---
+storage/postgres.ts:1: import { Pool } from "pg";
+tools/mongo2postgres.ts:4: import { Pool } from "pg";
+
+--- mongodb ---
+storage/mongodb.ts:1: import { MongoClient, Db, Collection, CreateCollectionOptions, ObjectId, Filter, FindOptions } from "mongodb";
+logging/mongodb.ts:3: import { ObjectId } from "mongodb";
+tools/mongo2postgres.ts:2: import { MongoClient } from "mongodb";
+
+--- nodemailer ---
+email/smtp.ts:2: import { createTransport, Transporter, TransportOptions } from "nodemailer";
+
+--- @aws-sdk/client-s3 ---
+attachments/s3.ts:3-11: import { DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand,
+                          ListObjectsCommand, ObjectIdentifier, PutObjectCommand,
+                          S3Client } from "@aws-sdk/client-s3";
+
+--- geolite2-redist ---
+geoip.ts:1: import geolite2 from "geolite2-redist";
+
+--- maxmind ---
+geoip.ts:2: import maxmind, { CityResponse } from "maxmind";
+
+--- jsdom ---
+tools/dompurify.ts:1: import { JSDOM } from "jsdom";
+
+--- dompurify ---
+tools/dompurify.ts:2: import dompurify from "dompurify";
+
+--- dotenv ---
+config.ts:17: import dotenv from "dotenv";
+
+--- stripe ---
+provisioning/stripe.ts:1: import Stripe from "stripe";
+
+--- mixpanel ---
+logging/mixpanel.ts:4: import { Mixpanel, init } from "mixpanel";
+
+--- @simplewebauthn/server ---
+(auth/webauthn.ts uses @simplewebauthn/server — indirect dependency via @padloc/core)
+
+=== SECTION 4: process.env / process.argv / process.exit usage ===
+
+config.ts:198-202:
+  process.argv.find(arg => arg.startsWith("--env="))
+  process.cwd()
+  process.argv.includes("--env-override")
+  process.env (as { [v: string]: string })
+
+init.ts:46-51:
+  resolve(__dirname, "../../..")
+  process.env.PL_ASSETS_DIR
+  process.env.PL_APP_NAME
+  require(join(assetsDir, "manifest.json"))
+
+init.ts:311-314:
+  process.env.PL_LEGACY_URL
+  process.env.PL_LEGACY_KEY
+
+init.ts:341-342:
+  process.argv.includes("--dryrun")
+  process.exit(0)
+
+init.ts:349-363:
+  process.on("uncaughtException", ...)
+  process.exit(1)
+
+storage/postgres.ts:81:
+  resolve(process.cwd(), tlsCAFile)
+
+storage/mongodb.ts:82:
+  path.resolve(process.cwd(), tlsCAFile)
+
+repl.ts:137-138: (commented out)
+  process.env.PL_REPL_HISTORY
+
+init-repl-client.ts:3: (commented out)
+  process.env.PL_REPL_PORT
+
+=== SECTION 5: AST-grep for node: prefix imports ===
+Result: No matches found. All Node imports use bare module names (no "node:" prefix).
+
+=== SECTION 6: package.json dependency analysis ===
+
+Direct runtime dependencies in packages/server/package.json:
+  @aws-sdk/client-s3: 3.25.0          -> Node-only (TCP/HTTP, heavy bundle)
+  @aws-sdk/types: 3.25.0              -> Types only (safe)
+  @simplewebauthn/server: 5.4.3       -> Node-only (uses Node crypto)
+  fs-extra: 10.0.0                    -> Node-only (fs operations)
+  geolite2-redist: 2.0.4              -> Node-only (downloads DB files)
+  jsdom: 19.0.0                       -> Node-only (DOM emulation, heavy)
+  level: 7.0.0                         -> Node-only (native bindings, TCP)
+  maxmind: 4.3.2                       -> Node-only (file reading)
+  mixpanel: 0.13.0                     -> Node-only (uses Node http)
+  mongodb: 4.1.0                       -> Node-only (TCP sockets)
+  nodemailer: 6.6.1                    -> Node-only (SMTP, TCP)
+  pg: 8.7.1                            -> Node-only (TCP sockets)
+  stripe: 8.212.0                      -> Node-only (designed for server)
+  dotenv: 16.0.0                       -> Node-only (file reading)
+  dompurify: 2.3.8                     -> Needs DOM environment
+
+Dev/test-only dependencies:
+  @types/chai, @types/dompurify, @types/jsdom, @types/mocha
+  chai, mocha, ts-node-dev, ts-node, typescript, @types/node
+  -> These are build/dev time and not Worker runtime blockers.
+
+Type-only dependencies (safe for Worker bundling with proper config):
+  @types/fs-extra, @types/mixpanel, @types/pg, @types/stripe
+  @types/node
+
+=== SECTION 7: Files with Node imports (summary) ===
+
+CRITICAL (must be rewritten for Worker):
+  transport/http.ts        — http, https, Buffer (core request/response handling)
+  crypto/node.ts           — crypto, Buffer (entire crypto provider)
+  init.ts                  — path, process.* (server bootstrap)
+  config.ts                — path, dotenv, process.* (config loading)
+
+REPLACEABLE (Worker-native alternatives exist):
+  storage/leveldb.ts       — level -> D1/KV
+  storage/postgres.ts      — pg, fs, path -> D1
+  storage/mongodb.ts       — mongodb, path -> D1
+  attachments/fs.ts        — fs-extra, path -> R2
+  attachments/s3.ts        — @aws-sdk/client-s3, stream, Buffer -> R2
+  geoip.ts                 — geolite2-redist, maxmind -> request.cf
+  tools/dompurify.ts       — jsdom, dompurify -> DOMParser
+  auth/webauthn.ts        — Buffer, @simplewebauthn/server -> crypto.subtle
+
+KEEP-OUTSIDE (separate service or not needed in Worker):
+  email/smtp.ts            — nodemailer, fs, path -> external email service
+  legacy.ts                — http, https -> legacy migration service
+  scim.ts                  — http -> separate SCIM service
+  provisioning/stripe.ts   — http, Stripe SDK -> separate billing service
+  provisioning/api.ts      — http -> provisioning API
+  logging/mongodb.ts       — mongodb -> MongoDB logger (external)
+  logging/mixpanel.ts      — mixpanel -> HTTP API call
+
+DELETE (not needed):
+  tools/mongo2postgres.ts  — dev migration tool
+  repl.ts                  — commented out, dev tool
+  init-repl-client.ts      — commented out, dev tool
+
+=== VERIFICATION: All classified blockers cross-referenced ===
+Blockers found by grep:   24 unique modules/patterns
+Blockers in inventory:    24 entries
+All blockers classified:  YES
+Dev-only excluded:        YES (repl, mongo2postgres, types)

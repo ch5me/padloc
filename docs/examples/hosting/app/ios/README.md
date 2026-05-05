@@ -17,7 +17,7 @@ This example assumes you already have `Node` and `NPM` installed.
    (via `PL_SERVER_URL` variable):
 
     ```sh
-    npm ci && PL_SERVER_URL=https://example.com/server/ npm run cordova:build:ios
+    npm ci && PL_SERVER_URL=https://example.com/ npm run cordova:build:ios
     ```
 
 That's it! You should now have an `.ipa` file in

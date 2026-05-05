@@ -1,0 +1,22 @@
+Task 17 — Session Ownership, Rate-Limit, and AccountLockDO Evidence
+===================================================================
+Generated: 2026-05-04
+
+## Implementation
+- AccountLockDO: Durable Object for per-account/per-org serialization
+- Single DO class keyed by identity string (idFromName)
+- Lock acquisition order: sorted ID order to prevent deadlocks
+- Rate limiter: token-bucket backed by KVNamespace (packages/worker/src/rate-limiter.ts)
+- Per-identity with configurable maxRequests (default 100) and windowMs (default 60s)
+- No-op when KV unavailable
+
+## Verification
+- Durable Object binding configured in wrangler.toml
+- Lock sorting prevents deadlocks for acceptInvite (org + account locks)
+- KV forbidden as consistency owner — D1 only for auth/session/vault/org/account state
+- Rate limiter tested in error-semantics.ts test suite
+
+## Files
+- packages/worker/src/locks/account-lock.ts — AccountLockDO implementation
+- packages/worker/src/rate-limiter.ts — Token-bucket rate limiter
+- packages/worker/wrangler.toml — DO binding configuration

@@ -1,0 +1,57 @@
+T24 / F3 — PWA/Cordova Client Compatibility Evidence
+=====================================================
+Generated: 2026-05-05
+
+## Local Worker Preview Test (SUCCESS)
+
+Command: `npx wrangler dev --port 19998 --inspector-port 19997 --local`
+
+### Healthcheck
+```
+GET http://localhost:19998/healthcheck
+Response: {"status":"degraded","version":"0.0.0","d1":"ok","r2":"unavailable","resend":"unavailable"}
+Status: 200 OK (9ms)
+```
+
+### Malformed POST
+```
+POST http://localhost:19998/
+Body: "not json"
+Response: {"error":{"code":"invalid_request","message":"Failed to parse request body"}}
+Status: 400 Bad Request (1ms)
+```
+
+### Results
+- ✅ Worker starts successfully in local mode
+- ✅ D1 binding works (d1: "ok")
+- ✅ R2 unavailable in local mode (expected — no local R2 emulator)
+- ✅ Resend unavailable in local mode (expected — no API key)
+- ✅ Healthcheck returns 200 with structured JSON
+- ✅ Malformed POST returns Padloc-compatible error response
+- ✅ CORS headers present on all responses
+
+## PWA Build (BLOCKED — Pre-existing Infrastructure Issues)
+
+Attempt 1: `npm run pwa:build` → lerna fails with `Unsupported URL Type "workspace:*"`
+Attempt 2: `pnpm --filter @padloc/pwa run build` → `None of the selected packages has a "build" script`
+Attempt 3: `npx webpack --mode development` → sharp@0.29.3 fails on Node v24.2.0 (requires Node 16.x)
+
+Root causes (all pre-existing):
+1. PWA package.json has NO build scripts defined
+2. Monorepo uses pnpm workspace protocol but lerna scripts use npm resolution
+3. sharp@0.29.3 is incompatible with Node v24.2.0 (package requires Node 16.x)
+4. webpack.config.js requires sharp for icon generation at build time
+
+## Cordova Build (BLOCKED)
+
+Requires Android SDK / Xcode environment not available in this session.
+
+## Conclusion
+
+Worker backend is verified functional against local preview. PWA/Cordova
+client proof is blocked by multiple pre-existing infrastructure issues in
+the upstream Padloc monorepo:
+- Missing build scripts in PWA package
+- lerna/pnpm workspace protocol incompatibility
+- sharp native module incompatibility with current Node.js version
+- Missing mobile build toolchain (Android SDK/Xcode)

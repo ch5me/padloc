@@ -20,6 +20,23 @@
 
 set -euo pipefail
 
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  echo "Usage: npm run proof:worker"
+  echo ""
+  echo "Proves: The Worker deploys and responds correctly on Cloudflare's edge."
+  echo ""
+  echo "Required env/bindings:"
+  echo "  CLOUDFLARE_API_TOKEN  — Account-scoped token with Workers Write permission"
+  echo "  CLOUDFLARE_ACCOUNT_ID — Cloudflare account ID (pinned in wrangler.jsonc)"
+  echo "  WORKER_NAME           — Optional, defaults to wrangler.jsonc name"
+  echo ""
+  echo "Exit codes:"
+  echo "  0 — Worker deployed and health check passed"
+  echo "  1 — Deployment or health check failed"
+  echo "  2 — Missing required env (CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID)"
+  exit 0
+fi
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'

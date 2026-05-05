@@ -14,7 +14,7 @@ This repo is split into multiple packages:
 | --------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | [@padloc/core](packages/core)           | Core Logic                                                                                       |
 | [@padloc/app](packages/app)             | Web-based UI components                                                                          |
-| [@padloc/server](packages/server)       | The Backend Server                                                                               |
+| [@padloc/worker](packages/worker)       | The Cloudflare Worker backend                                                                    |
 | [@padloc/pwa](packages/pwa)             | The Web Client, a [Progressive Web App](https://developers.google.com/web/progressive-web-apps). |
 | [@padloc/locale](packages/locale)       | Package containing translations and other localization-related things                            |
 | [@padloc/electron](packages/electron)   | The Desktop App, built with Electron                                                             |
@@ -26,10 +26,10 @@ This repo is split into multiple packages:
 
 As you can see in the [About](#about) section, there are lots of different
 components to play with! But at a minimum, in order to set up and use your own
-instance of Padloc you'll need to install and configure the
-[Server](packages/server) and [Web Client](packages/pwa). In practice, there a
-few different ways to do this, but if you just want to install and test Padloc
-locally, doing so is really quite easy:
+instance of Padloc you'll need to run the
+[Cloudflare Worker backend](packages/worker) and [Web Client](packages/pwa). In
+practice, there are few different ways to do this, but if you just want to
+install and test Padloc locally, doing so is really quite easy:
 
 ```sh
 git clone git@github.com:padloc/padloc.git
@@ -91,14 +91,14 @@ To start "dev mode", simply run
 npm run dev
 ```
 
-from the root of the project. This will start the backend server (by default
-listening on port `3000`), as well as the PWA (available on
+from the root of the project. This will start the Cloudflare Worker backend on
+`http://127.0.0.1:8787`, as well as the PWA (available on
 `http://localhost:8080`) by default.
 
-The server and PWA port can be changed vie the `PL_TRANSPORT_HTTP_PORT` and
-`PL_PWA_PORT` environvent variables, respectively. For more configuration
-options, check out the **Conguration** section of the
-[server](packages/server#configuration) and [pwa](packages/pwa#configuration).
+The worker and PWA port can be changed via the `PL_WORKER_PORT` and
+`PL_PWA_PORT` environment variables, respectively. For more configuration
+options, check out the worker config in `packages/worker/wrangler.toml` and the
+[pwa](packages/pwa#configuration).
 
 ### Formatting
 

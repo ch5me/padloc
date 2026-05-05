@@ -1,0 +1,505 @@
+{
+  "generated": "2026-05-04T20:27:28.936Z",
+  "source": "packages/core/src/api.ts",
+  "totalHandlers": 39,
+  "errorCodes": [
+    {
+      "code": "invalid_encryption_params",
+      "value": "invalid_encryption_params"
+    },
+    {
+      "code": "decryption_failed",
+      "value": "decryption_failed"
+    },
+    {
+      "code": "encryption_failed",
+      "value": "encryption_failed"
+    },
+    {
+      "code": "not_supported",
+      "value": "not_supported"
+    },
+    {
+      "code": "missing_access",
+      "value": "missing_access"
+    },
+    {
+      "code": "verification_error",
+      "value": "verification_error"
+    },
+    {
+      "code": "failed_connection",
+      "value": "failed_connection"
+    },
+    {
+      "code": "unexpected_redirect",
+      "value": "unexpected_redirect"
+    },
+    {
+      "code": "bad_request",
+      "value": "bad_request"
+    },
+    {
+      "code": "invalid_session",
+      "value": "invalid_session"
+    },
+    {
+      "code": "session_expired",
+      "value": "session_expired"
+    },
+    {
+      "code": "insufficient_permissions",
+      "value": "insufficient_permissions"
+    },
+    {
+      "code": "invalid_credentials",
+      "value": "invalid_credentials"
+    },
+    {
+      "code": "account_exists",
+      "value": "account_exists"
+    },
+    {
+      "code": "invalid_response",
+      "value": "invalid_response"
+    },
+    {
+      "code": "invalid_request",
+      "value": "invalid_request"
+    },
+    {
+      "code": "outdated_revision",
+      "value": "merge_conflict"
+    },
+    {
+      "code": "max_request_size_exceeded",
+      "value": "max_request_size_exceeded"
+    },
+    {
+      "code": "max_request_age_exceeded",
+      "value": "max_request_age_exceeded"
+    },
+    {
+      "code": "provisioning_quota_exceeded",
+      "value": "provisioning_quota_exceeded"
+    },
+    {
+      "code": "provisioning_not_allowed",
+      "value": "provisioning_not_allowed"
+    },
+    {
+      "code": "client_error",
+      "value": "client_error"
+    },
+    {
+      "code": "server_error",
+      "value": "server_error"
+    },
+    {
+      "code": "unknown_error",
+      "value": "unknown_error"
+    },
+    {
+      "code": "encoding_error",
+      "value": "encoding_error"
+    },
+    {
+      "code": "unsupported_version",
+      "value": "unsupported_version"
+    },
+    {
+      "code": "not_found",
+      "value": "not_found"
+    },
+    {
+      "code": "invalid_csv",
+      "value": "invalid_csv"
+    },
+    {
+      "code": "invalid_1pux",
+      "value": "invalid_1pux"
+    },
+    {
+      "code": "invalid_bitwarden",
+      "value": "invalid_bitwarden"
+    },
+    {
+      "code": "billing_error",
+      "value": "billing_error"
+    },
+    {
+      "code": "authentication_required",
+      "value": "email_verification_required"
+    },
+    {
+      "code": "authentication_failed",
+      "value": "email_verification_failed"
+    },
+    {
+      "code": "authentication_tries_exceeded",
+      "value": "email_verification_tries_exceeded"
+    }
+  ],
+  "authFlow": {
+    "flow": "Authentication & Session Establishment",
+    "steps": [
+      {
+        "step": 1,
+        "handler": "startAuthRequest",
+        "description": "Client initiates authentication with email, auth type, and purpose (Login/Signup/Recover). Server creates an AuthRequest, checks device trust, returns request ID and token."
+      },
+      {
+        "step": 2,
+        "handler": "completeAuthRequest",
+        "description": "Client submits authenticator response (e.g., email code, TOTP). Server verifies via AuthServer, marks request as Verified. Returns accountStatus, deviceTrusted, provisioning, and legacyData."
+      },
+      {
+        "step": 3,
+        "handler": "startCreateSession",
+        "description": "Client requests SRP session init. Requires authToken from step 2 unless device is trusted. Server creates SRPSession, returns accountId, keyParams, SRP B value, and srpId."
+      },
+      {
+        "step": 4,
+        "handler": "completeCreateSession",
+        "description": "Client submits SRP A, M values for verification. Server validates SRP proof, creates Session object, stores session key. Returns Session (with key stripped). Optionally adds device to trusted devices."
+      }
+    ]
+  },
+  "httpErrorShape": {
+    "source": "packages/server/src/transport/http.ts",
+    "success": {
+      "status": 200,
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8"
+      },
+      "body": "Response.toRaw(clientVersion) — { result: any, error?: { code: string, message: string }, auth?: {...} }"
+    },
+    "clientError": {
+      "status": 400,
+      "body": "Generic JSON parse/marshal failures; specific error in Response.error field"
+    },
+    "methodNotAllowed": {
+      "status": 405,
+      "description": "Returned for unsupported HTTP methods (non-POST/non-OPTIONS/non-healthcheck-GET)"
+    },
+    "maxRequestSize": {
+      "status": "stream destroyed",
+      "code": "MAX_REQUEST_SIZE_EXCEEDED",
+      "note": "Request is destroyed mid-stream when size exceeds config.maxRequestSize"
+    }
+  },
+  "handlers": [
+    {
+      "method": "startRegisterAuthenticator",
+      "inputType": "StartRegisterAuthenticatorParams",
+      "outputType": "StartRegisterAuthenticatorResponse",
+      "disposition": "implemented",
+      "rationale": "MFA authenticator registration lifecycle",
+      "sourceLine": 473
+    },
+    {
+      "method": "completeRegisterAuthenticator",
+      "inputType": "CompleteRegisterMFAuthenticatorParams",
+      "outputType": "CompleteRegisterMFAuthenticatorResponse",
+      "disposition": "implemented",
+      "rationale": "MFA authenticator registration lifecycle",
+      "sourceLine": 480
+    },
+    {
+      "method": "deleteAuthenticator",
+      "inputType": "string",
+      "outputType": "undefined",
+      "disposition": "implemented",
+      "rationale": "MFA authenticator registration lifecycle",
+      "sourceLine": 487
+    },
+    {
+      "method": "startAuthRequest",
+      "inputType": "StartAuthRequestParams",
+      "outputType": "StartAuthRequestResponse",
+      "disposition": "implemented",
+      "rationale": "Implemented in server.ts:Controller",
+      "sourceLine": 492
+    },
+    {
+      "method": "completeAuthRequest",
+      "inputType": "CompleteAuthRequestParams",
+      "outputType": "CompleteAuthRequestResponse",
+      "disposition": "implemented",
+      "rationale": "Implemented in server.ts:Controller",
+      "sourceLine": 497
+    },
+    {
+      "method": "startCreateSession",
+      "inputType": "StartCreateSessionParams",
+      "outputType": "StartCreateSessionResponse",
+      "disposition": "implemented",
+      "rationale": "Implemented in server.ts:Controller",
+      "sourceLine": 506
+    },
+    {
+      "method": "updateAuth",
+      "inputType": "UpdateAuthParams",
+      "outputType": "undefined",
+      "disposition": "implemented",
+      "rationale": "Implemented in server.ts:Controller",
+      "sourceLine": 515
+    },
+    {
+      "method": "completeCreateSession",
+      "inputType": "CompleteCreateSessionParams",
+      "outputType": "Session",
+      "disposition": "implemented",
+      "rationale": "Implemented in server.ts:Controller",
+      "sourceLine": 523
+    },
+    {
+      "method": "revokeSession",
+      "inputType": "string",
+      "outputType": "undefined",
+      "disposition": "implemented",
+      "rationale": "Implemented in server.ts:Controller",
+      "sourceLine": 531
+    },
+    {
+      "method": "createAccount",
+      "inputType": "CreateAccountParams",
+      "outputType": "Account",
+      "disposition": "implemented",
+      "rationale": "Implemented in server.ts:Controller",
+      "sourceLine": 539
+    },
+    {
+      "method": "getAccount",
+      "inputType": "string",
+      "outputType": "Account",
+      "disposition": "implemented",
+      "rationale": "Implemented in server.ts:Controller",
+      "sourceLine": 549
+    },
+    {
+      "method": "getAuthInfo",
+      "inputType": "undefined",
+      "outputType": "AuthInfo",
+      "disposition": "implemented",
+      "rationale": "Implemented in server.ts:Controller",
+      "sourceLine": 555
+    },
+    {
+      "method": "updateAccount",
+      "inputType": "Account",
+      "outputType": "Account",
+      "disposition": "implemented",
+      "rationale": "Implemented in server.ts:Controller",
+      "sourceLine": 565
+    },
+    {
+      "method": "changeEmail",
+      "inputType": "ChangeEmailParams",
+      "outputType": "Account",
+      "disposition": "implemented",
+      "rationale": "Implemented in server.ts:Controller",
+      "sourceLine": 575
+    },
+    {
+      "method": "recoverAccount",
+      "inputType": "RecoverAccountParams",
+      "outputType": "Account",
+      "disposition": "implemented",
+      "rationale": "Implemented in server.ts:Controller",
+      "sourceLine": 583
+    },
+    {
+      "method": "deleteAccount",
+      "inputType": "string",
+      "outputType": "undefined",
+      "disposition": "implemented",
+      "rationale": "Implemented in server.ts:Controller",
+      "sourceLine": 591
+    },
+    {
+      "method": "createOrg",
+      "inputType": "Org",
+      "outputType": "Org",
+      "disposition": "implemented",
+      "rationale": "Implemented in server.ts:Controller",
+      "sourceLine": 601
+    },
+    {
+      "method": "getOrg",
+      "inputType": "undefined",
+      "outputType": "Org",
+      "disposition": "implemented",
+      "rationale": "Implemented in server.ts:Controller",
+      "sourceLine": 613
+    },
+    {
+      "method": "updateOrg",
+      "inputType": "Org",
+      "outputType": "Org",
+      "disposition": "implemented",
+      "rationale": "Implemented in server.ts:Controller",
+      "sourceLine": 626
+    },
+    {
+      "method": "deleteOrg",
+      "inputType": "string",
+      "outputType": "undefined",
+      "disposition": "implemented",
+      "rationale": "Implemented in server.ts:Controller",
+      "sourceLine": 631
+    },
+    {
+      "method": "createVault",
+      "inputType": "Vault",
+      "outputType": "Vault",
+      "disposition": "implemented",
+      "rationale": "Implemented in server.ts:Controller",
+      "sourceLine": 643
+    },
+    {
+      "method": "getVault",
+      "inputType": "string",
+      "outputType": "Vault",
+      "disposition": "implemented",
+      "rationale": "Implemented in server.ts:Controller",
+      "sourceLine": 657
+    },
+    {
+      "method": "updateVault",
+      "inputType": "Vault",
+      "outputType": "Vault",
+      "disposition": "implemented",
+      "rationale": "Implemented in server.ts:Controller",
+      "sourceLine": 672
+    },
+    {
+      "method": "deleteVault",
+      "inputType": "string",
+      "outputType": "undefined",
+      "disposition": "implemented",
+      "rationale": "Implemented in server.ts:Controller",
+      "sourceLine": 685
+    },
+    {
+      "method": "getInvite",
+      "inputType": "GetInviteParams",
+      "outputType": "Invite",
+      "disposition": "implemented",
+      "rationale": "Implemented in server.ts:Controller",
+      "sourceLine": 698
+    },
+    {
+      "method": "acceptInvite",
+      "inputType": "Invite",
+      "outputType": "undefined",
+      "disposition": "implemented",
+      "rationale": "Used during org onboarding flow",
+      "sourceLine": 710
+    },
+    {
+      "method": "createAttachment",
+      "inputType": "Attachment",
+      "outputType": "string",
+      "disposition": "implemented",
+      "rationale": "Creates attachment metadata; returns attachment ID for blob upload",
+      "sourceLine": 715
+    },
+    {
+      "method": "getAttachment",
+      "inputType": "GetAttachmentParams",
+      "outputType": "Attachment",
+      "disposition": "implemented",
+      "rationale": "Implemented in server.ts:Controller",
+      "sourceLine": 720
+    },
+    {
+      "method": "deleteAttachment",
+      "inputType": "DeleteAttachmentParams",
+      "outputType": "undefined",
+      "disposition": "implemented",
+      "rationale": "Implemented in server.ts:Controller",
+      "sourceLine": 725
+    },
+    {
+      "method": "getLegacyData",
+      "inputType": "GetLegacyDataParams",
+      "outputType": "PBES2Container",
+      "disposition": "implemented",
+      "rationale": "V3 migration helper — retrieves legacy PBES2Container for account migration",
+      "sourceLine": 730
+    },
+    {
+      "method": "deleteLegacyAccount",
+      "inputType": "undefined",
+      "outputType": "undefined",
+      "disposition": "implemented",
+      "rationale": "V3 migration helper — deletes v3 account after migration to v4",
+      "sourceLine": 735
+    },
+    {
+      "method": "createKeyStoreEntry",
+      "inputType": "CreateKeyStoreEntryParams",
+      "outputType": "KeyStoreEntry",
+      "disposition": "implemented",
+      "rationale": "Implemented in server.ts:Controller",
+      "sourceLine": 740
+    },
+    {
+      "method": "getKeyStoreEntry",
+      "inputType": "GetKeyStoreEntryParams",
+      "outputType": "KeyStoreEntry",
+      "disposition": "implemented",
+      "rationale": "Implemented in server.ts:Controller",
+      "sourceLine": 745
+    },
+    {
+      "method": "deleteKeyStoreEntry",
+      "inputType": "string",
+      "outputType": "undefined",
+      "disposition": "implemented",
+      "rationale": "Implemented in server.ts:Controller",
+      "sourceLine": 750
+    },
+    {
+      "method": "removeTrustedDevice",
+      "inputType": "string",
+      "outputType": "undefined",
+      "disposition": "implemented",
+      "rationale": "Removes a trusted device from auth.mfaOrder/trustedDevices list",
+      "sourceLine": 755
+    },
+    {
+      "method": "listAccounts",
+      "inputType": "ListParams",
+      "outputType": "ListResponse",
+      "disposition": "implemented",
+      "rationale": "Admin/debug endpoint — lists all accounts with pagination",
+      "sourceLine": 760
+    },
+    {
+      "method": "listOrgs",
+      "inputType": "ListParams",
+      "outputType": "ListResponse",
+      "disposition": "implemented",
+      "rationale": "Admin/debug endpoint — lists all organizations with pagination",
+      "sourceLine": 765
+    },
+    {
+      "method": "listChangeLogEntries",
+      "inputType": "ListParams",
+      "outputType": "ListResponse",
+      "disposition": "implemented",
+      "rationale": "Admin/audit endpoint — retrieves change log with pagination",
+      "sourceLine": 770
+    },
+    {
+      "method": "listRequestLogEntries",
+      "inputType": "ListParams",
+      "outputType": "ListResponse",
+      "disposition": "implemented",
+      "rationale": "Admin/audit endpoint — retrieves request log with pagination",
+      "sourceLine": 775
+    }
+  ]
+}

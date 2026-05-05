@@ -77,6 +77,8 @@ export const sessions = sqliteTable(
     {
         id: text("id").primaryKey(),
         account_id: text("account_id").notNull(),
+        /** Full serialized Session object (JSON) */
+        data: text("data").notNull(),
         /** HMAC session key, stored encrypted */
         key_blob: text("key_blob").notNull(),
         /** ISO 8601 expiration */
@@ -255,6 +257,17 @@ export const changeLog = sqliteTable("change_log", {
     /** JSON metadata snapshot */
     data: text("data"),
     timestamp: text("timestamp").notNull(),
+});
+
+/**
+ * orphan_log — records partial-failure orphans for cron processing.
+ * R2 objects with no D1 row (stray) or D1 rows pointing to missing R2 objects.
+ */
+export const orphanLog = sqliteTable("orphan_log", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    r2_key: text("r2_key").notNull(),
+    orphaned_at: integer("orphaned_at").notNull(),
+    reason: text("reason").notNull(), // "delete_d1_failed" | "confirm_d1_failed" | "put_rollback_failed" | "stray_r2"
 });
 
 /**

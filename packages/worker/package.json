@@ -5,14 +5,24 @@
     "private": true,
     "license": "GPLv3",
     "dependencies": {
-        "@padloc/core": "workspace:*",
-        "@padloc/locale": "workspace:*",
+        "@padloc/core": "4.3.0",
+        "@padloc/locale": "4.3.0",
         "drizzle-orm": "^0.38.0"
     },
     "devDependencies": {
-        "drizzle-kit": "^0.30.0"
+        "drizzle-kit": "^0.30.0",
+        "wrangler": "^4.59.2"
     },
     "scripts": {
+        "dev": "wrangler dev --local --env=dev --ip 127.0.0.1 --port ${PL_WORKER_PORT:-8787}",
+        "dev:remote": "wrangler dev --remote --env=dev --ip 127.0.0.1 --port ${PL_WORKER_PORT:-8787}",
+        "start": "npm run dev",
+        "deploy:dry-run": "wrangler deploy --dry-run --env=dev",
+        "deploy:preview": "wrangler deploy --env=preview",
+        "deploy:production": "wrangler deploy --env=production",
+        "migrate:local": "wrangler d1 migrations apply DB --local",
+        "migrate:preview": "wrangler d1 migrations apply DB --remote --env=preview",
+        "migrate:production": "wrangler d1 migrations apply DB --remote --env=production",
         "test:crypto-parity": "node test/run-crypto-parity-worker.mjs --local",
         "test:crypto-parity:remote": "node test/run-crypto-parity-worker.mjs --remote",
         "dev:crypto-parity": "wrangler dev test/crypto-parity.worker.ts --local --ip 127.0.0.1 --port 18787"

@@ -18,6 +18,23 @@
 
 set -euo pipefail
 
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  echo "Usage: npm run proof:client"
+  echo ""
+  echo "Proves: The PWA client builds successfully and connects to a Worker backend"
+  echo "        when PL_SERVER_URL points to the deployed Worker URL."
+  echo ""
+  echo "Required env/bindings:"
+  echo "  PL_SERVER_URL         — Deployed Worker URL for PWA client to connect to"
+  echo "  NODE_ENV=production   — Ensures production build paths are exercised"
+  echo ""
+  echo "Exit codes:"
+  echo "  0 — PWA build passes and connectivity check succeeds"
+  echo "  1 — Build failed or connectivity check failed"
+  echo "  2 — Build succeeded but PL_SERVER_URL not set (connectivity skipped)"
+  exit 0
+fi
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'

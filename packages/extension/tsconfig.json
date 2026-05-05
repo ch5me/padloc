@@ -5,11 +5,16 @@
         "declaration": false,
         "emitDecoratorMetadata": true,
         "baseUrl": ".",
+        "paths": {
+            "@padloc/core/*": ["../core/*"],
+            "@padloc/app/*": ["../app/*"],
+            "@padloc/locale/*": ["../locale/*"]
+        },
         "outDir": "dist",
         "sourceMap": true,
         "module": "esnext",
         "strict": true
     },
-    "include": ["src/**/*.ts", "../app/types/**/*.ts"],
+    "include": ["src/**/*.ts", "types/**/*.d.ts", "../app/types/**/*.ts"],
     "exclude": ["node_modules/**/*.ts"]
 }

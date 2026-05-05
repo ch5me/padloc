@@ -22,7 +22,7 @@ This example assumes you already have `Node` and `NPM` installed.
    (via `PL_SERVER_URL` variable):
 
     ```sh
-    npm ci && PL_SERVER_URL=https://example.com/server/ npm run cordova:build:android
+    npm ci && PL_SERVER_URL=https://example.com/ npm run cordova:build:android
     ```
 
 That's it! You should now have an `.apk` file in

@@ -1,0 +1,37 @@
+Task 25: Cloudflare Deploy/Rollback/Backup/Secret-Rotation Runbooks
+====================================================================
+Date: 2026-05-04
+
+Deliverables:
+- [x] Runbooks include deploy, rollback, migration, backup/export, secret rotation
+- [x] Every command has expected output or verification command
+- [x] No dashboard-only critical path remains
+
+Created:
+- docs/ops/cloudflare-runbooks.md
+
+Verified sources:
+- wrangler.toml: dev/preview/production environments with D1/R2/KV/DO bindings
+- publish-release.yml: no Worker deploy step (not yet wired to GitHub Actions)
+- migrations/0000_init.sql: PRAGMA defer_foreign_keys=on pattern
+- schema.ts: 12 domain tables + 2 audit tables
+- proof-worker.sh: dry-run validation lane
+- proof-migration.sh: migration SQL validation lane
+- learnings.md: inherited T7/T8/T15/T16/T22 findings
+
+Runbook sections:
+1. Deploy Preview       -> wrangler deploy --env=preview
+2. Promote to Production -> wrangler deploy --env=production
+3. Rollback Worker      -> wrangler versions rollback <hash> --env=production
+4. Apply D1 Migrations  -> wrangler d1 migrations apply padloc-prod --env=production
+5. Backup D1 and R2     -> wrangler d1 export + r2 object list
+6. Rotate Secrets       -> wrangler secret put RESEND_API_KEY --env=production
+
+Key findings:
+- wrangler versions rollback is the CLI-based rollback mechanism
+- wrangler d1 export creates SQL dump files for D1 backup
+- R2 backup requires S3-compatible API (AWS CLI or dashboard for full sync)
+- wrangler secret put accepts stdin for non-interactive rotation
+- preview health check must pass before promoting to production
+
+No TypeScript annotations were modified. No code changes.

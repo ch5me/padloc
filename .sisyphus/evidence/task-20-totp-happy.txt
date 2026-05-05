@@ -1,0 +1,71 @@
+Task 20 — WebAuthn/TOTP MFA Evidence
+=====================================
+Generated: 2026-05-05
+
+## TOTP Status: IMPLEMENTED AND TESTED
+
+TOTP is fully wired in the Worker backend and verified by e2e tests.
+
+### Wiring
+- `packages/worker/src/server-factory.ts` line 26:
+  `authServers: AuthServer[] = [new EmailAuthServer(messenger), new TotpAuthServer(new TotpAuthConfig())];`
+- `TotpAuthServer` and `TotpAuthConfig` imported from `@padloc/core/src/auth/totp`
+- Uses HMAC-SHA-1 via WorkerCryptoProvider (Web Crypto API)
+
+### Test Results (9/9 PASS)
+All tests run via `wrangler dev test/auth-flow-e2e.worker.ts --local`:
+
+1. ✅ Full signup → login → session works
+2. ✅ Duplicate email signup rejected
+3. ✅ Wrong password rejected during login
+4. ✅ Non-existent account login rejected
+5. ✅ Revoked session rejected
+6. ✅ TOTP registration succeeds
+7. ✅ TOTP startAuthRequest returns correct type
+8. ✅ TOTP wrong code rejected
+9. ✅ TOTP same-counter code rejected after registration (replay protection)
+
+### TOTP Flow Coverage
+- Registration: startRegisterAuthenticator → completeRegisterAuthenticator (with valid code)
+- Auth request: startAuthRequest with type=Totp returns correct type and ID
+- Verification: completeAuthRequest with wrong code → AUTHENTICATION_FAILED
+- Replay protection: same-counter code after registration → AUTHENTICATION_FAILED
+
+## WebAuthn Status: EXPLICITLY DEFERRED
+
+WebAuthn is NOT implemented in the Worker backend. This is an intentional defer
+with client-safe semantics.
+
+### Why Deferred
+- `WebAuthnServer` (`packages/server/src/auth/webauthn.ts`) depends on
+  `@simplewebauthn/server`, which uses Node.js `Buffer` and other Node globals
+  unavailable in the Cloudflare Workers runtime.
+- The Worker `server-factory.ts` does NOT wire `WebAuthnServer` into authServers.
+- Porting `@simplewebauthn/server` to Web Crypto would require significant
+  reimplementation of CBOR decoding, COSE key handling, and signature
+  verification — out of scope for T20.
+
+### Client-Safe Defer Semantics
+- `AuthType.WebAuthnPlatform` and `AuthType.WebAuthnPortable` are defined in
+  `@padloc/core/src/auth.ts` but no Worker AuthServer supports them.
+- When a client requests `startAuthRequest` with `type: AuthType.WebAuthnPlatform`
+  or `type: AuthType.WebAuthnPortable`, the core Server will return
+  `AUTHENTICATION_FAILED` or `NOT_SUPPORTED` because no registered AuthServer
+  returns `true` for `supportsType()` on these types.
+- This is safe: the client receives a clear error rather than silent failure.
+- Clients should fall back to TOTP or Email auth when WebAuthn is unavailable.
+
+### Files
+- `packages/worker/src/server-factory.ts` — TOTP wired, WebAuthn absent (by design)
+- `packages/server/src/auth/webauthn.ts` — Node.js-only WebAuthn implementation
+- `packages/core/src/auth/totp.ts` — Worker-compatible TOTP implementation
+- `packages/core/src/auth.ts` — AuthType enum (includes WebAuthnPlatform, WebAuthnPortable)
+- `packages/worker/test/auth-flow-e2e.worker.ts` — TOTP e2e test harness
+
+### To Implement WebAuthn in Worker (Future)
+1. Create `packages/worker/src/auth/webauthn.ts` using Web Crypto API
+2. Replace `@simplewebauthn/server` with a Worker-compatible COSE/CBOR library
+   (e.g., `@levischuck/tiny-cbor` + manual COSE key parsing)
+3. Wire `WebAuthnServer` into `server-factory.ts` authServers array
+4. Add `WEBAUTHN_RP_ID` and `WEBAUTHN_RP_ORIGIN` env vars (already in wrangler.toml secrets)
+5. Add Worker-side WebAuthn tests to `auth-flow-e2e.worker.ts`

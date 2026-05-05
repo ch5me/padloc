@@ -4,6 +4,11 @@ import { IdempotencyStore } from "./idempotency";
 import { Env } from "./env";
 import { createServer } from "./server-factory";
 import { AccountLockDO } from "./locks/account-lock";
+import { Server } from "@padloc/core/src/server";
+import { responseHeaders } from "./observability/security-headers";
+import { RateLimiter } from "./rate-limiter";
+
+let cachedServer: Server | undefined;
 
 interface HealthcheckStatus {
     status: "ok" | "degraded";
@@ -33,14 +38,14 @@ async function healthcheck(env: Env): Promise<HealthcheckStatus> {
 
     if (env.ATTACHMENTS) {
         try {
-            await env.ATTACHMENTS.list({ limit: 0 });
+            await env.ATTACHMENTS.list({ limit: 1 });
             health.r2 = "ok";
         } catch {
             health.r2 = "unavailable";
         }
     }
 
-    if (env.RESEND_API_KEY) health.resend = "ok";
+    if (env.RESEND_API_KEY || env.EMAIL_BACKEND === "mock") health.resend = "ok";
 
     if (health.d1 !== "ok" || health.r2 !== "ok" || health.resend !== "ok") {
         health.status = "degraded";
@@ -57,6 +62,10 @@ export default {
         const config = new WorkerReceiverConfig();
         config.allowOrigin = allowOrigin;
         config.idempotencyStore = new IdempotencyStore(env.HINTS);
+        config.rateLimiter = new RateLimiter(env.HINTS, {
+            maxRequests: Number(env.RATE_LIMIT_MAX_REQUESTS || 100),
+            windowMs: Number(env.RATE_LIMIT_WINDOW_MS || 60000),
+        });
         const receiver = new WorkerReceiver(config);
 
         const url = new URL(request.url);
@@ -64,19 +73,20 @@ export default {
             const health = await healthcheck(env);
             return new Response(JSON.stringify(health), {
                 status: 200,
-                headers: {
+                headers: responseHeaders({ allowOrigin }, undefined, {
                     "Content-Type": "application/json; charset=utf-8",
-                    "Access-Control-Allow-Origin": allowOrigin,
-                    "Access-Control-Allow-Methods": "OPTIONS, POST",
-                    "Access-Control-Allow-Headers": "Content-Type",
-                },
+                }),
             });
         }
+
+        if (!cachedServer) {
+            cachedServer = createServer(env);
+        }
+        const server = cachedServer;
 
         return receiver.handleFetch(
             request,
             async (req: PlRequest): Promise<PlResponse> => {
-                const server = createServer(env);
                 return server.handle(req);
             },
             env,

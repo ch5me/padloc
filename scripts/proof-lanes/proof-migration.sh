@@ -18,6 +18,23 @@
 
 set -euo pipefail
 
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  echo "Usage: npm run proof:migration"
+  echo ""
+  echo "Proves: D1 migration SQL files are valid and can be executed against a test database."
+  echo "        Validates migration syntax, foreign key pragma usage, and fixture imports."
+  echo ""
+  echo "Required env/bindings:"
+  echo "  CLOUDFLARE_API_TOKEN  — Required for wrangler d1 execute --local"
+  echo "  CLOUDFLARE_ACCOUNT_ID — Required for wrangler d1 operations"
+  echo ""
+  echo "Exit codes:"
+  echo "  0 — All migration validations pass"
+  echo "  1 — Migration syntax error or fixture import failing"
+  echo "  2 — Missing required env or wrangler CLI"
+  exit 0
+fi
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'

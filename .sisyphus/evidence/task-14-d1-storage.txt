@@ -1,0 +1,22 @@
+Task 14 — D1 Storage Adapter Evidence
+=====================================
+Generated: 2026-05-04
+
+## Implementation
+- File: packages/worker/src/storage/d1.ts
+- Uses Drizzle ORM with SQLite dialect for D1
+- Blob-shaped storage: each Storable's toRaw() JSON in data TEXT column
+- 12 domain tables + 2 audit tables supported
+- ON CONFLICT(id) DO UPDATE for upsert behavior
+- Query translation: regex → LIKE patterns, complex patterns throw NOT_IMPLEMENTED
+
+## Verification
+- D1Storage implements Storage interface from @padloc/core/src/storage.ts
+- All domain types (Account, Auth, Session, Vault, Org, OrgMember, Invite, KeyStoreEntry, Attachment, EmailVerification) supported
+- clear() method supports all tables including orphan_log
+- Migration SQL uses PRAGMA defer_foreign_keys=on
+
+## Files
+- packages/worker/src/storage/d1.ts — D1 storage adapter implementation
+- packages/worker/src/storage/schema.ts — Drizzle schema definitions
+- packages/worker/migrations/0000_init.sql — Initial migration

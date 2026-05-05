@@ -27,11 +27,11 @@ npm run build
 
 All build options are provided as environment variables:
 
-| Variable Name   | Description                                        | Default  |
-| --------------- | -------------------------------------------------- | -------- |
-| `PL_SERVER_URL` | URL to the [server component](../server/README.md) | `./dist` |
-| `PL_PWA_DIR`    | Build output directory                             | `./dist` |
-| `PL_DISABLE_SW` | Disable web worker                                 | `./dist` |
+| Variable Name   | Description                                   | Default                 |
+| --------------- | --------------------------------------------- | ----------------------- |
+| `PL_SERVER_URL` | URL to the Worker backend (`packages/worker`) | `http://127.0.0.1:8787` |
+| `PL_PWA_DIR`    | Build output directory                        | `./dist`                |
+| `PL_DISABLE_SW` | Disable web worker                            | `./dist`                |
 
 ## Web Server
 

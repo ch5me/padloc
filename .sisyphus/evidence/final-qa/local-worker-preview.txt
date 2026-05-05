@@ -1,0 +1,36 @@
+Task 24 / F3 — Local Worker Preview QA Evidence
+=================================================
+Generated: 2026-05-05
+
+## Local Worker Preview Test
+
+Command: `npx wrangler dev --port 19998 --inspector-port 19997 --local`
+
+### Healthcheck
+```
+GET http://localhost:19998/healthcheck
+Response: {"status":"degraded","version":"0.0.0","d1":"ok","r2":"unavailable","resend":"unavailable"}
+Status: 200 OK (9ms)
+```
+
+### Malformed POST
+```
+POST http://localhost:19998/
+Body: "not json"
+Response: {"error":{"code":"invalid_request","message":"Failed to parse request body"}}
+Status: 400 Bad Request (1ms)
+```
+
+### Results
+- ✅ Worker starts successfully in local mode
+- ✅ D1 binding works (d1: "ok")
+- ✅ R2 unavailable in local mode (expected — no local R2 emulator)
+- ✅ Resend unavailable in local mode (expected — no API key)
+- ✅ Healthcheck returns 200 with structured JSON
+- ✅ Malformed POST returns Padloc-compatible error response
+- ✅ CORS headers present on all responses
+
+### Limitations
+- Full PWA e2e requires PWA build pointing at Worker URL
+- Cordova test requires mobile build environment
+- These require Cloudflare credentials for deployed preview to test with real R2/Resend

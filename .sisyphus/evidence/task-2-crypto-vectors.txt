@@ -1,0 +1,98 @@
+Task T2 — crypto/auth parity vectors
+
+Context read:
+- .sisyphus/plans/padloc-cloudflare-native-backend.md:563-625
+- packages/core/src/srp.ts
+- packages/core/src/platform.ts
+- packages/core/src/crypto.ts
+- packages/core/src/session.ts
+- packages/core/src/otp.ts
+- packages/core/src/container.ts
+- packages/core/src/spec/crypto.ts
+- packages/server/src/crypto/node.ts
+- packages/server/src/auth/webauthn.ts
+- security.md
+
+Required tool notes:
+- context7 was attempted for Web Crypto/SRP docs, but the MCP returned: "Monthly quota exceeded. Create a free API key at https://context7.com/dashboard for more requests."
+- Required grep was run for CryptoProvider in packages/core/src/crypto.ts.
+- Required ast-grep command was run: sg --pattern 'encrypt|decrypt|sign|verify' --lang typescript packages/core/src
+
+Files added:
+- packages/worker/src/crypto.ts
+  - Intentional RED stub for WorkerCryptoProvider. It implements the CryptoProvider surface and throws until T13 replaces it with Web Crypto.
+- packages/worker/test/crypto-parity.ts
+  - Worker-safe vector runner. It does not import packages/server/src/crypto/node.ts and does not use Node crypto APIs.
+- packages/worker/test/crypto-parity.worker.ts
+  - Cloudflare Worker fetch entrypoint for the parity lane.
+- packages/worker/test/run-crypto-parity-worker.mjs
+  - Node orchestration only: starts wrangler dev, fetches the Worker endpoint, and exits non-zero on RED vectors. Crypto is executed inside the Worker runtime.
+- packages/worker/package.json
+  - Adds scripts:
+    - npm run test:crypto-parity
+    - npm run test:crypto-parity:remote
+    - npm run dev:crypto-parity
+- packages/worker/tsconfig.json
+  - Adds Worker/WebWorker lib and local paths for @padloc/core and @padloc/locale during the pre-bootstrap package state.
+
+Vector coverage:
+1. SRP/session negotiation
+   - Fixed x/a/b values exercise Padloc SRP-6a Client/Server at the current 4096-bit default.
+   - Asserts client/server K, M1, M2 and tampered-M1 failure via timingSafeEqual.
+   - Expected constants were generated once from packages/core/src/srp.ts formulas using fixed inputs and Padloc's unpadded bigint byte encoding.
+
+2. HMAC request signatures
+   - Uses packages/core/src/session.ts message contract:
+     sessionId + "_" + ISO timestamp + "_" + marshal(params)
+   - Fixed vector:
+     message = session-parity-0001_2024-01-02T03:04:05.006Z_[{"method":"unlock","counter":7,"ok":true}]
+     HMAC-SHA-256 = 97a17f9e2281b60372ee7c999dfbbb19f9b05464237a29b8e6ffa82503b8ad5f
+
+3. PBES2/AES-GCM
+   - PBKDF2-HMAC-SHA-256 password="password", salt="salt", iterations=1, dkLen=32:
+     key = 120fb6cffcf8b32c43e7225256c4f837a86548c92ccc35480805987cb70be17b
+   - AES-256-GCM ciphertext||tag for plain="Padloc PBES2 parity", iv=000102030405060708090a0b0c, aad=7061646c6f632d616164:
+     3a01f50c9d046862fc4756953c3c7daf15c1a5a0a283de85af41096e63e1509e3a1a17
+
+4. RSA wrapping/signing
+   - Reuses existing Padloc DER fixtures from packages/core/src/spec/crypto.ts.
+   - Deterministic checks: RSA-OAEP decrypt known ciphertext and RSA-PSS verify known signature.
+   - RSA-PSS signing is only round-trip verified because PSS salt makes the signature intentionally non-deterministic.
+
+5. TOTP
+   - RFC 6238 Appendix B vectors at Unix time 59s:
+     SHA-1 / 8 digits = 94287082
+     SHA-256 / 8 digits = 46119246
+
+6. WebAuthn verifier inputs
+   - Captures Worker-safe verifier input shape used by packages/server/src/auth/webauthn.ts:
+     expectedChallenge, expectedOrigin, expectedRPID, credential, authenticator.
+   - Keeps fields as strings/JSON-safe values so Worker implementation does not depend on Node byte coercion.
+
+Expected current result:
+- RED until T13 implements packages/worker/src/crypto.ts with Worker-compatible Web Crypto APIs.
+- WebAuthn input-shape vector can pass now because it validates verifier input serialization only.
+- Crypto-dependent vectors should fail with: "WorkerCryptoProvider is not implemented yet; T13 must satisfy crypto parity vectors."
+
+Worker runtime execution path:
+- Local Miniflare/Wrangler lane:
+  cd packages/worker && npm run test:crypto-parity
+- Remote Worker proof lane after bindings/deploy target exist:
+  cd packages/worker && npm run test:crypto-parity:remote
+
+Node-only rejection:
+- packages/worker/test/crypto-parity.ts imports only @padloc/core and Worker package files.
+- packages/worker/test/crypto-parity.worker.ts imports only WorkerCryptoProvider and the parity runner.
+- packages/server/src/crypto/node.ts is not imported by the Worker lane.
+
+Verification run on 2026-05-04:
+- LSP diagnostics for packages/worker/test/crypto-parity.ts, packages/worker/test/crypto-parity.worker.ts, and packages/worker/src/crypto.ts: clean.
+- LSP diagnostics for packages/worker/tsconfig.json could not run because the configured biome LSP is not installed in this environment.
+- TypeScript check with the repo-pinned compiler succeeded:
+  if [ -x "./node_modules/.bin/tsc" ]; then "./node_modules/.bin/tsc" --noEmit -p packages/worker/tsconfig.json; else npm exec --package typescript@4.4.3 -- tsc --noEmit -p packages/worker/tsconfig.json; fi
+- `npm exec tsc -- --noEmit -p packages/worker/tsconfig.json` uses a newer npm-resolved TypeScript and fails on the legacy root `suppressImplicitAnyIndexErrors` option. This is a toolchain mismatch, not a worker parity source error.
+- Worker runtime RED lane succeeded as an expected failing test harness:
+  cd packages/worker && npm run test:crypto-parity
+  summary: total=7, passed=2, failed=5.
+  passed: Worker Web Crypto runtime availability; WebAuthn verifier input shape.
+  failed with the intentional T13 stub message: SRP/session negotiation M1/M2 verification; HMAC request signature contract; PBES2/PBKDF2 and AES-GCM vector; RSA wrapping and signing fixtures; TOTP RFC 6238 vectors.

@@ -1,0 +1,29 @@
+T18 — Account creation, login, and session flows end-to-end
+============================================================
+
+Date: 2026-05-05
+
+Changes:
+- packages/worker/src/server-factory.ts — wired real adapters:
+  - setPlatform(new WorkerPlatform()) — provides WorkerCryptoProvider + Web Fetch
+  - createMessenger(env) — ResendMessenger when RESEND_API_KEY + EMAIL_FROM_ADDRESS present,
+    StubMessenger when EMAIL_BACKEND=mock or missing
+  - createAttachmentStorage(env) — R2AttachmentStorage when ATTACHMENTS + DB present,
+    stub otherwise
+- packages/worker/tsconfig.json — removed "webworker" from lib to avoid conflicts
+  with @cloudflare/workers-types ambient globals
+- packages/worker/src/attachments/r2.ts — removed explicit @cloudflare/workers-types
+  imports; uses ambient types from tsconfig
+
+Verification:
+- npx tsc --noEmit: zero errors in packages/worker/src/* and packages/worker/test/*
+- packages/worker/src/index.ts: zero LSP diagnostics
+- All adapters (D1Storage, R2AttachmentStorage, ResendMessenger, WorkerCryptoProvider,
+  PersonalProvisioner) wired conditionally based on env bindings
+
+Server wiring:
+- Storage: D1Storage (real) or stub
+- Messenger: ResendMessenger (real) or StubMessenger
+- AttachmentStorage: R2AttachmentStorage (real) or stub
+- Platform: WorkerPlatform (always set via setPlatform)
+- Provisioner: PersonalProvisioner (always)

@@ -1,0 +1,50 @@
+=== Task 26: Rate Limiting Evidence ===
+Generated: 2026-05-05T06:30:00Z
+
+========================================
+Rate Limiter Implementation
+========================================
+
+Source: packages/worker/src/rate-limiter.ts
+
+TOKEN-BUCKET ALGORITHM:
+-----------------------
+- KV-backed with configurable maxRequests (default: 100) and windowMs (default: 60000ms)
+- Per-identity (IP or account ID) limiting
+- Key format: "rl:{identity}"
+- TTL: windowMs/1000 + 60 seconds
+- No-op when KV unavailable (fail-open for availability)
+
+RESPONSE SHAPE:
+---------------
+{ allowed: boolean, remaining: number, retryAfterMs?: number }
+
+TEST RESULTS:
+------------
+Tests at: packages/worker/test/rate-limit-test.ts
+
+7/7 tests passing:
+1. First request allowed, tokens consumed
+2. Tokens exhausted → denied with retryAfterMs
+3. Different identities have independent buckets
+4. Window expires → tokens refill
+5. No KV → always allowed (no-op)
+6. Default configuration values
+7. Retry-After within window bounds
+
+DOCUMENTATION IN TEST:
+----------------------
+"Token-bucket rate limiter backed by KVNamespace. Per-identity with 
+configurable maxRequests (default 100) and windowMs (default 60000ms). 
+KV unavailable → no-op (always allows)."
+
+BEHAVIOR SUMMARY:
+-----------------
+- First request in window: allowed, remaining = maxRequests - 1
+- Requests until tokens exhausted: allowed, remaining decrements
+- No tokens remaining: denied with retryAfterMs = windowMs - (time since window start)
+- Window expired: bucket refills to maxRequests
+- Different identities: independent buckets
+- KV unavailable: no-op, always allows
+
+========================================

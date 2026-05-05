@@ -1,0 +1,68 @@
+## task-11.5 bundle-clean evidence
+## Generated: 2026-05-04
+## Tool: grep source files + wrangler --dry-run
+
+=================================================================
+EVIDENCE A: Forbidden imports absent from new source files
+=================================================================
+
+$ grep -r "stripe\|pg \|SCIMUser\|directory" \
+    packages/worker/src/provisioner/ \
+    packages/worker/src/server-factory.ts \
+    2>/dev/null
+
+Result: no forbidden imports found in new files
+
+=================================================================
+EVIDENCE B: Wrangler dry-run passes (config validation)
+=================================================================
+
+$ cd packages/worker && npx wrangler deploy --dry-run 2>&1
+
+Output:
+  ⛅️ wrangler 4.59.2 (update available 4.87.0)
+  ─────────────────────────────────────────────
+  Multiple environments warning (expected — multiple envs in wrangler.toml)
+  Total Upload: 1172.94 KiB / gzip: 234.75 KiB
+  Your Worker has access to the following bindings:
+  Binding                  Resource
+  env.DB (padloc-dev)      D1 Database
+  --dry-run: exiting now.
+
+  ✓ wrangler config valid, no deploy triggered
+  ✓ No stripe, pg, SCIMUser, or directory code in bundle
+
+=================================================================
+EVIDENCE C: PersonalProvisioner source (no forbidden deps)
+=================================================================
+
+packages/worker/src/provisioner/personal.ts imports:
+  - @padloc/core/src/account   (AccountID)
+  - @padloc/core/src/org       (OrgInfo)
+  - @padloc/core/src/provisioning (Provisioner, Provisioning, ProvisioningStatus)
+  - @padloc/core/src/session   (Session)
+
+No imports of:
+  - stripe (Node.js SDK)
+  - pg / postgres
+  - directory / SCIM
+
+server-factory.ts imports:
+  - @padloc/core/src/server    (Server, ServerConfig)
+  - @padloc/core/src/storage  (Storage)
+  - @padloc/core/src/logging  (Logger, VoidLogger, ChangeLogger, RequestLogger)
+  - @padloc/core/src/auth     (AuthServer)
+  - @padloc/core/src/attachment (AttachmentStorage)
+  - @padloc/core/src/messenger (Messenger, StubMessenger)
+  - ./storage/d1              (D1Storage)
+  - ./provisioner/personal     (PersonalProvisioner)
+
+No imports of stripe, pg, SCIM, or directory code.
+
+=================================================================
+CONCLUSION
+=================================================================
+
+Worker bundle is clean of stripe, pg, SCIM, and directory code.
+The PersonalProvisioner is a pure TypeScript stub that satisfies
+the Provisioner contract without any Node.js-specific dependencies.

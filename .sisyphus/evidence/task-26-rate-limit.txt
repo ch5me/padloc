@@ -1,0 +1,97 @@
+========================================
+Task 26 - Rate Limiting Documentation
+Generated: 2026-05-04
+========================================
+
+RATE LIMITING SPECIFICATION
+===========================
+
+Implementation: Token-bucket algorithm backed by KVNamespace
+Location: packages/worker/src/rate-limiter.ts
+
+CONFIGURATION
+-------------
+Environment Variable: Not applicable (configured at instantiation)
+Class Signature: new RateLimiter(kv?: KVNamespace, opts?: { maxRequests?: number; windowMs?: number })
+
+Default Limits:
+- maxRequests: 100 requests per window
+- windowMs: 60000 (60 seconds)
+
+KEY BEHAVIORS
+-------------
+1. Per-Identity Limiting
+   Each identity (IP address or account ID) gets its own token bucket.
+   Key format: "rl:${identity}"
+
+2. Token Bucket Algorithm
+   - First request: bucket initialized with maxRequests - 1 tokens
+   - Subsequent requests: tokens decrement
+   - When tokens reach 0: request denied with retryAfterMs
+
+3. Window Reset
+   - When current time - windowStart >= windowMs, bucket refills
+   - Refill is atomic with the request
+
+4. KV Unavailable → No-op
+   - When KV is undefined, rate limiting is bypassed (always allows)
+   - This prevents rate limiter from becoming a single point of failure
+
+5. TTL Management
+   - KV entries expire at windowMs/1000 + 60 seconds
+   - Ensures stale entries don't accumulate
+
+RATE LIMIT RESPONSE
+-------------------
+HTTP Status: 429 Too Many Requests
+Error Code: rate_limited
+
+Response headers:
+- Retry-After: (if denied) seconds until token refill
+- RateLimit-Limit: maxRequests
+- RateLimit-Remaining: remaining tokens
+
+DENIAL RESPONSE SHAPE
+---------------------
+{
+  "error": {
+    "code": "rate_limited",
+    "message": "Rate limit exceeded"
+  }
+}
+
+CURRENT USAGE IN WORKER
+----------------------
+The rate limiter is instantiated in index.ts:
+  const limiter = new RateLimiter(env.HINTS, { maxRequests: 100, windowMs: 60000 });
+
+Integration points (TBD - to be wired):
+- WorkerReceiver for global request limiting
+- Per-endpoint limiting for sensitive operations (auth, password change)
+
+RATE LIMIT TEST RESULTS (from test/rate-limit-test.ts)
+-----------------------------------------------------
+Tests: 7/7 PASSED
+
+1. First request allowed, tokens consumed
+2. Tokens exhausted → denied with retryAfterMs
+3. Different identities have independent buckets
+4. Window expires → tokens refill
+5. No KV → always allowed (no-op)
+6. Default configuration values (100, 60000)
+7. Retry-After is within window bounds
+
+SECURITY NOTES
+--------------
+- Rate limiting is one layer of defense against brute force
+- Does NOT protect against distributed attacks (use Cloudflare DDoS protection)
+- KV TTL ensures limits reset even if entries aren't cleaned up
+- IP-based limiting can be supplemented with account-based limiting
+
+INTEGRATION CHECKLIST
+---------------------
+[ ] Wire rate limiter into WorkerReceiver middleware
+[ ] Apply to sensitive endpoints (login, password change, MFA)
+[ ] Consider account ID + IP dual-keying for authenticated requests
+[ ] Add rate limit headers to all responses (not just denials)
+[ ] Document expected client behavior (Retry-After handling)

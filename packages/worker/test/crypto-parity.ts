@@ -32,13 +32,29 @@ export interface CryptoParityReport {
         passed: number;
         failed: number;
     };
+    benchmark?: CryptoBudgetResult;
     results: CryptoParityResult[];
+}
+
+export interface CryptoBudgetResult {
+    name: string;
+    ok: boolean;
+    wallMs: number;
+    thresholdMs: number;
+    pbkdf2Iterations: number;
+    note: string;
+}
+
+export interface CryptoParityOptions {
+    includeBenchmark?: boolean;
+    enforceBudget?: boolean;
+    budgetThresholdMs?: number;
 }
 
 interface CryptoParityVector {
     name: string;
     source: string;
-    run(provider: CryptoProvider): Promise<void>;
+    run(provider: CryptoProvider): Promise<void | string>;
 }
 
 const vectorSources = {
@@ -185,6 +201,57 @@ const rsaFixture = {
         "eAJDfWUdgL4Wl0UDsA0WsmHE29MNAnTvSjus3N0BP6foD0fFZBlrfmRbF-KjY_2zYhgaqn7E4pEKMB20tPDC-JYcAJO8PMWOR6PdLBsBCUTbdYy062iwFWgWfzSFV2LDy-G2t9HL2CbDoDAdsh1fNGIm81nY9sXbB0kKM4uNXKTdVl49Cwf30jiRRpABV_tSPmQjkHDVWOphVEY5ex0hhveRC6vfO1YZ21-CuoTa1gRq-ab21V-Pl5rfQ0RHsDgtvvSJ8_3ihzCkOTjd2Anj0GiKEsCeV0NaEgT-e5WyDj2zYNIsVOoMmB65UUkXX002Ycc2cGuoYw2uudZQSaAlqg",
     ),
 };
+
+async function runCompleteAuthRequestCryptoBudget(
+    provider: CryptoProvider,
+    thresholdMs: number,
+): Promise<CryptoBudgetResult> {
+    const started = performance.now();
+    const x = bytesToBigint(
+        await provider.deriveKey(
+            stringToBytes("correct horse battery staple"),
+            new PBKDF2Params({
+                salt: stringToBytes("padloc-worker-complete-auth-budget"),
+                iterations: 1_000_000,
+            }),
+        ),
+    );
+
+    const g = 5n;
+    const a = bytesToBigint(hexToBytes("0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"));
+    const b = bytesToBigint(hexToBytes("2122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40"));
+    const k = await srpHash(provider, srpN4096, g);
+    const v = modPow(g, x, srpN4096);
+    const A = modPow(g, a, srpN4096);
+    const B = positiveMod(k * v + modPow(g, b, srpN4096), srpN4096);
+    const u = await srpHash(provider, A, B);
+    const clientS = modPow(positiveMod(B - k * modPow(g, x, srpN4096), srpN4096), a + u * x, srpN4096);
+    const serverS = modPow(positiveMod(A * modPow(v, u, srpN4096), srpN4096), b, srpN4096);
+    const clientK = await srpHash(provider, clientS);
+    const serverK = await srpHash(provider, serverS);
+    const rsaVerified = await provider.verify(
+        rsaFixture.publicKey,
+        rsaFixture.signature,
+        rsaFixture.sigData,
+        new RSASigningParams(),
+    );
+
+    assertTrue(
+        await provider.timingSafeEqual(bigintToBytes(clientK), bigintToBytes(serverK)),
+        "completeAuthRequest SRP K must match",
+    );
+    assertTrue(rsaVerified, "completeAuthRequest RSA-PSS verification must pass");
+
+    const wallMs = performance.now() - started;
+    return {
+        name: "completeAuthRequest crypto budget",
+        ok: wallMs <= thresholdMs,
+        wallMs: Math.round(wallMs * 100) / 100,
+        thresholdMs,
+        pbkdf2Iterations: 1_000_000,
+        note: "Measures PBKDF2-HMAC-SHA-256 1M + SRP-4096 + RSA-PSS verify in the Worker request path.",
+    };
+}
 
 const vectors: CryptoParityVector[] = [
     {
@@ -409,22 +476,45 @@ function formatError(error: unknown) {
     return String(error);
 }
 
-export async function runCryptoParity(provider: CryptoProvider): Promise<CryptoParityReport> {
+export async function runCryptoParity(
+    provider: CryptoProvider,
+    { includeBenchmark = false, enforceBudget = false, budgetThresholdMs = 200 }: CryptoParityOptions = {},
+): Promise<CryptoParityReport> {
     const results: CryptoParityResult[] = [];
+    let benchmark: CryptoBudgetResult | undefined;
 
     for (const vector of vectors) {
         try {
-            await vector.run(provider);
+            const detail = await vector.run(provider);
             results.push({
                 name: vector.name,
                 source: vector.source,
                 ok: true,
-                detail: "passed",
+                detail: detail || "passed",
             });
         } catch (error) {
             results.push({
                 name: vector.name,
                 source: vector.source,
+                ok: false,
+                detail: formatError(error),
+            });
+        }
+    }
+
+    if (includeBenchmark) {
+        try {
+            benchmark = await runCompleteAuthRequestCryptoBudget(provider, budgetThresholdMs);
+            results.push({
+                name: benchmark.name,
+                source: "T13 CPU-budget proof for Worker Paid remote runtime.",
+                ok: !enforceBudget || benchmark.ok,
+                detail: `${benchmark.wallMs} ms wall; threshold ${benchmark.thresholdMs} ms; ${benchmark.note}`,
+            });
+        } catch (error) {
+            results.push({
+                name: "completeAuthRequest crypto budget",
+                source: "T13 CPU-budget proof for Worker Paid remote runtime.",
                 ok: false,
                 detail: formatError(error),
             });
@@ -441,6 +531,7 @@ export async function runCryptoParity(provider: CryptoProvider): Promise<CryptoP
             passed,
             failed: results.length - passed,
         },
+        benchmark,
         results,
     };
 }

@@ -1,0 +1,95 @@
+# T15 — R2 Attachment Lifecycle Evidence
+
+## Task
+Implement R2AttachmentStorage in packages/worker/src/attachments/r2.ts per ADR-006.
+
+## Implementation
+
+### File: packages/worker/src/attachments/r2.ts
+
+**R2AttachmentStorage** — Cloudflare Workers R2-backed AttachmentStorage.
+
+Key design decisions:
+- Object key scheme: `att/<vault_id>/<attachment_id>` (ADR-006)
+- Upload: D1 INSERT first → R2 PUT second. Rollback D1 on R2 failure (up to 3 retries).
+- Delete: R2 DELETE first → D1 DELETE second. Orphan recorded to `orphan_log` on D1 failure.
+- Download: D1 SELECT first → R2 GET second.
+- Hash: SHA-256 hex stored in D1 metadata and R2 customMetadata.
+- Size cap: 25 MB hard cap (`MAX_ATTACHMENT_SIZE`). Rejected before any I/O.
+- Signed URL threshold: 5 MB (`SIGNED_URL_THRESHOLD`). 15 min TTL.
+- Orphan reasons: `put_rollback_failed`, `delete_d1_failed`, `confirm_d1_failed`, `delete_all_d1_failed`.
+
+**Exports:**
+- `R2AttachmentStorage` — class implementing `AttachmentStorage`
+- `R2AttachmentStorageConfig` — `{ bucket: R2Bucket, db: D1Database }`
+- `MAX_ATTACHMENT_SIZE` — 25 MB
+- `SIGNED_URL_THRESHOLD` — 5 MB
+- `SIGNED_URL_TTL_MS` — 15 min
+
+**Extra methods (beyond AttachmentStorage):**
+- `createUploadUrl(vault, id, size, contentType)` → `{ uploadUrl, r2Key }` — signed R2 PUT URL for direct-to-R2 large file upload
+- `confirmUpload(vault, id, size, hash, ownerAccountId, contentType)` — D1 metadata confirm after client direct upload
+- `createDownloadUrl(vault, id)` → signed R2 GET URL for direct-from-R2 download
+- `verify(vault, id)` → integrity check via custom metadata hash or re-computed hash
+
+**No fs/S3 SDK imports. Workers runtime R2Bucket API only.**
+
+### File: packages/worker/src/storage/schema.ts
+
+Added `orphan_log` table:
+
+```sql
+CREATE TABLE orphan_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    r2_key TEXT NOT NULL,
+    orphaned_at INTEGER NOT NULL,
+    reason TEXT NOT NULL
+);
+```
+
+### File: packages/worker/src/storage/d1.ts
+
+Added `orphan_log` to `DOMAIN_TABLES` for `clear()` support.
+
+## Test Coverage
+
+### File: packages/worker/test/r2-lifecycle.ts + r2-lifecycle.worker.ts
+
+10 test cases:
+1. 1 KB upload/get — basic lifecycle
+2. 5 MB upload/get — at threshold
+3. 25 MB upload/get — max size boundary
+4. Oversized (>25 MB) rejected — no orphan created
+5. Single attachment delete — both D1 and R2 cleaned
+6. Delete non-existent — idempotent (no throw)
+7. R2 failure → D1 rollback — compensation verified
+8. getUsage vault sum — aggregation correct
+9. createUploadUrl/confirmUpload flow — signed URL path
+10. getUsage empty vault — zero case
+
+## Schema Additions
+
+- `orphan_log` table in schema.ts (orphan_log column reasons: `put_rollback_failed`, `delete_d1_failed`, `confirm_d1_failed`, `stray_r2`)
+- `orphan_log` added to `DOMAIN_TABLES` in d1.ts `clear()` list
+
+## Partial Failure Handling
+
+| Scenario | D1 INSERT | R2 PUT | Result | Action |
+|----------|-----------|--------|--------|--------|
+| Upload fail | ❌ fail | — | No row, no R2 | Client retries |
+| Upload fail | ✅ pass | ❌ fail | D1 row, no R2 object | D1 rollback (up to 3x), then orphan logged |
+
+| Scenario | R2 DELETE | D1 DELETE | Result | Action |
+|----------|-----------|-----------|--------|--------|
+| Delete fail | ❌ fail | — | R2 intact, D1 intact | Client retries |
+| Delete fail | ✅ pass | ❌ fail | R2 clean, D1 row stale | Orphan recorded |
+
+## Verification
+
+- `@cloudflare/workers-types` errors are dev-environment missing deps (wrangler injects these at runtime)
+- All other TS errors resolved (duplicate identifiers from prior edit artifacts, ERR_INTERNAL → SERVER_ERROR, VaultID import from @padloc/core/src/vault, sha256Hex local helper)
+- No fs/S3 SDK imports
+- Orphan cleanup defined (recordOrphan function + orphan_log table)
+- Lifecycle tests written (10 cases covering 1KB, 5MB, max-size, oversize rejection, delete, rollback, signed URL flow)
+
+## Date: 2026-05-04

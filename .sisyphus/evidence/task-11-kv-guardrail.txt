@@ -1,0 +1,31 @@
+# Task 11: KV Authoritative Misuse Guardrail
+
+Generated: 2026-05-04
+
+## Rule
+
+KV is NEVER used as the authoritative source of truth for:
+- Authentication records (auth table)
+- Session records (sessions table)
+- Vault state (vaults table)
+- Org membership (orgs, org_members tables)
+- Account data (accounts table)
+- Attachment metadata (attachments table)
+
+## Allowed KV Uses (Hint-Only)
+
+- Rate-limit counters: `rate:account:{id}` → counter/timestamp
+- Ephemeral cache: `cache:{entity}:{id}` → temporary read cache (invalidates on D1 write)
+- Session presence hints: `presence:session:{id}` → last-seen timestamp (for dashboard display)
+- Worker coordination hints: transient flags for warm-start optimization
+
+## Enforcement
+
+- All D1 writes happen within `db.batch()` for multi-statement flows
+- DO locks serialize per-account/per-org access to prevent lost updates
+- KV reads are additive-only optimizations; logic works correctly with KV disabled
+- Code review must flag any `KV_NAMESPACE.put()` that includes authoritative state fields
+
+## Evidence
+
+See docs/architecture/adr-008-transactionality.md §"KV Anti-Pattern: What NOT to Do"

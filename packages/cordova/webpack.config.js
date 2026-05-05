@@ -24,6 +24,9 @@ module.exports = {
         extensions: [".ts", ".js", ".css", ".svg", ".png", ".jpg"],
         alias: {
             assets: resolve(__dirname, assetsDir),
+            "@padloc/core": resolve(rootDir, "packages/core"),
+            "@padloc/app": resolve(rootDir, "packages/app"),
+            "@padloc/locale": resolve(rootDir, "packages/locale"),
         },
     },
     module: {
@@ -52,7 +55,7 @@ module.exports = {
     },
     plugins: [
         new EnvironmentPlugin({
-            PL_SERVER_URL: `http://localhost:${process.env.PL_SERVER_PORT || 3000}`,
+            PL_SERVER_URL: `http://127.0.0.1:${process.env.PL_WORKER_PORT || 8787}`,
             PL_BILLING_ENABLED: null,
             PL_BILLING_DISABLE_PAYMENT: null,
             PL_BILLING_STRIPE_PUBLIC_KEY: null,
@@ -71,7 +74,7 @@ module.exports = {
             meta: {
                 "Content-Security-Policy": {
                     "http-equiv": "Content-Security-Policy",
-                    content: `default-src 'self' ${process.env.PL_SERVER_URL} https://api.pwnedpasswords.com blob:; style-src 'self' 'unsafe-inline'; object-src 'self' blob:; frame-src 'self'; img-src 'self' blob: data: https:;`,
+                    content: `default-src 'self' ${process.env.PL_SERVER_URL || `http://127.0.0.1:${process.env.PL_WORKER_PORT || 8787}`} https://api.pwnedpasswords.com blob:; style-src 'self' 'unsafe-inline'; object-src 'self' blob:; frame-src 'self'; img-src 'self' blob: data: https:;`,
                 },
             },
         }),

@@ -1,0 +1,7 @@
+id = "padloc"
+name = "Padloc"
+kind = "project"
+emoji = "🔐"
+group = "personal"
+tier = "runnable"
+runtime = "cloud"

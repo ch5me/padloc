@@ -4,12 +4,13 @@
         "module": "esnext",
         "moduleResolution": "node",
         "baseUrl": ".",
-        "lib": ["es2020", "webworker"],
+        "lib": ["es2020", "dom"],
+        "types": ["@cloudflare/workers-types", "@types/node"],
         "paths": {
             "@padloc/core/*": ["../core/*"],
             "@padloc/locale/*": ["../locale/*"]
         }
     },
-    "include": ["src/**/*.ts", "test/**/*.ts"],
-    "exclude": ["node_modules/**/*.ts"]
+    "include": ["src/**/*.ts", "test/**/*.ts", "test/**/*.d.ts", "global.d.ts"],
+    "exclude": ["node_modules", ".wrangler"]
 }

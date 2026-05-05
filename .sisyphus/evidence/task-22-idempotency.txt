@@ -1,0 +1,26 @@
+=== Task 22: Error, Idempotency, Retry & Edge-Case Semantics ===
+Date: 2026-05-05T07:31:41.531Z
+Runtime: node-js
+Overall: PASS
+Summary: 20/20 passed
+
+✅ Known Err passes through: passed
+✅ SQLite UNIQUE → DUPLICATE_OPERATION: passed
+✅ SQLite FK → BAD_REQUEST: passed
+✅ Unknown Error → sanitized SERVER_ERROR: passed
+✅ Fetch error → SERVICE_UNAVAILABLE: passed
+✅ Plain string error → SERVER_ERROR: passed
+✅ errorResponse consistent JSON shape: passed
+✅ Idempotency store/retrieve: passed
+✅ Idempotency miss returns null: passed
+✅ Malformed JSON → 400 stable error: passed
+✅ Err thrown → correct HTTP status + body: passed
+✅ Unknown exception → sanitized 500: passed
+✅ OPTIONS → 204: passed
+✅ Wrong method → 405: passed
+✅ Duplicate request → idempotent response: passed
+✅ Clock skew → CLOCK_SKEW rejection: passed
+✅ Fresh request accepted within tolerance: passed
+✅ hashRequestBody deterministic: passed
+✅ Err.toResponse() excludes stack: passed
+✅ Err.toRaw() includes stack for logging: passed

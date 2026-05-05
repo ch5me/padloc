@@ -5,7 +5,7 @@ const { CleanWebpackPlugin } = require("clean-webpack-plugin");
 const { version } = require("./package.json");
 
 const out = process.env.PL_PWA_DIR || resolve(__dirname, "dist");
-const serverUrl = process.env.PL_SERVER_URL || `http://0.0.0.0:${process.env.PL_SERVER_PORT || 3000}`;
+const serverUrl = process.env.PL_SERVER_URL || `http://127.0.0.1:${process.env.PL_WORKER_PORT || 8787}`;
 const pwaUrl = process.env.PL_PWA_URL || `http://localhost:${process.env.PL_PWA_PORT || 8080}`;
 const websocketPwaUrl = pwaUrl.replace("http://", "ws://").replace("https://", "wss://");
 const rootDir = resolve(__dirname, "../..");
@@ -27,6 +27,9 @@ module.exports = {
         extensions: [".ts", ".js", ".css", ".svg", ".png", ".jpg"],
         alias: {
             assets: assetsDir,
+            "@padloc/core": resolve(rootDir, "packages/core"),
+            "@padloc/app": resolve(rootDir, "packages/app"),
+            "@padloc/locale": resolve(rootDir, "packages/locale"),
         },
     },
     module: {

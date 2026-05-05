@@ -38,9 +38,9 @@ npm run build:debug
 
 All build options are provided as environment variables:
 
-| Variable Name   | Description                                        | Default  |
-| --------------- | -------------------------------------------------- | -------- |
-| `PL_SERVER_URL` | URL to the [server component](../server/README.md) | `./dist` |
+| Variable Name   | Description                                   | Default                 |
+| --------------- | --------------------------------------------- | ----------------------- |
+| `PL_SERVER_URL` | URL to the Worker backend (`packages/worker`) | `http://127.0.0.1:8787` |
 
 ## Development
 

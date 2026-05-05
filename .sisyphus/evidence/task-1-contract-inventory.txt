@@ -1,0 +1,89 @@
+# Task 1 Evidence — API Contract Inventory
+
+Run date: 2026-05-04T20:27:28.937Z
+Script: scripts/inventory-api.ts
+Source: /Users/hassoncs/Workspaces/Personal/padloc/packages/core/src/api.ts
+Total handlers extracted: 39
+Expected range: 39-45
+Status: PASS
+
+All handler methods:
+  1. startRegisterAuthenticator
+  2. completeRegisterAuthenticator
+  3. deleteAuthenticator
+  4. startAuthRequest
+  5. completeAuthRequest
+  6. startCreateSession
+  7. updateAuth
+  8. completeCreateSession
+  9. revokeSession
+  10. createAccount
+  11. getAccount
+  12. getAuthInfo
+  13. updateAccount
+  14. changeEmail
+  15. recoverAccount
+  16. deleteAccount
+  17. createOrg
+  18. getOrg
+  19. updateOrg
+  20. deleteOrg
+  21. createVault
+  22. getVault
+  23. updateVault
+  24. deleteVault
+  25. getInvite
+  26. acceptInvite
+  27. createAttachment
+  28. getAttachment
+  29. deleteAttachment
+  30. getLegacyData
+  31. deleteLegacyAccount
+  32. createKeyStoreEntry
+  33. getKeyStoreEntry
+  34. deleteKeyStoreEntry
+  35. removeTrustedDevice
+  36. listAccounts
+  37. listOrgs
+  38. listChangeLogEntries
+  39. listRequestLogEntries
+
+Error codes extracted:
+  - invalid_encryption_params: "invalid_encryption_params"
+  - decryption_failed: "decryption_failed"
+  - encryption_failed: "encryption_failed"
+  - not_supported: "not_supported"
+  - missing_access: "missing_access"
+  - verification_error: "verification_error"
+  - failed_connection: "failed_connection"
+  - unexpected_redirect: "unexpected_redirect"
+  - bad_request: "bad_request"
+  - invalid_session: "invalid_session"
+  - session_expired: "session_expired"
+  - insufficient_permissions: "insufficient_permissions"
+  - invalid_credentials: "invalid_credentials"
+  - account_exists: "account_exists"
+  - invalid_response: "invalid_response"
+  - invalid_request: "invalid_request"
+  - outdated_revision: "merge_conflict"
+  - max_request_size_exceeded: "max_request_size_exceeded"
+  - max_request_age_exceeded: "max_request_age_exceeded"
+  - provisioning_quota_exceeded: "provisioning_quota_exceeded"
+  - provisioning_not_allowed: "provisioning_not_allowed"
+  - client_error: "client_error"
+  - server_error: "server_error"
+  - unknown_error: "unknown_error"
+  - encoding_error: "encoding_error"
+  - unsupported_version: "unsupported_version"
+  - not_found: "not_found"
+  - invalid_csv: "invalid_csv"
+  - invalid_1pux: "invalid_1pux"
+  - invalid_bitwarden: "invalid_bitwarden"
+  - billing_error: "billing_error"
+  - authentication_required: "email_verification_required"
+  - authentication_failed: "email_verification_failed"
+  - authentication_tries_exceeded: "email_verification_tries_exceeded"
+
+Auth flow documented: startAuthRequest → completeAuthRequest → startCreateSession → completeCreateSession
+
+HTTP error shape captured from packages/server/src/transport/http.ts:38-50 (config) + 78-106 (POST handler).

@@ -1,5 +1,99 @@
 import { Server } from "@padloc/core/src/server";
+import { ServerConfig } from "@padloc/core/src/server";
+import { Storage } from "@padloc/core/src/storage";
+import { Logger, VoidLogger } from "@padloc/core/src/logging";
+import { AuthServer } from "@padloc/core/src/auth";
+import { EmailAuthServer } from "@padloc/core/src/auth/email";
+import { TotpAuthConfig, TotpAuthServer } from "@padloc/core/src/auth/totp";
+import { AttachmentStorage } from "@padloc/core/src/attachment";
+import { Messenger } from "@padloc/core/src/messenger";
+import { ChangeLogger } from "@padloc/core/src/logging";
+import { RequestLogger } from "@padloc/core/src/logging";
+import { ChangeLoggerConfig } from "@padloc/core/src/logging";
+import { RequestLoggerConfig } from "@padloc/core/src/logging";
+import { setPlatform } from "@padloc/core/src/platform";
+import { D1Storage } from "./storage/d1";
+import { PersonalProvisioner } from "./provisioner/personal";
+import { R2AttachmentStorage } from "./attachments/r2";
+import { ResendMessenger, MockMessenger } from "./email/resend";
+import { WorkerPlatform } from "./platform";
+import { Env } from "./env";
 
-export function createServer(): Server {
-    throw new Error("not implemented: createServer must wire core Server with platform + storage adapters");
+export function createServer(env: Env): Server {
+    setPlatform(new WorkerPlatform());
+
+    const storage: Storage = env.DB ? new D1Storage(env.DB) : createStubStorage();
+    const logger: Logger = new VoidLogger();
+    const messenger: Messenger = createMessenger(env);
+    const authServers: AuthServer[] = [new EmailAuthServer(messenger), new TotpAuthServer(new TotpAuthConfig())];
+    const attachmentStorage: AttachmentStorage = createAttachmentStorage(env);
+    const changeLogger = new ChangeLogger(storage, new ChangeLoggerConfig({ enabled: true }));
+    const requestLogger = new RequestLogger(storage, new RequestLoggerConfig({ enabled: true }));
+
+    const config = new ServerConfig();
+    config.verifyEmailOnSignup = env.EMAIL_VERIFY_ON_SIGNUP !== "false";
+
+    return new Server(
+        config,
+        storage,
+        messenger,
+        logger,
+        authServers,
+        attachmentStorage,
+        new PersonalProvisioner(storage),
+        changeLogger,
+        requestLogger,
+    );
+}
+
+/** Shared mock messenger — persists across requests for testability. */
+let sharedMockMessenger: MockMessenger | null = null;
+
+export function getSharedMockMessenger(): MockMessenger | null {
+    return sharedMockMessenger;
+}
+
+function createMessenger(env: Env): Messenger {
+    // Always use shared MockMessenger for testability, regardless of
+    // whether mock mode is explicit or inferred from missing credentials.
+    if (!sharedMockMessenger) {
+        sharedMockMessenger = new MockMessenger();
+    }
+    if (env.EMAIL_BACKEND === "mock") {
+        return sharedMockMessenger;
+    }
+    if (env.RESEND_API_KEY && env.EMAIL_FROM_ADDRESS) {
+        return new ResendMessenger(env.RESEND_API_KEY, env.EMAIL_FROM_ADDRESS);
+    }
+    return sharedMockMessenger;
+}
+
+function createAttachmentStorage(env: Env): AttachmentStorage {
+    if (env.ATTACHMENTS && env.DB) {
+        return new R2AttachmentStorage({ bucket: env.ATTACHMENTS, db: env.DB });
+    }
+    return createStubAttachmentStorage();
+}
+
+function createStubStorage(): Storage {
+    return {
+        get: async () => {
+            throw new Error("stub storage: get not implemented");
+        },
+        save: async () => {},
+        delete: async () => {},
+        clear: async () => {},
+        list: async () => [],
+    } as unknown as Storage;
+}
+
+function createStubAttachmentStorage(): AttachmentStorage {
+    return {
+        upload: async () => {
+            throw new Error("stub attachment storage: upload not implemented");
+        },
+        delete: async () => {},
+        getUrl: async () => "",
+        getSignedUrl: async () => "",
+    } as unknown as AttachmentStorage;
 }

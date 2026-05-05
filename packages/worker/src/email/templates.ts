@@ -2356,8 +2356,8 @@ export type TemplateName = keyof typeof templates;
 
 export function getTemplate(name: string): { html: string; txt: string } {
     const key = name.replace(/-/g, "_");
-    const html = (templates as any)[key + "_html"];
-    const txt = (templates as any)[key + "_txt"];
+    const html = (templates as Record<string, string>)[key + "_html"];
+    const txt = (templates as Record<string, string>)[key + "_txt"];
     if (!html || !txt) throw new Error("Template not found: " + name);
     return { html, txt };
 }

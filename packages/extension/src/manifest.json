@@ -1,19 +1,20 @@
 {
-    "manifest_version": 2,
+    "manifest_version": 3,
     "icons": {
         "128": "icon.png"
     },
     "background": {
-        "scripts": ["background.js"],
-        "persistent": true
+        "service_worker": "background.js",
+        "type": "module"
     },
-    "browser_action": {
+    "action": {
         "default_popup": "popup.html",
         "default_icon": "icon.png"
     },
     "permissions": ["storage", "unlimitedStorage", "tabs", "activeTab", "contextMenus", "alarms"],
+    "host_permissions": ["<all_urls>"],
     "commands": {
-        "_execute_browser_action": {
+        "_execute_action": {
             "suggested_key": {
                 "windows": "Ctrl+Shift+P",
                 "mac": "Command+Shift+P",
@@ -33,5 +34,9 @@
             },
             "description": "Open Previous Vault Item"
         }
-    }
+    },
+    "version": "4.3.0.0",
+    "version_name": "4.3.0",
+    "name": "Padloc",
+    "description": "Padloc Browser Extension"
 }

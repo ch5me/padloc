@@ -1,0 +1,46 @@
+=== Task 26: Security Headers & CORS Evidence ===
+Generated: 2026-05-05T06:30:00Z
+
+========================================
+Security Headers Implementation
+========================================
+
+Source: packages/worker/src/observability/security-headers.ts
+
+CORS CONFIGURATION:
+-------------------
+DEFAULT_CORS:
+  allowOrigin: "*" (dev) / should be explicit allowlist in production
+  allowMethods: ["OPTIONS", "POST"]
+  allowHeaders: ["Content-Type"]
+  maxAge: 86400 (24 hours)
+
+SECURITY HEADERS:
+-----------------
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-XSS-Protection: 1; mode=block
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=()
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+Cache-Control: no-store, no-cache, must-revalidate, private
+Pragma: no-cache
+
+CLOUDflare ANALYTICS HOOKS:
+---------------------------
+CfAnalytics interface with record(event) method
+VoidCfAnalytics no-op implementation
+Event types: request, security, audit
+
+REQUEST ID:
+-----------
+generateRequestId() - unique ID: "timestamp-random" format
+
+CORS IN TRANSPORT:
+------------------
+packages/worker/src/transport.ts:11-17 - corsHeaders() for OPTIONS/preflight
+packages/worker/src/transport.ts:113-121 - idempotency replay includes CORS
+packages/worker/src/transport.ts:147 - response includes CORS
+
+========================================

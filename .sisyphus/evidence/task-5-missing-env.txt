@@ -1,0 +1,11 @@
+═══════════════════════════════════════════════════════
+  proof:worker — Cloudflare Worker Runtime Verification
+═══════════════════════════════════════════════════════
+
+Validating required environment...
+[0;31mFAIL[0m: CLOUDFLARE_API_TOKEN not set.
+       Set a project-scoped token with Workers Write permission.
+[0;31mFAIL[0m: CLOUDFLARE_ACCOUNT_ID not set.
+       Pin account_id in wrangler.jsonc or set this env var.
+
+[0;31mFAIL[0m: 2 required binding(s) missing.

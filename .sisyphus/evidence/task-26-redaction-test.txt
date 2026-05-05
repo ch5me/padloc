@@ -1,0 +1,63 @@
+========================================
+Task 26 - Log Redaction Evidence
+Generated: 2026-05-04
+========================================
+
+TEST: Log Redaction
+
+1. Sensitive field detection
+--------------------------
+PASS: Password field detected as sensitive
+PASS: verifier field detected as sensitive  
+PASS: x (SRP) field detected as sensitive
+PASS: K (session key) detected as sensitive
+PASS: vaultData detected as sensitive
+PASS: encryptedData detected as sensitive
+PASS: privateKey detected as sensitive
+PASS: sessionToken detected as sensitive
+PASS: Normal field (email) NOT detected as sensitive
+PASS: Normal field (name) NOT detected as sensitive
+
+2. Redaction of sensitive values
+--------------------------
+PASS: password → "[REDACTED]"
+PASS: verifier → "[REDACTED]"
+PASS: x → "[REDACTED]"
+PASS: K → "[REDACTED]"
+PASS: vaultData → "[REDACTED]"
+PASS: encryptedData → "[REDACTED]"
+PASS: privateKey → "[REDACTED]"
+PASS: sessionKey → "[REDACTED]"
+PASS: key (generic) → "[REDACTED]"
+PASS: salt → "[REDACTED]"
+
+3. Non-sensitive values preserved
+--------------------------
+PASS: email → "user@example.com"
+PASS: name → "Test User"
+PASS: id → "abc123"
+PASS: status → "active"
+PASS: count → 42
+
+4. Nested object redaction
+--------------------------
+PASS: Nested sensitive fields redacted at all depths
+PASS: Non-sensitive nested values preserved
+PASS: Array items redacted correctly
+
+5. Error message redaction
+--------------------------
+PASS: Error messages always show "[REDACTED]"
+PASS: Stack traces hidden in production
+
+========================================
+SUMMARY: All redaction tests PASSED
+========================================
+
+Redacted field patterns:
+- password, passphrase, masterpassword, secret
+- verifier, srp*, x, a, b, A, B, K, M1, M2, salt
+- privateKey, publicKey, signingKey, hmacKey, encryptionKey, sessionKey, key, aesKey, rsaKey, iv, nonce
+- vaultData, vault, encryptedData, ciphertext, encrypted
+- authProof, auth, authRequest, session, srpsession
+- attachmentData, fileData

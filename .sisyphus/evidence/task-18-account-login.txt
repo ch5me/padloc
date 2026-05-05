@@ -1,0 +1,35 @@
+=== T18: Account Create + Login + Session End-to-End Evidence (REAL FLOW) ===
+Date: 2026-05-05T09:10:00.000Z
+
+=== Test Results (ALL PASS — 5/5) ===
+✅ Full signup → login → session works
+✅ Duplicate email signup rejected (ACCOUNT_EXISTS)
+✅ Wrong password rejected during login (INVALID_CREDENTIALS)
+✅ Non-existent account login rejected (NOT_FOUND)
+✅ Revoked session rejected (NOT_FOUND — session deleted from storage)
+
+=== Protocol Verified ===
+1. Signup: account.initialize(password) → auth.keyParams = account.keyParams → auth.getAuthKey(password) (shared salt/iterations) → SRPClient.initialize(authKey) → auth.verifier = srp.v (Uint8Array) → createAccount
+2. Login: startCreateSession(email) → returns stored keyParams → auth.getAuthKey(password) with stored salt → SRPClient.initialize(authKey) → srp.setB(B) → completeCreateSession(A, M1) → session.key = srp.K
+3. Session authentication: client signs requests with session.key via HMAC, server verifies with stored session key
+4. Duplicate email: ACCOUNT_EXISTS error from server
+5. Wrong password: INVALID_CREDENTIALS from SRP M1 mismatch
+6. Non-existent account: NOT_FOUND (account lookup fails in startCreateSession)
+7. Revoked session: INVALID_SESSION/SESSION_EXPIRED after revokeSession
+
+=== Key Fixes Applied ===
+- packages/worker/src/server-factory.ts: Mock mode uses shared MockMessenger from src/email/resend.ts (NOT StubMessenger from core). The shared instance persists across requests via getSharedMockMessenger(), making mock email usable in tests.
+- packages/worker/test/auth-flow-e2e.worker.ts: auth.keyParams = account.keyParams — critical fix so SRP auth key is derived with the same salt/iterations as the account. Without this, login uses different keyParams than signup, causing INVALID_CREDENTIALS on every login attempt.
+- packages/worker/test/auth-flow-e2e.worker.ts: LocalSender marshals/unmarshals through Server (mirrors real HTTP transport)
+- packages/worker/test/auth-flow-e2e.worker.ts: SRP verifier set as Uint8Array (srp.v getter already returns bytes via i2b)
+- packages/worker/test/auth-flow-e2e.worker.ts: Session key set as Uint8Array (srp.K getter already returns bytes via i2b)
+- packages/worker/test/auth-flow-e2e.worker.ts: getSharedMockMessenger imported for email-auth test support
+- packages/worker/src/storage/d1.ts: normalizeSessionKey converts BigInteger session keys to bytes before serialization
+- packages/worker/src/crypto.ts: _signHMAC hashes keys >32 bytes to 32 bytes (Web Crypto compatibility)
+- packages/server/src/crypto/node.ts: _signHMAC hashes keys >32 bytes to 32 bytes (cross-platform consistency)
+
+=== Root Cause of Prior Failure ===
+The SRP protocol was failing because auth.getAuthKey(password) derived a key with its own default PBKDF2 params (1e6 iterations, random salt), while the account key used account.keyParams (1000 iterations, different random salt). These are completely independent derivations — the server stored auth.keyParams on signup, returned them on login, but the client used them consistently because both were derived from the same PBKDF2Params. However, the initial fix auth.keyParams = account.keyParams ensures the keyParams stored by the server match what the account was initialized with, creating a consistent chain from signup through login.
+
+=== Retry Verification (2026-05-05) ===
+Fresh run after prior session abort. All 5/5 tests pass. Mock email wiring confirmed: server-factory.ts createMessenger() returns shared MockMessenger instance, not StubMessenger.

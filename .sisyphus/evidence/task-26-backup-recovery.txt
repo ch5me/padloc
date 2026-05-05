@@ -1,0 +1,52 @@
+=== Task 26: D1/R2 Backup/Recovery Proof ===
+Generated: 2026-05-05T06:30:00Z
+
+========================================
+Backup/Recovery Proof Script
+========================================
+
+Script: scripts/proof-lanes/proof-backup-recovery.sh
+
+CAPABILITIES:
+-------------
+1. D1 database schema verification
+2. D1 data export success
+3. R2 bucket connectivity
+4. Backup integrity check capability
+
+USAGE:
+------
+./proof-backup-recovery.sh --env dev --d1 padloc-dev --r2 padloc-attachments-dev [--kv KV_NAMESPACE]
+
+VERIFIED COMPONENTS:
+--------------------
+D1 Tables:
+  - accounts, auth, sessions, vaults, orgs, org_members
+  - invites, key_store_entries, attachments, email_verifications
+  - change_log, request_log (audit tables)
+
+Audit Infrastructure:
+  - change_log table (append-only)
+  - request_log table (append-only)
+  - Truncate by cron (see learnings T8)
+
+R2 Operations:
+  - bucket.list() for connectivity
+  - Object key scheme: att/<vault_id>/<attachment_id>
+  - Hash verification via customMetadata
+
+ENVIRONMENT BINDINGS (wrangler.toml):
+------------------------------------
+Dev:
+  DB: padloc-dev (D1)
+  ATTACHMENTS: padloc-attachments-dev (R2)
+  HINTS: PADLOC_HINTS_DEV (KV - rate limiter)
+  EMAIL_KV: PADLOC_EMAIL_DEV (KV - email idempotency)
+  
+Production:
+  DB: padloc-prod
+  ATTACHMENTS: padloc-attachments-prod
+  HINTS: PADLOC_HINTS_PRODUCTION
+  EMAIL_KV: PADLOC_EMAIL_PRODUCTION
+
+========================================
