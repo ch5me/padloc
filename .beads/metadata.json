@@ -1,0 +1,8 @@
+{
+  "backend": "dolt",
+  "database": "dolt",
+  "dolt_database": "padloc",
+  "dolt_mode": "server",
+  "dolt_server_host": "macmini.lan",
+  "dolt_server_port": 3307
+}
