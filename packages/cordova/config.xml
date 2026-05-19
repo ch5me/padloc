@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<widget android-versionCode="04020000" id="app.padloc" ios-CFBundleVersion="4.2.0.0" version="4.2.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
-    <name>Padloc</name>
+<widget android-versionCode="04030000" id="me.ch5" ios-CFBundleVersion="4.3.0.0" version="4.3.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
+    <name>CH5 Auth</name>
     <description/>
     <author email="contact@padloc.app" href="https://padloc.app">
         MaKleSoft
@@ -86,4 +86,5 @@
     </platform>
     <plugin name="cordova-plugin-app-version" spec="~0.1.9"/>
     <plugin name="cordova-plugin-backbutton" spec="~0.3.0"/>
+    <allow-intent scheme="ch5" launchExternal="true"/>
 </widget>
