@@ -1,0 +1,19 @@
+{
+    "timestamp": "2026-05-19T16:58:00Z",
+    "command": "wrangler d1 migrations apply padloc-prod --env=production --remote",
+    "exit_code": 0,
+    "migrations_applied": [
+        {
+            "name": "0000_init.sql",
+            "status": "✅ executed (29 commands)"
+        },
+        {
+            "name": "0001_orphan_log.sql",
+            "status": "✅ executed (2 commands)"
+        }
+    ],
+    "database": "padloc-prod",
+    "database_id": "f443b7e5-861e-4a4f-9c67-1a33acf5677d",
+    "environment": "production",
+    "notes": "Both migrations applied successfully to remote D1. Forward-only D1; no rollback needed for initial schema."
+}

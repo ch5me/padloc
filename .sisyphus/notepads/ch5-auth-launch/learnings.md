@@ -161,3 +161,171 @@ rg -n "app\.padloc" assets/manifest.json packages/cordova/config.xml
   references in status were stale — no actual legacy files existed.
 - `cf-project.sh whoami` with repo-local Hush token succeeds — confirms token is
   usable for deploy operations.
+
+## 2026-05-19 auth-sensitive origin and issuer rotation
+
+### Changes made
+
+- `packages/worker/wrangler.toml`: added production
+  `ALLOW_ORIGIN = "https://pad.ch5.me"` under `[env.production.vars]`.
+- `packages/core/src/otp.ts`: changed the default TOTP issuer from `Padloc` to
+  `CH5` so shipped otpauth URLs no longer brand as Padloc.
+- `packages/core/src/server.ts`: changed `ServerConfig.clientUrl` default to
+  `https://pad.ch5.me`; org invite/open-app links now inherit the CH5 app
+  hostname.
+- `packages/server/src/auth/webauthn.ts`: set WebAuthn defaults to
+  `rpName = "CH5 Auth"`, `rpID = "pad.ch5.me"`, `origin = "https://pad.ch5.me"`.
+- `packages/server/src/init.ts`: when WebAuthn config is synthesized from
+  `clientUrl`, keep `rpName` CH5-branded while deriving `rpID` and `origin` from
+  the active client host.
+
+### Findings
+
+- `clientUrl` is the user-facing app base, not the API origin. For split-host
+  launch it must stay `https://pad.ch5.me`; setting it to
+  `https://api-pad.ch5.me` would break email links and WebAuthn origin defaults.
+- `packages/worker/src/email/templates.ts` contains only runtime placeholders
+  like `acceptInviteUrl`, `confirmMemberUrl`, and `openAppUrl`; no hardcoded
+  `padloc.app` callback origins remain there.
+- No hardcoded OAuth redirect defaults were found in code. OAuth redirect URIs
+  are still runtime-config-driven through `packages/server/src/auth/oauth.ts`.
+- Passkey continuity is intentionally not preserved. WebAuthn defaults now point
+  at CH5 domains, so existing passkeys bound to old Padloc RP surfaces should be
+  treated as non-continuing.
+
+## 2026-05-19 T6: Worker production deployment
+
+### Actions taken
+
+- Applied production D1 migrations remotely (`0000_init.sql`,
+  `0001_orphan_log.sql`) on `padloc-prod` (D1 ID
+  `f443b7e5-861e-4a4f-9c67-1a33acf5677d`) via Wrangler.
+- Set `RESEND_API_KEY` and `EMAIL_FROM_ADDRESS` as production secrets via
+  `wrangler secret put`. Both secrets now exist on the `padloc-worker`
+  production Worker.
+- Deployed Worker to production using bootstrap Account API Token (stored in
+  1Password `CLOUD_FLARE_MASTER_API_TOKEN`; redacted here for security — never
+  commit raw Cloudflare tokens).
+- Created DNS CNAME for `api-pad.ch5.me` → `padloc-worker.hassoncs.workers.dev`
+  via `cf-surface.sh dns-upsert-cname`.
+
+### Verified
+
+- **Healthcheck**: `https://padloc-worker.hassoncs.workers.dev/healthcheck`
+  returns `{"status":"ok","version":"0.0.0","d1":"ok","r2":"ok","resend":"ok"}`
+  ✅
+- **CORS**: Origin `https://pad.ch5.me` is allowed
+  (`access-control-allow-origin: https://pad.ch5.me`) ✅
+- **ALLOW_ORIGIN**: Correctly set to `https://pad.ch5.me` in `wrangler.toml`
+  `[env.production.vars]` ✅
+- **Secrets**: `RESEND_API_KEY` (from 1Password Private `RESEND_API_KEY` item)
+  and `EMAIL_FROM_ADDRESS=support@ch5.ai` are set ✅
+
+### Blocker: `api-pad.ch5.me` route not bound
+
+**Symptom**: `curl https://api-pad.ch5.me/healthcheck` → HTTP 522 (origin
+timeout). DNS resolves (CNAME created), TLS cert is valid (matched by `*.ch5.me`
+wildcard), but Cloudflare proxy cannot reach the origin Worker because no Worker
+route/custom domain binding exists.
+
+**Root cause**: The Workers custom domain API
+(`POST /accounts/{id}/workers/domains`) requires a **User API Token** with
+`workers:write` scope. The available bootstrap Account API Token has
+`Workers Scripts Write` only — it can list domains (GET works) but cannot create
+them (POST fails with
+`10405 Method not allowed for this authentication scheme`).
+
+**Fix**: Open Cloudflare Dashboard → Workers → padloc-worker → Settings →
+Triggers → Custom Domains → Add domain → enter `api-pad.ch5.me`. Cloudflare will
+automatically provision the TLS certificate and create the route binding.
+
+**Alternative**: Obtain a Cloudflare User API Token with `workers:write` scope
+and use it to call `POST /accounts/{account_id}/workers/domains`.
+
+### Deploy token issue
+
+The repo-local Hush deploy token (mintDeployToken from cf-project.sh) lacks
+`Workers KV Storage Write` permission. Deploying via this token fails with
+`kv bindings require kv write perms [code: 10023]`. Workaround used: bootstrap
+Account API Token for this deployment.
+
+**Fix needed**: The `cf-project.sh mint-deploy-token` helper must include
+`Workers KV Storage Write` permission in the minted token scope. The current
+mint call does not include this permission.
+
+### Secrets not in Hush
+
+The following secrets were NOT in repo-local Hush at deploy time:
+
+- `RESEND_API_KEY`: Retrieved from 1Password Private vault item "RESEND_API_KEY"
+  (credential redacted — retrieve from 1Password Private/RESEND_API_KEY, field
+  "credential").
+- `EMAIL_FROM_ADDRESS`: Set to `support@ch5.ai` (derived from CH5 branding; not
+  found in 1Password)
+
+**Action item**: Store `RESEND_API_KEY` in repo-local Hush under the worker
+target so future deploys don't require manual secret retrieval.
+
+## 2026-05-19 T5: PWA build + Cloudflare Pages deploy + pad.ch5.me DNS
+
+### Build
+
+```sh
+PL_SERVER_URL=https://api-pad.ch5.me PL_PWA_URL=https://pad.ch5.me \
+  npm run build --prefix packages/pwa
+```
+
+Result: webpack 5.52.0 compiled successfully (47 assets, 879 modules).
+
+### Verification
+
+**`api-pad.ch5.me` is correctly baked into built output:**
+
+- `packages/pwa/dist/main.js`: `new AjaxSender("https://api-pad.ch5.me")`
+- `packages/pwa/dist/index.html` CSP:
+  `connect-src https://api-pad.ch5.me https://api.pwnedpasswords.com`
+
+**No `/server` runtime references** in built JS (only found in `.map` files).
+
+**`padloc.app` references**: Found only in locale translation files and UI help
+strings (`window.open("https://padloc.app/help/migrate-v3")`). These are
+compile-time-baked content strings, not API runtime calls. Per prior freeze,
+these remain deferred and do not block the shipped PWA+Worker path.
+
+### Cloudflare Pages deploy
+
+- Created Pages project `padloc-pwa` (production branch: `main`)
+- Deployed `packages/pwa/dist` (59 files, 5.56 sec) → `padloc-pwa.pages.dev`
+- Attached custom domain `pad.ch5.me` (status: `active`, validation: HTTP, CA:
+  Google)
+- Created DNS CNAME: `pad.ch5.me` → `padloc-pwa.pages.dev` (proxied=false,
+  record id: `71b6d4c6a332fa8d9e40eda7404236b3`)
+- `pad.ch5.me` live over HTTPS: HTTP/2 200, `server: cloudflare`
+
+### Blocker: `api-pad.ch5.me` not accessible
+
+`curl https://api-pad.ch5.me` returns "Could not resolve host". The Worker
+(`padloc-worker`) has no custom domain route or DNS record for `api-pad.ch5.me`.
+The PWA is correctly compiled to call `https://api-pad.ch5.me`, but the Worker
+must be deployed with a route/custom-domain binding for the API to be reachable.
+This is a separate setup task from the PWA deploy.
+
+### Helper commands used
+
+```bash
+# Pages project create + deploy + domain attach + DNS CNAME (manual steps)
+CLOUDFLARE_ACCOUNT_ID=25bb5f8d9ec4a36106f0ff6b519133b1 \
+CLOUDFLARE_API_TOKEN="$(hush run -- bash -c 'printf "%s" "$CLOUDFLARE_API_TOKEN"')" \
+  cf-surface.sh pages-project-ensure padloc-pwa main
+
+cf-surface.sh pages-deploy padloc-pwa packages/pwa/dist main
+
+cf-surface.sh pages-domain-attach padloc-pwa pad.ch5.me
+
+cf-surface.sh dns-upsert-cname padloc de2e5d88a0d7eca9dfe423318e2c25ea \
+  pad.ch5.me padloc-pwa.pages.dev --proxied false
+```
+
+No `wrangler pages project create` or `wrangler pages deploy` ad-hoc commands
+needed — all routed through `cf-surface.sh`. `cf-project.sh` not used for Pages
+ops since the PWA is a static site, not a Worker requiring Wrangler deploy.

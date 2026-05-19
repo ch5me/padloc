@@ -1,0 +1,14 @@
+{
+    "timestamp": "2026-05-19T17:00:00Z",
+    "url": "https://padloc-worker.hassoncs.workers.dev/healthcheck",
+    "method": "GET",
+    "curl_exit_code": 0,
+    "response": {
+        "status": "ok",
+        "version": "0.0.0",
+        "d1": "ok",
+        "r2": "ok",
+        "resend": "ok"
+    },
+    "notes": "Worker is healthy. All bindings (D1, R2, Resend) are operational. Version is 0.0.0 (dev version tag). Workers.dev URL confirmed working."
+}
