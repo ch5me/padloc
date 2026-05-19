@@ -6,9 +6,10 @@
 
 ## Decision
 
-Cloudflare secrets are managed through Wrangler as the primary mechanism. Hush
-(SOPS/age) is optional for local developer ergonomics and CI secret sync, but
-Cloudflare Workers Secrets is the authoritative source at runtime.
+Cloudflare secrets are managed through Wrangler as the runtime mechanism.
+Repo-local Hush v3 is the project source of truth for operator-managed secret
+values and CI sync, while Cloudflare Workers Secrets remains authoritative at
+runtime.
 
 ## Runtime Secrets
 
@@ -42,11 +43,11 @@ wrangler secret put EMAIL_FROM_ADDRESS --env=production
    `env.RESEND_API_KEY`, not from any local file, Hush projection, or CI
    variable.
 
-4. **Hush is optional for developer workflow.** Hush can store the secret values
-   locally so developers do not need to look them up in the Cloudflare dashboard
-   or 1Password. But Hush values are synced to Cloudflare via
-   `wrangler secret put` before deploy. Hush does not replace Cloudflare
-   Secrets.
+4. **Hush is the project secret source of truth.** Hush stores the
+   operator-managed values locally so developers do not need to look them up in
+   the Cloudflare dashboard or 1Password each time. Hush values are synced to
+   Cloudflare via `wrangler secret put` before or during deploy. Hush does not
+   replace Cloudflare Secrets at runtime.
 
 5. **No secrets in `wrangler.jsonc` or `wrangler.toml`.** Binding names for D1,
    R2, and KV go in Wrangler config. Actual secret values never do.
@@ -68,13 +69,12 @@ map to Cloudflare secrets:
 
 For GitHub Actions deployments:
 
-1. Store secret values in GitHub repository secrets
-   (`Settings > Secrets and variables > Actions`).
-2. CI uses the Wrangler CLI or GitHub Action to deploy, which reads Cloudflare
-   secrets directly (not from GitHub secrets).
-3. GitHub secrets are only needed if CI needs to call `wrangler secret put` as
-   part of a bootstrap script. In normal operation, secrets are set once in
-   Cloudflare and the deploy action does not touch them.
+1. Store the project-scoped `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`
+   in GitHub repository secrets.
+2. Keep runtime secret values in repo-local Hush and sync them to Cloudflare
+   before deploy when changed.
+3. CI should deploy with the project-scoped Cloudflare token; it should not
+   receive the global bootstrap token.
 
 ## Developer Onboarding
 

@@ -6,18 +6,18 @@
 
 ## Decision
 
-Padloc operates across three canonical environments: dev, preview, and
+Padloc operates across three canonical environments: local/dev, staging, and
 production. Each environment has its own Cloudflare Worker, D1 database, R2
 bucket, KV namespace, Durable Object definition, and secret scope. Environments
 share code but never share storage.
 
 ## Environment Map
 
-| Environment | Trigger                            | Worker Name             | D1 Database      | R2 Bucket        | KV Namespace           | DO Class        |
-| ----------- | ---------------------------------- | ----------------------- | ---------------- | ---------------- | ---------------------- | --------------- |
-| dev         | `wrangler dev` (local)             | `padloc-server-dev`     | `padloc-dev`     | `padloc-dev`     | `padloc-dev-hints`     | `AccountLockDO` |
-| preview     | Push to any branch or PR           | `padloc-server-preview` | `padloc-preview` | `padloc-preview` | `padloc-preview-hints` | `AccountLockDO` |
-| production  | Explicit deploy from `main` or tag | `padloc-server`         | `padloc`         | `padloc`         | `padloc-hints`         | `AccountLockDO` |
+| Environment | Trigger                           | Worker Name             | D1 Database      | R2 Bucket                    | KV Namespace              | DO Class        |
+| ----------- | --------------------------------- | ----------------------- | ---------------- | ---------------------------- | ------------------------- | --------------- |
+| dev         | `wrangler dev` (local)            | `padloc-worker-dev`     | `padloc-dev`     | `padloc-attachments-dev`     | `PADLOC_HINTS_DEV`        | `AccountLockDO` |
+| staging     | Push to `main` / explicit staging | `padloc-worker-staging` | `padloc-preview` | `padloc-attachments-preview` | `PADLOC_HINTS_PREVIEW`    | `AccountLockDO` |
+| production  | Explicit promotion/deploy         | `padloc-worker`         | `padloc-prod`    | `padloc-attachments-prod`    | `PADLOC_HINTS_PRODUCTION` | `AccountLockDO` |
 
 ## Wrangler Environment Configuration
 
@@ -98,11 +98,13 @@ changes.
 
 ## Deploy Flow
 
-### Staging / Preview
+### Staging
 
-- Every push to `main` auto-deploys the preview environment.
-- Pull requests deploy a named preview worker for that branch.
-- Preview runs all migration steps and seed data automatically.
+- Every push to `main` should auto-deploy the staging environment.
+- Provider-native preview deployments can still exist, but they are not the
+  stable pre-prod target.
+- Staging runs the same auth/email/runtime contract as production with
+  stage-scoped secrets.
 
 ### Production
 
@@ -127,11 +129,11 @@ wrangler d1 execute DB --local --file=./migrations/001_initial.sql
 
 ## DNS / Hostname Pattern
 
-| Environment | Worker Hostname             | PWA Hostname                            |
-| ----------- | --------------------------- | --------------------------------------- |
-| dev         | `localhost:8787`            | `localhost:8080`                        |
-| preview     | `<branch>.padloc.pages.dev` | Same Pages project, separate deployment |
-| production  | `api.padloc.app` (example)  | `app.padloc.app` (example)              |
+| Environment | Worker Hostname          | PWA Hostname         |
+| ----------- | ------------------------ | -------------------- |
+| dev         | `localhost:8787`         | `localhost:3000`     |
+| staging     | `api-pad-staging.ch5.me` | `pad-staging.ch5.me` |
+| production  | `api-pad.ch5.me`         | `pad.ch5.me`         |
 
 The exact production hostnames are determined when the project is deployed and
 DNS is configured. The pattern follows the environment topology principle:
@@ -142,8 +144,15 @@ parallel subdomain families for app and API surfaces.
 - The worker reads its environment from `env` bindings only. No environment
   variable tricks or runtime detection.
 - Migration scripts target the correct D1 database by Wrangler environment flag:
-  `wrangler d1 execute --env=production`.
+  `wrangler d1 execute --env=staging|production`.
 - Secrets are scoped per environment using `wrangler secret put --env=<name>`.
+
+## Legacy Compatibility Note
+
+- `preview` remains as a legacy compatibility environment in some repo history
+  and Cloudflare resources.
+- New CH5 work should treat `staging` as the canonical stable pre-production
+  environment.
 
 ## References
 

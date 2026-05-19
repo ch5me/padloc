@@ -27,8 +27,12 @@ export function createServer(env: Env): Server {
     const messenger: Messenger = createMessenger(env);
     const authServers: AuthServer[] = [new EmailAuthServer(messenger), new TotpAuthServer(new TotpAuthConfig())];
     const attachmentStorage: AttachmentStorage = createAttachmentStorage(env);
-    const changeLogger = new ChangeLogger(storage, new ChangeLoggerConfig({ enabled: true }));
-    const requestLogger = new RequestLogger(storage, new RequestLoggerConfig({ enabled: true }));
+    const changeLoggerConfig = new ChangeLoggerConfig();
+    changeLoggerConfig.enabled = true;
+    const requestLoggerConfig = new RequestLoggerConfig();
+    requestLoggerConfig.enabled = true;
+    const changeLogger = new ChangeLogger(storage, changeLoggerConfig);
+    const requestLogger = new RequestLogger(storage, requestLoggerConfig);
 
     const config = new ServerConfig();
     config.verifyEmailOnSignup = env.EMAIL_VERIFY_ON_SIGNUP !== "false";
@@ -59,12 +63,19 @@ function createMessenger(env: Env): Messenger {
     if (!sharedMockMessenger) {
         sharedMockMessenger = new MockMessenger();
     }
+    console.log("[createMessenger] email runtime", {
+        emailBackend: env.EMAIL_BACKEND || null,
+        hasResendApiKey: !!env.RESEND_API_KEY,
+        hasEmailFromAddress: !!env.EMAIL_FROM_ADDRESS,
+    });
     if (env.EMAIL_BACKEND === "mock") {
         return sharedMockMessenger;
     }
     if (env.RESEND_API_KEY && env.EMAIL_FROM_ADDRESS) {
+        console.log("[createMessenger] using ResendMessenger");
         return new ResendMessenger(env.RESEND_API_KEY, env.EMAIL_FROM_ADDRESS);
     }
+    console.warn("[createMessenger] falling back to MockMessenger");
     return sharedMockMessenger;
 }
 

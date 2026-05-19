@@ -1,5 +1,12 @@
 export type MessageData = { [param: string]: string };
 
+function getAppName(defaultName = "CH5 Auth") {
+    if (typeof process !== "undefined" && process.env?.PL_APP_NAME) {
+        return process.env.PL_APP_NAME;
+    }
+    return defaultName;
+}
+
 /**
  * A message to be sent to a user
  */
@@ -17,7 +24,7 @@ export class EmailAuthMessage extends Message<{ code: string; requestId: string 
     template = "email-auth";
 
     get title() {
-        const appName = process.env.PL_APP_NAME;
+        const appName = getAppName();
         return `${appName ? appName + " " : ""}Email Verification (Request ID: ${this.data.requestId})`;
     }
 }
@@ -28,7 +35,7 @@ export class JoinOrgInviteMessage extends OrgInviteMessage {
     template = "join-org-invite";
 
     get title() {
-        return `${this.data.invitedBy} wants you to join the "${this.data.orgName}" org on ${process.env.PL_APP_NAME}!`;
+        return `${this.data.invitedBy} wants you to join the "${this.data.orgName}" org on ${getAppName()}!`;
     }
 }
 
@@ -36,7 +43,7 @@ export class ConfirmMembershipInviteMessage extends OrgInviteMessage {
     template = "confirm-org-member-invite";
 
     get title() {
-        return `Confirm your membership for the "${this.data.orgName}" org on ${process.env.PL_APP_NAME}!`;
+        return `Confirm your membership for the "${this.data.orgName}" org on ${getAppName()}!`;
     }
 }
 
@@ -56,7 +63,7 @@ export class JoinOrgInviteCompletedMessage extends Message<{ orgName: string; op
     template = "join-org-invite-completed";
 
     get title() {
-        return `You have successfully joined ${this.data.orgName} on ${process.env.PL_APP_NAME}!`;
+        return `You have successfully joined ${this.data.orgName} on ${getAppName()}!`;
     }
 }
 
@@ -64,7 +71,7 @@ export class FailedLoginAttemptMessage extends Message<{ location: string }> {
     template = "failed-login-attempt";
 
     get title() {
-        const appName = process.env.PL_APP_NAME;
+        const appName = getAppName();
         return `${appName ? appName + " " : ""}Failed Login Attempt from ${this.data.location}`;
     }
 }
@@ -73,7 +80,7 @@ export class NewLoginMessage extends Message<{ location: string }> {
     template = "new-login";
 
     get title() {
-        const appName = process.env.PL_APP_NAME;
+        const appName = getAppName();
         return `${appName ? appName + " " : ""}New Login from ${this.data.location}`;
     }
 }
@@ -82,7 +89,7 @@ export class PlainMessage extends Message<{ message: string }> {
     template = "plain";
 
     get title() {
-        return "Padloc Error Notification";
+        return `${getAppName()} Error Notification`;
     }
 }
 

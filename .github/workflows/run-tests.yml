@@ -26,7 +26,6 @@ jobs:
                       packages/electron/node_modules
                       packages/extension/node_modules
                       packages/locale/node_modules
-                      packages/manage/node_modules
                       packages/pwa/node_modules
                       packages/server/node_modules
                       packages/tauri/node_modules
@@ -44,6 +43,8 @@ jobs:
                     echo "Missing translations detected."
                     exit 1
                   fi
+            - name: Validate runtime contract
+              run: npm run runtime-config:check
             - name: Run pwa test build
               run: npm run pwa:build
             - name: Run web extention test build

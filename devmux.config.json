@@ -1,0 +1,17 @@
+{
+    "version": 1,
+    "project": "padloc",
+    "services": {
+        "api": {
+            "cwd": "packages/worker",
+            "command": "npm run dev",
+            "health": { "type": "port", "port": 8787 }
+        },
+        "web": {
+            "cwd": ".",
+            "command": "PL_SERVER_URL=http://127.0.0.1:8787 npm run pwa:start",
+            "health": { "type": "port", "port": 3000 },
+            "dependsOn": ["api"]
+        }
+    }
+}

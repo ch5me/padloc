@@ -25,7 +25,7 @@ name = "padloc-worker-dev"
 [env.dev.vars]
 EMAIL_VERIFY_ON_SIGNUP = "false"
 EMAIL_BACKEND = "mock"
-ALLOW_ORIGIN = "http://localhost:8080"
+ALLOW_ORIGIN = "*"
 
 [[env.dev.kv_namespaces]]
 binding = "EMAIL_KV"
@@ -78,8 +78,38 @@ id = "f868962679c74a33886cff584f37d18d"
 name = "ACCOUNT_LOCK"
 class_name = "AccountLockDO"
 
+[env.staging]
+name = "padloc-worker-staging"
+routes = [{ pattern = "api-pad-staging.ch5.me/*", zone_name = "ch5.me" }]
+
+[env.staging.vars]
+ALLOW_ORIGIN = "https://pad-staging.ch5.me"
+
+[[env.staging.kv_namespaces]]
+binding = "EMAIL_KV"
+id = "3a1d6fbb6d9c46fc968ff098c808a3d1"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "padloc-staging"
+database_id = "b56e6d4b-1ae1-40c4-8ffb-38f0ee4b95a7"
+migrations_dir = "migrations"
+
+[[env.staging.r2_buckets]]
+binding = "ATTACHMENTS"
+bucket_name = "padloc-attachments-staging"
+
+[[env.staging.kv_namespaces]]
+binding = "HINTS"
+id = "473fbdf54902430db811ef50bd57ce2e"
+
+[[env.staging.durable_objects.bindings]]
+name = "ACCOUNT_LOCK"
+class_name = "AccountLockDO"
+
 [env.production]
 name = "padloc-worker"
+routes = [{ pattern = "api-pad.ch5.me/*", zone_name = "ch5.me" }]
 
 [[env.production.kv_namespaces]]
 binding = "EMAIL_KV"

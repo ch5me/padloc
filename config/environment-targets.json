@@ -1,0 +1,38 @@
+{
+    "stages": ["local", "staging", "production"],
+    "targets": {
+        "local": {
+            "stage": "local",
+            "displayName": "CH5 Auth",
+            "appUrl": "http://localhost:3000",
+            "apiBaseUrl": "http://127.0.0.1:8787",
+            "workerEnv": "dev",
+            "workerName": "padloc-worker-dev",
+            "pagesProject": null,
+            "allowedOrigin": "http://localhost:3000",
+            "emailFromAddress": "support@ch5.me"
+        },
+        "staging": {
+            "stage": "staging",
+            "displayName": "CH5 Auth",
+            "appUrl": "https://pad-staging.ch5.me",
+            "apiBaseUrl": "https://api-pad-staging.ch5.me",
+            "workerEnv": "staging",
+            "workerName": "padloc-worker-staging",
+            "pagesProject": "padloc-pwa-staging",
+            "allowedOrigin": "https://pad-staging.ch5.me",
+            "emailFromAddress": "support@ch5.me"
+        },
+        "production": {
+            "stage": "production",
+            "displayName": "CH5 Auth",
+            "appUrl": "https://pad.ch5.me",
+            "apiBaseUrl": "https://api-pad.ch5.me",
+            "workerEnv": "production",
+            "workerName": "padloc-worker",
+            "pagesProject": "padloc-pwa",
+            "allowedOrigin": "https://pad.ch5.me",
+            "emailFromAddress": "support@ch5.me"
+        }
+    }
+}

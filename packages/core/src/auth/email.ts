@@ -19,11 +19,14 @@ export class EmailAuthServer implements AuthServer {
             try {
                 await this.messenger.send(
                     email,
-                    new EmailAuthMessage({ code: authenticator.state.activationCode, requestId })
+                    new EmailAuthMessage({ code: authenticator.state.activationCode, requestId }),
                 );
                 return { email, requestId, sentAt };
             } catch (e) {
-                throw new Err(ErrorCode.AUTHENTICATION_FAILED, `Failed to send email to ${email}`);
+                throw new Err(ErrorCode.AUTHENTICATION_FAILED, `Failed to send email to ${email}`, {
+                    report: true,
+                    error: e instanceof Error ? e : undefined,
+                });
             }
         } else {
             return { email };
@@ -34,7 +37,7 @@ export class EmailAuthServer implements AuthServer {
         if (activationCode !== authenticator.state.activationCode) {
             throw new Err(
                 ErrorCode.AUTHENTICATION_FAILED,
-                "Failed to activate authenticator. Incorrect activation code!"
+                "Failed to activate authenticator. Incorrect activation code!",
             );
         }
         authenticator.description = authenticator.state.email;
@@ -54,14 +57,17 @@ export class EmailAuthServer implements AuthServer {
             await this.messenger.send(authenticator.state.email, message);
             return { email, subject: message.title, sentAt };
         } catch (e) {
-            throw new Err(ErrorCode.AUTHENTICATION_FAILED, `Failed to send email to ${email}`);
+            throw new Err(ErrorCode.AUTHENTICATION_FAILED, `Failed to send email to ${email}`, {
+                report: true,
+                error: e instanceof Error ? e : undefined,
+            });
         }
     }
 
     async verifyAuthRequest(
         _method: Authenticator,
         request: AuthRequest,
-        { code: verificationCode }: { code: string }
+        { code: verificationCode }: { code: string },
     ) {
         const verified =
             !!request.state.verificationCode &&

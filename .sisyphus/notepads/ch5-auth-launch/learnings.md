@@ -329,3 +329,9 @@ cf-surface.sh dns-upsert-cname padloc de2e5d88a0d7eca9dfe423318e2c25ea \
 No `wrangler pages project create` or `wrangler pages deploy` ad-hoc commands
 needed — all routed through `cf-surface.sh`. `cf-project.sh` not used for Pages
 ops since the PWA is a static site, not a Worker requiring Wrangler deploy.
+
+## 2026-05-19 — Email auth + CH5 setup hardening
+- Production email auth failure was not a missing provider account alone. Two repo/runtime bugs were involved: Worker-shared code referenced `process.env.PL_APP_NAME`, and the production/staging `RESEND_API_KEY` secrets had been uploaded as empty strings due a non-exported shell variable during `wrangler secret put`.
+- Correct production email proof is a live `startAuthRequest` RPC result with `requestStatus=started` plus Worker tail showing `using ResendMessenger` and healthcheck `resend: ok`.
+- Repo-scoped Cloudflare deploy token needed KV write added manually before Worker deploy automation could work in CI.
+- `preview` now acts as a legacy compatibility env; new stable pre-prod work should target `staging`.

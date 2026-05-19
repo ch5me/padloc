@@ -8,6 +8,7 @@ Cloudflare Worker backend for Padloc.
 | ------------ | ----------------------- | ---------------- | ---------------------------- | ------------------------- | --------------- |
 | `dev`        | `padloc-worker-dev`     | `padloc-dev`     | `padloc-attachments-dev`     | `PADLOC_HINTS_DEV`        | `AccountLockDO` |
 | `preview`    | `padloc-worker-preview` | `padloc-preview` | `padloc-attachments-preview` | `PADLOC_HINTS_PREVIEW`    | `AccountLockDO` |
+| `staging`    | `padloc-worker-staging` | `padloc-preview` | `padloc-attachments-preview` | `PADLOC_HINTS_PREVIEW`    | `AccountLockDO` |
 | `production` | `padloc-worker`         | `padloc-prod`    | `padloc-attachments-prod`    | `PADLOC_HINTS_PRODUCTION` | `AccountLockDO` |
 
 ## Local Dev
@@ -31,26 +32,31 @@ Secrets must be set via `wrangler secret put`. Never put real values in
 # RESEND_API_KEY
 wrangler secret put RESEND_API_KEY --env=dev
 wrangler secret put RESEND_API_KEY --env=preview
+wrangler secret put RESEND_API_KEY --env=staging
 wrangler secret put RESEND_API_KEY --env=production
 
 # EMAIL_FROM_ADDRESS
 wrangler secret put EMAIL_FROM_ADDRESS --env=dev
 wrangler secret put EMAIL_FROM_ADDRESS --env=preview
+wrangler secret put EMAIL_FROM_ADDRESS --env=staging
 wrangler secret put EMAIL_FROM_ADDRESS --env=production
 
 # WEBAUTHN_RP_ID
 wrangler secret put WEBAUTHN_RP_ID --env=dev
 wrangler secret put WEBAUTHN_RP_ID --env=preview
+wrangler secret put WEBAUTHN_RP_ID --env=staging
 wrangler secret put WEBAUTHN_RP_ID --env=production
 
 # WEBAUTHN_RP_NAME
 wrangler secret put WEBAUTHN_RP_NAME --env=dev
 wrangler secret put WEBAUTHN_RP_NAME --env=preview
+wrangler secret put WEBAUTHN_RP_NAME --env=staging
 wrangler secret put WEBAUTHN_RP_NAME --env=production
 
 # ALLOW_ORIGIN (defaults to * if absent in dev only)
 wrangler secret put ALLOW_ORIGIN --env=dev
 wrangler secret put ALLOW_ORIGIN --env=preview
+wrangler secret put ALLOW_ORIGIN --env=staging
 wrangler secret put ALLOW_ORIGIN --env=production
 ```
 
@@ -125,5 +131,6 @@ wrangler deploy --dry-run --env=production
 
 ```sh
 wrangler deploy --env=production
+wrangler deploy --env=staging
 wrangler deploy --env=preview
 ```
