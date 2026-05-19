@@ -1,6 +1,7 @@
 name = "padloc-worker"
 main = "src/index.ts"
 compatibility_date = "2025-04-01"
+account_id = "25bb5f8d9ec4a36106f0ff6b519133b1"
 
 [alias]
 "@padloc/locale/src/translate" = "./node_modules/@padloc/locale/src/translate.ts"
