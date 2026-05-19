@@ -1,0 +1,25 @@
+id: padloc
+version: 1
+project:
+  id: padloc
+  name: Padloc
+  kind: project
+  lifecycle: active
+  summary: 'CH5 project: Padloc, project, runtime cloud'
+  tags:
+  - project
+  - personal
+  - cloud
+  branding:
+    visual_summary: 'CH5 project: Padloc, project, runtime cloud'
+    icon_prompt: 'Create a clean square app icon for Padloc. Use the CH5 design system,
+      one dominant accent color anchored on #8B5CF6, bold geometry, no text, app-store
+      safe.'
+    cover_prompt: 'Create a wide cover image for Padloc. Use the CH5 design system,
+      one dominant accent color anchored on #8B5CF6, brand-forward composition, text-free,
+      safe to crop.'
+    colors:
+      primary: '#8B5CF6'
+    assets:
+      icon_source: .ch5/assets/master/icon.png
+      icon_variant_profile: ch5-master-icon-v1
