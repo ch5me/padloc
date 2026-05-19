@@ -45,7 +45,9 @@ async function healthcheck(env: Env): Promise<HealthcheckStatus> {
         }
     }
 
-    if (env.RESEND_API_KEY || env.EMAIL_BACKEND === "mock") health.resend = "ok";
+    if (env.EMAIL_BACKEND === "mock" || (env.RESEND_API_KEY && env.EMAIL_FROM_ADDRESS)) {
+        health.resend = "ok";
+    }
 
     if (health.d1 !== "ok" || health.r2 !== "ok" || health.resend !== "ok") {
         health.status = "degraded";

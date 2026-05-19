@@ -36,6 +36,11 @@ export function createServer(env: Env): Server {
 
     const config = new ServerConfig();
     config.verifyEmailOnSignup = env.EMAIL_VERIFY_ON_SIGNUP !== "false";
+    if (env.CLIENT_URL) {
+        config.clientUrl = env.CLIENT_URL;
+    } else if (env.ALLOW_ORIGIN && env.ALLOW_ORIGIN !== "*") {
+        config.clientUrl = env.ALLOW_ORIGIN;
+    }
 
     return new Server(
         config,

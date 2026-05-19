@@ -26,6 +26,7 @@ name = "padloc-worker-dev"
 EMAIL_VERIFY_ON_SIGNUP = "false"
 EMAIL_BACKEND = "mock"
 ALLOW_ORIGIN = "*"
+CLIENT_URL = "http://localhost:3000"
 
 [[env.dev.kv_namespaces]]
 binding = "EMAIL_KV"
@@ -55,6 +56,7 @@ name = "padloc-worker-preview"
 [env.preview.vars]
 EMAIL_BACKEND = "mock"
 ALLOW_ORIGIN = "*"
+CLIENT_URL = "http://localhost:3000"
 
 [[env.preview.kv_namespaces]]
 binding = "EMAIL_KV"
@@ -84,6 +86,7 @@ routes = [{ pattern = "api-pad-staging.ch5.me/*", zone_name = "ch5.me" }]
 
 [env.staging.vars]
 ALLOW_ORIGIN = "https://pad-staging.ch5.me"
+CLIENT_URL = "https://pad-staging.ch5.me"
 
 [[env.staging.kv_namespaces]]
 binding = "EMAIL_KV"
@@ -110,6 +113,10 @@ class_name = "AccountLockDO"
 [env.production]
 name = "padloc-worker"
 routes = [{ pattern = "api-pad.ch5.me/*", zone_name = "ch5.me" }]
+
+[env.production.vars]
+ALLOW_ORIGIN = "https://pad.ch5.me"
+CLIENT_URL = "https://pad.ch5.me"
 
 [[env.production.kv_namespaces]]
 binding = "EMAIL_KV"

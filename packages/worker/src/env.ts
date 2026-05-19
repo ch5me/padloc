@@ -4,6 +4,7 @@ export interface Env {
     HINTS?: KVNamespace;
     ACCOUNT_LOCK?: DurableObjectNamespace;
     ALLOW_ORIGIN?: string;
+    CLIENT_URL?: string;
     VERSION?: string;
     RESEND_API_KEY?: string;
     EMAIL_BACKEND?: string;
