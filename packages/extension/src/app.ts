@@ -3,6 +3,8 @@ import { App } from "@padloc/app/src/elements/app";
 import { debounce } from "@padloc/core/src/util";
 import { Storable } from "@padloc/core/src/storage";
 import { VaultItem } from "@padloc/core/src/item";
+import { shouldAttemptBiometricReunlock, unlockWithBiometric } from "./auth/biometric";
+import { messageTab, SavePrompt } from "./message";
 import { clearSessionMasterKey, getSessionMasterKey, saveSessionMasterKey } from "./storage";
 // import { messageTab } from "./message";
 
@@ -32,6 +34,8 @@ export class ExtensionApp extends App {
     private _isLocked = true;
     private _isLoggedIn = false;
     private _workerReady = false;
+    private _pendingSavePrompt: SavePrompt | null = null;
+    private _savePromptOverlay: HTMLElement | null = null;
 
     private get _matchingItems() {
         return this.app.state.context.browser?.url ? this.app.getItemsForUrl(this.app.state.context.browser.url) : [];
@@ -95,6 +99,16 @@ export class ExtensionApp extends App {
                     await clearSessionMasterKey();
                 }
             }
+
+            if (
+                shouldAttemptBiometricReunlock({
+                    locked: this.app.state.locked,
+                    hasSessionMasterKey: !!masterKey,
+                    hasRememberedMasterKey: !!this.app.state.rememberedMasterKey,
+                })
+            ) {
+                await this._restoreBiometricUnlock();
+            }
         }
 
         const routerState = await this._getRouterState();
@@ -119,7 +133,9 @@ export class ExtensionApp extends App {
         this.router.addEventListener("route-changed", () => this._saveRouterState());
         this.router.addEventListener("params-changed", () => this._saveRouterState());
 
-        // this.addEventListener("field-clicked", (e: any) => this._fieldClicked(e));
+        this.addEventListener("field-clicked", (e: CustomEvent<{ item: VaultItem; index: number }>) =>
+            this._fieldClicked(e)
+        );
         this.addEventListener("field-dragged", (e: any) => this._fieldDragged(e));
 
         // this._autoFill(
@@ -158,14 +174,20 @@ export class ExtensionApp extends App {
         }
         this._wrapper.classList.toggle("active", true);
         void this._syncUnlockedState();
-
-        // if (this._hasMatchingItems) {
-        //     this.router.go("items", { host: "true" }, true);
-        // }
+        void this._checkForSavePrompt();
     }
 
     _locked() {
         void this._syncLockedState("locked");
+    }
+
+    private async _restoreBiometricUnlock() {
+        const result = await unlockWithBiometric(this.app);
+        if (result === "unlocked") {
+            this._unlocked();
+            return true;
+        }
+        return false;
     }
 
     _loggedIn() {
@@ -211,6 +233,14 @@ export class ExtensionApp extends App {
         await this.app.storage.save(new RouterState({ path: this.router.path, params, lastMatchingItems }));
     }
 
+    protected async _fieldClicked(e: CustomEvent<{ item: VaultItem; index: number }>) {
+        const { item, index } = e.detail;
+        const field = item.fields[index];
+        if (!field) return;
+        const value = await field.transform();
+        await messageTab({ type: "fillActive", value });
+    }
+
     protected async _fieldDragged(e: CustomEvent<{ item: VaultItem; index: number; event: DragEvent }>) {
         super._fieldDragged(e);
 
@@ -245,6 +275,118 @@ export class ExtensionApp extends App {
         //     value
         // });
     }
-}
 
-customElements.define("pl-extension-app", ExtensionApp);
+    private async _checkForSavePrompt() {
+        if (this.app.state.locked || !this.app.state.loggedIn) return;
+
+        try {
+            const response = await browser.runtime.sendMessage({ type: "getSavePrompt" });
+            if (response?.type === "getSavePromptResponse" && response.prompt) {
+                this._pendingSavePrompt = response.prompt;
+                this._renderSavePromptOverlay();
+            }
+        } catch {
+            // Worker may not be ready
+        }
+    }
+
+    private _renderSavePromptOverlay() {
+        if (!this._pendingSavePrompt) return;
+
+        const prompt = this._pendingSavePrompt;
+        const hostname = (() => {
+            try {
+                return new URL(prompt.url).hostname;
+            } catch {
+                return prompt.url;
+            }
+        })();
+
+        const isUpdate = !!prompt.existingItem;
+
+        const overlayHtml = `
+            <div class="save-prompt-overlay">
+                <div class="save-prompt-card">
+                    <div class="save-prompt-header">
+                        <pl-icon icon="lock" class="save-prompt-icon"></pl-icon>
+                        <span class="save-prompt-title">${isUpdate ? "Update Login?" : "Save Login?"}</span>
+                    </div>
+                    <div class="save-prompt-body">
+                        <div class="save-prompt-host">${hostname}</div>
+                        <div class="save-prompt-username">
+                            <span class="save-prompt-label">Username</span>
+                            <span class="save-prompt-value">${this._escapeHtml(prompt.username) || "(empty)"}</span>
+                        </div>
+                        <div class="save-prompt-password">
+                            <span class="save-prompt-label">Password</span>
+                            <span class="save-prompt-value">${prompt.password ? "••••••••" : "(empty)"}</span>
+                        </div>
+                    </div>
+                    <div class="save-prompt-actions">
+                        <button class="save-prompt-btn save-prompt-btn-primary" id="save-prompt-action">
+                            ${isUpdate ? "Update" : "Save"}
+                        </button>
+                        <button class="save-prompt-btn save-prompt-btn-dismiss" id="save-prompt-dismiss">
+                            Not Now
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        this._wrapper.insertAdjacentHTML("beforeend", overlayHtml);
+        this._savePromptOverlay = this._wrapper.querySelector(".save-prompt-overlay");
+
+        if (this._savePromptOverlay) {
+            this._savePromptOverlay.querySelector("#save-prompt-action")?.addEventListener("click", () => {
+                void this._handleSavePromptAction(isUpdate);
+            });
+            this._savePromptOverlay.querySelector("#save-prompt-dismiss")?.addEventListener("click", () => {
+                void this._handleDismissPrompt();
+            });
+        }
+    }
+
+    private _dismissSavePromptOverlay() {
+        if (this._savePromptOverlay) {
+            this._savePromptOverlay.remove();
+            this._savePromptOverlay = null;
+        }
+        this._pendingSavePrompt = null;
+    }
+
+    private async _handleSavePromptAction(isUpdate: boolean) {
+        if (!this._pendingSavePrompt) return;
+        const promptId = this._pendingSavePrompt.id;
+        this._dismissSavePromptOverlay();
+        try {
+            if (isUpdate) {
+                await browser.runtime.sendMessage({ type: "updateCredential", promptId });
+            } else {
+                await browser.runtime.sendMessage({ type: "saveCredential", promptId });
+            }
+        } catch {
+            // Silently handle - user can still see the updated item in the list
+        }
+    }
+
+    private async _handleDismissPrompt() {
+        if (!this._pendingSavePrompt) return;
+        const promptId = this._pendingSavePrompt.id;
+        this._dismissSavePromptOverlay();
+        try {
+            await browser.runtime.sendMessage({ type: "dismissPrompt", promptId });
+        } catch {
+            // Silently handle
+        }
+    }
+
+    private _escapeHtml(str: string): string {
+        return str
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+}

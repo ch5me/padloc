@@ -146,3 +146,47 @@
 - `packages/extension/src/content.ts:336` — `_classifyField()` with multi-signal TOTP/OTP detection (pattern, maxLength, inputmode)
 - `packages/extension/test/content.ts` — full test suite for classification, SaaS patterns, shadow DOM, fill events
 
+## Task 3: Biometric/Passkey Re-Unlock
+
+### Key Findings
+
+- The extension already had all needed primitives after Tasks 1 and 2: persistent encrypted `rememberedMasterKey` state in local storage, volatile raw master key in `browser.storage.session`, and popup-context WebAuthn support.
+- The missing glue was a popup-side helper that explicitly reuses `unlockWithRememberedMasterKey(token)` and a cold-start decision that prefers biometric re-unlock when the volatile session key is gone.
+- MV3 worker reload also drops scheduled alarms, so restoring unlocked state from `browser.storage.session` must restart auto-lock or the worker quietly stops enforcing the configured lock delay.
+
+### Reference Paths
+
+- `packages/extension/src/auth/biometric.ts` — popup-context biometric re-unlock helper and cold-start gating helper
+- `packages/extension/src/app.ts` — session-key restore first, biometric fallback second
+- `packages/extension/src/background.ts` — auto-lock timer restart after worker-side session restore
+- `packages/extension/test/biometric.ts` — coverage for biometric unlock and extension-reload timer restoration
+
+## Task: Save/Update Credential Flow
+
+### Key Findings
+
+- Submit detection lives entirely in the content script: `_listenForFormSubmit()` attaches submit listeners to all forms on pages containing password fields, captures username + password on submit, and sends `formSubmitDetected` to the background service worker.
+- Background handles the orchestration: checks for existing vault items matching the URL, creates a save prompt (new) or update prompt (existing), and stores it in a `pendingPrompts` map keyed by UUID.
+- Popup renders a centered overlay on `_unlocked()` → `_checkForSavePrompt()` path: fetches the pending prompt via `getSavePrompt`, shows a card with hostname/username/password, and presents Save/Update + Not Now buttons.
+- Suppression is URL-based: dismissed URLs are suppressed for 1 hour (`DISMISSAL_DURATION_MS`), preventing duplicate prompts after a user dismisses the overlay.
+- Content script also suppresses within-page-session: `submittedUrls` Set prevents double-sends for the same URL after navigation.
+- The popup overlay uses DOM insertion (`insertAdjacentHTML`) with click handlers wired inline — no complex state management needed.
+- Edge case: `handleFormSubmitDetected` in background collects password fields from anywhere on the page (not just the submitted form), which can pair credentials from different forms on complex pages.
+
+### Reference Paths
+
+- `packages/extension/src/content.ts:494` — `_listenForFormSubmit()` with form attachment, credential capture, deduplication
+- `packages/extension/src/content.ts:514` — `findUsernameInput()` heuristic for username field detection
+- `packages/extension/src/background.ts:21` — `pendingPrompts` map and `dismissedUrls` suppression map
+- `packages/extension/src/background.ts:311` — `handleFormSubmitDetected()` — checks lock/login state, existing items, creates prompt
+- `packages/extension/src/background.ts:357` — `handleSaveCredential()` — creates new vault item via `application.createItem()`
+- `packages/extension/src/background.ts:392` — `handleUpdateCredential()` — updates username + password fields on existing vault item
+- `packages/extension/src/background.ts:420` — `handleDismissPrompt()` — clears prompt, sets 1-hour suppression for URL
+- `packages/extension/src/app.ts:37` — `_pendingSavePrompt` and `_savePromptOverlay` state
+- `packages/extension/src/app.ts:279` — `_checkForSavePrompt()` fetches pending prompt from worker
+- `packages/extension/src/app.ts:293` — `_renderSavePromptOverlay()` — injects card DOM with save/update + dismiss buttons
+- `packages/extension/src/app.ts:358` — `_handleSavePromptAction()` — sends `saveCredential` or `updateCredential` to worker
+- `packages/extension/src/app.ts:373` — `_handleDismissPrompt()` — sends `dismissPrompt`, suppresses future prompts
+- `packages/extension/src/message.ts:17` — `CredentialData` interface (username, password, url)
+- `packages/extension/src/message.ts:26` — `SavePrompt` interface (id, url, username, password, existingItem, dismissedUntil)
+- `packages/extension/test/save.ts` — comprehensive test suite for form detection, suppression, credential data, message types

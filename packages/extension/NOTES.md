@@ -192,3 +192,48 @@
 - `npm test` passed (all suites with tap reporter).
 - `npm run build` passed.
 
+## Task 3: Biometric/Passkey Re-Unlock
+
+### Findings
+
+- Task 1 already made `browser.storage.session` the volatile raw-master-key store, so Task 3 only needs to bridge popup WebAuthn auth into the existing `rememberedMasterKey` container path.
+- The shared unlock UI already knows how to call `unlockWithRememberedMasterKey(authToken)`; the extension gap was the cold-start/common-path handoff, not a missing core crypto primitive.
+- MV3 worker restarts also drop the auto-lock alarm, so background rehydration needs to restart the timer after restoring an unlocked session from `browser.storage.session`.
+
+### Implementation
+
+- `packages/extension/src/auth/biometric.ts` — new extension helper that wraps `authenticate({ purpose: AccessKeyStore, type: WebAuthnPlatform, authenticatorId })` and then calls `unlockWithRememberedMasterKey(token)`.
+- `packages/extension/src/app.ts` — cold-start load now tries session-key restore first, then attempts biometric re-unlock when the session key is gone but `rememberedMasterKey` still exists.
+- `packages/extension/src/background.ts` — worker-side session rehydrate now restarts the auto-lock timer when unlock state is restored after worker reload.
+- `packages/extension/test/biometric.ts` — added coverage for the biometric gating logic, remembered-master-key unlock wrapper, expired authenticator fallback, and extension-reload auto-lock restart path.
+
+## Task: Save/Update Credential Flow
+
+### Findings
+
+- Submit detection lives entirely in the content script: `_listenForFormSubmit()` attaches submit listeners to all forms on pages containing password fields, captures username + password on submit, and sends `formSubmitDetected` to the background service worker.
+- Background handles the orchestration: checks for existing vault items matching the URL, creates a save prompt (new) or update prompt (existing), and stores it in a `pendingPrompts` map keyed by UUID.
+- Popup renders a centered overlay on `_unlocked()` → `_checkForSavePrompt()` path: fetches the pending prompt via `getSavePrompt`, shows a card with hostname/username/password, and presents Save/Update + Not Now buttons.
+- Suppression is URL-based: dismissed URLs are suppressed for 1 hour (`DISMISSAL_DURATION_MS`), preventing duplicate prompts after a user dismisses the overlay.
+- Content script also suppresses within-page-session: `submittedUrls` Set prevents double-sends for the same URL after navigation.
+- The popup overlay uses DOM insertion (`insertAdjacentHTML`) with click handlers wired inline — no complex state management needed.
+
+### Implementation
+
+- `packages/extension/src/content.ts` — `_listenForFormSubmit()` with form attachment, credential capture via `findPasswordInputs` / `findUsernameInput`, deduplication by URL
+- `packages/extension/src/background.ts` — `handleFormSubmitDetected()`, `handleGetSavePrompt()`, `handleSaveCredential()`, `handleUpdateCredential()`, `handleDismissPrompt()`
+- `packages/extension/src/app.ts` — `_checkForSavePrompt()`, `_renderSavePromptOverlay()`, `_handleSavePromptAction()`, `_handleDismissPrompt()`
+- `packages/extension/src/message.ts` — `CredentialData`, `SavePrompt`, and all save/update message types
+- `packages/extension/test/save.ts` — comprehensive test suite for form detection, suppression logic, credential data, message types
+
+### Verification
+
+- `tsc --noEmit` passed (0 errors).
+- `npm test` passed (all suites).
+- `npm run build` passed.
+
+### Scope Limitations
+
+- Login credentials only — no address, card, or profile saving.
+- No inline prompt bar in popup — uses centered card overlay.
+- Existing autofill and auth paths are untouched.

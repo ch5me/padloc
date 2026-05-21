@@ -2,9 +2,10 @@ import { browser, Menus, Runtime } from "webextension-polyfill-ts";
 import { setPlatform } from "@padloc/core/src/platform";
 import { App } from "@padloc/core/src/app";
 import { AjaxSender } from "@padloc/app/src/lib/ajax";
-import { debounce } from "@padloc/core/src/util";
+import { debounce, uuid } from "@padloc/core/src/util";
+import { FieldType, VaultItem, Field } from "@padloc/core/src/item";
 import { ExtensionPlatform } from "./platform";
-import { Message, messageTab } from "./message";
+import { Message, messageTab, SavePrompt, CredentialData } from "./message";
 import { clearSessionMasterKey, configureSessionStorage, getSessionMasterKey } from "./storage";
 
 setPlatform(new ExtensionPlatform());
@@ -15,13 +16,26 @@ let autoLockAlarmName = "pl_autoLock";
 let isInitialized = false;
 const actionApi = chrome.action;
 
+// Save/update credential prompt state
+// Maps promptId -> pending SavePrompt
+const pendingPrompts = new Map<string, SavePrompt>();
+
+// Suppression map: url -> timestamp when prompt can be shown again
+const dismissedUrls = new Map<string, number>();
+
+const DISMISSAL_DURATION_MS = 60 * 60 * 1000; // 1 hour
+
 async function getApp(): Promise<App> {
     if (!app) {
         app = new App(new AjaxSender(process.env.PL_SERVER_URL!));
         await app.load();
-        await restoreSessionUnlock(app);
+        if (await restoreSessionUnlock(app)) {
+            await startAutoLockTimer();
+        }
     } else if (app.state.locked) {
-        await restoreSessionUnlock(app);
+        if (await restoreSessionUnlock(app)) {
+            await startAutoLockTimer();
+        }
     }
     return app;
 }
@@ -89,6 +103,16 @@ async function initBackground() {
                 await application.reload();
                 await update();
                 break;
+            case "formSubmitDetected":
+                return handleFormSubmitDetected(msg.data, application);
+            case "getSavePrompt":
+                return handleGetSavePrompt();
+            case "saveCredential":
+                return handleSaveCredential(msg.promptId, msg.vaultId, application);
+            case "updateCredential":
+                return handleUpdateCredential(msg.promptId, msg.vaultId, application);
+            case "dismissPrompt":
+                return handleDismissPrompt(msg.promptId);
         }
     });
 
@@ -122,18 +146,63 @@ async function handleContextMenuClick(menuItemId: string) {
         return;
     }
 
-    const match = menuItemId.match(/^item\/([^\/]+)(?:\/(\d+))?$/);
-    if (!match) return;
+    // item/{id}/{fieldIndex} — single-field fill (existing)
+    const fieldMatch = menuItemId.match(/^item\/([^\/]+)\/(\d+)$/);
+    if (fieldMatch) {
+        const [, id, ind] = fieldMatch;
+        const application = await getApp();
+        const item = application.getItem(id);
+        const index = parseInt(ind);
+        if (!item || isNaN(index)) return;
+        const field = item.item.fields[index];
+        if (!field) return;
+        const value = await field.transform();
+        await messageTab({ type: "fillActive", value });
+        return;
+    }
 
-    const [, id, ind] = match;
+    // item/{id} — multi-field fill (username + password, optionally TOTP)
+    const itemMatch = menuItemId.match(/^item\/([^\/]+)$/);
+    if (!itemMatch) return;
+
+    const [, id] = itemMatch;
     const application = await getApp();
     const item = application.getItem(id);
-    const index = parseInt(ind);
-    if (!item || isNaN(index)) return;
+    if (!item) return;
 
-    const field = item.item.fields[index];
-    const value = await field.transform();
-    await messageTab({ type: "fillActive", value });
+    await fillItemMultiField(item);
+}
+
+async function fillItemMultiField(item: App["vaults"][0]["items"][0]) {
+    const fields = item.item.fields;
+    let username: string | undefined;
+    let password: string | undefined;
+    let totp: string | undefined;
+
+    for (const field of fields) {
+        if (field.type === FieldType.Username && !username) {
+            username = await field.transform();
+        } else if (field.type === FieldType.Password && !password) {
+            password = await field.transform();
+        } else if (field.type === FieldType.Totp && !totp) {
+            totp = await field.transform();
+        }
+    }
+
+    // Require at least username or password to trigger multi-field fill
+    if (!username && !password) {
+        // Fall back to single-field: fill first available password or username
+        const fallbackField = fields.find(
+            (f) => f.type === FieldType.Password || f.type === FieldType.Username
+        );
+        if (fallbackField) {
+            const value = await fallbackField.transform();
+            await messageTab({ type: "fillActive", value });
+        }
+        return;
+    }
+
+    await messageTab({ type: "fillFields", mappings: { username, password, totp } });
 }
 
 async function updateBadgeAndContextMenu() {
@@ -162,12 +231,18 @@ async function updateBadgeAndContextMenu() {
     } else {
         const items = await getItemsForActiveTab();
         for (const { item } of items) {
+            const hasUsername = item.fields.some((f) => f.type === FieldType.Username);
+            const hasPassword = item.fields.some((f) => f.type === FieldType.Password);
+            const hasTotp = item.fields.some((f) => f.type === FieldType.Totp);
+
+            // Top-level item — clicking it triggers multi-field fill if credentials exist
             await browser.contextMenus.create({
                 id: `item/${item.id}`,
-                title: item.name,
+                title: hasUsername && hasPassword ? `${item.name}  ▸  Fill Login` : item.name,
                 contexts: ["editable"],
             });
 
+            // Single-field sub-items
             for (const [index, field] of item.fields.entries()) {
                 await browser.contextMenus.create({
                     parentId: `item/${item.id}`,
@@ -229,6 +304,127 @@ async function startAutoLockTimer() {
             delayInMinutes: application.settings.autoLockDelay,
         });
     }
+}
+
+// Save/update credential handlers
+
+async function handleFormSubmitDetected(data: CredentialData, application: App): Promise<null> {
+    if (application.state.locked || !application.state.loggedIn) {
+        return null;
+    }
+
+    // Clean up expired dismissals
+    const now = Date.now();
+    for (const [url, timestamp] of dismissedUrls.entries()) {
+        if (now > timestamp) dismissedUrls.delete(url);
+    }
+
+    // Check if dismissed
+    const dismissalTimestamp = dismissedUrls.get(data.url);
+    if (dismissalTimestamp && now < dismissalTimestamp) {
+        return null;
+    }
+
+    // Check for existing item for this URL
+    const existingItems = application.getItemsForUrl(data.url);
+    const existingLogin = existingItems.find(({ item }) =>
+        item.fields.some((f) => f.type === FieldType.Password)
+    );
+
+    const promptId = uuid();
+    const prompt: SavePrompt = {
+        id: promptId,
+        url: data.url,
+        username: data.username,
+        password: data.password,
+        existingItem: existingLogin?.item,
+    };
+
+    pendingPrompts.set(promptId, prompt);
+
+    // Notify popup of pending prompt by sending state-changed
+    // Popup will call getSavePrompt to retrieve the prompt
+    return null;
+}
+
+function handleGetSavePrompt(): { type: "getSavePromptResponse"; prompt: SavePrompt | null } {
+    // Return the most recent pending prompt (if any)
+    const prompts = Array.from(pendingPrompts.values());
+    const latest = prompts.length > 0 ? prompts[prompts.length - 1] : null;
+    return { type: "getSavePromptResponse", prompt: latest || null };
+}
+
+async function handleSaveCredential(
+    promptId: string,
+    vaultId: string | undefined,
+    application: App
+): Promise<null> {
+    const prompt = pendingPrompts.get(promptId);
+    if (!prompt) return null;
+
+    pendingPrompts.delete(promptId);
+
+    if (application.state.locked || !application.state.loggedIn) return null;
+
+    const vault = vaultId
+        ? application.getVault(vaultId as any)
+        : application.mainVault;
+
+    if (!vault) return null;
+
+    const name = new URL(prompt.url).hostname || "Saved Login";
+
+    const fields: Field[] = [
+        new Field({ name: "username", type: FieldType.Username, value: prompt.username }),
+        new Field({ name: "password", type: FieldType.Password, value: prompt.password }),
+        new Field({ name: "url", type: FieldType.Url, value: prompt.url }),
+    ];
+
+    await application.createItem({
+        name,
+        vault: { id: vault.id },
+        fields,
+    });
+
+    return null;
+}
+
+async function handleUpdateCredential(
+    promptId: string,
+    vaultId: string | undefined,
+    application: App
+): Promise<null> {
+    const prompt = pendingPrompts.get(promptId);
+    if (!prompt || !prompt.existingItem) return null;
+
+    pendingPrompts.delete(promptId);
+
+    if (application.state.locked || !application.state.loggedIn) return null;
+
+    const item = prompt.existingItem;
+    const updatedFields = item.fields.map((f) => {
+        if (f.type === FieldType.Username) {
+            return new Field({ ...f, value: prompt.username });
+        }
+        if (f.type === FieldType.Password) {
+            return new Field({ ...f, value: prompt.password });
+        }
+        return f;
+    });
+
+    await application.updateItem(item, { fields: updatedFields });
+
+    return null;
+}
+
+function handleDismissPrompt(promptId: string): null {
+    const prompt = pendingPrompts.get(promptId);
+    if (prompt) {
+        pendingPrompts.delete(promptId);
+        // Suppress prompts for the same URL for 1 hour
+        dismissedUrls.set(prompt.url, Date.now() + DISMISSAL_DURATION_MS);
+    }
+    return null;
 }
 
 // Initialize on install

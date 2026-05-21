@@ -1,7 +1,7 @@
 import "@webcomponents/webcomponentsjs";
 import { browser } from "webextension-polyfill-ts";
 // import { throttle } from "@padloc/core/src/util";
-import { FieldMappings, Message } from "./message";
+import { FieldMappings, Message, CredentialData } from "./message";
 
 const css = `
     @font-face {
@@ -107,6 +107,7 @@ class ExtensionContent {
         style.type = "text/css";
         style.appendChild(document.createTextNode(css));
         browser.runtime.onMessage.addListener((msg: Message) => this._handleMessage(msg));
+        this._listenForFormSubmit();
     }
 
     private _handleMessage(msg: Message) {
@@ -484,7 +485,98 @@ class ExtensionContent {
         return filled;
     }
 
-    // private _ripple(el: HTMLElement) {
+    /**
+     * Attaches submit listeners to forms containing password fields.
+     * Captures username + password on submit and sends to background service worker.
+     * Suppresses subsequent detection for the same host within the same page session
+     * to avoid duplicate prompts after navigation.
+     */
+    private _listenForFormSubmit() {
+        const submittedUrls = new Set<string>();
+
+        const findPasswordInputs = (root: Document | ShadowRoot): HTMLInputElement[] => {
+            const inputs: HTMLInputElement[] = [];
+            const elements = root.querySelectorAll("input");
+            for (const el of elements) {
+                if (el instanceof HTMLInputElement && el.type === "password") {
+                    inputs.push(el);
+                }
+            }
+            const allElements = root.querySelectorAll("*");
+            for (const el of allElements) {
+                if (el.shadowRoot) {
+                    inputs.push(...findPasswordInputs(el.shadowRoot));
+                }
+            }
+            return inputs;
+        };
+
+        const findUsernameInput = (form: HTMLFormElement): HTMLInputElement | null => {
+            const inputs = form.querySelectorAll("input");
+            for (const input of inputs) {
+                if (input.type === "email" || input.type === "text" || input.type === "tel") {
+                    const name = (input.name || "").toLowerCase();
+                    const id = (input.id || "").toLowerCase();
+                    const autocomplete = (input.getAttribute("autocomplete") || "").toLowerCase();
+                    if (
+                        name.includes("user") ||
+                        name.includes("login") ||
+                        name.includes("email") ||
+                        name.includes("account") ||
+                        name.includes("username") ||
+                        id.includes("user") ||
+                        id.includes("login") ||
+                        id.includes("email") ||
+                        autocomplete === "username" ||
+                        autocomplete === "email"
+                    ) {
+                        return input;
+                    }
+                }
+            }
+            return null;
+        };
+
+        const handleSubmit = async (event: Event) => {
+            const form = event.target;
+            if (!(form instanceof HTMLFormElement)) return;
+
+            const passwordInputs = findPasswordInputs(form.ownerDocument || document);
+            if (passwordInputs.length === 0) return;
+
+            const url = form.ownerDocument?.location?.href;
+            if (!url) return;
+
+            // Deduplicate: don't prompt twice for the same URL in the same page session
+            if (submittedUrls.has(url)) return;
+            submittedUrls.add(url);
+
+            const usernameInput = findUsernameInput(form);
+            const username = usernameInput?.value || "";
+            const password = passwordInputs[0]?.value || "";
+
+            if (!username && !password) return;
+
+            const data: CredentialData = { username, password, url };
+            browser.runtime.sendMessage({ type: "formSubmitDetected", data }).catch(() => {});
+        };
+
+        const attachToForms = (root: Document | ShadowRoot) => {
+            const forms = root.querySelectorAll("form");
+            for (const form of forms) {
+                const passwordInputs = findPasswordInputs(form.ownerDocument || document);
+                if (passwordInputs.length > 0) {
+                    form.addEventListener("submit", handleSubmit);
+                }
+            }
+            const allElements = root.querySelectorAll("*");
+            for (const el of allElements) {
+                if (el.shadowRoot) attachToForms(el.shadowRoot);
+            }
+        };
+
+        attachToForms(document);
+    }
     //     const { left, top, width, height } = el.getBoundingClientRect();
     //     const ripple = document.createElement("div");
     //     const { scrollTop, scrollLeft } = document.documentElement;
