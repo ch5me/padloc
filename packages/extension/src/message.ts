@@ -4,14 +4,15 @@ export type Message =
     | { type: "loggedIn" }
     | { type: "loggedOut" }
     | { type: "locked" }
-    | { type: "unlocked"; masterKey: string }
-    | { type: "requestMasterKey" }
+    | { type: "unlocked" }
     | { type: "fillActive"; value: string }
     | { type: "fillOnDrop"; value: string }
     | { type: "calcTOTP"; secret: string }
     | { type: "isContentReady" }
     | { type: "hasActiveInput" }
-    | { type: "state-changed" };
+    | { type: "state-changed" }
+    | { type: "ping" }
+    | { type: "pong" }; // pong response from worker
 
 export async function messageTab(msg: Message) {
     const [activeTab] = await browser.tabs.query({ active: true, currentWindow: true });

@@ -1,11 +1,11 @@
 import { browser, Menus, Runtime } from "webextension-polyfill-ts";
 import { setPlatform } from "@padloc/core/src/platform";
 import { App } from "@padloc/core/src/app";
-import { bytesToBase64, base64ToBytes } from "@padloc/core/src/encoding";
 import { AjaxSender } from "@padloc/app/src/lib/ajax";
 import { debounce } from "@padloc/core/src/util";
 import { ExtensionPlatform } from "./platform";
 import { Message, messageTab } from "./message";
+import { clearSessionMasterKey, configureSessionStorage, getSessionMasterKey } from "./storage";
 
 setPlatform(new ExtensionPlatform());
 
@@ -19,13 +19,41 @@ async function getApp(): Promise<App> {
     if (!app) {
         app = new App(new AjaxSender(process.env.PL_SERVER_URL!));
         await app.load();
+        await restoreSessionUnlock(app);
+    } else if (app.state.locked) {
+        await restoreSessionUnlock(app);
     }
     return app;
+}
+
+async function restoreSessionUnlock(application: App) {
+    if (!application.state.locked || !application.account || !application.session) {
+        return false;
+    }
+
+    const masterKey = await getSessionMasterKey({
+        accountId: application.account.id,
+        sessionId: application.session.id,
+    });
+
+    if (!masterKey) {
+        return false;
+    }
+
+    try {
+        await application.unlockWithMasterKey(masterKey);
+        return true;
+    } catch (error) {
+        await clearSessionMasterKey();
+        return false;
+    }
 }
 
 async function initBackground() {
     if (isInitialized) return;
     isInitialized = true;
+
+    await configureSessionStorage();
 
     const _app = await getApp();
     const update = debounce(() => updateBadgeAndContextMenu(), 500);
@@ -41,28 +69,25 @@ async function initBackground() {
         const application = await getApp();
 
         switch (msg.type) {
+            case "ping":
+                // Used by popup to verify worker is alive after cold start
+                return { type: "pong" };
             case "loggedOut":
             case "locked":
+                await clearSessionMasterKey();
                 await application.load();
                 await cancelAutoLock();
-                update();
+                await update();
                 break;
             case "unlocked":
                 await application.load();
-                await application.unlockWithMasterKey(base64ToBytes(msg.masterKey));
+                await restoreSessionUnlock(application);
                 await startAutoLockTimer();
-                update();
+                await update();
                 break;
-            case "requestMasterKey":
-                return (
-                    (application.account &&
-                        application.account.masterKey &&
-                        bytesToBase64(application.account.masterKey)) ||
-                    null
-                );
             case "state-changed":
                 await application.reload();
-                update();
+                await update();
                 break;
         }
     });
@@ -192,6 +217,7 @@ async function doLock() {
         return;
     }
     await application.lock();
+    await clearSessionMasterKey();
     await application.reload();
 }
 

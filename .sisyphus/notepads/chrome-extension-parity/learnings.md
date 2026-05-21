@@ -72,3 +72,33 @@
 - `packages/extension/src/platform.ts:8-20` — updated `supportedAuthTypes` and `_getAuthClient`
 - `packages/extension/src/manifest.json:14` — added `identity` permission
 - `packages/extension/test/oauth.ts` — OAuth test suite
+
+## Task 5: Popup Cold-Start State Restoration
+
+### Key Findings
+
+- **Race condition**: `super.load()` fires `stateChanged()` which reads `state.context.browser?.url`. Tab capture happened AFTER `super.load()`, so `_matchingItems` returned empty even when there were matching items for the current tab.
+- **Worker dormancy**: MV3 workers restart after ~30s inactivity. Popup had no liveness check — it made routing decisions before the worker had finished booting.
+- **Fire-and-forget update()**: In `background.ts`, `update()` was called without `await` in message handlers, causing badge/menu race conditions on cold start.
+
+### Implementation
+
+- `packages/extension/src/app.ts`:
+  - Tab capture moved before `super.load()` to fix stateChanged race
+  - Added `_waitForWorkerReady()` with ping/pong handshake (100-500ms window)
+  - Added fallback to "vaults" when `routerState.path` is empty
+- `packages/extension/src/background.ts`:
+  - Added ping/pong case in message handler
+  - All `update()` calls now awaited
+- `packages/extension/src/message.ts`:
+  - Added `ping` and `pong` to Message union
+- `packages/extension/test/cold-start.ts`:
+  - New test suite covering cold-start scenarios
+
+### Reference Paths
+
+- `packages/extension/src/app.ts:46` — tab capture moved before `super.load()`
+- `packages/extension/src/app.ts:53-70` — `_waitForWorkerReady()` and routing logic
+- `packages/extension/src/background.ts:114` — `await update()` call
+- `packages/extension/src/message.ts:13-14` — ping/pong message types
+

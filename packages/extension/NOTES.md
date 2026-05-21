@@ -79,3 +79,32 @@
 - `tsc --noEmit` passed (0 errors).
 - `npm run build` passed.
 
+## Task 5: Popup Cold-Start State Restoration
+
+### Findings
+
+- **Race condition in `ExtensionApp.load()`**: `super.load()` was called before tab capture. Since `super.load()` fires `stateChanged()`, and `stateChanged()` sends `state-changed` to background which triggers `application.reload()` (async), the popup was making routing decisions before the background had finished reloading.
+- **Critical ordering bug**: `stateChanged()` fires during `super.load()` and reads `state.context.browser?.url` to compute matching items. The tab was captured AFTER `super.load()`, meaning `_matchingItems` returned empty on cold start even when there were items for the current tab.
+- **Worker liveness**: MV3 service workers can be killed after ~30s inactivity. The popup had no way to know if the worker was alive and had finished initializing before making routing decisions.
+- **`update()` fire-and-forget**: In `background.ts`, `update()` (which calls `updateBadgeAndContextMenu()`) was called without `await` in the message handler, creating race conditions on cold start where the badge/menu update happened after the popup had already made routing decisions.
+
+### Implementation
+
+- `packages/extension/src/app.ts`:
+  - Moved `browser.tabs.query()` and `state.context.browser` assignment BEFORE `super.load()` to fix the race condition
+  - Added `_waitForWorkerReady()` which pings the worker with a 100-500ms wait window to ensure cold start settlement
+  - Added fallback to "vaults" when `routerState.path` is empty
+- `packages/extension/src/background.ts`:
+  - Added `case "ping": return { type: "pong" }` handler for worker liveness check
+  - Changed all `update()` calls in message handler to `await update()`
+- `packages/extension/src/message.ts`:
+  - Added `| { type: "ping" }` and `| { type: "pong" }` to Message union
+- `packages/extension/test/cold-start.ts`:
+  - New test file covering: ping/pong worker liveness, router state restoration, matching items comparison, tab capture ordering, session key availability, background message handling, routing decision logic
+
+### Verification
+
+- `tsc --noEmit` passed (0 errors).
+- `npm test` passed (all suites).
+- `npm run build` passed.
+
