@@ -1,4 +1,3 @@
-/// <reference path="../../node_modules/@types/mocha/index.d.ts" />
 import { expect } from "chai";
 import { AuthType } from "@padloc/core/src/auth";
 import { ErrorCode } from "@padloc/core/src/error";

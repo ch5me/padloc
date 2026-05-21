@@ -284,3 +284,51 @@
 - F2 Code Quality Review: **APPROVED** (2nd run — after vaultId fix and catch fix)
 - F3 Real Manual QA: **APPROVED** (1st run)
 - F4 Scope Fidelity Check: **APPROVED** (3rd run — after API_BASE_URL hardcode, WebAuthn wiring, and smoke test expansion)
+
+## Popup Reopen + Biometric Follow-up
+
+### Root Cause: unlock persistence raced popup teardown
+
+- The extension already had a session-restoration design (`browser.storage.session`) and a biometric re-unlock path, but successful unlock still depended on the popup's throttled `stateChanged()` subscriber to eventually call `_syncUnlockedState()`. When the user unlocked and closed the popup quickly, the popup context could die before that async save completed.
+- Concrete cause: `packages/core/src/app.ts:611-615` uses a throttled, non-awaited `publish()`. The unlock UI calls `app.unlock(...)` directly from `packages/app/src/elements/unlock.ts:214`, so extension-specific session persistence was not on the direct unlock path.
+- Before fix, `packages/extension/src/app.ts:_unlocked()` did `void this._syncUnlockedState()`, which made session-key persistence best-effort instead of required.
+
+### Fix Shape
+
+- Added `packages/extension/src/unlock-persistence.ts` with `installUnlockPersistenceHooks()` that wraps `app.unlock()` and `app.unlockWithMasterKey()` so successful unlock cannot resolve before `persistUnlockedState()` completes.
+- Updated `packages/extension/src/app.ts` to install those hooks during popup load, dedupe concurrent persistence with `_sessionSyncPromise`, and await lock/unlock transition handlers before emitting the debounced `state-changed` message to background.
+- This preserves the extension's existing biometric path while removing the popup-close race that was making it feel like the extension "forgot" the unlock instantly.
+
+### Biometric Availability Status
+
+- The shared unlock screen already has a biometric button at `packages/app/src/elements/unlock.ts:190` and auto-attempts biometric re-unlock when `app.remembersMasterKey` is true and the platform supports a platform authenticator.
+- The settings UI already exposes enable/disable biometric unlock in `packages/app/src/elements/settings-security.ts:617-739`.
+- The extension platform now advertises WebAuthn platform + portable auth in `packages/extension/src/platform.ts`, and extension-specific biometric re-unlock uses `packages/extension/src/auth/biometric.ts`.
+- Repo status for the broader watch-approval idea: existing iOS/Android surface is Cordova (`packages/cordova`), not React Native; there is no watchOS app yet, so watch approval would extend the existing iOS shell plus add a new watch target rather than reuse an existing watch client.
+
+### Verification Notes
+
+- Added targeted unit test `packages/extension/test/unlock-session.ts` for the new hook contract: successful unlock must await session persistence before resolving.
+- Direct compile check of `src/unlock-persistence.ts` + `test/unlock-session.ts` succeeded under the available local Node runtime.
+- Full extension package build/test lanes are currently blocked by older, broader extension compile issues already present in `content.ts` and other files, so this popup fix was verified narrowly rather than via a full clean bundle rebuild in this session.
+
+## Popup White-Screen Investigation
+
+### Root Cause
+
+- The popup startup path in `packages/extension/src/popup.ts` used `await import("./app")` before registering `window.onload`. If that import failed for any reason, the popup stayed on the static spinner forever with no visible error.
+- The currently loaded dist bundle also shows a broken `content.js` artifact containing a webpack parse failure stub, which is strong evidence the extension build output can be partially stale/bad even while `popup.html` still renders.
+- `packages/extension/dist/popup.js` sets `__webpack_require__.p = "/"`, so extension chunk loading is sensitive to how the bundle was built and loaded. Making popup startup failure explicit is important even before the broader build debt is repaired.
+
+### Mitigation Added
+
+- `packages/extension/src/popup.ts` now:
+  - starts from `DOMContentLoaded`/immediate-ready instead of assigning `window.onload` after the dynamic import,
+  - wraps startup in `try/catch`,
+  - logs the startup failure to console, and
+  - replaces the spinner with a visible error message instead of hanging forever.
+
+### Operator Meaning
+
+- If popup startup still fails after this, the extension should now show an explicit load error instead of an endless spinner, which makes the next debugging pass much faster.
+- The deeper rebuild issue remains: extension source cannot currently be cleanly rebuilt until pre-existing compile failures in `packages/extension/src/content.ts` and related files are corrected.

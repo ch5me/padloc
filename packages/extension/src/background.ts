@@ -3,7 +3,7 @@ import { setPlatform } from "@padloc/core/src/platform";
 import { App } from "@padloc/core/src/app";
 import { AjaxSender } from "@padloc/app/src/lib/ajax";
 import { debounce, uuid } from "@padloc/core/src/util";
-import { FieldType, VaultItem, Field } from "@padloc/core/src/item";
+import { FieldType, Field } from "@padloc/core/src/item";
 import { ExtensionPlatform } from "./platform";
 import { Message, messageTab, SavePrompt, CredentialData } from "./message";
 import { clearSessionMasterKey, configureSessionStorage, getSessionMasterKey } from "./storage";
@@ -175,7 +175,9 @@ async function handleContextMenuClick(menuItemId: string) {
     await fillItemMultiField(item);
 }
 
-async function fillItemMultiField(item: App["vaults"][0]["items"][0]) {
+type MatchedVaultItem = NonNullable<ReturnType<App["getItem"]>>;
+
+async function fillItemMultiField(item: MatchedVaultItem) {
     const fields = item.item.fields;
     let username: string | undefined;
     let password: string | undefined;
@@ -195,7 +197,7 @@ async function fillItemMultiField(item: App["vaults"][0]["items"][0]) {
     if (!username && !password) {
         // Fall back to single-field: fill first available password or username
         const fallbackField = fields.find(
-            (f) => f.type === FieldType.Password || f.type === FieldType.Username
+            (f: Field) => f.type === FieldType.Password || f.type === FieldType.Username
         );
         if (fallbackField) {
             const value = await fallbackField.transform();
@@ -235,8 +237,6 @@ async function updateBadgeAndContextMenu() {
         for (const { item } of items) {
             const hasUsername = item.fields.some((f) => f.type === FieldType.Username);
             const hasPassword = item.fields.some((f) => f.type === FieldType.Password);
-            const hasTotp = item.fields.some((f) => f.type === FieldType.Totp);
-
             // Top-level item — clicking it triggers multi-field fill if credentials exist
             await browser.contextMenus.create({
                 id: `item/${item.id}`,
@@ -333,7 +333,7 @@ async function handleFormSubmitDetected(data: CredentialData, application: App):
         item.fields.some((f) => f.type === FieldType.Password)
     );
 
-    const promptId = uuid();
+    const promptId = await uuid();
     const prompt: SavePrompt = {
         id: promptId,
         url: data.url,
@@ -393,7 +393,7 @@ async function handleSaveCredential(
 
 async function handleUpdateCredential(
     promptId: string,
-    vaultId: string | undefined,
+    _vaultId: string | undefined,
     application: App
 ): Promise<null> {
     const prompt = pendingPrompts.get(promptId);

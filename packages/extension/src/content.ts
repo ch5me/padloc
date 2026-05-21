@@ -3,6 +3,12 @@ import { browser } from "webextension-polyfill-ts";
 // import { throttle } from "@padloc/core/src/util";
 import { FieldMappings, Message, CredentialData } from "./message";
 
+enum FieldRole {
+    Username,
+    Password,
+    Totp,
+}
+
 const css = `
     @font-face {
         font-family: "Nunito";
@@ -274,13 +280,6 @@ class ExtensionContent {
         return true;
     }
 
-    /** Field role classification for orchestration fill */
-    private enum FieldRole {
-        Username,
-        Password,
-        Totp,
-    }
-
     /**
      * Scans the document and shadow roots for fillable input elements,
      * classifies each as username, password, or TOTP, and returns them grouped by role.
@@ -308,7 +307,7 @@ class ExtensionContent {
             if (formAttr) formIds.add(formAttr);
         }
         for (const formId of formIds) {
-            const externalForm = root.querySelector(`#${CSS.escape(formId}`);
+            const externalForm = root.querySelector(`#${CSS.escape(formId)}`);
             if (externalForm instanceof HTMLFormElement) {
                 for (const input of externalForm.querySelectorAll("input")) {
                     if (!this._isElementFillable(input)) continue;
@@ -423,7 +422,7 @@ class ExtensionContent {
      * Fills username first, then password, then TOTP (if available).
      * Falls back to single-field fill for the active input if no form fields detected.
      */
-    private _fillFields(mappings: FieldMappings): boolean {
+    private async _fillFields(mappings: FieldMappings): Promise<boolean> {
         if (!mappings.username && !mappings.password && !mappings.totp) {
             return false;
         }
@@ -463,13 +462,13 @@ class ExtensionContent {
 
         // Fill username
         if (mappings.username && usernameFields.length > 0) {
-            this._fill(mappings.username, usernameFields[0]);
+            await this._fill(mappings.username, usernameFields[0]);
             filled = true;
         }
 
         // Fill password
         if (mappings.password && passwordFields.length > 0) {
-            this._fill(mappings.password, passwordFields[0]);
+            await this._fill(mappings.password, passwordFields[0]);
             filled = true;
         }
 
@@ -477,7 +476,7 @@ class ExtensionContent {
         if (mappings.totp) {
             const target = totpFields.length > 0 ? totpFields[0] : (passwordFields[0] || usernameFields[0]);
             if (target) {
-                this._fill(mappings.totp, target);
+                await this._fill(mappings.totp, target);
                 filled = true;
             }
         }

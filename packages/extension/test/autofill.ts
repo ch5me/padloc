@@ -1,4 +1,3 @@
-/// <reference path="../../node_modules/@types/mocha/index.d.ts" />
 import { expect } from "chai";
 import { FieldType } from "@padloc/core/src/item";
 
@@ -234,7 +233,7 @@ suite("Autofill orchestration", () => {
             const username = "user@example.com";
             const password = "secret123";
 
-            const mappings = { username, password };
+            const mappings: { username?: string; password?: string; totp?: string } = { username, password };
             expect(mappings.username).to.equal("user@example.com");
             expect(mappings.password).to.equal("secret123");
             expect(mappings.totp).to.be.undefined;

@@ -6,6 +6,7 @@ import { VaultItem } from "@padloc/core/src/item";
 import { shouldAttemptBiometricReunlock, unlockWithBiometric } from "./auth/biometric";
 import { messageTab, SavePrompt } from "./message";
 import { clearSessionMasterKey, getSessionMasterKey, saveSessionMasterKey } from "./storage";
+import { installUnlockPersistenceHooks } from "./unlock-persistence";
 // import { messageTab } from "./message";
 
 const notifyStateChanged = debounce(() => {
@@ -36,6 +37,8 @@ export class ExtensionApp extends App {
     private _workerReady = false;
     private _pendingSavePrompt: SavePrompt | null = null;
     private _savePromptOverlay: HTMLElement | null = null;
+    private _unlockHooksInstalled = false;
+    private _sessionSyncPromise: Promise<void> | null = null;
 
     private get _matchingItems() {
         return this.app.state.context.browser?.url ? this.app.getItemsForUrl(this.app.state.context.browser.url) : [];
@@ -72,7 +75,32 @@ export class ExtensionApp extends App {
         this._workerReady = true;
     }
 
+    private _installUnlockPersistenceHooks() {
+        if (this._unlockHooksInstalled) {
+            return;
+        }
+
+        installUnlockPersistenceHooks(this.app, () => this._persistUnlockedState());
+
+        this._unlockHooksInstalled = true;
+    }
+
+    private async _persistUnlockedState() {
+        if (this._sessionSyncPromise) {
+            return this._sessionSyncPromise;
+        }
+
+        this._sessionSyncPromise = this._saveSessionMasterKey().finally(() => {
+            this._sessionSyncPromise = null;
+        });
+
+        await this._sessionSyncPromise;
+        this._notifyUnlockedState();
+    }
+
     async load() {
+        this._installUnlockPersistenceHooks();
+
         // Capture active tab BEFORE calling super.load() to avoid stateChanged race.
         // stateChanged fires during super.load() and uses state.context.browser,
         // so it must be set correctly before that happens.
@@ -94,7 +122,7 @@ export class ExtensionApp extends App {
             if (masterKey) {
                 try {
                     await this.app.unlockWithMasterKey(masterKey);
-                    this._unlocked();
+                    await this._unlocked();
                 } catch (error) {
                     await clearSessionMasterKey();
                 }
@@ -133,9 +161,10 @@ export class ExtensionApp extends App {
         this.router.addEventListener("route-changed", () => this._saveRouterState());
         this.router.addEventListener("params-changed", () => this._saveRouterState());
 
-        this.addEventListener("field-clicked", (e: CustomEvent<{ item: VaultItem; index: number }>) =>
-            this._fieldClicked(e)
-        );
+        this.addEventListener("field-clicked", (event: Event) => {
+            const e = event as CustomEvent<{ item: VaultItem; index: number }>;
+            return this._fieldClicked(e);
+        });
         this.addEventListener("field-dragged", (e: any) => this._fieldDragged(e));
 
         // this._autoFill(
@@ -156,29 +185,38 @@ export class ExtensionApp extends App {
 
     async stateChanged() {
         super.stateChanged();
-        notifyStateChanged();
+
         if (this._isLocked !== this.app.state.locked) {
             this._isLocked = this.app.state.locked;
-            this._isLocked ? this._locked() : this._unlocked();
+            if (this._isLocked) {
+                await this._locked();
+            } else {
+                await this._unlocked();
+            }
         }
 
         if (this._isLoggedIn !== this.app.state.loggedIn) {
             this._isLoggedIn = this.app.state.loggedIn;
-            this._isLoggedIn ? this._loggedIn() : this._loggedOut();
+            if (this._isLoggedIn) {
+                await this._loggedIn();
+            } else {
+                await this._loggedOut();
+            }
         }
+
+        notifyStateChanged();
     }
 
-    _unlocked() {
+    async _unlocked() {
         if (!this.state.account || !this.state.account.masterKey) {
             return;
         }
         this._wrapper.classList.toggle("active", true);
-        void this._syncUnlockedState();
         void this._checkForSavePrompt();
     }
 
-    _locked() {
-        void this._syncLockedState("locked");
+    async _locked() {
+        await this._syncLockedState("locked");
     }
 
     private async _restoreBiometricUnlock() {
@@ -190,17 +228,17 @@ export class ExtensionApp extends App {
         return false;
     }
 
-    _loggedIn() {
-        browser.runtime.sendMessage({
+    async _loggedIn() {
+        await browser.runtime.sendMessage({
             type: "loggedIn",
         });
     }
 
-    _loggedOut() {
-        void this._syncLockedState("loggedOut");
+    async _loggedOut() {
+        await this._syncLockedState("loggedOut");
     }
 
-    private async _syncUnlockedState() {
+    private async _saveSessionMasterKey() {
         if (!this.state.account?.masterKey || !this.app.account || !this.app.session) {
             return;
         }
@@ -210,8 +248,10 @@ export class ExtensionApp extends App {
             sessionId: this.app.session.id,
             masterKey: this.state.account.masterKey,
         });
+    }
 
-        await browser.runtime.sendMessage({ type: "unlocked" });
+    private _notifyUnlockedState() {
+        void browser.runtime.sendMessage({ type: "unlocked" }).catch(() => undefined);
     }
 
     private async _syncLockedState(type: "locked" | "loggedOut") {

@@ -27,7 +27,8 @@ function getSessionStorageArea(): SessionStorageArea {
         return storage.session;
     }
 
-    return chrome.storage.session as SessionStorageArea;
+    return (chrome as typeof chrome & { storage?: { session?: SessionStorageArea } }).storage
+        ?.session as SessionStorageArea;
 }
 
 export async function configureSessionStorage() {

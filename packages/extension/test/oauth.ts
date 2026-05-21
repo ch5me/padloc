@@ -1,4 +1,3 @@
-/// <reference path="../../node_modules/@types/mocha/index.d.ts" />
 import { AuthType } from "@padloc/core/src/auth";
 import { expect } from "chai";
 import sinon from "sinon";

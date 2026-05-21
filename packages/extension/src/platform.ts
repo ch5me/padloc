@@ -1,8 +1,8 @@
 import { WebPlatform } from "@padloc/app/src/lib/platform";
+import { StartAuthRequestResponse, StartRegisterAuthenticatorResponse } from "@padloc/core/src/api";
 import { AuthType } from "@padloc/core/src/auth";
 import { ExtensionStorage } from "./storage";
 import { oauthClient } from "./auth/oauth";
-import { webAuthnClient } from "./auth/webauthn";
 
 export class ExtensionPlatform extends WebPlatform {
     storage = new ExtensionStorage();
@@ -13,14 +13,20 @@ export class ExtensionPlatform extends WebPlatform {
         );
     }
 
-    protected async _getAuthClient(type: AuthType) {
+    protected async _prepareRegisterAuthenticator({ data, type }: StartRegisterAuthenticatorResponse): Promise<any> {
         if (type === AuthType.Oauth) {
-            return oauthClient;
+            return oauthClient.prepareRegistration(data);
         }
-        if (type === AuthType.WebAuthnPlatform || type === AuthType.WebAuthnPortable) {
-            return webAuthnClient;
+
+        return super._prepareRegisterAuthenticator(arguments[0] as StartRegisterAuthenticatorResponse);
+    }
+
+    protected async _prepareCompleteAuthRequest({ data, type }: StartAuthRequestResponse): Promise<any> {
+        if (type === AuthType.Oauth) {
+            return oauthClient.prepareAuthentication(data);
         }
-        return super._getAuthClient(type);
+
+        return super._prepareCompleteAuthRequest(arguments[0] as StartAuthRequestResponse);
     }
 
     async getDeviceInfo() {
