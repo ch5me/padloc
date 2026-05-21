@@ -56,10 +56,9 @@ export type Message =
 export async function messageTab(msg: Message) {
     const [activeTab] = await browser.tabs.query({ active: true, currentWindow: true });
     if (activeTab) {
-        let contentReady = false;
-        try {
-            contentReady = await browser.tabs.sendMessage(activeTab.id!, { type: "isContentReady" });
-        } catch (e) {}
+        const contentReady: boolean = await browser.tabs
+            .sendMessage(activeTab.id!, { type: "isContentReady" })
+            .catch(() => false);
 
         if (!contentReady) {
             await browser.tabs.executeScript(activeTab.id, { file: "/content.js" });

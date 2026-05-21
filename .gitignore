@@ -32,3 +32,6 @@ packages/tauri/tauri-update.json
 .flatpak-builder
 packages/admin/dist
 .DS_Store
+packages/extension/.playwright-html
+packages/extension/.playwright-results.json
+packages/extension/test-results

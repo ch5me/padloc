@@ -237,3 +237,66 @@
 - Login credentials only — no address, card, or profile saving.
 - No inline prompt bar in popup — uses centered card overlay.
 - Existing autofill and auth paths are untouched.
+
+## Task 9: Extension Runtime Test Harness
+
+### Findings
+
+- **MV3 extension loading in Playwright**: Chromium must be launched with `--disable-extensions-except=${EXT_DIR}` and `--load-extension=${EXT_DIR}` to replace the built-in extension loader with a custom one. Without these flags, the unpacked extension is silently ignored.
+- **MV3 service worker dormancy**: Workers are killed ~30s after last activity. The flags `--disable-backgrounding-occluded-windows --disable-renderer-backgrounding` prevent Chrome from suspending the worker process during tests, keeping it alive for the full test session.
+- **Extension ID discovery**: For unpacked extensions, the extension ID is assigned by Chrome based on the extension path/key. Use `ChromeExtension.getExtensions` CDP command to retrieve the assigned ID rather than hardcoding it.
+- **Content script attachment**: Content scripts attach to `file://` pages when `<all_urls>` is in `host_permissions`. Attachment timing is after `networkidle`, but a 500ms wait is added in the test as a safety margin.
+- **Background ping**: The `ping`/`pong` message pair (added in Task 5) is the primary reliable signal for worker liveness — it works regardless of auth state.
+- **`PL_SERVER_URL` is baked at build time**: `webpack.config.js` uses `DefinePlugin` to replace `process.env.PL_SERVER_URL` at build time. The extension does NOT read `PL_SERVER_URL` at runtime. In CI, the workflow passes `PL_SERVER_URL=https://api-pad-staging.ch5.me` when building so the extension connects to staging.
+- **Test scope vs existing unit tests**: `test/*.ts` (mocha + sinon) tests unit-level logic (field classification, cold-start state machines, OAuth stubs, biometric gating). The Playwright harness tests the actual runtime contract: popup load, background message routing, content script attachment. Both lanes run in CI.
+
+### Implementation
+
+- `packages/extension/test-harness/playwright.config.ts` — Playwright config targeting Chromium with extension loading flags, `chromium` device profile, `networkidle` timeout, and JSON/HTML reporters.
+- `packages/extension/test-harness/smoke.spec.ts` — 8 smoke tests covering: popup console errors, popup body non-empty, ping/pong worker liveness, badge updates on plain page, content script field detection on fixture, content script `isContentReady` response, manifest existence, and logged-out popup state.
+- `packages/extension/test-harness/fixtures/login-form.html` — Static login fixture with username (text), password, TOTP (numeric, maxLength=6, inputmode=numeric), and submit button. Serves as the autofill content-script test target.
+- `packages/extension/package.json` — Added `@playwright/test` ^1.40.0 and `playwright` ^1.40.0 as devDependencies. Added `test:harness` and `test:harness:install` scripts.
+- Root `package.json` — Added `test:extension` script: `npm run web-extension:build && npm run --prefix packages/extension test:harness`.
+- `.github/workflows/build-web-extension.yml` — After extension build, installs Playwright Chromium with deps and runs the harness. `PL_SERVER_URL` falls back to staging when not set.
+- `.gitignore` — Added `packages/extension/.playwright-html/`, `packages/extension/.playwright-results.json`, and `packages/extension/test-results/`.
+
+### Verification
+
+- `npm run test:extension` locally builds the extension and runs the Playwright smoke suite.
+- CI runs the same suite after every extension-relevant push via the updated workflow.
+- Smoke test output includes JSON results (`.playwright-results.json`) for downstream tooling.
+
+### Reference Paths
+
+- `packages/extension/test-harness/playwright.config.ts:17` — Extension loading Chromium flags
+- `packages/extension/test-harness/smoke.spec.ts:8` — `getExtensionId` via `ChromeExtension.getExtensions` CDP
+- `packages/extension/test-harness/smoke.spec.ts:48` — Background ping test via `chrome.runtime.sendMessage`
+- `packages/extension/test-harness/smoke.spec.ts:99` — Content script `isContentReady` test via CDP tab target lookup
+- `packages/extension/test-harness/fixtures/login-form.html` — TOTP field uses `inputmode="numeric"` + `maxLength=6` + `pattern="\d{6}"` matching content-script detection signals
+
+## Task 10: CI, Proof Lanes, and Operator Docs
+
+### Implementation
+
+- `README.md` — Added extension section covering `npm run web-extension:build`, `npm run test:extension`, and Chromium Playwright install.
+- `packages/extension/README.md` — Rewritten to document the full parity feature set, build options, testing lanes (unit + Playwright harness), CI coverage, and architecture notes.
+- `.github/workflows/run-tests.yml` — Added `extension-runtime` job that runs when extension/core/app/locale/asset files change. Job builds extension and runs `npm run test:extension` (Playwright harness). Also added extension paths to the push/PR triggers.
+- `scripts/proof-lanes/proof-extension.sh` — New proof lane: builds extension, verifies manifest exists, runs Playwright harness. Exit codes: 0 (pass), 1 (build/test fail), 2 (Playwright missing).
+- `scripts/proof-lanes/help.sh` — Added `proof:extension` lane entry. `proof:all` now chains `proof:extension`.
+- `package.json` — Added `proof:extension` script and updated `proof:all` to include it.
+
+### CI Coverage Summary
+
+| Workflow | Trigger | What it does |
+|----------|---------|--------------|
+| `build-web-extension.yml` | Push to main/feature/fix (extension paths) | Builds extension + signs .crx |
+| `run-tests.yml` (test job) | PR + push to main (extension paths) | Runs unit tests + prettier + runtime-config |
+| `run-tests.yml` (extension-runtime job) | PR + push to main (extension paths) | Builds + runs Playwright smoke harness |
+
+### Reference Paths
+
+- `README.md:140` — Extension commands in monorepo README
+- `packages/extension/README.md` — Full extension operator documentation
+- `.github/workflows/run-tests.yml:59` — `extension-runtime` job
+- `scripts/proof-lanes/proof-extension.sh` — Extension proof lane script
+- `scripts/proof-lanes/help.sh:22` — Updated help output with extension lane

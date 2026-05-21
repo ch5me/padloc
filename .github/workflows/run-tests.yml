@@ -4,7 +4,21 @@ on:
     push:
         branches:
             - main
+        paths:
+            - "packages/extension/**"
+            - "packages/core/**"
+            - "packages/app/**"
+            - "packages/locale/**"
+            - "assets/**"
+            - "scripts/build-web-extension.cjs"
     pull_request:
+        paths:
+            - "packages/extension/**"
+            - "packages/core/**"
+            - "packages/app/**"
+            - "packages/locale/**"
+            - "assets/**"
+            - "scripts/build-web-extension.cjs"
 
 jobs:
     test:
@@ -47,7 +61,7 @@ jobs:
               run: npm run runtime-config:check
             - name: Run pwa test build
               run: npm run pwa:build
-            - name: Run web extention test build
+            - name: Run web extension test build
               run: npm run web-extension:build
             - name: Test starting zero-config server
               run: npm run server:start-dry
@@ -55,3 +69,27 @@ jobs:
               run: npm test
             # - name: Run e2e tests
             #   run: npm run test:e2e
+
+    extension-runtime:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
+            - uses: actions/setup-node@v3
+              with:
+                  node-version-file: ".nvmrc"
+            - uses: actions/cache@v3
+              with:
+                  path: |
+                      node_modules
+                      packages/extension/node_modules
+                  key: ${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+            - name: Install dependencies
+              run: |
+                  npm i -g npm@8.2.0
+                  npm ci
+            - name: Install Playwright Chromium
+              run: |
+                  cd packages/extension
+                  npx playwright install chromium --with-deps
+            - name: Build and run extension runtime smoke tests
+              run: npm run test:extension

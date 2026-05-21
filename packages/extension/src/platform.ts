@@ -2,6 +2,7 @@ import { WebPlatform } from "@padloc/app/src/lib/platform";
 import { AuthType } from "@padloc/core/src/auth";
 import { ExtensionStorage } from "./storage";
 import { oauthClient } from "./auth/oauth";
+import { webAuthnClient } from "./auth/webauthn";
 
 export class ExtensionPlatform extends WebPlatform {
     storage = new ExtensionStorage();
@@ -15,6 +16,9 @@ export class ExtensionPlatform extends WebPlatform {
     protected async _getAuthClient(type: AuthType) {
         if (type === AuthType.Oauth) {
             return oauthClient;
+        }
+        if (type === AuthType.WebAuthnPlatform || type === AuthType.WebAuthnPortable) {
+            return webAuthnClient;
         }
         return super._getAuthClient(type);
     }

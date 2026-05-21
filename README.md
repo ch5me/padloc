@@ -137,6 +137,30 @@ And to start cypress tests in "dev mode":
 npm run test:e2e:dev
 ```
 
+### Browser Extension
+
+To build the unpacked extension:
+
+```sh
+npm run web-extension:build
+```
+
+The resulting `dist/` folder can be loaded as an unpacked Chrome extension.
+See [packages/extension/README.md](packages/extension/README.md) for build options and
+full feature documentation.
+
+To build and run the extension Playwright test harness (runtime smoke tests):
+
+```sh
+npm run test:extension
+```
+
+The extension harness requires Chromium. Install it via:
+
+```sh
+cd packages/extension && npx playwright install chromium
+```
+
 ### Adding / removing dependencies
 
 Since this is a monorepo consisting of multiple packages, adding/removing

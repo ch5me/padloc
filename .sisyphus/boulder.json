@@ -1,0 +1,37 @@
+{
+  "active_plan": "/Users/hassoncs/src/ch5/padloc/.sisyphus/plans/chrome-extension-parity.md",
+  "started_at": "2026-05-21T02:30:31.797Z",
+  "completed_at": "2026-05-21T04:15:00.000Z",
+  "session_ids": [
+    "ses_1b7fafe98ffeJsvy75uE2Mf7tG",
+    "ses_1b7a12532ffe9nTA7s0m5RRGVl",
+    "ses_1b79fb630ffeTgnDiBu55eYymx",
+    "ses_1b790b87dffesZqLp3mMxqSVWI",
+    "ses_1b7899dcbffezgae5KERfpEl5E",
+    "ses_1b744fea5ffeeAgLfkBG9pqp0K",
+    "ses_1b73cd1e4ffeZS7ao6HewtCSyl",
+    "ses_1b732a881ffex5KOTLKynCAIKs",
+    "ses_1b727c0a8ffeV2LyBm93NO7RZ5",
+    "ses_1b71d13bdffeTvHGBXAojlBo0I",
+    "ses_1b711f8c7ffe3UNazx2UyYpnj6",
+    "ses_1b6f67952ffeHr2XvKhmJcCRl3",
+    "ses_1b6effdd6ffeg3fcGtd1qdl1wC",
+    "ses_1b6e20293ffeBY23PSORgnqLCm",
+    "ses_1b6d911b0ffeJwmFezxKkxxy2D",
+    "ses_1b6d4116affePZb2LjWpO6xq0I",
+    "ses_1b6c8de18ffejbxzc4Qw0hvprx",
+    "ses_1b6c7a105ffeHEqNg9HB7HXkJ1",
+    "ses_1b6c77068ffe6lOVkiiaFMij62",
+    "ses_1b6bed42effe3AI9jAkfzQLc7r",
+    "ses_1b6ba3b96ffecrE7rwfIkc3q3Y"
+  ],
+  "plan_name": "chrome-extension-parity",
+  "agent": "atlas",
+  "task_sessions": {},
+  "final_wave": {
+    "f1": "APPROVED",
+    "f2": "APPROVED",
+    "f3": "APPROVED",
+    "f4": "APPROVED"
+  }
+}

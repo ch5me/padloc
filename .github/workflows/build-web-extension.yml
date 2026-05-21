@@ -40,9 +40,15 @@ jobs:
             - name: Build
               env:
                   RELEASE_BUILD: ${{ github.event.inputs.build || '0' }}
-                  PL_SERVER_URL: ${{ secrets.PL_SERVER_URL }}
+                  PL_SERVER_URL: ${{ secrets.PL_SERVER_URL || 'https://api-pad-staging.ch5.me' }}
                   PL_BUILD_ENV: ${{ secrets.PL_BUILD_ENV }}
               run: npm run web-extension:build
+            - name: Install Playwright browsers
+              run: |
+                  cd packages/extension
+                  npx playwright install chromium --with-deps
+            - name: Run extension runtime smoke tests
+              run: npm run --prefix packages/extension test:harness
             # - name: Sign for Firefox
             #   if: github.event.inputs.environment == 'Beta' || github.event.inputs.environment == 'Production'
             #   run: cd packages/extension/dist && web-ext sign --id="${{ secrets.PL_WEB_EXTENSION_FIREFOX_ID }}" --channel=unlisted --api-key=${{ secrets.PL_WEB_EXTENSION_FIREFOX_API_KEY }} --api-secret=${{ secrets.PL_WEB_EXTENSION_FIREFOX_API_SECRET }}

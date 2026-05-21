@@ -1,8 +1,23 @@
-# @padloc/extension
+# @padloc/extension <!-- oc:id=sec_aa -->
 
-The Padloc browser extension.
+The Padloc browser extension — a Chrome MV3 unpacked extension with full auth parity,
+multi-field autofill, save/update credential prompts, and biometric re-unlock.
 
-## Setup
+## Parity Feature Set <!-- oc:id=sec_ab -->
+
+| Feature | Status |
+|---------|--------|
+| Email + TOTP auth | Complete |
+| WebAuthn / Passkey auth | Complete |
+| OAuth (Google, GitHub, etc.) | Complete |
+| Biometric re-unlock (MV3 session key) | Complete |
+| Multi-field login form autofill | Complete |
+| Save / update credential prompts | Complete |
+| Content script field detection | Complete |
+| Popup cold-start state restoration | Complete |
+| Playwright runtime test harness | Complete |
+
+## Setup <!-- oc:id=sec_ac -->
 
 The `@padloc/extension` package is meant to be used from within the
 [Padloc monorepo](../../README.md).
@@ -14,42 +29,132 @@ npm ci
 cd packages/extension
 ```
 
-## Building
+## Building <!-- oc:id=sec_ad -->
 
-To build an unpacked version of the web extension, simply run the following from
-within the package directory.
+To build an unpacked version of the web extension, run from the monorepo root:
 
 ```sh
+npm run web-extension:build
+```
+
+Or from the extension package directory:
+
+```sh
+cd packages/extension
 npm run build
 ```
 
-The resulting build can be fund in the `dist` folder.
+The resulting build is in `packages/extension/dist/`.
 
-### Build options
+### Build Options <!-- oc:id=sec_ae -->
 
 All build options are provided as environment variables:
 
-| Variable Name   | Description                                   | Default                 |
-| --------------- | --------------------------------------------- | ----------------------- |
-| `PL_SERVER_URL` | URL to the Worker backend (`packages/worker`) | `http://127.0.0.1:8787` |
+| Variable Name   | Description                                   | Default                  |
+| --------------- | --------------------------------------------- | ------------------------ |
+| `PL_SERVER_URL` | URL to the Worker backend                     | `http://127.0.0.1:8787` |
+| `PL_BUILD_ENV`  | Build environment label (e.g. `staging`)      | unset                    |
 
-### Installing an unpacked extension
+`PL_SERVER_URL` is baked into the extension at build time via webpack
+`DefinePlugin`. The extension does not read this value at runtime.
 
-Once built, the easiest way to install and use the extension is to install it as
-an "unpacked extension". Steps vary from browser to browser:
+### Installing an Unpacked Extension <!-- oc:id=sec_af -->
 
 Google Chrome:
-https://developer.chrome.com/docs/extensions/mv3/getstarted/#unpacked
 
-Firefox:
-https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Your_first_WebExtension#installing
+1. Open `chrome://extensions` <!-- oc:id=item_aa -->
+1. Enable **Developer mode** (top right) <!-- oc:id=item_ab -->
+1. Click **Load unpacked** <!-- oc:id=item_ac -->
+1. Select `packages/extension/dist` <!-- oc:id=item_ad -->
 
-## Development
+Firefox is not yet in CI — see [packages/extension/NOTES.md](NOTES.md) for
+known gaps.
 
-For development instructions, please refer to the
-[monorepo readme](../../README.md#development).
+## Testing <!-- oc:id=sec_ag -->
 
-## Contributing
+### Unit Tests (mocha) <!-- oc:id=sec_ah -->
 
-For info on how to contribute to Padloc, please refer to the
+```sh
+cd packages/extension
+npm test
+```
+
+Tests live in `test/*.ts` and cover: field classification, cold-start state
+machines, OAuth stubs, biometric gating, save/update message types, and
+autofill orchestration.
+
+### Runtime Smoke Tests (Playwright) <!-- oc:id=sec_ai -->
+
+These tests load the actual built extension in a headless Chromium, verify
+popup load, background message routing, content script attachment, and worker
+liveness.
+
+```sh
+npm run test:extension
+```
+
+This runs `web-extension:build` followed by the Playwright harness. Equivalent
+to:
+
+```sh
+npm run web-extension:build
+cd packages/extension && npx playwright test
+```
+
+**First run**: Install the Chromium browser for Playwright:
+
+```sh
+cd packages/extension && npx playwright install chromium
+```
+
+The harness requires the extension to be built first (`dist/manifest.json` must
+exist). The `globalSetup` in `playwright.config.ts` validates this before
+running tests.
+
+### CI Coverage <!-- oc:id=sec_aj -->
+
+Both test lanes run in CI:
+
+- `run-tests.yml` — runs unit tests on every PR and main push
+- `build-web-extension.yml` — runs the Playwright harness after building on
+  feature/fix branches and main push; archive the built extension as a
+  `.crx` artifact
+
+## Development <!-- oc:id=sec_ak -->
+
+The extension dev workflow assumes the Padloc worker is running locally:
+
+```sh
+# From monorepo root
+npm run worker:dev
+```
+
+Then build with your local API URL:
+
+```sh
+PL_SERVER_URL=http://127.0.0.1:8787 npm run web-extension:build
+```
+
+Load the `dist/` folder as an unpacked extension in Chrome. Reload the
+extension in `chrome://extensions` after each build.
+
+For hot-reload development, rebuild manually or use a file watcher.
+
+## Architecture Notes <!-- oc:id=sec_al -->
+
+- **MV3 session key**: Raw master key is stored in `browser.storage.session`
+  (volatile, survives worker restarts). The worker and popup both restore from
+  session storage after cold start.
+- **No master-key relay**: The popup does not send the raw master key to the
+  background worker. Both independently restore from session storage.
+- **Content script field detection**: Field roles (username, password, TOTP)
+  are determined by the content script scanning the live DOM, not from item
+  data. Handles shadow DOM, aria labels, and modern SaaS form patterns.
+- **`PL_SERVER_URL` is build-time only**: The extension connects to the API URL
+  that was active when it was built. Change the env var and rebuild to point
+  to a different environment.
+
+## Contributing <!-- oc:id=sec_am -->
+
+For info on contributing to Padloc, please refer to the
 [monorepo readme](../../README.md#contributing).

@@ -10,6 +10,8 @@ import { clearSessionMasterKey, configureSessionStorage, getSessionMasterKey } f
 
 setPlatform(new ExtensionPlatform());
 
+const API_BASE_URL = "https://api-pad.ch5.me";
+
 // MV3 service worker - state must be persisted to storage
 let app: App;
 let autoLockAlarmName = "pl_autoLock";
@@ -27,7 +29,7 @@ const DISMISSAL_DURATION_MS = 60 * 60 * 1000; // 1 hour
 
 async function getApp(): Promise<App> {
     if (!app) {
-        app = new App(new AjaxSender(process.env.PL_SERVER_URL!));
+        app = new App(new AjaxSender(API_BASE_URL));
         await app.load();
         if (await restoreSessionUnlock(app)) {
             await startAutoLockTimer();
@@ -260,7 +262,7 @@ async function updateBadgeAndContextMenu() {
         actionApi.setTitle({ title: "Please Log In" });
     } else {
         actionApi.setIcon({ path: "icon.png" });
-        actionApi.setTitle({ title: process.env.PL_APP_NAME || "" });
+        actionApi.setTitle({ title: "CH5 Auth" });
     }
 }
 
@@ -367,7 +369,7 @@ async function handleSaveCredential(
     if (application.state.locked || !application.state.loggedIn) return null;
 
     const vault = vaultId
-        ? application.getVault(vaultId as any)
+        ? application.getVault(vaultId!)
         : application.mainVault;
 
     if (!vault) return null;

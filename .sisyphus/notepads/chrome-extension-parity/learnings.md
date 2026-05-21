@@ -190,3 +190,97 @@
 - `packages/extension/src/message.ts:17` — `CredentialData` interface (username, password, url)
 - `packages/extension/src/message.ts:26` — `SavePrompt` interface (id, url, username, password, existingItem, dismissedUntil)
 - `packages/extension/test/save.ts` — comprehensive test suite for form detection, suppression, credential data, message types
+
+## Task 9: Extension Runtime Test Harness
+
+### Key Findings
+
+- **MV3 extension loading in Playwright**: Requires `--disable-extensions-except=${EXT_DIR}` and `--load-extension=${EXT_DIR}` Chromium launch flags. Without these, Chrome silently ignores the unpacked extension.
+- **Keeping MV3 workers alive in tests**: Service workers are killed ~30s after last activity. Use `--disable-backgrounding-occluded-windows --disable-renderer-backgrounding` flags to prevent worker dormancy during the test run.
+- **Extension ID discovery**: Chrome assigns IDs to unpacked extensions. The `ChromeExtension.getExtensions` CDP command returns `{ id, name, url }` for each loaded extension — use this instead of hardcoding or reading manifest keys.
+- **`PL_SERVER_URL` is baked at build time**: `webpack.DefinePlugin` replaces `process.env.PL_SERVER_URL` during webpack. The CI workflow passes `PL_SERVER_URL=https://api-pad-staging.ch5.me` to the build step so the running extension uses staging, not localhost.
+- **Content script on `file://`**: The `<all_urls>` host permission covers `file://` URLs. The content script attaches after `networkidle`; an additional 500ms wait ensures the script's `ExtensionContent.init()` has completed before test messages are sent.
+- **Ping/pong as liveness signal**: The `ping`/`pong` message pair (from Task 5 cold-start work) is the most reliable worker-liveness test — works regardless of auth state.
+- **Two-test-lane separation**: Existing `test/*.ts` (mocha + sinon) tests unit-level logic (classification, cold-start state, OAuth stubs, biometric gating). The new Playwright harness tests the runtime contract: popup load, background message routing, content script attachment. Both run in CI.
+
+### Reference Paths
+
+- `packages/extension/test-harness/playwright.config.ts` — Chromium launch flags for MV3 extension loading
+- `packages/extension/test-harness/smoke.spec.ts:8` — `getExtensionId` via `ChromeExtension.getExtensions` CDP
+- `packages/extension/test-harness/smoke.spec.ts:48` — `ping`/`pong` worker liveness test
+- `packages/extension/test-harness/smoke.spec.ts:99` — Content script `isContentReady` via CDP tab target lookup
+- `packages/extension/test-harness/fixtures/login-form.html` — TOTP field: `inputmode="numeric"` + `maxLength=6` + `pattern="\d{6}"` matching content-script detection signals
+- `.github/workflows/build-web-extension.yml:46` — Playwright install + test step after extension build
+- Root `package.json:65` — `test:extension` lane: build + harness
+
+## Task 10: CI, Proof Lanes, and Operator Docs
+
+### Key Findings
+
+- **`run-tests.yml` had zero extension runtime coverage**: The workflow built the extension but never ran the Playwright harness. The `test` job's `npm test` runs `lerna run test` which only executes `test/*.ts` mocha suites, not `test-harness/*.spec.ts` Playwright tests.
+- **`build-web-extension.yml` already had the test step**: Lines 46-51 of `build-web-extension.yml` were already correct. The gap was `run-tests.yml` not running extension tests on PRs.
+- **`PL_SERVER_URL` is build-time only**: The CI workflows pass `PL_SERVER_URL=https://api-pad-staging.ch5.me` to the build step so the running extension uses staging. This is already documented in the harness config.
+- **Two CI workflows cover extension changes**: `build-web-extension.yml` (build + sign + archive) on push to main/feature/fix, and `run-tests.yml` (unit + extension-runtime) on PR and push. Together they cover build verification and runtime test coverage.
+
+### Implementation Summary
+
+| File | Change |
+|------|--------|
+| `README.md` | Added extension dev/test section |
+| `packages/extension/README.md` | Full rewrite: feature table, build options, testing lanes, CI summary, arch notes |
+| `.github/workflows/run-tests.yml` | Added `extension-runtime` job; added extension paths to push/PR triggers |
+| `scripts/proof-lanes/proof-extension.sh` | New lane: build + manifest check + Playwright harness |
+| `scripts/proof-lanes/help.sh` | Added `proof:extension` entry |
+| `package.json` | Added `proof:extension` script; updated `proof:all` chain |
+
+### Reference Paths
+
+- `README.md:140` — Extension commands in monorepo README
+- `packages/extension/README.md` — Full extension operator documentation
+- `.github/workflows/run-tests.yml:59` — `extension-runtime` CI job
+- `scripts/proof-lanes/proof-extension.sh` — Extension proof lane script
+- `scripts/proof-lanes/help.sh:22` — Extension lane in help output
+
+## Final Wave Fixes (Post F2 and F4 Rejections)
+
+### F2 Rejections Fixed
+
+**Issue 1 — `process.env.PL_APP_NAME` in MV3 service worker (background.ts:263):**
+- Already fixed before F2 re-run (was `process.env.PL_APP_NAME || ""`, changed to hardcoded `"CH5 Auth"`)
+
+**Issue 2 — `vaultId as any` in background.ts:**
+- `packages/extension/src/background.ts:369-371`
+- Changed `application.getVault(vaultId as any)` → `application.getVault(vaultId!)`
+- Non-null assertion is valid here: ternary already guarantees `vaultId` is truthy when this branch executes
+
+**Issue 3 — Empty `catch (e) {}` in message.ts:**
+- `packages/extension/src/message.ts:59-61`
+- Replaced with `.catch(() => false)` — returns false on content script not-yet-injected, which is the correct semantic
+- Pattern: `await browser.tabs.sendMessage(...).catch(() => false)` — no comment needed, code is self-documenting
+
+### F4 Rejections Fixed
+
+**Issue 1 — `process.env.PL_SERVER_URL` in MV3 SW (background.ts):**
+- `packages/extension/src/background.ts:13` — Added `const API_BASE_URL = "https://api-pad.ch5.me";`
+- `packages/extension/src/background.ts:30` — Changed `new AjaxSender(process.env.PL_SERVER_URL!)` → `new AjaxSender(API_BASE_URL)`
+- Root cause: AGENTS.md rule says MV3 service workers do not provide `process` — even webpack DefinePlugin substitution is insufficient since the SOURCE would contain `process.env`, misleading future developers
+
+**Issue 2 — Extension `WebAuthnClient` not wired:**
+- `packages/extension/src/platform.ts:5` — Added `import { webAuthnClient } from "./auth/webauthn";`
+- `packages/extension/src/platform.ts:20-21` — Added explicit return of `webAuthnClient` for `AuthType.WebAuthnPlatform` and `AuthType.WebAuthnPortable` in `_getAuthClient`
+- Previously, WebAuthn auth fell through to `super._getAuthClient()` which returned the web app's `webAuthnClient` — the extension's dedicated client was never used
+
+**Issue 3 — Playwright smoke harness under-delivered Task 9:**
+- `packages/extension/test-harness/smoke.spec.ts` — Added 4 new smoke tests:
+  - Manifest `identity` permission check
+  - Content script `<all_urls>` registration check
+  - Autofill routing test: sends `fillFields` with username/password/totp, verifies correct DOM fields receive values (proves content script classification + routing)
+  - `fillFields` background→content routing test
+- Removed fixture attribute inspection test (didn't actually test content script behavior)
+
+### Final Wave Results
+
+- F1 Plan Compliance Audit: **APPROVED** (1st run)
+- F2 Code Quality Review: **APPROVED** (2nd run — after vaultId fix and catch fix)
+- F3 Real Manual QA: **APPROVED** (1st run)
+- F4 Scope Fidelity Check: **APPROVED** (3rd run — after API_BASE_URL hardcode, WebAuthn wiring, and smoke test expansion)
