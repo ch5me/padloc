@@ -1,7 +1,7 @@
 import "@webcomponents/webcomponentsjs";
 import { browser } from "webextension-polyfill-ts";
 // import { throttle } from "@padloc/core/src/util";
-import { Message } from "./message";
+import { FieldMappings, Message } from "./message";
 
 const css = `
     @font-face {
@@ -112,8 +112,9 @@ class ExtensionContent {
     private _handleMessage(msg: Message) {
         switch (msg.type) {
             case "fillActive":
-                // console.log("autofill", msg);
                 return Promise.resolve(this._fill(msg.value));
+            case "fillFields":
+                return Promise.resolve(this._fillFields(msg.mappings));
             // case "fillOnDrop":
             //     // console.log("autofill", msg);
             //     return new Promise(resolve => {
@@ -172,36 +173,315 @@ class ExtensionContent {
         return el && this._isElementFillable(el) ? (el as HTMLInputElement) : null;
     }
 
+    /**
+     * Find the label element associated with an input, if any.
+     * Handles both native <label for> and aria-labelledby.
+     */
+    private _getLabelText(input: HTMLInputElement): string {
+        // aria-labelledby takes precedence
+        const labelledBy = input.getAttribute("aria-labelledby");
+        if (labelledBy) {
+            try {
+                const labelEl = input.ownerDocument?.getElementById(labelledBy);
+                if (labelEl) return labelEl.textContent?.trim().toLowerCase() || "";
+            } catch {
+                // Cross-origin frames may throw
+            }
+        }
+
+        // aria-label
+        const ariaLabel = input.getAttribute("aria-label");
+        if (ariaLabel) return ariaLabel.toLowerCase();
+
+        // Native label via form attribute
+        if (input.form) {
+            const labels = input.form.labels;
+            if (labels?.length) return (labels[0]?.textContent || "").trim().toLowerCase();
+        }
+
+        // Walk up to find a label ancestor
+        let parent = input.parentElement;
+        for (let depth = 0; depth < 5 && parent; depth++) {
+            if (parent.tagName === "LABEL") {
+                return (parent.textContent || "").trim().toLowerCase();
+            }
+            parent = parent.parentElement;
+        }
+
+        return "";
+    }
+
     private async _fill(value: string, input: HTMLInputElement | null = this._getActiveInput()) {
         if (!input) {
             return false;
         }
 
+        // React 18+, Vue, Angular, and Solid all respond to the `beforeinput` event
+        // before they read `input.value`. Fire it first with a ranges to match real user input.
+        const selectionStart = input.selectionStart ?? value.length;
+        const selectionEnd = input.selectionEnd ?? value.length;
+
+        input.dispatchEvent(
+            new InputEvent("beforeinput", {
+                bubbles: true,
+                cancelable: true,
+                data: value,
+                inputType: "insertText",
+            })
+        );
+
         input.value = value;
 
-        // Do some song and dance for various frameworks that expect input events
+        // Restore selection range — required for React/Vue controlled inputs that gate
+        // on selectionStart/selectionEnd during composition
+        input.setSelectionRange(selectionStart, selectionEnd);
+
+        // Keyboard events — required for Angular and some Vue setups
         input.dispatchEvent(
             new KeyboardEvent("keydown", {
                 bubbles: true,
-                key: "",
+                key: "Enter",
+                keyCode: 13,
+                which: 13,
             })
         );
         input.dispatchEvent(
             new KeyboardEvent("keyup", {
                 bubbles: true,
-                key: "",
+                key: "Enter",
+                keyCode: 13,
+                which: 13,
             })
         );
+
+        // Core input event — universally required by React, Vue, Angular, Solid
+        input.dispatchEvent(new InputEvent("input", { bubbles: true, cancelable: true }));
+
+        // change event — fires on blur for most frameworks
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+
+        // React 16-17 legacy _wrapper event (bridged internally)
         input.dispatchEvent(
             new KeyboardEvent("keypress", {
                 bubbles: true,
-                key: "",
+                key: "Enter",
+                keyCode: 13,
+                which: 13,
             })
         );
-        input.dispatchEvent(new Event("input", { bubbles: true }));
-        input.dispatchEvent(new Event("change", { bubbles: true }));
-        // this._ripple(input);
+
         return true;
+    }
+
+    /** Field role classification for orchestration fill */
+    private enum FieldRole {
+        Username,
+        Password,
+        Totp,
+    }
+
+    /**
+     * Scans the document and shadow roots for fillable input elements,
+     * classifies each as username, password, or TOTP, and returns them grouped by role.
+     */
+    private _detectFieldTypes(): Map<HTMLInputElement, FieldRole> {
+        const map = new Map<HTMLInputElement, FieldRole>();
+        this._collectFields(document, map);
+        return map;
+    }
+
+    private _collectFields(root: Document | ShadowRoot, map: Map<HTMLInputElement, FieldRole>) {
+        const elements = root.querySelectorAll("input");
+        for (const el of elements) {
+            if (!this._isElementFillable(el)) continue;
+            const role = this._classifyField(el as HTMLInputElement);
+            if (role !== null) {
+                map.set(el as HTMLInputElement, role);
+            }
+        }
+
+        // Also check inputs associated via form="" attribute but rendered outside the form
+        const formIds = new Set<string>();
+        for (const input of map.keys()) {
+            const formAttr = input.getAttribute("form");
+            if (formAttr) formIds.add(formAttr);
+        }
+        for (const formId of formIds) {
+            const externalForm = root.querySelector(`#${CSS.escape(formId}`);
+            if (externalForm instanceof HTMLFormElement) {
+                for (const input of externalForm.querySelectorAll("input")) {
+                    if (!this._isElementFillable(input)) continue;
+                    if (!map.has(input)) {
+                        const role = this._classifyField(input);
+                        if (role !== null) map.set(input, role);
+                    }
+                }
+            }
+        }
+
+        // Walk shadow roots recursively
+        const allElements = root.querySelectorAll("*");
+        for (const el of allElements) {
+            if (el.shadowRoot) {
+                this._collectFields(el.shadowRoot, map);
+            }
+        }
+    }
+
+    /**
+     * Classifies a single input element as username, password, TOTP, or null (unknown).
+     * Uses type, name, id, autocomplete, placeholder, aria-label, label text, pattern,
+     * maxlength, inputmode, and data-* attributes.
+     */
+    private _classifyField(input: HTMLInputElement): FieldRole | null {
+        const type = input.type.toLowerCase();
+        const name = (input.name || "").toLowerCase();
+        const id = (input.id || "").toLowerCase();
+        const autocomplete = (input.getAttribute("autocomplete") || "").toLowerCase();
+        const placeholder = (input.placeholder || "").toLowerCase();
+        const labelText = this._getLabelText(input);
+        const dataAttr = (input.dataset["fieldType"] || input.dataset["field"] || "").toLowerCase();
+        const maxLength = input.maxLength;
+        const pattern = input.getAttribute("pattern") || "";
+        const inputmode = input.getAttribute("inputmode") || "";
+
+        // Password — explicit type or autocomplete
+        if (type === "password") return FieldRole.Password;
+        if (autocomplete === "current-password" || autocomplete === "new-password") return FieldRole.Password;
+
+        // TOTP / OTP — check multiple signals: name, id, autocomplete, placeholder, label,
+        // pattern (digit-only), maxLength (6-8 chars), inputmode="numeric"
+        const isTotpSignal =
+            name.includes("totp") ||
+            name.includes("otp") ||
+            name.includes("one-time") ||
+            name.includes("verification") ||
+            id.includes("totp") ||
+            id.includes("otp") ||
+            id.includes("verification") ||
+            autocomplete === "one-time-code" ||
+            placeholder.includes("totp") ||
+            placeholder.includes("otp") ||
+            placeholder.includes("one-time") ||
+            placeholder.includes("verification") ||
+            labelText.includes("totp") ||
+            labelText.includes("otp") ||
+            labelText.includes("one-time") ||
+            labelText.includes("verification") ||
+            labelText.includes("code") ||
+            dataAttr.includes("totp") ||
+            dataAttr.includes("otp");
+
+        const isDigitPattern = /^\d+$/.test(pattern);
+        const isOtpLength = maxLength >= 4 && maxLength <= 8;
+        const isNumericInputmode = inputmode === "numeric" || inputmode === "text";
+
+        if (isTotpSignal || (isDigitPattern && isOtpLength) || (isNumericInputmode && isOtpLength)) {
+            return FieldRole.Totp;
+        }
+
+        // Username — text/email/tel inputs near login forms
+        if (type === "email" || type === "text" || type === "tel" || type === "number") {
+            const isUsernameSignal =
+                name.includes("user") ||
+                name.includes("login") ||
+                name.includes("email") ||
+                name.includes("account") ||
+                name.includes("username") ||
+                name.includes("identifier") ||
+                name.includes("screen-name") ||
+                id.includes("user") ||
+                id.includes("login") ||
+                id.includes("email") ||
+                id.includes("username") ||
+                id.includes("identifier") ||
+                autocomplete === "username" ||
+                autocomplete === "email" ||
+                autocomplete === "tel" ||
+                labelText.includes("user") ||
+                labelText.includes("login") ||
+                labelText.includes("email") ||
+                labelText.includes("username") ||
+                labelText.includes("account") ||
+                dataAttr.includes("username") ||
+                dataAttr.includes("login");
+
+            if (isUsernameSignal) {
+                return FieldRole.Username;
+            }
+        }
+
+        // Email type is almost always username
+        if (type === "email") return FieldRole.Username;
+
+        return null;
+    }
+
+    /**
+     * Fills multiple fields based on detected field types on the page.
+     * Fills username first, then password, then TOTP (if available).
+     * Falls back to single-field fill for the active input if no form fields detected.
+     */
+    private _fillFields(mappings: FieldMappings): boolean {
+        if (!mappings.username && !mappings.password && !mappings.totp) {
+            return false;
+        }
+
+        const fieldMap = this._detectFieldTypes();
+        if (fieldMap.size === 0) {
+            // No form detected — fall back to active input fill
+            if (mappings.password) {
+                return this._fill(mappings.password);
+            }
+            if (mappings.username) {
+                return this._fill(mappings.username);
+            }
+            return false;
+        }
+
+        let filled = false;
+
+        // Collect fields by role
+        const usernameFields: HTMLInputElement[] = [];
+        const passwordFields: HTMLInputElement[] = [];
+        const totpFields: HTMLInputElement[] = [];
+
+        for (const [input, role] of fieldMap) {
+            switch (role) {
+                case FieldRole.Username:
+                    usernameFields.push(input);
+                    break;
+                case FieldRole.Password:
+                    passwordFields.push(input);
+                    break;
+                case FieldRole.Totp:
+                    totpFields.push(input);
+                    break;
+            }
+        }
+
+        // Fill username
+        if (mappings.username && usernameFields.length > 0) {
+            this._fill(mappings.username, usernameFields[0]);
+            filled = true;
+        }
+
+        // Fill password
+        if (mappings.password && passwordFields.length > 0) {
+            this._fill(mappings.password, passwordFields[0]);
+            filled = true;
+        }
+
+        // Fill TOTP — prefer dedicated TOTP field, fall back to any remaining text input
+        if (mappings.totp) {
+            const target = totpFields.length > 0 ? totpFields[0] : (passwordFields[0] || usernameFields[0]);
+            if (target) {
+                this._fill(mappings.totp, target);
+                filled = true;
+            }
+        }
+
+        return filled;
     }
 
     // private _ripple(el: HTMLElement) {

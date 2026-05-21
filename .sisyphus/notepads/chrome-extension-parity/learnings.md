@@ -102,3 +102,47 @@
 - `packages/extension/src/background.ts:114` — `await update()` call
 - `packages/extension/src/message.ts:13-14` — ping/pong message types
 
+## Task 6: Multi-Field Login Form Autofill
+
+### Key Findings
+
+- **Context menu bug**: `handleContextMenuClick` used a single regex `^item\/([^\/]+)(?:\/(\d+))?$` but then called `parseInt(ind)` where `ind` is `undefined` for `item/{id}`. `parseInt(undefined)` → `NaN`, `isNaN(NaN)` → `true`, causing early return. The top-level item click did nothing.
+- **Field classification lives in content script**: Page field roles (username/password/TOTP) are determined by the content script scanning the DOM, not from item data. This decouples item data from page structure.
+- **Shadow DOM traversal required**: Many modern sites use Web Components with shadow DOM — field detection must walk shadow roots.
+- **TOTP fill value**: `Field.transform()` for `Totp` type runs `totp(base32ToBytes(value))` which returns the live OTP code, not the secret.
+- **Menu title UX signal**: Appending `▸  Fill Login` to the item name when it has username+password fields gives users a clear affordance.
+
+### Implementation
+
+- `message.ts`: New `FieldMappings` type and `fillFields` message for orchestrated multi-field fill
+- `content.ts`: `_detectFieldTypes()` traverses DOM + shadow roots, `_classifyField()` classifies by heuristics, `_fillFields()` orchestrates
+- `background.ts`: Two distinct regex patterns in `handleContextMenuClick` — `item/{id}/{fieldIndex}` (single) and `item/{id}` (multi). `fillItemMultiField()` extracts fields by `FieldType` and sends `fillFields`
+- `app.ts`: `_fieldClicked()` wired to `field-clicked` event — transforms and sends `fillActive` for single-field popup fill
+
+### Reference Paths
+
+- `packages/extension/src/content.ts:175` — original single-field fill (unchanged, remains fallback)
+- `packages/extension/src/message.ts:5` — `FieldMappings` type and `fillFields` message
+- `packages/extension/src/background.ts:119` — rewritten `handleContextMenuClick` with two-pattern dispatch
+- `packages/extension/src/app.ts:214` — `_fieldClicked()` implementation
+- `packages/extension/test/autofill.ts` — test suite for classification, parsing, and orchestration logic
+
+## Task 7: Content Script Field Detection Reliability
+
+### Key Findings
+
+- **Label text resolves field purpose**: `aria-labelledby`, `aria-label`, `<label for>`, and ancestor `<label>` text collectively identify field purpose on virtually all modern login pages — Google, GitHub, Salesforce, Okta, Azure AD, Slack all use these attributes.
+- **TOTP via pattern+maxLength**: `pattern="\d+"` + `maxLength` in [4,8] reliably detects OTP fields even without name/id signals. Combined with `inputmode="numeric"`, this covers numeric-only OTP inputs.
+- **React/Vue/Angular need `beforeinput`**: React 18+ reads `input.value` in `beforeinput` before the DOM value is set. Using `InputEvent` (not plain `Event`) for both `beforeinput` and `input` is required.
+- **Selection range gating**: React and Vue controlled inputs check `selectionStart`/`selectionEnd` before accepting input. Restoring selection after value assignment prevents framework-side rejection.
+- **form="" attribute**: Inputs rendered outside a `<form>` but associated via `form="id"` must be found by querying the external form element via `CSS.escape(id)`.
+- **Shadow DOM is recursive**: `querySelectorAll("*")` on a shadow root finds elements whose shadow roots must then be recursively queried — a two-level walk is insufficient for deeply nested web components.
+
+### Reference Paths
+
+- `packages/extension/src/content.ts:180` — `_getLabelText()` helper (aria-labelledby, aria-label, form.labels, ancestor label)
+- `packages/extension/src/content.ts:214` — `_fill()` with `beforeinput` + `InputEvent` + selection preservation + Angular key events
+- `packages/extension/src/content.ts:293` — `_collectFields()` with form="" attribute support and recursive shadow DOM traversal
+- `packages/extension/src/content.ts:336` — `_classifyField()` with multi-signal TOTP/OTP detection (pattern, maxLength, inputmode)
+- `packages/extension/test/content.ts` — full test suite for classification, SaaS patterns, shadow DOM, fill events
+

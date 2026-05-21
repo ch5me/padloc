@@ -108,3 +108,87 @@
 - `npm test` passed (all suites).
 - `npm run build` passed.
 
+## Task 6: Multi-Field Login Form Autofill
+
+### Findings
+
+- Current fill path (`content.ts:175`) fills a single value into the active input via `fillActive` message.
+- `handleContextMenuClick` in `background.ts:119` parsed `item/{id}/{fieldIndex}` but had a bug: `parseInt(undefined)` returns `NaN`, so `isNaN(NaN)` is `true`, causing early return for the top-level `item/{id}` menu item — meaning the item-level menu click did nothing.
+- Field classification is not on the item level but on the content-script level: `content.ts` detects field types by traversing the page DOM and classifying inputs by `type`, `name`, `id`, `autocomplete`, and `placeholder` attributes.
+- `FieldType` enum from `core/src/item.ts` distinguishes `Username`, `Password`, and `Totp` — each with their own `transform()` method for getting the fill value.
+
+### Implementation
+
+- `packages/extension/src/message.ts`:
+  - Added `FieldMappings` type (`{ username?: string; password?: string; totp?: string }`)
+  - Added `fillFields` message type for multi-field orchestration
+- `packages/extension/src/content.ts`:
+  - Added `FieldRole` enum (`Username`, `Password`, `Totp`)
+  - Added `_detectFieldTypes()` — traverses document and shadow roots, classifies each fillable input
+  - Added `_classifyField()` — heuristic classification by type/name/id/autocomplete/placeholder
+  - Added `_fillFields()` — fills multiple fields based on detected types, falls back to single-field on active input
+  - Added `fillFields` case in `_handleMessage`
+- `packages/extension/src/background.ts`:
+  - Added import of `FieldType` from `@padloc/core/src/item`
+  - Added `fillItemMultiField()` — extracts username/password/totp from item and sends `fillFields` message
+  - Rewrote `handleContextMenuClick()` with two regex patterns: `item/{id}/{fieldIndex}` (single-field) and `item/{id}` (multi-field)
+  - Menu item title appends `▸  Fill Login` when item has both username+password fields
+- `packages/extension/src/app.ts`:
+  - Enabled `field-clicked` event listener (was commented out)
+  - Implemented `_fieldClicked()` — transforms field value and sends `fillActive` to content script
+- `packages/extension/test/autofill.ts`:
+  - New test suite covering: field classification, context menu ID parsing, multi-field orchestration, mappings, fallback
+
+### Key Design Decisions
+
+- **Content script field detection**: Field roles are determined by the content script scanning the live DOM, not by the item data. This handles any site's specific field naming/structuring.
+- **Shadow DOM traversal**: `_detectFieldTypes()` walks shadow roots to handle Web Components.
+- **Cascading fallback**: `_fillFields()` prioritizes dedicated TOTP fields, then password fields, then username fields for OTP fill.
+- **Menu title UX**: Items with both username+password show `▸  Fill Login` to signal the multi-field action.
+- **TOTP transform**: `Field.transform()` for `Totp` type calls `totp(base32ToBytes(value))` — returns the current OTP code.
+
+### Verification
+
+- `tsc --noEmit` passed (0 errors).
+- `npm test` passed (all suites).
+- `npm run build` passed.
+
+## Task 7: Content Script Field Detection Reliability
+
+### Findings
+
+- **Label text is a strong signal**: `aria-labelledby`, `aria-label`, `<label for>`, and ancestor `<label>` text all reliably identify field purpose on modern SaaS login pages (Google, GitHub, Salesforce, Okta, Azure AD, Slack).
+- **TOTP detection via pattern+maxLength**: Fields with `pattern="\d+"` and `maxLength` in [4,8] are almost always OTP inputs — catches sites that don't use `autocomplete="one-time-code"`.
+- **inputmode as OTP signal**: `inputmode="numeric"` combined with `maxLength` in [4,8] catches numeric OTP inputs even without name/id/placeholder hints.
+- **autocomplete=new-password/current-password**: Even on non-password-type inputs, these indicate password fields.
+- **React/Vue/Angular fill**: Requires `beforeinput` (React 18+), `InputEvent` for `input` (not `Event`), and Enter-key `KeyboardEvent` dispatch for Angular.
+- **Selection range preservation**: React/Vue controlled inputs gate on `selectionStart`/`selectionEnd` — restoring these after value assignment is required.
+- **form attribute association**: Inputs with `form="id"` but rendered outside the `<form>` element are associated with that form — queried via `CSS.escape()`.
+- **Shadow DOM traversal**: Recursive `element.shadowRoot` + `querySelectorAll("*")` pattern correctly finds all nested inputs.
+- **MV3 CSP compliance**: No eval, no Function constructor, no dynamic code — all event dispatch uses native `InputEvent`/`KeyboardEvent`/`Event` constructors.
+
+### Implementation
+
+- `packages/extension/src/content.ts`:
+  - Added `_getLabelText()` — resolves `aria-labelledby`, `aria-label`, `form.labels`, and ancestor `<label>` text
+  - Expanded `_classifyField()` — adds `autocomplete` values (`current-password`, `new-password`, `username`, `one-time-code`), `data-field-type`/`data-field` dataset attrs, `labelText`, `pattern` (digit-only), `maxLength` (4-8 for OTP), `inputmode`, `aria-label`, and label text as classification signals
+  - Added `verification_code`/`verification`/`identifier`/`screen_name` name patterns for common SaaS forms
+  - Expanded TOTP signals: `labelText.includes("code")` catches generic "Enter code" labels
+  - Strengthened `_fill()` — uses `InputEvent` for `beforeinput` and `input` (not plain `Event`), preserves selection range, adds Enter-key `keydown`/`keyup`/`keypress` sequence for Angular compatibility
+  - Updated `_collectFields()` — collects `form` attribute IDs and queries external forms via `CSS.escape()`
+- `packages/extension/test/content.ts`:
+  - New test suite covering: plain DOM classification, modern SaaS patterns, TOTP pattern/maxLength/inputmode detection, aria-label/aria-labelledby resolution, label text resolution, shadow DOM traversal, form attribute association, fill event sequence, selection range preservation, multi-field orchestration ordering
+
+### Key Design Decisions
+
+- **Multi-signal TOTP detection**: TOTP classification requires either a name/id/autocomplete signal OR (digit-only pattern AND valid length) OR (numeric inputmode AND valid length). Handles sites that use only `maxLength` or only `inputmode`.
+- **`beforeinput` as first event**: React 18+ reads `input.value` inside the `beforeinput` event handler before the value is set. Firing `beforeinput` first with `data=value` causes React to see the new value immediately.
+- **CSS.escape for form IDs**: Form IDs may contain dots, colons, spaces — using `CSS.escape()` prevents selector injection.
+- **Label resolution order**: `aria-labelledby` > `aria-label` > `form.labels[0]` > ancestor `<label>` — matches the HTML spec precedence.
+
+### Verification
+
+- `tsc --noEmit` passed (0 errors).
+- `npm test` passed (all suites with tap reporter).
+- `npm run build` passed.
+
