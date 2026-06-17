@@ -57,6 +57,9 @@
 
 - Treat `preview` as a legacy compatibility env. New stable pre-prod work should
   use `staging`.
+- Personal autofill records are Padloc-owned encrypted items. Magic Browser owns
+  browser execution/redacted proof. Bridge doctrine lives in
+  `docs/agentic-autofill-bridge.md`.
 - Do not reintroduce `process.env.PL_APP_NAME` assumptions into
   Worker/runtime-shared code; Workers do not provide `process`.
 - Keep `clientUrl` on the app host (`pad.ch5.me` / `pad-staging.ch5.me`), never

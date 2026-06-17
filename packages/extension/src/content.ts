@@ -2,12 +2,7 @@ import "@webcomponents/webcomponentsjs";
 import { browser } from "webextension-polyfill-ts";
 // import { throttle } from "@padloc/core/src/util";
 import { FieldMappings, Message, CredentialData } from "./message";
-
-enum FieldRole {
-    Username,
-    Password,
-    Totp,
-}
+import { AutofillFieldRole, classifyAutofillField, isFillableInputType } from "./autofill-classifier";
 
 const css = `
     @font-face {
@@ -169,10 +164,7 @@ class ExtensionContent {
     }
 
     private _isElementFillable(el: Element) {
-        return (
-            el instanceof HTMLInputElement &&
-            ["text", "number", "email", "password", "tel", "date", "month", "search", "url"].includes(el.type)
-        );
+        return el instanceof HTMLInputElement && isFillableInputType(el.type);
     }
 
     private _getActiveInput(): HTMLInputElement | null {
@@ -282,15 +274,15 @@ class ExtensionContent {
 
     /**
      * Scans the document and shadow roots for fillable input elements,
-     * classifies each as username, password, or TOTP, and returns them grouped by role.
+     * classifies each as an autofill role, and returns them grouped by role.
      */
-    private _detectFieldTypes(): Map<HTMLInputElement, FieldRole> {
-        const map = new Map<HTMLInputElement, FieldRole>();
+    private _detectFieldTypes(): Map<HTMLInputElement, AutofillFieldRole> {
+        const map = new Map<HTMLInputElement, AutofillFieldRole>();
         this._collectFields(document, map);
         return map;
     }
 
-    private _collectFields(root: Document | ShadowRoot, map: Map<HTMLInputElement, FieldRole>) {
+    private _collectFields(root: Document | ShadowRoot, map: Map<HTMLInputElement, AutofillFieldRole>) {
         const elements = root.querySelectorAll("input");
         for (const el of elements) {
             if (!this._isElementFillable(el)) continue;
@@ -329,92 +321,25 @@ class ExtensionContent {
     }
 
     /**
-     * Classifies a single input element as username, password, TOTP, or null (unknown).
+     * Classifies a single input element as a login, identity, address, payment, or null role.
      * Uses type, name, id, autocomplete, placeholder, aria-label, label text, pattern,
      * maxlength, inputmode, and data-* attributes.
      */
-    private _classifyField(input: HTMLInputElement): FieldRole | null {
-        const type = input.type.toLowerCase();
-        const name = (input.name || "").toLowerCase();
-        const id = (input.id || "").toLowerCase();
-        const autocomplete = (input.getAttribute("autocomplete") || "").toLowerCase();
-        const placeholder = (input.placeholder || "").toLowerCase();
+    private _classifyField(input: HTMLInputElement): AutofillFieldRole | null {
         const labelText = this._getLabelText(input);
-        const dataAttr = (input.dataset["fieldType"] || input.dataset["field"] || "").toLowerCase();
-        const maxLength = input.maxLength;
-        const pattern = input.getAttribute("pattern") || "";
-        const inputmode = input.getAttribute("inputmode") || "";
-
-        // Password — explicit type or autocomplete
-        if (type === "password") return FieldRole.Password;
-        if (autocomplete === "current-password" || autocomplete === "new-password") return FieldRole.Password;
-
-        // TOTP / OTP — check multiple signals: name, id, autocomplete, placeholder, label,
-        // pattern (digit-only), maxLength (6-8 chars), inputmode="numeric"
-        const isTotpSignal =
-            name.includes("totp") ||
-            name.includes("otp") ||
-            name.includes("one-time") ||
-            name.includes("verification") ||
-            id.includes("totp") ||
-            id.includes("otp") ||
-            id.includes("verification") ||
-            autocomplete === "one-time-code" ||
-            placeholder.includes("totp") ||
-            placeholder.includes("otp") ||
-            placeholder.includes("one-time") ||
-            placeholder.includes("verification") ||
-            labelText.includes("totp") ||
-            labelText.includes("otp") ||
-            labelText.includes("one-time") ||
-            labelText.includes("verification") ||
-            labelText.includes("code") ||
-            dataAttr.includes("totp") ||
-            dataAttr.includes("otp");
-
-        const isDigitPattern = /^\d+$/.test(pattern);
-        const isOtpLength = maxLength >= 4 && maxLength <= 8;
-        const isNumericInputmode = inputmode === "numeric" || inputmode === "text";
-
-        if (isTotpSignal || (isDigitPattern && isOtpLength) || (isNumericInputmode && isOtpLength)) {
-            return FieldRole.Totp;
-        }
-
-        // Username — text/email/tel inputs near login forms
-        if (type === "email" || type === "text" || type === "tel" || type === "number") {
-            const isUsernameSignal =
-                name.includes("user") ||
-                name.includes("login") ||
-                name.includes("email") ||
-                name.includes("account") ||
-                name.includes("username") ||
-                name.includes("identifier") ||
-                name.includes("screen-name") ||
-                id.includes("user") ||
-                id.includes("login") ||
-                id.includes("email") ||
-                id.includes("username") ||
-                id.includes("identifier") ||
-                autocomplete === "username" ||
-                autocomplete === "email" ||
-                autocomplete === "tel" ||
-                labelText.includes("user") ||
-                labelText.includes("login") ||
-                labelText.includes("email") ||
-                labelText.includes("username") ||
-                labelText.includes("account") ||
-                dataAttr.includes("username") ||
-                dataAttr.includes("login");
-
-            if (isUsernameSignal) {
-                return FieldRole.Username;
-            }
-        }
-
-        // Email type is almost always username
-        if (type === "email") return FieldRole.Username;
-
-        return null;
+        return classifyAutofillField({
+            type: input.type,
+            name: input.name,
+            id: input.id,
+            autocomplete: input.getAttribute("autocomplete"),
+            placeholder: input.placeholder,
+            labelText,
+            dataFieldType: input.dataset["fieldType"],
+            dataField: input.dataset["field"],
+            maxLength: input.maxLength,
+            pattern: input.getAttribute("pattern"),
+            inputmode: input.getAttribute("inputmode"),
+        });
     }
 
     /**
@@ -423,7 +348,7 @@ class ExtensionContent {
      * Falls back to single-field fill for the active input if no form fields detected.
      */
     private async _fillFields(mappings: FieldMappings): Promise<boolean> {
-        if (!mappings.username && !mappings.password && !mappings.totp) {
+        if (!hasFillMappings(mappings)) {
             return false;
         }
 
@@ -441,40 +366,53 @@ class ExtensionContent {
 
         let filled = false;
 
-        // Collect fields by role
-        const usernameFields: HTMLInputElement[] = [];
-        const passwordFields: HTMLInputElement[] = [];
-        const totpFields: HTMLInputElement[] = [];
+        const fieldsByRole = new Map<AutofillFieldRole, HTMLInputElement[]>();
 
         for (const [input, role] of fieldMap) {
-            switch (role) {
-                case FieldRole.Username:
-                    usernameFields.push(input);
-                    break;
-                case FieldRole.Password:
-                    passwordFields.push(input);
-                    break;
-                case FieldRole.Totp:
-                    totpFields.push(input);
-                    break;
+            const fields = fieldsByRole.get(role) || [];
+            fields.push(input);
+            fieldsByRole.set(role, fields);
+        }
+
+        const fillFirst = async (value: string | undefined, roles: AutofillFieldRole[]) => {
+            if (!value) return false;
+            for (const role of roles) {
+                const target = fieldsByRole.get(role)?.[0];
+                if (target) {
+                    await this._fill(value, target);
+                    filled = true;
+                    return true;
+                }
             }
-        }
+            return false;
+        };
 
-        // Fill username
-        if (mappings.username && usernameFields.length > 0) {
-            await this._fill(mappings.username, usernameFields[0]);
-            filled = true;
-        }
+        await fillFirst(mappings.username, [AutofillFieldRole.Username, AutofillFieldRole.ContactEmail]);
+        await fillFirst(mappings.password, [AutofillFieldRole.Password]);
+        const totpFilled = await fillFirst(mappings.totp, [AutofillFieldRole.Totp]);
+        await fillFirst(mappings.fullName, [AutofillFieldRole.PersonFullName]);
+        await fillFirst(mappings.firstName, [AutofillFieldRole.PersonFirstName]);
+        await fillFirst(mappings.lastName, [AutofillFieldRole.PersonLastName]);
+        await fillFirst(mappings.email, [AutofillFieldRole.ContactEmail, AutofillFieldRole.Username]);
+        await fillFirst(mappings.phone, [AutofillFieldRole.ContactPhone]);
+        await fillFirst(mappings.addressLine1, [AutofillFieldRole.AddressLine1]);
+        await fillFirst(mappings.addressLine2, [AutofillFieldRole.AddressLine2]);
+        await fillFirst(mappings.city, [AutofillFieldRole.AddressCity]);
+        await fillFirst(mappings.region, [AutofillFieldRole.AddressRegion]);
+        await fillFirst(mappings.postalCode, [AutofillFieldRole.AddressPostalCode]);
+        await fillFirst(mappings.country, [AutofillFieldRole.AddressCountry]);
+        await fillFirst(mappings.cardholderName, [AutofillFieldRole.PaymentCardholderName]);
+        await fillFirst(mappings.cardNumber, [AutofillFieldRole.PaymentCardPan]);
+        await fillFirst(mappings.cardExpiry, [AutofillFieldRole.PaymentCardExpiry]);
+        await fillFirst(mappings.cardExpiryMonth, [AutofillFieldRole.PaymentCardExpiryMonth]);
+        await fillFirst(mappings.cardExpiryYear, [AutofillFieldRole.PaymentCardExpiryYear]);
+        await fillFirst(mappings.cardCvv, [AutofillFieldRole.PaymentCardCvvTransient]);
 
-        // Fill password
-        if (mappings.password && passwordFields.length > 0) {
-            await this._fill(mappings.password, passwordFields[0]);
-            filled = true;
-        }
-
-        // Fill TOTP — prefer dedicated TOTP field, fall back to any remaining text input
-        if (mappings.totp) {
-            const target = totpFields.length > 0 ? totpFields[0] : (passwordFields[0] || usernameFields[0]);
+        if (mappings.totp && !totpFilled) {
+            const target =
+                fieldsByRole.get(AutofillFieldRole.Totp)?.[0] ||
+                fieldsByRole.get(AutofillFieldRole.Password)?.[0] ||
+                fieldsByRole.get(AutofillFieldRole.Username)?.[0];
             if (target) {
                 await this._fill(mappings.totp, target);
                 filled = true;
@@ -677,6 +615,10 @@ class ExtensionContent {
     //         this._hoveredInput = input;
     //     }
     // }, 50);
+}
+
+function hasFillMappings(mappings: FieldMappings): boolean {
+    return Object.values(mappings).some((value) => !!value);
 }
 
 if (typeof window.extension === "undefined") {

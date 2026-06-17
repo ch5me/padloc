@@ -36,6 +36,38 @@ export enum FieldType {
     Text = "text",
 }
 
+export enum AutofillItemKind {
+    PersonProfile = "person_profile",
+    PostalAddress = "postal_address",
+    PaymentCardPolicy = "payment_card_policy",
+    GiftRecipient = "gift_recipient",
+    MerchantProfile = "merchant_profile",
+}
+
+export enum AutofillFieldRole {
+    Username = "username",
+    Password = "password",
+    Totp = "totp",
+    PersonFullName = "person.full_name",
+    PersonFirstName = "person.first_name",
+    PersonLastName = "person.last_name",
+    ContactEmail = "contact.email",
+    ContactPhone = "contact.phone",
+    AddressLine1 = "address.line1",
+    AddressLine2 = "address.line2",
+    AddressCity = "address.city",
+    AddressRegion = "address.region",
+    AddressPostalCode = "address.postal_code",
+    AddressCountry = "address.country",
+    PaymentCardPan = "payment.card.pan",
+    PaymentCardholderName = "payment.card.cardholder_name",
+    PaymentCardExpiry = "payment.card.expiry",
+    PaymentCardExpiryMonth = "payment.card.expiry_month",
+    PaymentCardExpiryYear = "payment.card.expiry_year",
+    PaymentCardCvvTransient = "payment.card.cvv_transient",
+    MerchantOrigin = "merchant.origin",
+}
+
 /**
  * Field definition containing meta data for a certain field type
  */
@@ -244,6 +276,8 @@ export class Field extends Serializable {
     name: string = "";
     /** field content */
     value: string = "";
+    /** semantic autofill role used by extension/broker approval flows */
+    autofillRole?: AutofillFieldRole = undefined;
 
     get def(): FieldDef {
         return FIELD_DEFS[this.type] || FIELD_DEFS[FieldType.Text];
@@ -431,7 +465,8 @@ export function guessFieldType({
 
 export interface ItemTemplate {
     name?: string;
-    fields: { name: string; value?: string; type: FieldType }[];
+    autofillKind?: AutofillItemKind;
+    fields: { name: string; value?: string; type: FieldType; autofillRole?: AutofillFieldRole; transactionOnly?: boolean }[];
     icon: string;
     iconSrc?: string;
     toString(): string;
@@ -485,36 +520,168 @@ export const ITEM_TEMPLATES: ItemTemplate[] = [
     {
         toString: () => $l("Credit Card"),
         icon: "credit",
+        autofillKind: AutofillItemKind.PaymentCardPolicy,
         fields: [
             {
                 get name() {
                     return $l("Card Number");
                 },
                 type: FieldType.Credit,
+                autofillRole: AutofillFieldRole.PaymentCardPan,
             },
             {
                 get name() {
                     return $l("Card Owner");
                 },
                 type: FieldType.Text,
+                autofillRole: AutofillFieldRole.PaymentCardholderName,
             },
             {
                 get name() {
                     return $l("Valid Until");
                 },
                 type: FieldType.Month,
+                autofillRole: AutofillFieldRole.PaymentCardExpiry,
             },
             {
                 get name() {
                     return $l("CVC");
                 },
                 type: FieldType.Pin,
+                autofillRole: AutofillFieldRole.PaymentCardCvvTransient,
+                transactionOnly: true,
             },
             {
                 get name() {
                     return $l("PIN");
                 },
                 type: FieldType.Pin,
+            },
+        ],
+    },
+    {
+        toString: () => $l("Person Profile"),
+        icon: "user",
+        autofillKind: AutofillItemKind.PersonProfile,
+        fields: [
+            {
+                get name() {
+                    return $l("Full Name");
+                },
+                type: FieldType.Text,
+                autofillRole: AutofillFieldRole.PersonFullName,
+            },
+            {
+                get name() {
+                    return $l("First Name");
+                },
+                type: FieldType.Text,
+                autofillRole: AutofillFieldRole.PersonFirstName,
+            },
+            {
+                get name() {
+                    return $l("Last Name");
+                },
+                type: FieldType.Text,
+                autofillRole: AutofillFieldRole.PersonLastName,
+            },
+            {
+                get name() {
+                    return $l("Email Address");
+                },
+                type: FieldType.Email,
+                autofillRole: AutofillFieldRole.ContactEmail,
+            },
+            {
+                get name() {
+                    return $l("Phone Number");
+                },
+                type: FieldType.Phone,
+                autofillRole: AutofillFieldRole.ContactPhone,
+            },
+        ],
+    },
+    {
+        toString: () => $l("Postal Address"),
+        icon: "passport",
+        autofillKind: AutofillItemKind.PostalAddress,
+        fields: [
+            {
+                get name() {
+                    return $l("Address Line 1");
+                },
+                type: FieldType.Text,
+                autofillRole: AutofillFieldRole.AddressLine1,
+            },
+            {
+                get name() {
+                    return $l("Address Line 2");
+                },
+                type: FieldType.Text,
+                autofillRole: AutofillFieldRole.AddressLine2,
+            },
+            {
+                get name() {
+                    return $l("City");
+                },
+                type: FieldType.Text,
+                autofillRole: AutofillFieldRole.AddressCity,
+            },
+            {
+                get name() {
+                    return $l("State / Region");
+                },
+                type: FieldType.Text,
+                autofillRole: AutofillFieldRole.AddressRegion,
+            },
+            {
+                get name() {
+                    return $l("Postal Code");
+                },
+                type: FieldType.Text,
+                autofillRole: AutofillFieldRole.AddressPostalCode,
+            },
+            {
+                get name() {
+                    return $l("Country");
+                },
+                type: FieldType.Text,
+                autofillRole: AutofillFieldRole.AddressCountry,
+            },
+        ],
+    },
+    {
+        toString: () => $l("Gift Recipient"),
+        icon: "user",
+        autofillKind: AutofillItemKind.GiftRecipient,
+        fields: [
+            {
+                get name() {
+                    return $l("Recipient Name");
+                },
+                type: FieldType.Text,
+                autofillRole: AutofillFieldRole.PersonFullName,
+            },
+            {
+                get name() {
+                    return $l("Recipient Email");
+                },
+                type: FieldType.Email,
+                autofillRole: AutofillFieldRole.ContactEmail,
+            },
+        ],
+    },
+    {
+        toString: () => $l("Merchant Profile"),
+        icon: "web",
+        autofillKind: AutofillItemKind.MerchantProfile,
+        fields: [
+            {
+                get name() {
+                    return $l("Merchant Origin");
+                },
+                type: FieldType.Url,
+                autofillRole: AutofillFieldRole.MerchantOrigin,
             },
         ],
     },

@@ -13,7 +13,7 @@ multi-field autofill, save/update credential prompts, and biometric re-unlock.
 | Biometric re-unlock (MV3 session key) | Complete |
 | Multi-field login form autofill | Complete |
 | Save / update credential prompts | Complete |
-| Content script field detection | Complete |
+| Content script login/identity/address/payment field detection | Complete |
 | Popup cold-start state restoration | Complete |
 | Playwright runtime test harness | Complete |
 
@@ -147,9 +147,12 @@ For hot-reload development, rebuild manually or use a file watcher.
   session storage after cold start.
 - **No master-key relay**: The popup does not send the raw master key to the
   background worker. Both independently restore from session storage.
-- **Content script field detection**: Field roles (username, password, TOTP)
-  are determined by the content script scanning the live DOM, not from item
-  data. Handles shadow DOM, aria labels, and modern SaaS form patterns.
+- **Content script field detection**: Field roles are determined by the content
+  script scanning the live DOM, not from item data. Handles shadow DOM, aria
+  labels, login, identity, address, payment, and transient CVV roles.
+- **Agentic autofill bridge**: Padloc owns encrypted items and approval; Magic
+  Browser owns browser execution and redacted proof. See
+  [docs/agentic-autofill-bridge.md](../../docs/agentic-autofill-bridge.md).
 - **`PL_SERVER_URL` is build-time only**: The extension connects to the API URL
   that was active when it was built. Change the env var and rebuild to point
   to a different environment.

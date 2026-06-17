@@ -3,12 +3,30 @@ import { VaultItem } from "@padloc/core/src/item";
 
 /**
  * Mapping of field role to value for multi-field fill orchestration.
- * username, password, totp are optional — only present when a field of that type exists.
+ * Legacy login keys stay supported while the Padloc/Magic Browser bridge grows
+ * identity, address, and transaction-only payment roles.
  */
 export type FieldMappings = {
     username?: string;
     password?: string;
     totp?: string;
+    fullName?: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    addressLine1?: string;
+    addressLine2?: string;
+    city?: string;
+    region?: string;
+    postalCode?: string;
+    country?: string;
+    cardholderName?: string;
+    cardNumber?: string;
+    cardExpiry?: string;
+    cardExpiryMonth?: string;
+    cardExpiryYear?: string;
+    cardCvv?: string;
 };
 
 /**
