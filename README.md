@@ -1,6 +1,6 @@
 # Padloc
 
-[![](https://github.com/padloc/padloc/workflows/Run%20Tests/badge.svg?branch=main)](https://github.com/padloc/padloc/actions?workflow=Run+Tests)
+[![](https://git.ch5.me/ch5/padloc/actions/workflows/run-tests.yml/badge.svg?branch=main)](https://git.ch5.me/ch5/padloc/actions)
 
 Simple, secure password and data management for individuals and teams.
 
@@ -206,14 +206,14 @@ npm run version [semver_version]
 ### Deployment / Publishing
 
 Padloc has a lot of different components that all need to be
-built/released/published in different ways. To manage this complexitiy, we have
-compiled all deployment steps for all components in a single Github Workflow. To
+built/released/published in different ways. To manage this complexity, we have
+compiled all deployment steps for all components in a single Forgejo workflow. To
 release a new version, simply:
 
 1. [Update project version](#updating-the-version)
 2. Commit and push.
 3. Run the
-   [Publish Release](https://github.com/padloc/padloc/actions?workflow=Publish+Release)
+   [Publish Release](https://git.ch5.me/ch5/padloc/actions)
    action.
 
 ## Licensing

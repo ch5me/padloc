@@ -17,13 +17,17 @@ on:
                 default: "0"
                 required: true
 
+env:
+    CH5_FORGEJO_API_URL: ${{ github.server_url }}/api/v1
+    CH5_FORGEJO_REPOSITORY: ${{ github.repository }}
+
 jobs:
     create_release_tag:
         name: "Create release tag"
         environment: ${{ github.event.inputs.environment || 'Beta' }}
         env:
             PL_VENDOR_VERSION: ${{ github.event.inputs.vendor_version || '0.0.1' }}
-            PL_VENDOR_BASE_URL: "https://github.com/${{ github.repository }}"
+            PL_VENDOR_BASE_URL: "${{ github.server_url }}/${{ github.repository }}"
 
         runs-on: ubuntu-latest
         outputs:
@@ -39,17 +43,98 @@ jobs:
                   npm ci
             - name: Build tauri-update.json
               run: cd packages/tauri && node generate-tauri-update-file.js
-            - uses: softprops/action-gh-release@v1
+            - name: Install Forgejo release helper
+              shell: bash
+              run: |
+                  cat > "$RUNNER_TEMP/upload-forgejo-release-asset" <<'EOF'
+                  #!/usr/bin/env bash
+                  set -euo pipefail
+
+                  : "${CH5_FORGEJO_API_URL:?}"
+                  : "${CH5_FORGEJO_REPOSITORY:?}"
+                  : "${FORGEJO_TOKEN:?}"
+                  : "${RELEASE_ID:?}"
+                  : "${RELEASE_ASSET_FILE:?}"
+
+                  asset_name="${RELEASE_ASSET_NAME:-}"
+                  shopt -s nullglob
+                  files=()
+                  for file in ${RELEASE_ASSET_FILE}; do
+                      files+=("$file")
+                  done
+                  if [ "${#files[@]}" -eq 0 ]; then
+                      echo "No release asset matched: ${RELEASE_ASSET_FILE}" >&2
+                      exit 1
+                  fi
+                  if [ -n "$asset_name" ] && [ "${#files[@]}" -ne 1 ]; then
+                      echo "RELEASE_ASSET_NAME requires exactly one matched file" >&2
+                      exit 1
+                  fi
+
+                  for file in "${files[@]}"; do
+                      name="${asset_name:-$(basename "$file")}"
+                      encoded_name=$(ASSET_NAME="$name" node -e 'process.stdout.write(encodeURIComponent(process.env.ASSET_NAME))')
+                      assets_json=$(curl -fsS \
+                          --header "Authorization: token ${FORGEJO_TOKEN}" \
+                          "${CH5_FORGEJO_API_URL}/repos/${CH5_FORGEJO_REPOSITORY}/releases/${RELEASE_ID}/assets")
+                      asset_id=$(ASSET_NAME="$name" node -e '
+                          const fs = require("fs");
+                          const assets = JSON.parse(fs.readFileSync(0, "utf8"));
+                          const asset = assets.find((item) => item.name === process.env.ASSET_NAME);
+                          if (asset) process.stdout.write(String(asset.id));
+                      ' <<<"$assets_json")
+                      if [ -n "$asset_id" ]; then
+                          curl -fsS --request DELETE \
+                              --header "Authorization: token ${FORGEJO_TOKEN}" \
+                              "${CH5_FORGEJO_API_URL}/repos/${CH5_FORGEJO_REPOSITORY}/releases/${RELEASE_ID}/assets/${asset_id}"
+                      fi
+                      curl -fsS --request POST \
+                          --header "Authorization: token ${FORGEJO_TOKEN}" \
+                          --form "attachment=@${file}" \
+                          "${CH5_FORGEJO_API_URL}/repos/${CH5_FORGEJO_REPOSITORY}/releases/${RELEASE_ID}/assets?name=${encoded_name}"
+                  done
+                  EOF
+                  chmod +x "$RUNNER_TEMP/upload-forgejo-release-asset"
+            - name: Create release and add tauri-update.json
               id: create_release
-              name: Create release and add tauri-update.json
-              with:
-                  tag_name: "v${{ env.PL_VENDOR_VERSION }}"
-                  name: "v${{ env.PL_VENDOR_VERSION }}"
-                  body: "v${{ env.PL_VENDOR_VERSION }}"
-                  prerelease: true
-                  draft: false
-                  files: packages/tauri/tauri-update.json
-                  fail_on_unmatched_files: true
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  tag="v${{ env.PL_VENDOR_VERSION }}"
+                  payload=$(mktemp)
+                  response=$(mktemp)
+                  node > "$payload" <<NODE_JSON
+                  const payload = {
+                      tag_name: process.env.RELEASE_TAG,
+                      target_commitish: process.env.RELEASE_TARGET,
+                      name: process.env.RELEASE_TAG,
+                      body: process.env.RELEASE_TAG,
+                      prerelease: true,
+                      draft: false,
+                  };
+                  process.stdout.write(JSON.stringify(payload));
+                  NODE_JSON
+                  status=$(curl -sS --output "$response" --write-out "%{http_code}" \
+                      --request POST \
+                      --header "Authorization: token ${FORGEJO_TOKEN}" \
+                      --header "Content-Type: application/json" \
+                      --data @"$payload" \
+                      "${CH5_FORGEJO_API_URL}/repos/${CH5_FORGEJO_REPOSITORY}/releases")
+                  if [ "$status" = "409" ]; then
+                      curl -fsS \
+                          --header "Authorization: token ${FORGEJO_TOKEN}" \
+                          "${CH5_FORGEJO_API_URL}/repos/${CH5_FORGEJO_REPOSITORY}/releases/tags/${tag}" \
+                          > "$response"
+                  elif [[ ! "$status" =~ ^2 ]]; then
+                      cat "$response" >&2
+                      exit 1
+                  fi
+                  release_id=$(node -e 'const fs = require("fs"); const release = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); if (!release.id) process.exit(1); process.stdout.write(String(release.id));' "$response")
+                  echo "id=${release_id}" >> "$FORGEJO_OUTPUT"
+                  RELEASE_ID="$release_id" RELEASE_ASSET_FILE="packages/tauri/tauri-update.json" RELEASE_ASSET_NAME="tauri-update.json" "$RUNNER_TEMP/upload-forgejo-release-asset"
+              env:
+                  RELEASE_TAG: v${{ env.PL_VENDOR_VERSION }}
+                  RELEASE_TARGET: ${{ github.sha }}
 
     release_web_extension:
         name: "Release web extension"
@@ -58,6 +143,7 @@ jobs:
         env:
             RELEASE_BUILD: ${{ github.event.inputs.build || '0' }}
             PL_VENDOR_VERSION: ${{ github.event.inputs.vendor_version || '0.0.1' }}
+            RELEASE_ID: ${{ needs.create_release_tag.outputs.release_id }}
 
         runs-on: ubuntu-latest
         steps:
@@ -69,6 +155,58 @@ jobs:
               run: |
                   npm i -g npm@8.2.0 web-ext@6.6.0
                   npm ci
+            - name: Install Forgejo release helper
+              shell: bash
+              run: |
+                  cat > "$RUNNER_TEMP/upload-forgejo-release-asset" <<'EOF'
+                  #!/usr/bin/env bash
+                  set -euo pipefail
+
+                  : "${CH5_FORGEJO_API_URL:?}"
+                  : "${CH5_FORGEJO_REPOSITORY:?}"
+                  : "${FORGEJO_TOKEN:?}"
+                  : "${RELEASE_ID:?}"
+                  : "${RELEASE_ASSET_FILE:?}"
+
+                  asset_name="${RELEASE_ASSET_NAME:-}"
+                  shopt -s nullglob
+                  files=()
+                  for file in ${RELEASE_ASSET_FILE}; do
+                      files+=("$file")
+                  done
+                  if [ "${#files[@]}" -eq 0 ]; then
+                      echo "No release asset matched: ${RELEASE_ASSET_FILE}" >&2
+                      exit 1
+                  fi
+                  if [ -n "$asset_name" ] && [ "${#files[@]}" -ne 1 ]; then
+                      echo "RELEASE_ASSET_NAME requires exactly one matched file" >&2
+                      exit 1
+                  fi
+
+                  for file in "${files[@]}"; do
+                      name="${asset_name:-$(basename "$file")}"
+                      encoded_name=$(ASSET_NAME="$name" node -e 'process.stdout.write(encodeURIComponent(process.env.ASSET_NAME))')
+                      assets_json=$(curl -fsS \
+                          --header "Authorization: token ${FORGEJO_TOKEN}" \
+                          "${CH5_FORGEJO_API_URL}/repos/${CH5_FORGEJO_REPOSITORY}/releases/${RELEASE_ID}/assets")
+                      asset_id=$(ASSET_NAME="$name" node -e '
+                          const fs = require("fs");
+                          const assets = JSON.parse(fs.readFileSync(0, "utf8"));
+                          const asset = assets.find((item) => item.name === process.env.ASSET_NAME);
+                          if (asset) process.stdout.write(String(asset.id));
+                      ' <<<"$assets_json")
+                      if [ -n "$asset_id" ]; then
+                          curl -fsS --request DELETE \
+                              --header "Authorization: token ${FORGEJO_TOKEN}" \
+                              "${CH5_FORGEJO_API_URL}/repos/${CH5_FORGEJO_REPOSITORY}/releases/${RELEASE_ID}/assets/${asset_id}"
+                      fi
+                      curl -fsS --request POST \
+                          --header "Authorization: token ${FORGEJO_TOKEN}" \
+                          --form "attachment=@${file}" \
+                          "${CH5_FORGEJO_API_URL}/repos/${CH5_FORGEJO_REPOSITORY}/releases/${RELEASE_ID}/assets?name=${encoded_name}"
+                  done
+                  EOF
+                  chmod +x "$RUNNER_TEMP/upload-forgejo-release-asset"
             - name: Build
               env:
                   PL_SERVER_URL: ${{ secrets.PL_SERVER_URL }}
@@ -76,14 +214,7 @@ jobs:
               run: npm run web-extension:build
             # - name: Sign for Firefox
             #   run: cd packages/extension/dist && web-ext sign --id="${{ secrets.PL_WEB_EXTENSION_FIREFOX_ID }}" --channel=unlisted --api-key=${{ secrets.PL_WEB_EXTENSION_FIREFOX_API_KEY }} --api-secret=${{ secrets.PL_WEB_EXTENSION_FIREFOX_API_SECRET }}
-            # - name: Upload Signed Web Extension (Firefox)
-            #   uses: svenstaro/upload-release-action@2.2.1
-            #   with:
-            #       repo_token: ${{ secrets.GITHUB_TOKEN }}
-            #       tag: "v${{ env.PL_VENDOR_VERSION }}"
-            #       file: packages/extension/dist/web-ext-artifacts/padloc-${{ env.PL_VENDOR_VERSION }}.${{ env.RELEASE_BUILD }}.xpi
-            #       asset_name: padloc_${{ env.PL_VENDOR_VERSION }}_web-extension_firefox.xpi
-            #       prerelease: true
+            # Firefox release upload disabled until signing is restored.
             - name: Pack for Chrome/Edge Extension
               uses: cardinalby/webext-buildtools-pack-extension-dir-action@v1
               with:
@@ -91,13 +222,11 @@ jobs:
                   zipFilePath: packages/extension/padloc.zip
                   zipIgnore: web-ext-artifacts/**|*.xpi
             - name: Upload Unsigned Web Extension (Chrome/Edge)
-              uses: svenstaro/upload-release-action@2.2.1
-              with:
-                  repo_token: ${{ secrets.GITHUB_TOKEN }}
-                  tag: "v${{ env.PL_VENDOR_VERSION }}"
-                  file: packages/extension/padloc.zip
-                  asset_name: padloc_${{ env.PL_VENDOR_VERSION }}_web-extension_unsigned.zip
-                  prerelease: true
+              env:
+                  RELEASE_ASSET_FILE: packages/extension/padloc.zip
+                  RELEASE_ASSET_NAME: padloc_${{ env.PL_VENDOR_VERSION }}_web-extension_unsigned.zip
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
             - name: Sign for Chrome/Edge
               uses: cardinalby/webext-buildtools-chrome-crx-action@v2
               with:
@@ -105,37 +234,26 @@ jobs:
                   crxFilePath: packages/extension/padloc-signed.crx
                   privateKey: ${{ secrets.PL_WEB_EXTENSION_CHROME_CRX_PRIVATE_KEY }}
             - name: Upload Signed Web Extension (Chrome/Edge)
-              uses: svenstaro/upload-release-action@2.2.1
-              with:
-                  repo_token: ${{ secrets.GITHUB_TOKEN }}
-                  tag: "v${{ env.PL_VENDOR_VERSION }}"
-                  file: packages/extension/padloc-signed.crx
-                  asset_name: padloc_${{ env.PL_VENDOR_VERSION }}_web-extension_chrome.crx
-                  prerelease: true
+              env:
+                  RELEASE_ASSET_FILE: packages/extension/padloc-signed.crx
+                  RELEASE_ASSET_NAME: padloc_${{ env.PL_VENDOR_VERSION }}_web-extension_chrome.crx
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
             # - name: Generate checksum (xpi)
             #   run: |
             #       cd packages/extension/dist/web-ext-artifacts
             #       sha256sum padloc*.xpi > sha256sum-xpi.txt
-            # - name: Upload checksum (xpi)
-            #   uses: svenstaro/upload-release-action@2.2.1
-            #   with:
-            #       repo_token: ${{ secrets.GITHUB_TOKEN }}
-            #       tag: "v${{ env.PL_VENDOR_VERSION }}"
-            #       file: packages/extension/dist/web-ext-artifacts/sha256sum-xpi.txt
-            #       asset_name: sha256sum-xpi.txt
-            #       prerelease: true
+            # Firefox checksum upload disabled until signing is restored.
             - name: Generate checksum (crx)
               run: |
                   cd packages/extension
                   sha256sum padloc-signed.crx > sha256sum-crx.txt
             - name: Upload checksum (crx)
-              uses: svenstaro/upload-release-action@2.2.1
-              with:
-                  repo_token: ${{ secrets.GITHUB_TOKEN }}
-                  tag: "v${{ env.PL_VENDOR_VERSION }}"
-                  file: packages/extension/sha256sum-crx.txt
-                  asset_name: sha256sum-crx.txt
-                  prerelease: true
+              env:
+                  RELEASE_ASSET_FILE: packages/extension/sha256sum-crx.txt
+                  RELEASE_ASSET_NAME: sha256sum-crx.txt
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
 
     release_tauri:
         name: "Release Tauri apps"
@@ -173,10 +291,61 @@ jobs:
               run: |
                   npm i -g npm@8.2.0
                   npm ci
+            - name: Install Forgejo release helper
+              shell: bash
+              run: |
+                  cat > "$RUNNER_TEMP/upload-forgejo-release-asset" <<'EOF'
+                  #!/usr/bin/env bash
+                  set -euo pipefail
+
+                  : "${CH5_FORGEJO_API_URL:?}"
+                  : "${CH5_FORGEJO_REPOSITORY:?}"
+                  : "${FORGEJO_TOKEN:?}"
+                  : "${RELEASE_ID:?}"
+                  : "${RELEASE_ASSET_FILE:?}"
+
+                  asset_name="${RELEASE_ASSET_NAME:-}"
+                  shopt -s nullglob
+                  files=()
+                  for file in ${RELEASE_ASSET_FILE}; do
+                      files+=("$file")
+                  done
+                  if [ "${#files[@]}" -eq 0 ]; then
+                      echo "No release asset matched: ${RELEASE_ASSET_FILE}" >&2
+                      exit 1
+                  fi
+                  if [ -n "$asset_name" ] && [ "${#files[@]}" -ne 1 ]; then
+                      echo "RELEASE_ASSET_NAME requires exactly one matched file" >&2
+                      exit 1
+                  fi
+
+                  for file in "${files[@]}"; do
+                      name="${asset_name:-$(basename "$file")}"
+                      encoded_name=$(ASSET_NAME="$name" node -e 'process.stdout.write(encodeURIComponent(process.env.ASSET_NAME))')
+                      assets_json=$(curl -fsS \
+                          --header "Authorization: token ${FORGEJO_TOKEN}" \
+                          "${CH5_FORGEJO_API_URL}/repos/${CH5_FORGEJO_REPOSITORY}/releases/${RELEASE_ID}/assets")
+                      asset_id=$(ASSET_NAME="$name" node -e '
+                          const fs = require("fs");
+                          const assets = JSON.parse(fs.readFileSync(0, "utf8"));
+                          const asset = assets.find((item) => item.name === process.env.ASSET_NAME);
+                          if (asset) process.stdout.write(String(asset.id));
+                      ' <<<"$assets_json")
+                      if [ -n "$asset_id" ]; then
+                          curl -fsS --request DELETE \
+                              --header "Authorization: token ${FORGEJO_TOKEN}" \
+                              "${CH5_FORGEJO_API_URL}/repos/${CH5_FORGEJO_REPOSITORY}/releases/${RELEASE_ID}/assets/${asset_id}"
+                      fi
+                      curl -fsS --request POST \
+                          --header "Authorization: token ${FORGEJO_TOKEN}" \
+                          --form "attachment=@${file}" \
+                          "${CH5_FORGEJO_API_URL}/repos/${CH5_FORGEJO_REPOSITORY}/releases/${RELEASE_ID}/assets?name=${encoded_name}"
+                  done
+                  EOF
+                  chmod +x "$RUNNER_TEMP/upload-forgejo-release-asset"
             - uses: tauri-apps/tauri-action@v0.3.1
               env:
                   PL_SERVER_URL: ${{ secrets.PL_SERVER_URL }}
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
                   TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
                   ENABLE_CODE_SIGNING: true
@@ -186,8 +355,13 @@ jobs:
                   APPLE_ID: ${{ secrets.PL_MACOS_NOTARIZE_APPLE_ID }}
                   APPLE_PASSWORD: ${{ secrets.PL_MACOS_NOTARIZE_PASSWORD }}
               with:
-                  releaseId: ${{ env.RELEASE_ID }}
                   projectPath: packages/tauri
+            - name: Upload AppImage
+              if: matrix.platform == 'ubuntu-latest'
+              env:
+                  RELEASE_ASSET_FILE: packages/tauri/src-tauri/target/release/bundle/appimage/*.AppImage
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
             - name: Generate checksum (AppImage)
               if: matrix.platform == 'ubuntu-latest'
               run: |
@@ -195,13 +369,17 @@ jobs:
                   sha256sum padloc*.AppImage > sha256sum-appimage.txt
             - name: Upload checksum (AppImage)
               if: matrix.platform == 'ubuntu-latest'
-              uses: svenstaro/upload-release-action@2.2.1
-              with:
-                  repo_token: ${{ secrets.GITHUB_TOKEN }}
-                  tag: "v${{ env.PL_VENDOR_VERSION }}"
-                  file: packages/tauri/src-tauri/target/release/bundle/appimage/sha256sum-appimage.txt
-                  asset_name: sha256sum-tauri-appimage.txt
-                  prerelease: true
+              env:
+                  RELEASE_ASSET_FILE: packages/tauri/src-tauri/target/release/bundle/appimage/sha256sum-appimage.txt
+                  RELEASE_ASSET_NAME: sha256sum-tauri-appimage.txt
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
+            - name: Upload deb
+              if: matrix.platform == 'ubuntu-latest'
+              env:
+                  RELEASE_ASSET_FILE: packages/tauri/src-tauri/target/release/bundle/deb/*.deb
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
             - name: Generate checksum (deb)
               if: matrix.platform == 'ubuntu-latest'
               run: |
@@ -209,13 +387,17 @@ jobs:
                   sha256sum *.deb > sha256sum-deb.txt
             - name: Upload checksum (deb)
               if: matrix.platform == 'ubuntu-latest'
-              uses: svenstaro/upload-release-action@2.2.1
-              with:
-                  repo_token: ${{ secrets.GITHUB_TOKEN }}
-                  tag: "v${{ env.PL_VENDOR_VERSION }}"
-                  file: packages/tauri/src-tauri/target/release/bundle/deb/sha256sum-deb.txt
-                  asset_name: sha256sum-tauri-deb.txt
-                  prerelease: true
+              env:
+                  RELEASE_ASSET_FILE: packages/tauri/src-tauri/target/release/bundle/deb/sha256sum-deb.txt
+                  RELEASE_ASSET_NAME: sha256sum-tauri-deb.txt
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
+            - name: Upload dmg
+              if: matrix.platform == 'macos-latest'
+              env:
+                  RELEASE_ASSET_FILE: packages/tauri/src-tauri/target/release/bundle/dmg/*.dmg
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
             - name: Generate checksum (dmg)
               if: matrix.platform == 'macos-latest'
               run: |
@@ -223,13 +405,17 @@ jobs:
                   sha256sum *.dmg > sha256sum-dmg.txt
             - name: Upload checksum (dmg)
               if: matrix.platform == 'macos-latest'
-              uses: svenstaro/upload-release-action@2.2.1
-              with:
-                  repo_token: ${{ secrets.GITHUB_TOKEN }}
-                  tag: "v${{ env.PL_VENDOR_VERSION }}"
-                  file: packages/tauri/src-tauri/target/release/bundle/dmg/sha256sum-dmg.txt
-                  asset_name: sha256sum-tauri-dmg.txt
-                  prerelease: true
+              env:
+                  RELEASE_ASSET_FILE: packages/tauri/src-tauri/target/release/bundle/dmg/sha256sum-dmg.txt
+                  RELEASE_ASSET_NAME: sha256sum-tauri-dmg.txt
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
+            - name: Upload msi
+              if: matrix.platform == 'windows-latest'
+              env:
+                  RELEASE_ASSET_FILE: packages/tauri/src-tauri/target/release/bundle/msi/*.msi
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
             - name: Generate checksum (msi)
               if: matrix.platform == 'windows-latest'
               run: |
@@ -237,13 +423,11 @@ jobs:
                   sha256sum *.msi > sha256sum-msi.txt
             - name: Upload checksum (msi)
               if: matrix.platform == 'windows-latest'
-              uses: svenstaro/upload-release-action@2.2.1
-              with:
-                  repo_token: ${{ secrets.GITHUB_TOKEN }}
-                  tag: "v${{ env.PL_VENDOR_VERSION }}"
-                  file: packages/tauri/src-tauri/target/release/bundle/msi/sha256sum-msi.txt
-                  asset_name: sha256sum-tauri-msi.txt
-                  prerelease: true
+              env:
+                  RELEASE_ASSET_FILE: packages/tauri/src-tauri/target/release/bundle/msi/sha256sum-msi.txt
+                  RELEASE_ASSET_NAME: sha256sum-tauri-msi.txt
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
 
     release_electron:
         name: "Release Electron apps"
@@ -278,6 +462,58 @@ jobs:
               run: |
                   npm i -g npm@8.2.0
                   npm ci
+            - name: Install Forgejo release helper
+              shell: bash
+              run: |
+                  cat > "$RUNNER_TEMP/upload-forgejo-release-asset" <<'EOF'
+                  #!/usr/bin/env bash
+                  set -euo pipefail
+
+                  : "${CH5_FORGEJO_API_URL:?}"
+                  : "${CH5_FORGEJO_REPOSITORY:?}"
+                  : "${FORGEJO_TOKEN:?}"
+                  : "${RELEASE_ID:?}"
+                  : "${RELEASE_ASSET_FILE:?}"
+
+                  asset_name="${RELEASE_ASSET_NAME:-}"
+                  shopt -s nullglob
+                  files=()
+                  for file in ${RELEASE_ASSET_FILE}; do
+                      files+=("$file")
+                  done
+                  if [ "${#files[@]}" -eq 0 ]; then
+                      echo "No release asset matched: ${RELEASE_ASSET_FILE}" >&2
+                      exit 1
+                  fi
+                  if [ -n "$asset_name" ] && [ "${#files[@]}" -ne 1 ]; then
+                      echo "RELEASE_ASSET_NAME requires exactly one matched file" >&2
+                      exit 1
+                  fi
+
+                  for file in "${files[@]}"; do
+                      name="${asset_name:-$(basename "$file")}"
+                      encoded_name=$(ASSET_NAME="$name" node -e 'process.stdout.write(encodeURIComponent(process.env.ASSET_NAME))')
+                      assets_json=$(curl -fsS \
+                          --header "Authorization: token ${FORGEJO_TOKEN}" \
+                          "${CH5_FORGEJO_API_URL}/repos/${CH5_FORGEJO_REPOSITORY}/releases/${RELEASE_ID}/assets")
+                      asset_id=$(ASSET_NAME="$name" node -e '
+                          const fs = require("fs");
+                          const assets = JSON.parse(fs.readFileSync(0, "utf8"));
+                          const asset = assets.find((item) => item.name === process.env.ASSET_NAME);
+                          if (asset) process.stdout.write(String(asset.id));
+                      ' <<<"$assets_json")
+                      if [ -n "$asset_id" ]; then
+                          curl -fsS --request DELETE \
+                              --header "Authorization: token ${FORGEJO_TOKEN}" \
+                              "${CH5_FORGEJO_API_URL}/repos/${CH5_FORGEJO_REPOSITORY}/releases/${RELEASE_ID}/assets/${asset_id}"
+                      fi
+                      curl -fsS --request POST \
+                          --header "Authorization: token ${FORGEJO_TOKEN}" \
+                          --form "attachment=@${file}" \
+                          "${CH5_FORGEJO_API_URL}/repos/${CH5_FORGEJO_REPOSITORY}/releases/${RELEASE_ID}/assets?name=${encoded_name}"
+                  done
+                  EOF
+                  chmod +x "$RUNNER_TEMP/upload-forgejo-release-asset"
             - name: Build
               run: |
                   npm run electron:build
@@ -287,7 +523,6 @@ jobs:
                   CSC_KEY_PASSWORD: ${{ secrets.PL_MACOS_SIGNING_CERT_PASSWORD }}
                   PL_MACOS_NOTARIZE_APPLE_ID: ${{ secrets.PL_MACOS_NOTARIZE_APPLE_ID }}
                   PL_MACOS_NOTARIZE_PASSWORD: ${{ secrets.PL_MACOS_NOTARIZE_PASSWORD }}
-                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   EP_PRE_RELEASE: true
             - name: Build Flatpak
               if: matrix.platform == 'ubuntu-latest'
@@ -295,8 +530,13 @@ jobs:
                   npm run electron:build:flatpak
               env:
                   PL_PWA_URL: ${{ secrets.PL_PWA_URL }}
-                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   EP_PRE_RELEASE: true
+            - name: Upload AppImage
+              if: matrix.platform == 'ubuntu-latest'
+              env:
+                  RELEASE_ASSET_FILE: packages/electron/dist/*.AppImage
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
             - name: Generate checksum (AppImage)
               if: matrix.platform == 'ubuntu-latest'
               run: |
@@ -304,13 +544,17 @@ jobs:
                   sha256sum *.AppImage > sha256sum-appimage.txt
             - name: Upload checksum (AppImage)
               if: matrix.platform == 'ubuntu-latest'
-              uses: svenstaro/upload-release-action@2.2.1
-              with:
-                  repo_token: ${{ secrets.GITHUB_TOKEN }}
-                  tag: "v${{ env.PL_VENDOR_VERSION }}"
-                  file: packages/electron/dist/sha256sum-appimage.txt
-                  asset_name: sha256sum-electron-appimage.txt
-                  prerelease: true
+              env:
+                  RELEASE_ASSET_FILE: packages/electron/dist/sha256sum-appimage.txt
+                  RELEASE_ASSET_NAME: sha256sum-electron-appimage.txt
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
+            - name: Upload deb
+              if: matrix.platform == 'ubuntu-latest'
+              env:
+                  RELEASE_ASSET_FILE: packages/electron/dist/*.deb
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
             - name: Generate checksum (deb)
               if: matrix.platform == 'ubuntu-latest'
               run: |
@@ -318,13 +562,17 @@ jobs:
                   sha256sum *.deb > sha256sum-deb.txt
             - name: Upload checksum (deb)
               if: matrix.platform == 'ubuntu-latest'
-              uses: svenstaro/upload-release-action@2.2.1
-              with:
-                  repo_token: ${{ secrets.GITHUB_TOKEN }}
-                  tag: "v${{ env.PL_VENDOR_VERSION }}"
-                  file: packages/electron/dist/sha256sum-deb.txt
-                  asset_name: sha256sum-electron-deb.txt
-                  prerelease: true
+              env:
+                  RELEASE_ASSET_FILE: packages/electron/dist/sha256sum-deb.txt
+                  RELEASE_ASSET_NAME: sha256sum-electron-deb.txt
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
+            - name: Upload snap
+              if: matrix.platform == 'ubuntu-latest'
+              env:
+                  RELEASE_ASSET_FILE: packages/electron/dist/*.snap
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
             - name: Generate checksum (snap)
               if: matrix.platform == 'ubuntu-latest'
               run: |
@@ -332,13 +580,17 @@ jobs:
                   sha256sum *.snap > sha256sum-snap.txt
             - name: Upload checksum (snap)
               if: matrix.platform == 'ubuntu-latest'
-              uses: svenstaro/upload-release-action@2.2.1
-              with:
-                  repo_token: ${{ secrets.GITHUB_TOKEN }}
-                  tag: "v${{ env.PL_VENDOR_VERSION }}"
-                  file: packages/electron/dist/sha256sum-snap.txt
-                  asset_name: sha256sum-electron-snap.txt
-                  prerelease: true
+              env:
+                  RELEASE_ASSET_FILE: packages/electron/dist/sha256sum-snap.txt
+                  RELEASE_ASSET_NAME: sha256sum-electron-snap.txt
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
+            - name: Upload flatpak
+              if: matrix.platform == 'ubuntu-latest'
+              env:
+                  RELEASE_ASSET_FILE: packages/electron/dist/*.flatpak
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
             - name: Generate checksum (flatpak)
               if: matrix.platform == 'ubuntu-latest'
               run: |
@@ -346,13 +598,17 @@ jobs:
                   sha256sum *.flatpak > sha256sum-flatpak.txt
             - name: Upload checksum (flatpak)
               if: matrix.platform == 'ubuntu-latest'
-              uses: svenstaro/upload-release-action@2.2.1
-              with:
-                  repo_token: ${{ secrets.GITHUB_TOKEN }}
-                  tag: "v${{ env.PL_VENDOR_VERSION }}"
-                  file: packages/electron/dist/sha256sum-flatpak.txt
-                  asset_name: sha256sum-electron-flatpak.txt
-                  prerelease: true
+              env:
+                  RELEASE_ASSET_FILE: packages/electron/dist/sha256sum-flatpak.txt
+                  RELEASE_ASSET_NAME: sha256sum-electron-flatpak.txt
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
+            - name: Upload dmg
+              if: matrix.platform == 'macos-latest'
+              env:
+                  RELEASE_ASSET_FILE: packages/electron/dist/*.dmg
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
             - name: Generate checksum (dmg)
               if: matrix.platform == 'macos-latest'
               run: |
@@ -360,13 +616,17 @@ jobs:
                   sha256sum *.dmg > sha256sum-dmg.txt
             - name: Upload checksum (dmg)
               if: matrix.platform == 'macos-latest'
-              uses: svenstaro/upload-release-action@2.2.1
-              with:
-                  repo_token: ${{ secrets.GITHUB_TOKEN }}
-                  tag: "v${{ env.PL_VENDOR_VERSION }}"
-                  file: packages/electron/dist/sha256sum-dmg.txt
-                  asset_name: sha256sum-electron-dmg.txt
-                  prerelease: true
+              env:
+                  RELEASE_ASSET_FILE: packages/electron/dist/sha256sum-dmg.txt
+                  RELEASE_ASSET_NAME: sha256sum-electron-dmg.txt
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
+            - name: Upload exe
+              if: matrix.platform == 'windows-latest'
+              env:
+                  RELEASE_ASSET_FILE: packages/electron/dist/*.exe
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
             - name: Generate checksum (exe)
               if: matrix.platform == 'windows-latest'
               run: |
@@ -374,13 +634,11 @@ jobs:
                   sha256sum *.exe > sha256sum-exe.txt
             - name: Upload checksum (exe)
               if: matrix.platform == 'windows-latest'
-              uses: svenstaro/upload-release-action@2.2.1
-              with:
-                  repo_token: ${{ secrets.GITHUB_TOKEN }}
-                  tag: "v${{ env.PL_VENDOR_VERSION }}"
-                  file: packages/electron/dist/sha256sum-exe.txt
-                  asset_name: sha256sum-electron-exe.txt
-                  prerelease: true
+              env:
+                  RELEASE_ASSET_FILE: packages/electron/dist/sha256sum-exe.txt
+                  RELEASE_ASSET_NAME: sha256sum-electron-exe.txt
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
 
     release_cordova:
         name: "Release Cordova apps"
@@ -423,6 +681,58 @@ jobs:
               run: |
                   npm i -g npm@8.2.0
                   npm ci
+            - name: Install Forgejo release helper
+              shell: bash
+              run: |
+                  cat > "$RUNNER_TEMP/upload-forgejo-release-asset" <<'EOF'
+                  #!/usr/bin/env bash
+                  set -euo pipefail
+
+                  : "${CH5_FORGEJO_API_URL:?}"
+                  : "${CH5_FORGEJO_REPOSITORY:?}"
+                  : "${FORGEJO_TOKEN:?}"
+                  : "${RELEASE_ID:?}"
+                  : "${RELEASE_ASSET_FILE:?}"
+
+                  asset_name="${RELEASE_ASSET_NAME:-}"
+                  shopt -s nullglob
+                  files=()
+                  for file in ${RELEASE_ASSET_FILE}; do
+                      files+=("$file")
+                  done
+                  if [ "${#files[@]}" -eq 0 ]; then
+                      echo "No release asset matched: ${RELEASE_ASSET_FILE}" >&2
+                      exit 1
+                  fi
+                  if [ -n "$asset_name" ] && [ "${#files[@]}" -ne 1 ]; then
+                      echo "RELEASE_ASSET_NAME requires exactly one matched file" >&2
+                      exit 1
+                  fi
+
+                  for file in "${files[@]}"; do
+                      name="${asset_name:-$(basename "$file")}"
+                      encoded_name=$(ASSET_NAME="$name" node -e 'process.stdout.write(encodeURIComponent(process.env.ASSET_NAME))')
+                      assets_json=$(curl -fsS \
+                          --header "Authorization: token ${FORGEJO_TOKEN}" \
+                          "${CH5_FORGEJO_API_URL}/repos/${CH5_FORGEJO_REPOSITORY}/releases/${RELEASE_ID}/assets")
+                      asset_id=$(ASSET_NAME="$name" node -e '
+                          const fs = require("fs");
+                          const assets = JSON.parse(fs.readFileSync(0, "utf8"));
+                          const asset = assets.find((item) => item.name === process.env.ASSET_NAME);
+                          if (asset) process.stdout.write(String(asset.id));
+                      ' <<<"$assets_json")
+                      if [ -n "$asset_id" ]; then
+                          curl -fsS --request DELETE \
+                              --header "Authorization: token ${FORGEJO_TOKEN}" \
+                              "${CH5_FORGEJO_API_URL}/repos/${CH5_FORGEJO_REPOSITORY}/releases/${RELEASE_ID}/assets/${asset_id}"
+                      fi
+                      curl -fsS --request POST \
+                          --header "Authorization: token ${FORGEJO_TOKEN}" \
+                          --form "attachment=@${file}" \
+                          "${CH5_FORGEJO_API_URL}/repos/${CH5_FORGEJO_REPOSITORY}/releases/${RELEASE_ID}/assets?name=${encoded_name}"
+                  done
+                  EOF
+                  chmod +x "$RUNNER_TEMP/upload-forgejo-release-asset"
             - name: Create android-upload-key.keystore
               if: matrix.platform == 'ubuntu-latest'
               run: |
@@ -488,21 +798,12 @@ jobs:
             #       ./node_modules/.bin/cordova build ios --release --device --packageType=app-store --codeSignIdentity="${{ secrets.PL_IOS_CODE_SIGN_IDENTITY }}" --developmentTeam="${{ secrets.PL_IOS_DEVELOPMENT_TEAM }}"
             - name: Upload Signed APK
               if: matrix.platform == 'ubuntu-latest'
-              uses: svenstaro/upload-release-action@2.2.1
-              with:
-                  repo_token: ${{ secrets.GITHUB_TOKEN }}
-                  tag: "v${{ env.PL_VENDOR_VERSION }}"
-                  file: packages/cordova/platforms/android/app/build/outputs/apk/release/app-release.apk
-                  asset_name: padloc_${{ env.PL_VENDOR_VERSION }}_android.apk
-                  prerelease: true
-            # - name: Upload Signed IPA
-            #   if: matrix.platform == 'macos-latest'
-            #   uses: svenstaro/upload-release-action@2.2.1
-            #   with:
-            #       repo_token: ${{ secrets.GITHUB_TOKEN }}
-            #       tag: "v${{ env.PL_VENDOR_VERSION }}"
-            #       file: packages/cordova/platforms/ios/build/device/Padloc.ipa
-            #       asset_name: padloc_${{ env.PL_VENDOR_VERSION }}_ios.ipa
+              env:
+                  RELEASE_ASSET_FILE: packages/cordova/platforms/android/app/build/outputs/apk/release/app-release.apk
+                  RELEASE_ASSET_NAME: padloc_${{ env.PL_VENDOR_VERSION }}_android.apk
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
+            # iOS release upload disabled until App Store signing is restored.
             #       prerelease: true
             - name: Generate checksum (apk)
               if: matrix.platform == 'ubuntu-latest'
@@ -511,26 +812,17 @@ jobs:
                   sha256sum app-release.apk > sha256sum-apk.txt
             - name: Upload checksum (apk)
               if: matrix.platform == 'ubuntu-latest'
-              uses: svenstaro/upload-release-action@2.2.1
-              with:
-                  repo_token: ${{ secrets.GITHUB_TOKEN }}
-                  tag: "v${{ env.PL_VENDOR_VERSION }}"
-                  file: packages/cordova/platforms/android/app/build/outputs/apk/release/sha256sum-apk.txt
-                  asset_name: sha256sum-apk.txt
-                  prerelease: true
+              env:
+                  RELEASE_ASSET_FILE: packages/cordova/platforms/android/app/build/outputs/apk/release/sha256sum-apk.txt
+                  RELEASE_ASSET_NAME: sha256sum-apk.txt
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
             # - name: Generate checksum (ipa)
             #   if: matrix.platform == 'macos-latest'
             #   run: |
             #       cd packages/cordova/platforms/ios/build/device
             #       sha256sum Padloc.ipa > sha256sum-ipa.txt
-            # - name: Upload checksum (ipa)
-            #   if: matrix.platform == 'macos-latest'
-            #   uses: svenstaro/upload-release-action@2.2.1
-            #   with:
-            #       repo_token: ${{ secrets.GITHUB_TOKEN }}
-            #       tag: "v${{ env.PL_VENDOR_VERSION }}"
-            #       file: packages/cordova/platforms/ios/build/device/sha256sum-ipa.txt
-            #       asset_name: sha256sum-ipa.txt
+            # iOS checksum upload disabled until App Store signing is restored.
             #       prerelease: true
             # - name: Upload Signed IPA to App Store
             #   if: matrix.platform == 'macos-latest'
@@ -563,6 +855,58 @@ jobs:
               run: |
                   npm i -g npm@8.2.0
                   npm ci
+            - name: Install Forgejo release helper
+              shell: bash
+              run: |
+                  cat > "$RUNNER_TEMP/upload-forgejo-release-asset" <<'EOF'
+                  #!/usr/bin/env bash
+                  set -euo pipefail
+
+                  : "${CH5_FORGEJO_API_URL:?}"
+                  : "${CH5_FORGEJO_REPOSITORY:?}"
+                  : "${FORGEJO_TOKEN:?}"
+                  : "${RELEASE_ID:?}"
+                  : "${RELEASE_ASSET_FILE:?}"
+
+                  asset_name="${RELEASE_ASSET_NAME:-}"
+                  shopt -s nullglob
+                  files=()
+                  for file in ${RELEASE_ASSET_FILE}; do
+                      files+=("$file")
+                  done
+                  if [ "${#files[@]}" -eq 0 ]; then
+                      echo "No release asset matched: ${RELEASE_ASSET_FILE}" >&2
+                      exit 1
+                  fi
+                  if [ -n "$asset_name" ] && [ "${#files[@]}" -ne 1 ]; then
+                      echo "RELEASE_ASSET_NAME requires exactly one matched file" >&2
+                      exit 1
+                  fi
+
+                  for file in "${files[@]}"; do
+                      name="${asset_name:-$(basename "$file")}"
+                      encoded_name=$(ASSET_NAME="$name" node -e 'process.stdout.write(encodeURIComponent(process.env.ASSET_NAME))')
+                      assets_json=$(curl -fsS \
+                          --header "Authorization: token ${FORGEJO_TOKEN}" \
+                          "${CH5_FORGEJO_API_URL}/repos/${CH5_FORGEJO_REPOSITORY}/releases/${RELEASE_ID}/assets")
+                      asset_id=$(ASSET_NAME="$name" node -e '
+                          const fs = require("fs");
+                          const assets = JSON.parse(fs.readFileSync(0, "utf8"));
+                          const asset = assets.find((item) => item.name === process.env.ASSET_NAME);
+                          if (asset) process.stdout.write(String(asset.id));
+                      ' <<<"$assets_json")
+                      if [ -n "$asset_id" ]; then
+                          curl -fsS --request DELETE \
+                              --header "Authorization: token ${FORGEJO_TOKEN}" \
+                              "${CH5_FORGEJO_API_URL}/repos/${CH5_FORGEJO_REPOSITORY}/releases/${RELEASE_ID}/assets/${asset_id}"
+                      fi
+                      curl -fsS --request POST \
+                          --header "Authorization: token ${FORGEJO_TOKEN}" \
+                          --form "attachment=@${file}" \
+                          "${CH5_FORGEJO_API_URL}/repos/${CH5_FORGEJO_REPOSITORY}/releases/${RELEASE_ID}/assets?name=${encoded_name}"
+                  done
+                  EOF
+                  chmod +x "$RUNNER_TEMP/upload-forgejo-release-asset"
             - name: Build
               run: |
                   npm run pwa:build
@@ -574,33 +918,27 @@ jobs:
                   cd packages/pwa/dist
                   tar -czf ../pwa.tar.gz *
             - name: Upload pwa.tar.gz
-              uses: svenstaro/upload-release-action@2.2.1
-              with:
-                  repo_token: ${{ secrets.GITHUB_TOKEN }}
-                  tag: "v${{ env.PL_VENDOR_VERSION }}"
-                  file: packages/pwa/pwa.tar.gz
-                  asset_name: padloc_${{ env.PL_VENDOR_VERSION }}_pwa.tar.gz
-                  prerelease: true
+              env:
+                  RELEASE_ASSET_FILE: packages/pwa/pwa.tar.gz
+                  RELEASE_ASSET_NAME: padloc_${{ env.PL_VENDOR_VERSION }}_pwa.tar.gz
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
             - name: Generate checksums
               run: |
                   cd packages/pwa/dist
                   find . -type f ! -name "sha256sums-web.txt" -exec sha256sum {} > sha256sums-web.txt \;
             - name: Upload checksums
-              uses: svenstaro/upload-release-action@2.2.1
-              with:
-                  repo_token: ${{ secrets.GITHUB_TOKEN }}
-                  tag: "v${{ env.PL_VENDOR_VERSION }}"
-                  file: packages/pwa/dist/sha256sums-web.txt
-                  asset_name: sha256sums-web.txt
-                  prerelease: true
+              env:
+                  RELEASE_ASSET_FILE: packages/pwa/dist/sha256sums-web.txt
+                  RELEASE_ASSET_NAME: sha256sums-web.txt
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
             - name: Upload CSP parser
-              uses: svenstaro/upload-release-action@2.2.1
-              with:
-                  repo_token: ${{ secrets.GITHUB_TOKEN }}
-                  tag: "v${{ env.PL_VENDOR_VERSION }}"
-                  file: docs/checksums/web/parse-csp.ts
-                  asset_name: parse-csp.ts
-                  prerelease: true
+              env:
+                  RELEASE_ASSET_FILE: docs/checksums/web/parse-csp.ts
+                  RELEASE_ASSET_NAME: parse-csp.ts
+              run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
+              shell: bash
 
     update_dockerhub:
         name: "Update DockerHub"
@@ -635,14 +973,21 @@ jobs:
         runs-on: ubuntu-latest
         env:
             PL_VENDOR_VERSION: ${{ github.event.inputs.vendor_version || '0.0.1' }}
-            DOCS_GITHUB_REPO: ${{ secrets.DOCS_GITHUB_REPO }}
+            DOCS_FORGEJO_REPO: ${{ secrets.DOCS_FORGEJO_REPO }}
+            DOCS_FORGEJO_TOKEN: ${{ secrets.DOCS_FORGEJO_TOKEN }}
         steps:
-            - name: Call the GitHub Action to update docs
-              if: github.event.inputs.environment == 'Production' && ${{ env.DOCS_GITHUB_REPO }}
+            - name: Update docs download URLs
+              if: github.event.inputs.environment == 'Production'
+              shell: bash
               run: |
-                  curl --request POST \
-                    --url https://api.github.com/repos/${{ env.DOCS_GITHUB_REPO }}/actions/workflows/update-downloads-urls.yml/dispatches \
-                    --header 'Authorization: Basic ${{ secrets.DEVOPS_BASIC_AUTH_TOKEN }}' \
+                  set -euo pipefail
+                  if [ -z "${DOCS_FORGEJO_REPO:-}" ] || [ -z "${DOCS_FORGEJO_TOKEN:-}" ]; then
+                      echo "Skipping docs update: DOCS_FORGEJO_REPO or DOCS_FORGEJO_TOKEN unset"
+                      exit 0
+                  fi
+                  curl -fsS --request POST \
+                    --url "${CH5_FORGEJO_API_URL}/repos/${DOCS_FORGEJO_REPO}/actions/workflows/update-downloads-urls.yml/dispatches" \
+                    --header "Authorization: token ${DOCS_FORGEJO_TOKEN}" \
                     --header 'Content-Type: application/json' \
                     --data '{
                         "ref": "main",
@@ -651,15 +996,21 @@ jobs:
                         }
                     }'
             - name: Sleep for 1min
-              if: github.event.inputs.environment == 'Production' && ${{ env.DOCS_GITHUB_REPO }}
+              if: github.event.inputs.environment == 'Production'
               run: sleep 60s
               shell: bash
-            - name: Rebuild the docs page
-              if: github.event.inputs.environment == 'Production' && ${{ env.DOCS_GITHUB_REPO }}
+            - name: Rebuild docs page
+              if: github.event.inputs.environment == 'Production'
+              shell: bash
               run: |
-                  curl --request POST \
-                    --url https://api.github.com/repos/${{ env.DOCS_GITHUB_REPO }}/actions/workflows/deploy.yml/dispatches \
-                    --header 'Authorization: Basic ${{ secrets.DEVOPS_BASIC_AUTH_TOKEN }}' \
+                  set -euo pipefail
+                  if [ -z "${DOCS_FORGEJO_REPO:-}" ] || [ -z "${DOCS_FORGEJO_TOKEN:-}" ]; then
+                      echo "Skipping docs deploy: DOCS_FORGEJO_REPO or DOCS_FORGEJO_TOKEN unset"
+                      exit 0
+                  fi
+                  curl -fsS --request POST \
+                    --url "${CH5_FORGEJO_API_URL}/repos/${DOCS_FORGEJO_REPO}/actions/workflows/deploy.yml/dispatches" \
+                    --header "Authorization: token ${DOCS_FORGEJO_TOKEN}" \
                     --header 'Content-Type: application/json' \
                     --data '{
                         "ref": "main",
