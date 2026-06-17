@@ -7,6 +7,7 @@ import { FieldType, Field } from "@padloc/core/src/item";
 import { ExtensionPlatform } from "./platform";
 import { Message, messageTab, SavePrompt, CredentialData } from "./message";
 import { clearSessionMasterKey, configureSessionStorage, getSessionMasterKey } from "./storage";
+import { buildLockedBrokerResponse } from "./autofill-broker-protocol";
 
 setPlatform(new ExtensionPlatform());
 
@@ -115,6 +116,11 @@ async function initBackground() {
                 return handleUpdateCredential(msg.promptId, msg.vaultId, application);
             case "dismissPrompt":
                 return handleDismissPrompt(msg.promptId);
+            case "agenticAutofillBroker":
+                return {
+                    type: "agenticAutofillBrokerResponse",
+                    response: buildLockedBrokerResponse(msg.request),
+                };
         }
     });
 

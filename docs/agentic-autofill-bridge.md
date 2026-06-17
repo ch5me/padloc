@@ -60,3 +60,24 @@ The production bridge should expose these steps:
 
 Logs must contain item ids, roles, counts, origins, and last4 only where useful.
 No raw names, addresses, PAN, expiry, or CVV.
+
+## Current Native Bridge Proof
+
+- Protocol types: `packages/extension/src/autofill-broker-protocol.ts`
+- Native host: `packages/extension/native-host/padloc-autofill-host.mjs`
+- Extension permission: `nativeMessaging`
+- Background message: `agenticAutofillBroker`
+
+The current host supports a metadata-only `status` handshake and locked
+responses for fill operations. This proves the native-messaging framing,
+versioning, request id echo, session/origin audit shape, and redacted value
+policy without unlocking a vault or exposing personal records.
+
+Magic Browser installs the host wrapper and Chrome manifest with:
+
+```bash
+node dist/cli.js setup-agentic-chromium --tier canary --padloc-root /Users/hassoncs/src/ch5/padloc --write
+```
+
+Next production step: replace locked stub responses with Padloc approval UI and
+short-lived fill bundle minting after unlock.

@@ -1,5 +1,6 @@
 import { browser } from "webextension-polyfill-ts";
 import { VaultItem } from "@padloc/core/src/item";
+import { AutofillBrokerRequest, AutofillBrokerResponse } from "./autofill-broker-protocol";
 
 /**
  * Mapping of field role to value for multi-field fill orchestration.
@@ -69,7 +70,9 @@ export type Message =
     | { type: "getSavePromptResponse"; prompt: SavePrompt | null }
     | { type: "saveCredential"; promptId: string; vaultId?: string }
     | { type: "updateCredential"; promptId: string; vaultId?: string }
-    | { type: "dismissPrompt"; promptId: string };
+    | { type: "dismissPrompt"; promptId: string }
+    | { type: "agenticAutofillBroker"; request: AutofillBrokerRequest }
+    | { type: "agenticAutofillBrokerResponse"; response: AutofillBrokerResponse };
 
 export async function messageTab(msg: Message) {
     const [activeTab] = await browser.tabs.query({ active: true, currentWindow: true });

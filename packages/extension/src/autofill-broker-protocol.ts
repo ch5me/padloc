@@ -1,0 +1,64 @@
+export const AUTOFILL_BROKER_PROTOCOL_VERSION = 1;
+
+export type AutofillBrokerOperation =
+    | "status"
+    | "classify"
+    | "plan-fill"
+    | "approve"
+    | "mint-fill-bundle"
+    | "apply-fill-bundle"
+    | "revoke-fill-bundle";
+
+export interface AutofillBrokerBinding {
+    sessionId: string;
+    origin: string;
+    frameId: string;
+    fieldHashes: string[];
+}
+
+export interface AutofillBrokerRequest {
+    type: AutofillBrokerOperation;
+    protocolVersion: 1;
+    requestId?: string;
+    binding?: AutofillBrokerBinding;
+    fields?: Array<{
+        selector: string;
+        label?: string;
+        role?: string;
+        autocomplete?: string;
+        fieldHash?: string;
+    }>;
+    valuePolicy?: string;
+}
+
+export interface AutofillBrokerResponse {
+    ok: boolean;
+    protocolVersion: 1;
+    requestId?: string;
+    vaultState: "locked" | "unlocked" | "unknown";
+    reason: string | null;
+    audit: {
+        operation: AutofillBrokerOperation;
+        sessionId: string | null;
+        origin: string | null;
+        fieldCount: number;
+        valuePolicy: string;
+    };
+}
+
+export function buildLockedBrokerResponse(request: AutofillBrokerRequest): AutofillBrokerResponse {
+    return {
+        ok: request.type === "status",
+        protocolVersion: AUTOFILL_BROKER_PROTOCOL_VERSION,
+        requestId: request.requestId,
+        vaultState: "locked",
+        reason: request.type === "status" ? null : "Padloc vault locked or approval UI unavailable",
+        audit: {
+            operation: request.type,
+            sessionId: request.binding ? request.binding.sessionId : null,
+            origin: request.binding ? request.binding.origin : null,
+            fieldCount: request.fields ? request.fields.length : 0,
+            valuePolicy: "redacted audit only; no raw autofill values",
+        },
+    };
+}
