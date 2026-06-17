@@ -78,6 +78,9 @@ messaging discovery. The extension background owns the unlocked broker path:
 stores a pending plan, popup approval converts that plan into a short-lived
 approval, and `mint-fill-bundle` returns a short-lived bundle. Values exist only
 inside the bundle response path; UI/status/audit responses stay redacted.
+The extension publishes redacted plan/approval/bundle metadata to the native
+host cache through `sendNativeMessage`; the host refuses any cached response
+with non-empty `bundleFields[].value`.
 
 Magic Browser installs the host wrapper and Chrome manifest with:
 
@@ -92,6 +95,6 @@ Magic Browser can call the extension-owned broker through the extension
 service-worker CDP target for redacted plan/status requests. Printable/status
 paths must reject non-empty bundle values.
 
-Remaining production step: replace the CDP service-worker entrypoint with a
-full Chrome native-messaging port handoff from extension to host for a stable
-local transport.
+Remaining production step: replace the CDP service-worker entrypoint for live
+bundle retrieval with a full Chrome native-messaging port handoff from extension
+to host for a stable local transport.

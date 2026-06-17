@@ -1,6 +1,12 @@
 #!/usr/bin/env node
 
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { dirname, join } from "node:path";
+
 const PROTOCOL_VERSION = 1;
+const STATE_DIR = process.env.PADLOC_AGENTIC_AUTOFILL_STATE_DIR || join(homedir(), ".local", "share", "ch5-autofill", "padloc-bridge");
+const LATEST_RESPONSE_PATH = join(STATE_DIR, "latest-redacted-response.json");
 
 const input = await readAllStdin();
 const request = parseNativeMessage(input);
@@ -31,6 +37,12 @@ function encodeNativeMessage(payload) {
 
 function handleRequest(request) {
     const type = typeof request.type === "string" ? request.type : "status";
+    if (type === "cache-redacted-response") {
+        return cacheRedactedResponse(request);
+    }
+    if (type === "latest-redacted-response") {
+        return latestRedactedResponse(request);
+    }
     const binding = request && typeof request.binding === "object" ? request.binding : null;
     const fields = Array.isArray(request.fields) ? request.fields : [];
     return {
@@ -47,4 +59,52 @@ function handleRequest(request) {
             valuePolicy: "redacted audit only; no raw autofill values",
         },
     };
+}
+
+function cacheRedactedResponse(request) {
+    const response = request && typeof request.response === "object" ? request.response : null;
+    if (!response) {
+        return statusResponse(false, "cache-redacted-response requires response");
+    }
+    const unsafe = findRawBundleValue(response);
+    if (unsafe) {
+        return statusResponse(false, "refused non-redacted bundle value");
+    }
+    mkdirSync(dirname(LATEST_RESPONSE_PATH), { recursive: true, mode: 0o700 });
+    writeFileSync(LATEST_RESPONSE_PATH, `${JSON.stringify({
+        cachedAt: new Date().toISOString(),
+        response,
+    }, null, 2)}\n`, { mode: 0o600 });
+    return statusResponse(true, null, { cached: true });
+}
+
+function latestRedactedResponse(request) {
+    try {
+        const cached = JSON.parse(readFileSync(LATEST_RESPONSE_PATH, "utf8"));
+        return statusResponse(true, null, { cached });
+    } catch {
+        return statusResponse(false, "no cached redacted response");
+    }
+}
+
+function statusResponse(ok, reason, extra = {}) {
+    return {
+        ok,
+        protocolVersion: PROTOCOL_VERSION,
+        vaultState: "locked",
+        reason,
+        ...extra,
+        audit: {
+            operation: "status",
+            sessionId: null,
+            origin: null,
+            fieldCount: 0,
+            valuePolicy: "redacted audit only; no raw autofill values",
+        },
+    };
+}
+
+function findRawBundleValue(response) {
+    const fields = Array.isArray(response.bundleFields) ? response.bundleFields : [];
+    return fields.some((field) => typeof field.value === "string" && field.value.length > 0);
 }

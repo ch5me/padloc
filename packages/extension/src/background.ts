@@ -507,6 +507,7 @@ async function handleAgenticAutofillBroker(
         const items = await getItemsForActiveTab();
         const { response, pendingPlan } = buildUnlockedBrokerPlanResponse(request, items);
         pendingAutofillPlans.set(pendingPlan.planId, pendingPlan);
+        void publishRedactedBrokerResponse(response);
         return { type: "agenticAutofillBrokerResponse", response };
     }
 
@@ -515,6 +516,7 @@ async function handleAgenticAutofillBroker(
         if (!plan) throw new Error("Autofill approval plan not found");
         const { response, approval } = approveBrokerPlanResponse(request, plan);
         pendingAutofillApprovals.set(approval.approvalId, approval);
+        void publishRedactedBrokerResponse(response);
         return { type: "agenticAutofillBrokerResponse", response };
     }
 
@@ -525,7 +527,9 @@ async function handleAgenticAutofillBroker(
         if (!approval) throw new Error("Autofill bundle approval not found");
         const response = await mintBrokerBundleResponse(request, plan, approval, await getItemsForActiveTab());
         pendingAutofillApprovals.delete(approval.approvalId);
-        return { type: "agenticAutofillBrokerResponse", response: redactBrokerResponse(response) };
+        const redacted = redactBrokerResponse(response);
+        void publishRedactedBrokerResponse(redacted);
+        return { type: "agenticAutofillBrokerResponse", response: redacted };
     }
 
     return {
@@ -542,6 +546,18 @@ brokerGlobal.padlocAgenticAutofillBroker = async (request: AutofillBrokerRequest
     const response = await handleAgenticAutofillBroker(request, await getApp());
     return response.response;
 };
+
+async function publishRedactedBrokerResponse(response: unknown): Promise<void> {
+    try {
+        await browser.runtime.sendNativeMessage("me.ch5.padloc", {
+            type: "cache-redacted-response",
+            protocolVersion: 1,
+            response,
+        });
+    } catch {
+        // Native host is optional during extension-only tests and first-run setup.
+    }
+}
 
 // Initialize on install
 browser.runtime.onInstalled.addListener(initBackground);
