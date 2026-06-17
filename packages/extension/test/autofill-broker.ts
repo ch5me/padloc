@@ -1,0 +1,120 @@
+const { expect } = require("chai");
+const { suite: mochaSuite, test: mochaTest } = require("mocha");
+const requireModule = require;
+const {
+    approveBrokerPlanResponse,
+    buildUnlockedBrokerPlanResponse,
+    mintBrokerBundleResponse,
+    redactBrokerResponse,
+} = requireModule("../src/autofill-broker");
+
+mochaSuite("Autofill broker", () => {
+    const request = {
+        type: "plan-fill",
+        protocolVersion: 1,
+        requestId: "req-1",
+        binding: {
+            sessionId: "session-1",
+            origin: "https://checkout.example.test",
+            frameId: "main",
+            fieldHashes: ["hash-email", "hash-card", "hash-cvv"],
+        },
+        fields: [
+            { selector: "#email", role: "contact.email", fieldHash: "hash-email" },
+            { selector: "#card", role: "payment.card.pan", fieldHash: "hash-card" },
+            { selector: "#cvv", role: "payment.card.cvv_transient", fieldHash: "hash-cvv" },
+        ],
+    };
+
+    mochaTest("plans matching unlocked Padloc fields without raw values", () => {
+        const { response } = buildUnlockedBrokerPlanResponse(request, items());
+
+        expect(response.ok).to.equal(true);
+        expect(response.vaultState).to.equal("unlocked");
+        expect(response.fields.map((candidate: { role: string }) => candidate.role)).to.deep.equal([
+            "contact.email",
+            "payment.card.pan",
+            "payment.card.cvv_transient",
+        ]);
+        expect(response.fields[1].valuePreview).to.equal("card:1111");
+        expect(response.fields[2].transactionOnly).to.equal(true);
+        expect(JSON.stringify(response)).not.to.contain("sentinel@example.test");
+        expect(JSON.stringify(response)).not.to.contain("4111111111111111");
+        expect(JSON.stringify(response)).not.to.contain("123");
+    });
+
+    mochaTest("approves and mints a short-lived bundle, then redacts returned values", async () => {
+        const { pendingPlan } = buildUnlockedBrokerPlanResponse(request, items(), Date.parse("2026-06-17T12:00:00.000Z"));
+        const { approval, response: approvalResponse } = approveBrokerPlanResponse(
+            { type: "approve", protocolVersion: 1, planId: pendingPlan.planId, approved: true, ttlSeconds: 60 },
+            pendingPlan,
+            Date.parse("2026-06-17T12:00:01.000Z")
+        );
+        const bundleResponse = await mintBrokerBundleResponse(
+            { type: "mint-fill-bundle", protocolVersion: 1, planId: pendingPlan.planId, approvalId: approval.approvalId },
+            pendingPlan,
+            approval,
+            items(),
+            Date.parse("2026-06-17T12:00:02.000Z")
+        );
+        const redacted = redactBrokerResponse(bundleResponse);
+
+        expect(approvalResponse.approvalId).to.equal(approval.approvalId);
+        expect(bundleResponse.bundleFields[0].value).to.equal("sentinel@example.test");
+        expect(redacted.bundleFields[0].value).to.equal("");
+        expect(JSON.stringify(redacted)).not.to.contain("sentinel@example.test");
+        expect(JSON.stringify(redacted)).not.to.contain("4111111111111111");
+        expect(JSON.stringify(redacted)).not.to.contain("123");
+    });
+
+    mochaTest("rejects minting after approval expiry", async () => {
+        const { pendingPlan } = buildUnlockedBrokerPlanResponse(request, items(), Date.parse("2026-06-17T12:00:00.000Z"));
+        const { approval } = approveBrokerPlanResponse(
+            { type: "approve", protocolVersion: 1, planId: pendingPlan.planId, approved: true, ttlSeconds: 1 },
+            pendingPlan,
+            Date.parse("2026-06-17T12:00:01.000Z")
+        );
+
+        try {
+            await mintBrokerBundleResponse(
+                { type: "mint-fill-bundle", protocolVersion: 1, planId: pendingPlan.planId, approvalId: approval.approvalId },
+                pendingPlan,
+                approval,
+                items(),
+                Date.parse("2026-06-17T12:00:03.000Z")
+            );
+            throw new Error("expected failure");
+        } catch (error) {
+            expect(String(error)).to.contain("expired");
+        }
+    });
+});
+
+function items() {
+    const person = {
+        id: "person",
+        name: "Person",
+        fields: [
+            field({ name: "Email", value: "sentinel@example.test", autofillRole: "contact.email" }),
+        ],
+    };
+    const card = {
+        id: "card",
+        name: "Card",
+        fields: [
+            field({ name: "Card Number", value: "4111111111111111", autofillRole: "payment.card.pan" }),
+            field({ name: "CVC", value: "123", autofillRole: "payment.card.cvv_transient", transactionOnly: true }),
+        ],
+    };
+    return [{ item: person }, { item: card }];
+}
+
+function field(values: { name: string; value: string; autofillRole: string; transactionOnly?: boolean }) {
+    return {
+        transactionOnly: false,
+        async transform() {
+            return this.value;
+        },
+        ...values,
+    };
+}

@@ -28,7 +28,31 @@ export interface AutofillBrokerRequest {
         autocomplete?: string;
         fieldHash?: string;
     }>;
+    planId?: string;
+    approvalId?: string;
+    approved?: boolean;
+    ttlSeconds?: number;
     valuePolicy?: string;
+}
+
+export interface AutofillBrokerPlanField {
+    selector: string;
+    role: string;
+    fieldHash: string;
+    itemId: string;
+    itemName: string;
+    fieldIndex: number;
+    fieldName: string;
+    valuePreview: string;
+    transactionOnly: boolean;
+}
+
+export interface AutofillBrokerBundleField {
+    selector: string;
+    role: string;
+    fieldHash: string;
+    value: string;
+    transactionOnly: boolean;
 }
 
 export interface AutofillBrokerResponse {
@@ -37,6 +61,12 @@ export interface AutofillBrokerResponse {
     requestId?: string;
     vaultState: "locked" | "unlocked" | "unknown";
     reason: string | null;
+    planId?: string;
+    approvalId?: string;
+    bundleId?: string;
+    expiresAt?: string;
+    fields?: AutofillBrokerPlanField[];
+    bundleFields?: AutofillBrokerBundleField[];
     audit: {
         operation: AutofillBrokerOperation;
         sessionId: string | null;

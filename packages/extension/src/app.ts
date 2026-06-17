@@ -4,7 +4,7 @@ import { debounce } from "@padloc/core/src/util";
 import { Storable } from "@padloc/core/src/storage";
 import { VaultItem } from "@padloc/core/src/item";
 import { shouldAttemptBiometricReunlock, unlockWithBiometric } from "./auth/biometric";
-import { messageTab, SavePrompt } from "./message";
+import { AgenticAutofillApprovalPrompt, messageTab, SavePrompt } from "./message";
 import { clearSessionMasterKey, getSessionMasterKey, saveSessionMasterKey } from "./storage";
 import { installUnlockPersistenceHooks } from "./unlock-persistence";
 // import { messageTab } from "./message";
@@ -37,6 +37,8 @@ export class ExtensionApp extends App {
     private _workerReady = false;
     private _pendingSavePrompt: SavePrompt | null = null;
     private _savePromptOverlay: HTMLElement | null = null;
+    private _pendingAutofillApproval: AgenticAutofillApprovalPrompt | null = null;
+    private _autofillApprovalOverlay: HTMLElement | null = null;
     private _unlockHooksInstalled = false;
     private _sessionSyncPromise: Promise<void> | null = null;
 
@@ -213,6 +215,7 @@ export class ExtensionApp extends App {
         }
         this._wrapper.classList.toggle("active", true);
         void this._checkForSavePrompt();
+        void this._checkForAgenticAutofillApproval();
     }
 
     async _locked() {
@@ -385,6 +388,89 @@ export class ExtensionApp extends App {
                 void this._handleDismissPrompt();
             });
         }
+    }
+
+    private async _checkForAgenticAutofillApproval() {
+        if (this.app.state.locked || !this.app.state.loggedIn) return;
+
+        try {
+            const response = await browser.runtime.sendMessage({ type: "getAgenticAutofillApprovalPrompt" });
+            if (response?.type === "getAgenticAutofillApprovalPromptResponse" && response.prompt) {
+                this._pendingAutofillApproval = response.prompt;
+                this._renderAgenticAutofillApprovalOverlay();
+            }
+        } catch {
+            // Worker may not be ready
+        }
+    }
+
+    private _renderAgenticAutofillApprovalOverlay() {
+        if (!this._pendingAutofillApproval || this._autofillApprovalOverlay) return;
+
+        const prompt = this._pendingAutofillApproval;
+        const fieldRows = prompt.fields
+            .map(
+                (field) => `
+                    <div class="save-prompt-username">
+                        <span class="save-prompt-label">${this._escapeHtml(field.role)}</span>
+                        <span class="save-prompt-value">${this._escapeHtml(field.itemName)} / ${this._escapeHtml(field.fieldName)} (${this._escapeHtml(field.valuePreview)})</span>
+                    </div>
+                `
+            )
+            .join("");
+        const overlayHtml = `
+            <div class="save-prompt-overlay">
+                <div class="save-prompt-card">
+                    <div class="save-prompt-header">
+                        <pl-icon icon="lock" class="save-prompt-icon"></pl-icon>
+                        <span class="save-prompt-title">Approve Autofill?</span>
+                    </div>
+                    <div class="save-prompt-body">
+                        <div class="save-prompt-host">${this._escapeHtml(prompt.origin)}</div>
+                        ${fieldRows}
+                        <div class="save-prompt-password">
+                            <span class="save-prompt-label">Transaction-only fields</span>
+                            <span class="save-prompt-value">${prompt.transactionOnlyCount}</span>
+                        </div>
+                    </div>
+                    <div class="save-prompt-actions">
+                        <button class="save-prompt-btn save-prompt-btn-primary" id="agentic-autofill-approve">Approve</button>
+                        <button class="save-prompt-btn save-prompt-btn-dismiss" id="agentic-autofill-dismiss">Not Now</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        this._wrapper.insertAdjacentHTML("beforeend", overlayHtml);
+        this._autofillApprovalOverlay = this._wrapper.querySelector(".save-prompt-overlay:last-child");
+        this._autofillApprovalOverlay?.querySelector("#agentic-autofill-approve")?.addEventListener("click", () => {
+            void this._handleAgenticAutofillApproval();
+        });
+        this._autofillApprovalOverlay?.querySelector("#agentic-autofill-dismiss")?.addEventListener("click", () => {
+            void this._handleAgenticAutofillDismiss();
+        });
+    }
+
+    private _dismissAgenticAutofillApprovalOverlay() {
+        if (this._autofillApprovalOverlay) {
+            this._autofillApprovalOverlay.remove();
+            this._autofillApprovalOverlay = null;
+        }
+        this._pendingAutofillApproval = null;
+    }
+
+    private async _handleAgenticAutofillApproval() {
+        if (!this._pendingAutofillApproval) return;
+        const planId = this._pendingAutofillApproval.planId;
+        this._dismissAgenticAutofillApprovalOverlay();
+        await browser.runtime.sendMessage({ type: "approveAgenticAutofill", planId });
+    }
+
+    private async _handleAgenticAutofillDismiss() {
+        if (!this._pendingAutofillApproval) return;
+        const planId = this._pendingAutofillApproval.planId;
+        this._dismissAgenticAutofillApprovalOverlay();
+        await browser.runtime.sendMessage({ type: "dismissAgenticAutofill", planId });
     }
 
     private _dismissSavePromptOverlay() {

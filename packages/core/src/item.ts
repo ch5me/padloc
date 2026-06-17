@@ -278,6 +278,8 @@ export class Field extends Serializable {
     value: string = "";
     /** semantic autofill role used by extension/broker approval flows */
     autofillRole?: AutofillFieldRole = undefined;
+    /** values such as CVV may only be released into a user-approved transaction bundle */
+    transactionOnly: boolean = false;
 
     get def(): FieldDef {
         return FIELD_DEFS[this.type] || FIELD_DEFS[FieldType.Text];

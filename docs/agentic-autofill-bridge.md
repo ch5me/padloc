@@ -64,14 +64,20 @@ No raw names, addresses, PAN, expiry, or CVV.
 ## Current Native Bridge Proof
 
 - Protocol types: `packages/extension/src/autofill-broker-protocol.ts`
+- Broker planner/bundler: `packages/extension/src/autofill-broker.ts`
 - Native host: `packages/extension/native-host/padloc-autofill-host.mjs`
 - Extension permission: `nativeMessaging`
 - Background message: `agenticAutofillBroker`
+- Popup approval prompt: `getAgenticAutofillApprovalPrompt` ->
+  `approveAgenticAutofill`
+- CDP service-worker entrypoint: `globalThis.padlocAgenticAutofillBroker`
 
-The current host supports a metadata-only `status` handshake and locked
-responses for fill operations. This proves the native-messaging framing,
-versioning, request id echo, session/origin audit shape, and redacted value
-policy without unlocking a vault or exposing personal records.
+The current host supports a metadata-only `status` handshake for Chrome native
+messaging discovery. The extension background owns the unlocked broker path:
+`plan-fill` matches requested field roles to unlocked Padloc item fields,
+stores a pending plan, popup approval converts that plan into a short-lived
+approval, and `mint-fill-bundle` returns a short-lived bundle. Values exist only
+inside the bundle response path; UI/status/audit responses stay redacted.
 
 Magic Browser installs the host wrapper and Chrome manifest with:
 
@@ -79,5 +85,13 @@ Magic Browser installs the host wrapper and Chrome manifest with:
 node dist/cli.js setup-agentic-chromium --tier canary --padloc-root /Users/hassoncs/src/ch5/padloc --write
 ```
 
-Next production step: replace locked stub responses with Padloc approval UI and
-short-lived fill bundle minting after unlock.
+Magic Browser consumer code must reject any Padloc broker response that contains
+non-empty `bundleFields[].value` in a printable/status path.
+
+Magic Browser can call the extension-owned broker through the extension
+service-worker CDP target for redacted plan/status requests. Printable/status
+paths must reject non-empty bundle values.
+
+Remaining production step: replace the CDP service-worker entrypoint with a
+full Chrome native-messaging port handoff from extension to host for a stable
+local transport.

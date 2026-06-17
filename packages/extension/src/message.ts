@@ -51,6 +51,20 @@ export interface SavePrompt {
     dismissedUntil?: number; // timestamp when prompt can be shown again
 }
 
+export interface AgenticAutofillApprovalPrompt {
+    planId: string;
+    origin: string;
+    fieldCount: number;
+    transactionOnlyCount: number;
+    fields: Array<{
+        role: string;
+        itemName: string;
+        fieldName: string;
+        valuePreview: string;
+        transactionOnly: boolean;
+    }>;
+}
+
 export type Message =
     | { type: "loggedIn" }
     | { type: "loggedOut" }
@@ -71,6 +85,10 @@ export type Message =
     | { type: "saveCredential"; promptId: string; vaultId?: string }
     | { type: "updateCredential"; promptId: string; vaultId?: string }
     | { type: "dismissPrompt"; promptId: string }
+    | { type: "getAgenticAutofillApprovalPrompt" }
+    | { type: "getAgenticAutofillApprovalPromptResponse"; prompt: AgenticAutofillApprovalPrompt | null }
+    | { type: "approveAgenticAutofill"; planId: string }
+    | { type: "dismissAgenticAutofill"; planId: string }
     | { type: "agenticAutofillBroker"; request: AutofillBrokerRequest }
     | { type: "agenticAutofillBrokerResponse"; response: AutofillBrokerResponse };
 

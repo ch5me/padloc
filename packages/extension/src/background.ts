@@ -5,9 +5,17 @@ import { AjaxSender } from "@padloc/app/src/lib/ajax";
 import { debounce, uuid } from "@padloc/core/src/util";
 import { FieldType, Field } from "@padloc/core/src/item";
 import { ExtensionPlatform } from "./platform";
-import { Message, messageTab, SavePrompt, CredentialData } from "./message";
+import { AgenticAutofillApprovalPrompt, Message, messageTab, SavePrompt, CredentialData } from "./message";
 import { clearSessionMasterKey, configureSessionStorage, getSessionMasterKey } from "./storage";
-import { buildLockedBrokerResponse } from "./autofill-broker-protocol";
+import { AutofillBrokerRequest, buildLockedBrokerResponse } from "./autofill-broker-protocol";
+import {
+    approveBrokerPlanResponse,
+    buildUnlockedBrokerPlanResponse,
+    BrokerApproval,
+    mintBrokerBundleResponse,
+    PendingBrokerPlan,
+    redactBrokerResponse,
+} from "./autofill-broker";
 
 setPlatform(new ExtensionPlatform());
 
@@ -22,6 +30,8 @@ const actionApi = chrome.action;
 // Save/update credential prompt state
 // Maps promptId -> pending SavePrompt
 const pendingPrompts = new Map<string, SavePrompt>();
+const pendingAutofillPlans = new Map<string, PendingBrokerPlan>();
+const pendingAutofillApprovals = new Map<string, BrokerApproval>();
 
 // Suppression map: url -> timestamp when prompt can be shown again
 const dismissedUrls = new Map<string, number>();
@@ -116,11 +126,14 @@ async function initBackground() {
                 return handleUpdateCredential(msg.promptId, msg.vaultId, application);
             case "dismissPrompt":
                 return handleDismissPrompt(msg.promptId);
+            case "getAgenticAutofillApprovalPrompt":
+                return handleGetAgenticAutofillApprovalPrompt();
+            case "approveAgenticAutofill":
+                return handleApproveAgenticAutofill(msg.planId);
+            case "dismissAgenticAutofill":
+                return handleDismissAgenticAutofill(msg.planId);
             case "agenticAutofillBroker":
-                return {
-                    type: "agenticAutofillBrokerResponse",
-                    response: buildLockedBrokerResponse(msg.request),
-                };
+                return handleAgenticAutofillBroker(msg.request, application);
         }
     });
 
@@ -434,6 +447,101 @@ function handleDismissPrompt(promptId: string): null {
     }
     return null;
 }
+
+function handleGetAgenticAutofillApprovalPrompt(): { type: "getAgenticAutofillApprovalPromptResponse"; prompt: AgenticAutofillApprovalPrompt | null } {
+    const latest = Array.from(pendingAutofillPlans.values()).pop();
+    if (!latest) return { type: "getAgenticAutofillApprovalPromptResponse", prompt: null };
+    return {
+        type: "getAgenticAutofillApprovalPromptResponse",
+        prompt: {
+            planId: latest.planId,
+            origin: latest.request.binding ? latest.request.binding.origin : "unknown",
+            fieldCount: latest.fields.length,
+            transactionOnlyCount: latest.fields.filter((field) => field.transactionOnly).length,
+            fields: latest.fields.map((field) => ({
+                role: field.role,
+                itemName: field.itemName,
+                fieldName: field.fieldName,
+                valuePreview: field.valuePreview,
+                transactionOnly: field.transactionOnly,
+            })),
+        },
+    };
+}
+
+function handleApproveAgenticAutofill(planId: string) {
+    const plan = pendingAutofillPlans.get(planId);
+    if (!plan) throw new Error("Autofill approval plan not found");
+    const { response, approval } = approveBrokerPlanResponse({
+        type: "approve",
+        protocolVersion: 1,
+        requestId: `popup-${planId}`,
+        planId,
+        approved: true,
+        binding: plan.request.binding,
+    }, plan);
+    pendingAutofillApprovals.set(approval.approvalId, approval);
+    return { type: "agenticAutofillBrokerResponse", response };
+}
+
+function handleDismissAgenticAutofill(planId: string): null {
+    pendingAutofillPlans.delete(planId);
+    for (const [approvalId, approval] of pendingAutofillApprovals.entries()) {
+        if (approval.planId === planId) pendingAutofillApprovals.delete(approvalId);
+    }
+    return null;
+}
+
+async function handleAgenticAutofillBroker(
+    request: AutofillBrokerRequest,
+    application: App
+) {
+    if (application.state.locked || !application.state.loggedIn) {
+        return {
+            type: "agenticAutofillBrokerResponse",
+            response: buildLockedBrokerResponse(request),
+        };
+    }
+
+    if (request.type === "plan-fill" || request.type === "classify") {
+        const items = await getItemsForActiveTab();
+        const { response, pendingPlan } = buildUnlockedBrokerPlanResponse(request, items);
+        pendingAutofillPlans.set(pendingPlan.planId, pendingPlan);
+        return { type: "agenticAutofillBrokerResponse", response };
+    }
+
+    if (request.type === "approve") {
+        const plan = request.planId ? pendingAutofillPlans.get(request.planId) : null;
+        if (!plan) throw new Error("Autofill approval plan not found");
+        const { response, approval } = approveBrokerPlanResponse(request, plan);
+        pendingAutofillApprovals.set(approval.approvalId, approval);
+        return { type: "agenticAutofillBrokerResponse", response };
+    }
+
+    if (request.type === "mint-fill-bundle") {
+        const plan = request.planId ? pendingAutofillPlans.get(request.planId) : null;
+        const approval = request.approvalId ? pendingAutofillApprovals.get(request.approvalId) : null;
+        if (!plan) throw new Error("Autofill bundle plan not found");
+        if (!approval) throw new Error("Autofill bundle approval not found");
+        const response = await mintBrokerBundleResponse(request, plan, approval, await getItemsForActiveTab());
+        pendingAutofillApprovals.delete(approval.approvalId);
+        return { type: "agenticAutofillBrokerResponse", response: redactBrokerResponse(response) };
+    }
+
+    return {
+        type: "agenticAutofillBrokerResponse",
+        response: buildLockedBrokerResponse(request),
+    };
+}
+
+const brokerGlobal = globalThis as typeof globalThis & {
+    padlocAgenticAutofillBroker?: (request: AutofillBrokerRequest) => Promise<unknown>;
+};
+
+brokerGlobal.padlocAgenticAutofillBroker = async (request: AutofillBrokerRequest) => {
+    const response = await handleAgenticAutofillBroker(request, await getApp());
+    return response.response;
+};
 
 // Initialize on install
 browser.runtime.onInstalled.addListener(initBackground);
