@@ -71,6 +71,8 @@ No raw names, addresses, PAN, expiry, or CVV.
 - Popup approval prompt: `getAgenticAutofillApprovalPrompt` ->
   `approveAgenticAutofill`
 - CDP service-worker entrypoint: `globalThis.padlocAgenticAutofillBroker`
+- Service-worker prelude: fail-closed locked/redacted broker response before
+  full Padloc app background initialization
 
 The current host supports a metadata-only `status` handshake for Chrome native
 messaging discovery. The extension background owns the unlocked broker path:
@@ -85,8 +87,11 @@ with non-empty `bundleFields[].value`.
 Magic Browser installs the host wrapper and Chrome manifest with:
 
 ```bash
-node dist/cli.js setup-agentic-chromium --tier canary --padloc-root /Users/hassoncs/src/ch5/padloc --write
+node dist/cli.js setup-agentic-chromium --tier chromium --padloc-root /Users/hassoncs/src/ch5/padloc --write
 ```
+
+Use `--tier chromium` for Magic Browser's downloaded Chrome for Testing profile.
+Use `--tier canary` only when the live session is actually Chrome Canary.
 
 Magic Browser consumer code must reject any Padloc broker response that contains
 non-empty `bundleFields[].value` in a printable/status path.
@@ -94,6 +99,29 @@ non-empty `bundleFields[].value` in a printable/status path.
 Magic Browser can call the extension-owned broker through the extension
 service-worker CDP target for redacted plan/status requests. Printable/status
 paths must reject non-empty bundle values.
+
+Live smoke commands:
+
+```bash
+cd /Users/hassoncs/src/ch5/padloc
+NODE_OPTIONS=--openssl-legacy-provider npm --prefix packages/extension run build
+
+cd /Users/hassoncs/src/ch5/magic-browser
+pnpm run build
+node dist/cli.js setup-agentic-chromium --tier chromium --padloc-root /Users/hassoncs/src/ch5/padloc --write
+MAGIC_BROWSER_LOAD_EXTENSION=/Users/hassoncs/src/ch5/padloc/packages/extension/dist node dist/cli.js session start example.public_smoke --adapter local-cdp
+node dist/cli.js session extension-status <session-id> --extension-id <id> --native-host me.ch5.padloc
+node dist/cli.js session padloc-broker-request <session-id> --extension-id <id> --request-json '{"type":"status","protocolVersion":1}'
+```
+
+Run focused package tests from `packages/extension`, not the repo root:
+
+```bash
+cd /Users/hassoncs/src/ch5/padloc/packages/extension
+./node_modules/.bin/mocha --ui tdd --require ts-node/register test/autofill-classifier.ts test/autofill-broker-protocol.ts
+TS_NODE_TRANSPILE_ONLY=1 TS_NODE_COMPILER_OPTIONS='{"module":"commonjs"}' ./node_modules/.bin/mocha --ui tdd --require ts-node/register test/autofill-broker.ts
+./node_modules/.bin/tsc --noEmit --target es2020 --module commonjs --strict --skipLibCheck test/autofill-broker.ts
+```
 
 Remaining production step: replace the CDP service-worker entrypoint for live
 bundle retrieval with a full Chrome native-messaging port handoff from extension

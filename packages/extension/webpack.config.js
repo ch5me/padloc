@@ -1,5 +1,6 @@
 const { resolve, join } = require("path");
 const { EnvironmentPlugin } = require("webpack");
+const webpack = require("webpack");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const { CleanWebpackPlugin } = require("clean-webpack-plugin");
 const manifest = require("./src/manifest.json");
@@ -60,6 +61,21 @@ module.exports = {
         ],
     },
     plugins: [
+        new webpack.BannerPlugin({
+            banner: [
+                "globalThis.window = globalThis.window || globalThis;",
+                "globalThis.padlocAgenticAutofillBroker = globalThis.padlocAgenticAutofillBroker || (async (request = {}) => ({",
+                "    ok: false,",
+                "    protocolVersion: 1,",
+                "    requestId: request.requestId,",
+                "    vaultState: 'locked',",
+                "    reason: 'Padloc background app not initialized; fail-closed redacted broker prelude',",
+                "    audit: { operation: request.type || 'status', valuePolicy: 'redacted status only; no raw autofill values' },",
+                "}));",
+            ].join("\n"),
+            raw: true,
+            entryOnly: true,
+        }),
         new EnvironmentPlugin({
             PL_APP_NAME: name,
             PL_SERVER_URL: serverUrl,
