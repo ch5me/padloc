@@ -69,11 +69,7 @@ jobs:
                       !packages/extension/dist/*.xpi
                   if-no-files-found: error
             - name: Build ZIP for signing Chrome/Edge Extension
-              uses: cardinalby/webext-buildtools-pack-extension-dir-action@v1
-              with:
-                  extensionDir: packages/extension/dist
-                  zipFilePath: packages/extension/padloc.zip
-                  zipIgnore: web-ext-artifacts/**|*.xpi
+              run: scripts/package-web-extension.sh --extension-dir packages/extension/dist --zip-file packages/extension/padloc.zip
             - name: Sign for Chrome/Edge
               uses: cardinalby/webext-buildtools-chrome-crx-action@v2
               with:

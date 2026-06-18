@@ -216,11 +216,7 @@ jobs:
             #   run: cd packages/extension/dist && web-ext sign --id="${{ secrets.PL_WEB_EXTENSION_FIREFOX_ID }}" --channel=unlisted --api-key=${{ secrets.PL_WEB_EXTENSION_FIREFOX_API_KEY }} --api-secret=${{ secrets.PL_WEB_EXTENSION_FIREFOX_API_SECRET }}
             # Firefox release upload disabled until signing is restored.
             - name: Pack for Chrome/Edge Extension
-              uses: cardinalby/webext-buildtools-pack-extension-dir-action@v1
-              with:
-                  extensionDir: packages/extension/dist
-                  zipFilePath: packages/extension/padloc.zip
-                  zipIgnore: web-ext-artifacts/**|*.xpi
+              run: scripts/package-web-extension.sh --extension-dir packages/extension/dist --zip-file packages/extension/padloc.zip
             - name: Upload Unsigned Web Extension (Chrome/Edge)
               env:
                   RELEASE_ASSET_FILE: packages/extension/padloc.zip
