@@ -53,6 +53,7 @@ export interface SavePrompt {
 
 export interface AgenticAutofillApprovalPrompt {
     planId: string;
+    promptNonce: string;
     origin: string;
     fieldCount: number;
     transactionOnlyCount: number;
@@ -87,7 +88,7 @@ export type Message =
     | { type: "dismissPrompt"; promptId: string }
     | { type: "getAgenticAutofillApprovalPrompt" }
     | { type: "getAgenticAutofillApprovalPromptResponse"; prompt: AgenticAutofillApprovalPrompt | null }
-    | { type: "approveAgenticAutofill"; planId: string }
+    | { type: "approveAgenticAutofill"; planId: string; promptNonce: string }
     | { type: "dismissAgenticAutofill"; planId: string }
     | { type: "agenticAutofillBroker"; request: AutofillBrokerRequest }
     | { type: "agenticAutofillBrokerResponse"; response: AutofillBrokerResponse };

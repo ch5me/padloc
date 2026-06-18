@@ -229,7 +229,6 @@ function normalizeRole(role: string): string {
 
 function previewValue(field: Field, role: string): string {
     if (role === "payment.card.pan") return `card:${field.value.replace(/\D/g, "").slice(-4) || "unknown"}`;
-    if (role === "contact.email") return `email:${field.value.slice(0, 2)}...`;
     if (field.transactionOnly) return "transaction-only";
     return "stored";
 }

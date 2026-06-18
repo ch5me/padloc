@@ -462,8 +462,9 @@ export class ExtensionApp extends App {
     private async _handleAgenticAutofillApproval() {
         if (!this._pendingAutofillApproval) return;
         const planId = this._pendingAutofillApproval.planId;
+        const promptNonce = this._pendingAutofillApproval.promptNonce;
         this._dismissAgenticAutofillApprovalOverlay();
-        await browser.runtime.sendMessage({ type: "approveAgenticAutofill", planId });
+        await browser.runtime.sendMessage({ type: "approveAgenticAutofill", planId, promptNonce });
     }
 
     private async _handleAgenticAutofillDismiss() {

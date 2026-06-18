@@ -3,7 +3,7 @@ import { spawnSync } from "child_process";
 import { createRequire } from "module";
 import { dirname, resolve } from "path";
 import { fileURLToPath } from "url";
-import { mkdtempSync } from "fs";
+import { mkdtempSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { suite, test } from "mocha";
 
@@ -82,6 +82,99 @@ suite("Autofill broker protocol", () => {
         expect(latest.cached.response.bundleFields[0].value).to.equal("");
         expect(rejected.ok).to.equal(false);
         expect(rejected.reason).to.contain("non-redacted");
+    });
+
+    test("native host rejects nested raw values from stale cached responses", () => {
+        const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-stale-`);
+        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        writeFileSync(resolve(stateDir, "latest-redacted-response.json"), JSON.stringify({
+            cachedAt: "2026-06-17T00:00:00.000Z",
+            response: {
+                ok: true,
+                protocolVersion: 1,
+                vaultState: "unlocked",
+                reason: null,
+                cached: {
+                    response: {
+                        bundleFields: [{ selector: "#email", value: "sentinel@example.test" }],
+                    },
+                },
+            },
+        }));
+
+        const latest = nativeHostRequest(hostPath, { type: "latest-redacted-response", protocolVersion: 1 }, stateDir);
+
+        expect(latest.ok).to.equal(false);
+        expect(latest.reason).to.contain("non-redacted");
+    });
+
+    test("native host rejects stale fields value aliases", () => {
+        const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-fields-`);
+        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        writeFileSync(resolve(stateDir, "latest-redacted-response.json"), JSON.stringify({
+            cachedAt: "2026-06-17T00:00:00.000Z",
+            response: {
+                ok: true,
+                protocolVersion: 1,
+                vaultState: "unlocked",
+                reason: null,
+                fields: [{ selector: "#email", value: "sentinel@example.test" }],
+            },
+        }));
+
+        const latest = nativeHostRequest(hostPath, { type: "latest-redacted-response", protocolVersion: 1 }, stateDir);
+
+        expect(latest.ok).to.equal(false);
+        expect(latest.reason).to.contain("non-redacted");
+    });
+
+    test("native host rejects non-string value payloads", () => {
+        const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-object-value-`);
+        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const objectValue = nativeHostRequest(hostPath, {
+            type: "cache-redacted-response",
+            protocolVersion: 1,
+            response: {
+                ok: true,
+                protocolVersion: 1,
+                fields: [{ selector: "#email", value: { raw: "sentinel" } }],
+            },
+        }, stateDir);
+        const numericValue = nativeHostRequest(hostPath, {
+            type: "cache-redacted-response",
+            protocolVersion: 1,
+            response: {
+                ok: true,
+                protocolVersion: 1,
+                fields: [{ selector: "#email", value: 123 }],
+            },
+        }, stateDir);
+
+        expect(objectValue.ok).to.equal(false);
+        expect(numericValue.ok).to.equal(false);
+    });
+
+    test("native host caches redacted approval metadata", () => {
+        const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-approval-`);
+        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const cached = nativeHostRequest(hostPath, {
+            type: "cache-redacted-response",
+            protocolVersion: 1,
+            response: {
+                ok: true,
+                protocolVersion: 1,
+                vaultState: "unlocked",
+                reason: null,
+                planId: "plan-1",
+                approvalId: "approval-1",
+                audit: { operation: "approve", valuePolicy: "redacted audit only; no raw autofill values" },
+            },
+        }, stateDir);
+        const latest = nativeHostRequest(hostPath, { type: "latest-redacted-response", protocolVersion: 1 }, stateDir);
+
+        expect(cached.ok).to.equal(true);
+        expect(latest.ok).to.equal(true);
+        expect(latest.cached.response.approvalId).to.equal("approval-1");
     });
 });
 

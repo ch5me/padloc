@@ -81,6 +81,10 @@ function cacheRedactedResponse(request) {
 function latestRedactedResponse(request) {
     try {
         const cached = JSON.parse(readFileSync(LATEST_RESPONSE_PATH, "utf8"));
+        const unsafe = findRawBundleValue(cached);
+        if (unsafe) {
+            return statusResponse(false, "cached response contains non-redacted bundle value");
+        }
         return statusResponse(true, null, { cached });
     } catch {
         return statusResponse(false, "no cached redacted response");
@@ -105,6 +109,19 @@ function statusResponse(ok, reason, extra = {}) {
 }
 
 function findRawBundleValue(response) {
-    const fields = Array.isArray(response.bundleFields) ? response.bundleFields : [];
-    return fields.some((field) => typeof field.value === "string" && field.value.length > 0);
+    if (!response || typeof response !== "object") return false;
+    if (Array.isArray(response)) return response.some((entry) => findRawBundleValue(entry));
+    for (const [key, value] of Object.entries(response)) {
+        if (key === "value" && hasRawValue(value)) {
+            return true;
+        }
+        if (findRawBundleValue(value)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function hasRawValue(value) {
+    return value !== undefined && value !== null && value !== "";
 }

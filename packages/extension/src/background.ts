@@ -35,6 +35,7 @@ const pendingPrompts = new Map<string, SavePrompt>();
 const pendingAutofillPlans = new Map<string, PendingBrokerPlan>();
 const pendingAutofillApprovals = new Map<string, BrokerApproval>();
 const pendingAutofillBundles = new Map<string, AutofillBrokerResponse>();
+const pendingAutofillPromptNonces = new Map<string, { nonce: string; senderUrl: string }>();
 
 // Suppression map: url -> timestamp when prompt can be shown again
 const dismissedUrls = new Map<string, number>();
@@ -130,9 +131,9 @@ async function initBackground() {
             case "dismissPrompt":
                 return handleDismissPrompt(msg.promptId);
             case "getAgenticAutofillApprovalPrompt":
-                return handleGetAgenticAutofillApprovalPrompt();
+                return handleGetAgenticAutofillApprovalPrompt(sender);
             case "approveAgenticAutofill":
-                return handleApproveAgenticAutofill(msg.planId);
+                return handleApproveAgenticAutofill(msg.planId, msg.promptNonce, sender);
             case "dismissAgenticAutofill":
                 return handleDismissAgenticAutofill(msg.planId);
             case "agenticAutofillBroker":
@@ -451,13 +452,17 @@ function handleDismissPrompt(promptId: string): null {
     return null;
 }
 
-function handleGetAgenticAutofillApprovalPrompt(): { type: "getAgenticAutofillApprovalPromptResponse"; prompt: AgenticAutofillApprovalPrompt | null } {
+function handleGetAgenticAutofillApprovalPrompt(sender: Runtime.MessageSender): { type: "getAgenticAutofillApprovalPromptResponse"; prompt: AgenticAutofillApprovalPrompt | null } {
     const latest = Array.from(pendingAutofillPlans.values()).pop();
     if (!latest) return { type: "getAgenticAutofillApprovalPromptResponse", prompt: null };
+    const senderUrl = requireExtensionUiSender(sender);
+    const promptNonce = randomApprovalPromptNonce();
+    pendingAutofillPromptNonces.set(latest.planId, { nonce: promptNonce, senderUrl });
     return {
         type: "getAgenticAutofillApprovalPromptResponse",
         prompt: {
             planId: latest.planId,
+            promptNonce,
             origin: latest.request.binding ? latest.request.binding.origin : "unknown",
             fieldCount: latest.fields.length,
             transactionOnlyCount: latest.fields.filter((field) => field.transactionOnly).length,
@@ -472,9 +477,15 @@ function handleGetAgenticAutofillApprovalPrompt(): { type: "getAgenticAutofillAp
     };
 }
 
-function handleApproveAgenticAutofill(planId: string) {
+function handleApproveAgenticAutofill(planId: string, promptNonce: string, sender: Runtime.MessageSender) {
     const plan = pendingAutofillPlans.get(planId);
     if (!plan) throw new Error("Autofill approval plan not found");
+    const senderUrl = requireExtensionUiSender(sender);
+    const expected = pendingAutofillPromptNonces.get(planId);
+    if (!expected || promptNonce !== expected.nonce || senderUrl !== expected.senderUrl) {
+        throw new Error("Autofill approval requires active approval UI nonce");
+    }
+    pendingAutofillPromptNonces.delete(planId);
     const { response, approval } = approveBrokerPlanResponse({
         type: "approve",
         protocolVersion: 1,
@@ -484,15 +495,32 @@ function handleApproveAgenticAutofill(planId: string) {
         binding: plan.request.binding,
     }, plan);
     pendingAutofillApprovals.set(approval.approvalId, approval);
+    void publishRedactedBrokerResponse(response);
     return { type: "agenticAutofillBrokerResponse", response };
 }
 
 function handleDismissAgenticAutofill(planId: string): null {
     pendingAutofillPlans.delete(planId);
+    pendingAutofillPromptNonces.delete(planId);
     for (const [approvalId, approval] of pendingAutofillApprovals.entries()) {
         if (approval.planId === planId) pendingAutofillApprovals.delete(approvalId);
     }
     return null;
+}
+
+function randomApprovalPromptNonce(): string {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function requireExtensionUiSender(sender: Runtime.MessageSender): string {
+    const senderUrl = sender.url || "";
+    const extensionOrigin = `chrome-extension://${browser.runtime.id}/`;
+    if (!senderUrl.startsWith(extensionOrigin)) {
+        throw new Error("Autofill approval requires Padloc extension UI sender");
+    }
+    return senderUrl;
 }
 
 async function handleAgenticAutofillBroker(
@@ -515,12 +543,7 @@ async function handleAgenticAutofillBroker(
     }
 
     if (request.type === "approve") {
-        const plan = request.planId ? pendingAutofillPlans.get(request.planId) : null;
-        if (!plan) throw new Error("Autofill approval plan not found");
-        const { response, approval } = approveBrokerPlanResponse(request, plan);
-        pendingAutofillApprovals.set(approval.approvalId, approval);
-        void publishRedactedBrokerResponse(response);
-        return { type: "agenticAutofillBrokerResponse", response };
+        throw new Error("Autofill approval requires Padloc approval UI");
     }
 
     if (request.type === "mint-fill-bundle") {

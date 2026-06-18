@@ -82,23 +82,23 @@ approval, and `mint-fill-bundle` returns a short-lived bundle. Values exist only
 inside the bundle response path; UI/status/audit responses stay redacted.
 The extension publishes redacted plan/approval/bundle metadata to the native
 host cache through `sendNativeMessage`; the host refuses any cached response
-with non-empty `bundleFields[].value`.
+with any non-empty nested `value` property.
 
 Magic Browser installs the host wrapper and Chrome manifest with:
 
 ```bash
-node dist/cli.js setup-agentic-chromium --tier chromium --padloc-root /Users/hassoncs/src/ch5/padloc --write
+node dist/cli.js setup-agentic-chromium --tier chromium --padloc-root /Users/hassoncs/src/ch5/padloc --extension-id <id> --write
 ```
 
 Use `--tier chromium` for Magic Browser's downloaded Chrome for Testing profile.
 Use `--tier canary` only when the live session is actually Chrome Canary.
 
 Magic Browser consumer code must reject any Padloc broker response that contains
-non-empty `bundleFields[].value` in a printable/status path.
+any non-empty nested `value` property in a printable/status path.
 
-Magic Browser can call the extension-owned broker through the extension
-service-worker CDP target for redacted plan/status requests. Printable/status
-paths must reject non-empty bundle values.
+Magic Browser should call the extension-owned broker through the native host for
+redacted plan/status requests. The extension service-worker CDP target is
+diagnostic-only and must be selected explicitly.
 
 Live smoke commands:
 
@@ -108,10 +108,10 @@ NODE_OPTIONS=--openssl-legacy-provider npm --prefix packages/extension run build
 
 cd /Users/hassoncs/src/ch5/magic-browser
 pnpm run build
-node dist/cli.js setup-agentic-chromium --tier chromium --padloc-root /Users/hassoncs/src/ch5/padloc --write
+node dist/cli.js setup-agentic-chromium --tier chromium --padloc-root /Users/hassoncs/src/ch5/padloc --extension-id <id> --write
 MAGIC_BROWSER_LOAD_EXTENSION=/Users/hassoncs/src/ch5/padloc/packages/extension/dist node dist/cli.js session start example.public_smoke --adapter local-cdp
 node dist/cli.js session extension-status <session-id> --extension-id <id> --native-host me.ch5.padloc
-node dist/cli.js session padloc-broker-request <session-id> --extension-id <id> --request-json '{"type":"status","protocolVersion":1}'
+node dist/cli.js session padloc-broker-request <session-id> --transport native --extension-id <id> --native-host me.ch5.padloc --request-json '{"type":"status","protocolVersion":1}'
 ```
 
 Run focused package tests from `packages/extension`, not the repo root:
