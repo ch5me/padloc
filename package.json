@@ -25,7 +25,8 @@
         "prettier": "2.8.4",
         "ts-node": "10.0.0",
         "typescript": "4.4.3",
-        "wait-on": "7.0.1"
+        "wait-on": "7.0.1",
+        "wrangler": "4.59.2"
     },
     "scripts": {
         "postinstall": "lerna bootstrap",

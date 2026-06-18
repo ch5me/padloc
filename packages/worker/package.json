@@ -11,7 +11,7 @@
     },
     "devDependencies": {
         "drizzle-kit": "^0.30.0",
-        "wrangler": "^4.59.2"
+        "wrangler": "4.59.2"
     },
     "scripts": {
         "dev": "wrangler dev --local --env=dev --ip 127.0.0.1 --port ${PL_WORKER_PORT:-8787}",
