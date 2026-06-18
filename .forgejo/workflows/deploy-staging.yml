@@ -26,6 +26,10 @@ jobs:
             - name: Install dependencies
               run: |
                   npm i -g npm@8.2.0
+                  npm config set fetch-retries 5
+                  npm config set fetch-retry-mintimeout 20000
+                  npm config set fetch-retry-maxtimeout 120000
+                  npm config set fetch-timeout 600000
                   npm ci
             - name: Check runtime contract
               run: npm run runtime-config:check
