@@ -57,6 +57,8 @@ export interface AgenticAutofillApprovalPrompt {
     origin: string;
     fieldCount: number;
     transactionOnlyCount: number;
+    paymentFieldCount: number;
+    finalSubmitWarning: boolean;
     fields: Array<{
         role: string;
         itemName: string;
@@ -90,6 +92,8 @@ export type Message =
     | { type: "getAgenticAutofillApprovalPromptResponse"; prompt: AgenticAutofillApprovalPrompt | null }
     | { type: "approveAgenticAutofill"; planId: string; promptNonce: string }
     | { type: "dismissAgenticAutofill"; planId: string }
+    | { type: "seedAgenticAutofillFixtures" }
+    | { type: "seedAgenticAutofillFixturesResponse"; created: number; itemNames: string[]; valuePolicy: string }
     | { type: "agenticAutofillBroker"; request: AutofillBrokerRequest }
     | { type: "agenticAutofillBrokerResponse"; response: AutofillBrokerResponse };
 

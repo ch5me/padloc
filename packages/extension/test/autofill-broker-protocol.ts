@@ -176,6 +176,50 @@ suite("Autofill broker protocol", () => {
         expect(latest.ok).to.equal(true);
         expect(latest.cached.response.approvalId).to.equal("approval-1");
     });
+
+    test("native host queues broker requests and returns matching redacted responses", () => {
+        const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-queue-`);
+        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const queued = nativeHostRequest(hostPath, {
+            type: "broker-request",
+            protocolVersion: 1,
+            request: {
+                type: "plan-fill",
+                protocolVersion: 1,
+                requestId: "req-native-1",
+                binding: { sessionId: "session-1", origin: "https://checkout.example.test", frameId: "main", fieldHashes: ["hash-email"] },
+                fields: [{ selector: "#email", role: "contact.email", fieldHash: "hash-email" }],
+            },
+        }, stateDir);
+        const claimed = nativeHostRequest(hostPath, { type: "claim-broker-request", protocolVersion: 1 }, stateDir);
+        const emptyClaim = nativeHostRequest(hostPath, { type: "claim-broker-request", protocolVersion: 1 }, stateDir);
+        nativeHostRequest(hostPath, {
+            type: "cache-redacted-response",
+            protocolVersion: 1,
+            response: {
+                ok: true,
+                protocolVersion: 1,
+                requestId: "req-native-1",
+                vaultState: "unlocked",
+                reason: null,
+                fields: [{ selector: "#email", role: "contact.email", valuePreview: "stored" }],
+                audit: { operation: "plan-fill", valuePolicy: "redacted audit only; no raw autofill values" },
+            },
+        }, stateDir);
+        const response = nativeHostRequest(hostPath, {
+            type: "broker-response",
+            protocolVersion: 1,
+            requestId: "req-native-1",
+        }, stateDir);
+
+        expect(queued.ok).to.equal(true);
+        expect(queued.pending).to.equal(true);
+        expect(claimed.pending.request.requestId).to.equal("req-native-1");
+        expect(emptyClaim.pending).to.equal(null);
+        expect(response.ok).to.equal(true);
+        expect(response.cached.response.requestId).to.equal("req-native-1");
+        expect(JSON.stringify(response)).not.to.contain("sentinel@example.test");
+    });
 });
 
 function nativeHostRequest(hostPath: string, request: unknown, stateDir: string) {

@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
 const PROTOCOL_VERSION = 1;
 const STATE_DIR = process.env.PADLOC_AGENTIC_AUTOFILL_STATE_DIR || join(homedir(), ".local", "share", "ch5-autofill", "padloc-bridge");
 const LATEST_RESPONSE_PATH = join(STATE_DIR, "latest-redacted-response.json");
+const PENDING_REQUEST_PATH = join(STATE_DIR, "pending-broker-request.json");
 
 const input = await readAllStdin();
 const request = parseNativeMessage(input);
@@ -43,6 +44,15 @@ function handleRequest(request) {
     if (type === "latest-redacted-response") {
         return latestRedactedResponse(request);
     }
+    if (type === "broker-request") {
+        return enqueueBrokerRequest(request);
+    }
+    if (type === "claim-broker-request") {
+        return claimBrokerRequest();
+    }
+    if (type === "broker-response") {
+        return brokerResponse(request);
+    }
     const binding = request && typeof request.binding === "object" ? request.binding : null;
     const fields = Array.isArray(request.fields) ? request.fields : [];
     return {
@@ -59,6 +69,65 @@ function handleRequest(request) {
             valuePolicy: "redacted audit only; no raw autofill values",
         },
     };
+}
+
+function enqueueBrokerRequest(request) {
+    const brokerRequest = request && typeof request.request === "object" ? request.request : null;
+    if (!brokerRequest) {
+        return statusResponse(false, "broker-request requires request");
+    }
+    const unsafe = findRawBundleValue(brokerRequest);
+    if (unsafe) {
+        return statusResponse(false, "refused broker request containing raw value");
+    }
+    const requestId = typeof brokerRequest.requestId === "string" && brokerRequest.requestId
+        ? brokerRequest.requestId
+        : `native-${Date.now()}`;
+    const queued = {
+        requestId,
+        queuedAt: new Date().toISOString(),
+        request: {
+            ...brokerRequest,
+            requestId,
+        },
+    };
+    mkdirSync(dirname(PENDING_REQUEST_PATH), { recursive: true, mode: 0o700 });
+    writeFileSync(PENDING_REQUEST_PATH, `${JSON.stringify(queued, null, 2)}\n`, { mode: 0o600 });
+    return statusResponse(true, null, {
+        requestId,
+        pending: true,
+        reason: "broker request queued for Padloc extension native-messaging pickup",
+    });
+}
+
+function claimBrokerRequest() {
+    if (!existsSync(PENDING_REQUEST_PATH)) {
+        return statusResponse(true, null, { pending: null });
+    }
+    try {
+        const pending = JSON.parse(readFileSync(PENDING_REQUEST_PATH, "utf8"));
+        const unsafe = findRawBundleValue(pending);
+        if (unsafe) {
+            unlinkSync(PENDING_REQUEST_PATH);
+            return statusResponse(false, "pending request contains raw value");
+        }
+        unlinkSync(PENDING_REQUEST_PATH);
+        return statusResponse(true, null, { pending });
+    } catch {
+        return statusResponse(false, "pending broker request unreadable");
+    }
+}
+
+function brokerResponse(request) {
+    const requestId = typeof request.requestId === "string" ? request.requestId : null;
+    const latest = latestRedactedResponse(request);
+    if (!latest.ok || !latest.cached || !latest.cached.response) {
+        return latest;
+    }
+    if (requestId && latest.cached.response.requestId !== requestId) {
+        return statusResponse(false, "broker response not ready", { requestId, pending: true });
+    }
+    return latest;
 }
 
 function cacheRedactedResponse(request) {

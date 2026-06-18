@@ -54,8 +54,8 @@ The production bridge should expose these steps:
 3. `approve`: user approves item, origin, roles, and transaction-only fields.
 4. `mint-fill-bundle`: Padloc issues a short-lived nonce/TTL bundle scoped to
    origin, frame, and field hashes.
-5. `apply-fill-bundle`: Magic Browser fills values locally and returns redacted
-   counts/proof.
+5. `apply-fill-bundle`: Padloc extension applies the still-memory-only bundle
+   through its content script, then returns redacted counts/proof.
 6. `revoke-fill-bundle`: Padloc revokes unused or failed bundles.
 
 Logs must contain item ids, roles, counts, origins, and last4 only where useful.
@@ -74,15 +74,26 @@ No raw names, addresses, PAN, expiry, or CVV.
 - Service-worker prelude: fail-closed locked/redacted broker response before
   full Padloc app background initialization
 
-The current host supports a metadata-only `status` handshake for Chrome native
-messaging discovery. The extension background owns the unlocked broker path:
-`plan-fill` matches requested field roles to unlocked Padloc item fields,
-stores a pending plan, popup approval converts that plan into a short-lived
-approval, and `mint-fill-bundle` returns a short-lived bundle. Values exist only
-inside the bundle response path; UI/status/audit responses stay redacted.
-The extension publishes redacted plan/approval/bundle metadata to the native
-host cache through `sendNativeMessage`; the host refuses any cached response
+The host supports `status`, `latest-redacted-response`, `broker-request`,
+`claim-broker-request`, and `broker-response`. Magic Browser enqueues redacted
+broker requests through the native host. The extension background claims pending
+requests with `sendNativeMessage`, handles them against the unlocked vault, and
+publishes redacted responses back to the host cache. The extension background
+owns the unlocked broker path: `plan-fill` matches requested field roles to
+unlocked Padloc item fields, stores a pending plan, popup approval converts that
+plan into a short-lived approval, and `mint-fill-bundle` creates a short-lived
+bundle. Raw bundle values stay in extension service-worker memory only and are
+consumed by `apply-fill-bundle` through the content script. UI/status/audit/native
+responses stay redacted. The host refuses any cached response or queued request
 with any non-empty nested `value` property.
+
+For fake-data dogfood, unlock Padloc and seed fixture items from extension UI:
+
+```js
+chrome.runtime.sendMessage({ type: "seedAgenticAutofillFixtures" })
+```
+
+The response returns item names/counts only. It must not print field values.
 
 Magic Browser installs the host wrapper and Chrome manifest with:
 
@@ -112,6 +123,7 @@ node dist/cli.js setup-agentic-chromium --tier chromium --padloc-root /Users/has
 MAGIC_BROWSER_LOAD_EXTENSION=/Users/hassoncs/src/ch5/padloc/packages/extension/dist node dist/cli.js session start example.public_smoke --adapter local-cdp
 node dist/cli.js session extension-status <session-id> --extension-id <id> --native-host me.ch5.padloc
 node dist/cli.js session padloc-broker-request <session-id> --transport native --extension-id <id> --native-host me.ch5.padloc --request-json '{"type":"status","protocolVersion":1}'
+node dist/cli.js session padloc-broker-request <session-id> --transport native --extension-id <id> --native-host me.ch5.padloc --request-file <redacted-broker-request.json> --wait-ms 65000
 ```
 
 Run focused package tests from `packages/extension`, not the repo root:
@@ -123,6 +135,6 @@ TS_NODE_TRANSPILE_ONLY=1 TS_NODE_COMPILER_OPTIONS='{"module":"commonjs"}' ./node
 ./node_modules/.bin/tsc --noEmit --target es2020 --module commonjs --strict --skipLibCheck test/autofill-broker.ts
 ```
 
-Remaining production step: replace the CDP service-worker entrypoint for live
-bundle retrieval with a full Chrome native-messaging port handoff from extension
-to host for a stable local transport.
+Remaining production step: run live unlocked fake-checkout dogfood through the
+native queue, popup approval, bundle mint, content-script apply, and redacted
+Magic Browser proof.

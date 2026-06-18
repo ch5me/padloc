@@ -27,6 +27,7 @@ export interface AutofillBrokerRequest {
         role?: string;
         autocomplete?: string;
         fieldHash?: string;
+        finalSubmit?: boolean;
     }>;
     planId?: string;
     approvalId?: string;

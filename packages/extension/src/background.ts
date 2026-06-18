@@ -3,9 +3,9 @@ import { setPlatform } from "@padloc/core/src/platform";
 import { App } from "@padloc/core/src/app";
 import { AjaxSender } from "@padloc/app/src/lib/ajax";
 import { debounce, uuid } from "@padloc/core/src/util";
-import { FieldType, Field } from "@padloc/core/src/item";
+import { AutofillFieldRole, FieldType, Field } from "@padloc/core/src/item";
 import { ExtensionPlatform } from "./platform";
-import { AgenticAutofillApprovalPrompt, Message, messageTab, SavePrompt, CredentialData } from "./message";
+import { AgenticAutofillApprovalPrompt, FieldMappings, Message, messageTab, SavePrompt, CredentialData } from "./message";
 import { clearSessionMasterKey, configureSessionStorage, getSessionMasterKey } from "./storage";
 import { AutofillBrokerRequest, AutofillBrokerResponse, buildLockedBrokerResponse } from "./autofill-broker-protocol";
 import {
@@ -26,6 +26,7 @@ const API_BASE_URL = "https://api-pad.ch5.me";
 // MV3 service worker - state must be persisted to storage
 let app: App;
 let autoLockAlarmName = "pl_autoLock";
+let nativeBrokerAlarmName = "pl_agenticAutofillNativeBroker";
 let isInitialized = false;
 const actionApi = chrome.action;
 
@@ -102,6 +103,7 @@ async function initBackground() {
         switch (msg.type) {
             case "ping":
                 // Used by popup to verify worker is alive after cold start
+                void processPendingNativeBrokerRequest(application);
                 return { type: "pong" };
             case "loggedOut":
             case "locked":
@@ -136,6 +138,8 @@ async function initBackground() {
                 return handleApproveAgenticAutofill(msg.planId, msg.promptNonce, sender);
             case "dismissAgenticAutofill":
                 return handleDismissAgenticAutofill(msg.planId);
+            case "seedAgenticAutofillFixtures":
+                return handleSeedAgenticAutofillFixtures(sender, application);
             case "agenticAutofillBroker":
                 return handleAgenticAutofillBroker(msg.request, application);
         }
@@ -155,6 +159,9 @@ async function initBackground() {
         if (alarm.name === autoLockAlarmName) {
             await doLock();
         }
+        if (alarm.name === nativeBrokerAlarmName) {
+            await processPendingNativeBrokerRequest(await getApp());
+        }
     });
 
     // Register commands
@@ -163,6 +170,8 @@ async function initBackground() {
     });
 
     await update();
+    browser.alarms.create(nativeBrokerAlarmName, { periodInMinutes: 1 });
+    void processPendingNativeBrokerRequest(_app);
 }
 
 async function handleContextMenuClick(menuItemId: string) {
@@ -466,6 +475,10 @@ function handleGetAgenticAutofillApprovalPrompt(sender: Runtime.MessageSender): 
             origin: latest.request.binding ? latest.request.binding.origin : "unknown",
             fieldCount: latest.fields.length,
             transactionOnlyCount: latest.fields.filter((field) => field.transactionOnly).length,
+            paymentFieldCount: latest.fields.filter((field) => field.role.startsWith("payment.")).length,
+            finalSubmitWarning: latest.request.fields?.some((field) =>
+                field.finalSubmit === true || (field.role || "").startsWith("purchase.final_submit")
+            ) ?? false,
             fields: latest.fields.map((field) => ({
                 role: field.role,
                 itemName: field.itemName,
@@ -523,6 +536,84 @@ function requireExtensionUiSender(sender: Runtime.MessageSender): string {
     return senderUrl;
 }
 
+async function handleSeedAgenticAutofillFixtures(sender: Runtime.MessageSender, application: App) {
+    requireExtensionUiSender(sender);
+    if (application.state.locked || !application.state.loggedIn) {
+        throw new Error("Fixture seeding requires unlocked Padloc extension UI");
+    }
+    const vault = application.mainVault;
+    if (!vault) throw new Error("Fixture seeding requires a main vault");
+    const fixtures = buildAgenticAutofillFixtureItems();
+    for (const fixture of fixtures) {
+        await application.createItem({
+            name: fixture.name,
+            vault: { id: vault.id },
+            fields: fixture.fields,
+            tags: ["agentic-autofill-fixture"],
+            icon: fixture.icon,
+        });
+    }
+    return {
+        type: "seedAgenticAutofillFixturesResponse",
+        created: fixtures.length,
+        itemNames: fixtures.map((fixture) => fixture.name),
+        valuePolicy: "fake fixture values only; response contains item names and counts, no raw field values",
+    };
+}
+
+function buildAgenticAutofillFixtureItems(): Array<{ name: string; icon: string; fields: Field[] }> {
+    return [
+        {
+            name: "Agentic Autofill Fixture - Person",
+            icon: "user",
+            fields: [
+                new Field({ name: "Full Name", value: "Pat Fixture", type: FieldType.Text, autofillRole: AutofillFieldRole.PersonFullName }),
+                new Field({ name: "First Name", value: "Pat", type: FieldType.Text, autofillRole: AutofillFieldRole.PersonFirstName }),
+                new Field({ name: "Last Name", value: "Fixture", type: FieldType.Text, autofillRole: AutofillFieldRole.PersonLastName }),
+                new Field({ name: "Email", value: "fixture@example.test", type: FieldType.Email, autofillRole: AutofillFieldRole.ContactEmail }),
+                new Field({ name: "Phone", value: "5550100000", type: FieldType.Phone, autofillRole: AutofillFieldRole.ContactPhone }),
+            ],
+        },
+        {
+            name: "Agentic Autofill Fixture - Address",
+            icon: "passport",
+            fields: [
+                new Field({ name: "Address Line 1", value: "100 Fixture Way", type: FieldType.Text, autofillRole: AutofillFieldRole.AddressLine1 }),
+                new Field({ name: "Address Line 2", value: "Unit 10", type: FieldType.Text, autofillRole: AutofillFieldRole.AddressLine2 }),
+                new Field({ name: "City", value: "Fixture City", type: FieldType.Text, autofillRole: AutofillFieldRole.AddressCity }),
+                new Field({ name: "State", value: "CA", type: FieldType.Text, autofillRole: AutofillFieldRole.AddressRegion }),
+                new Field({ name: "Postal Code", value: "90001", type: FieldType.Text, autofillRole: AutofillFieldRole.AddressPostalCode }),
+                new Field({ name: "Country", value: "US", type: FieldType.Text, autofillRole: AutofillFieldRole.AddressCountry }),
+            ],
+        },
+        {
+            name: "Agentic Autofill Fixture - Payment Card",
+            icon: "credit",
+            fields: [
+                new Field({ name: "Card Number", value: "4111111111111111", type: FieldType.Credit, autofillRole: AutofillFieldRole.PaymentCardPan }),
+                new Field({ name: "Card Owner", value: "Pat Fixture", type: FieldType.Text, autofillRole: AutofillFieldRole.PaymentCardholderName }),
+                new Field({ name: "Valid Until", value: "2031-09", type: FieldType.Month, autofillRole: AutofillFieldRole.PaymentCardExpiry }),
+                new Field({ name: "CVC", value: "123", type: FieldType.Pin, autofillRole: AutofillFieldRole.PaymentCardCvvTransient, transactionOnly: true }),
+            ],
+        },
+        {
+            name: "Agentic Autofill Fixture - Gift Recipient",
+            icon: "user",
+            fields: [
+                new Field({ name: "Recipient Name", value: "Gift Fixture", type: FieldType.Text, autofillRole: AutofillFieldRole.PersonFullName }),
+                new Field({ name: "Recipient Email", value: "gift.fixture@example.test", type: FieldType.Email, autofillRole: AutofillFieldRole.ContactEmail }),
+            ],
+        },
+        {
+            name: "Agentic Autofill Fixture - Merchant",
+            icon: "web",
+            fields: [
+                new Field({ name: "Merchant Origin", value: "https://checkout.example.test", type: FieldType.Url, autofillRole: AutofillFieldRole.MerchantOrigin }),
+            ],
+        },
+    ];
+}
+
 async function handleAgenticAutofillBroker(
     request: AutofillBrokerRequest,
     application: App
@@ -554,7 +645,7 @@ async function handleAgenticAutofillBroker(
         const response = await mintBrokerBundleResponse(request, plan, approval, await getItemsForActiveTab());
         pendingAutofillApprovals.delete(approval.approvalId);
         const redacted = redactBrokerResponse(response);
-        if (redacted.bundleId) pendingAutofillBundles.set(redacted.bundleId, redacted);
+        if (response.bundleId) pendingAutofillBundles.set(response.bundleId, response);
         void publishRedactedBrokerResponse(redacted);
         return { type: "agenticAutofillBrokerResponse", response: redacted };
     }
@@ -563,6 +654,7 @@ async function handleAgenticAutofillBroker(
         const bundle = request.bundleId ? pendingAutofillBundles.get(request.bundleId) : null;
         if (!bundle) throw new Error("Autofill bundle not found");
         const response = applyBrokerBundleResponse(request, bundle);
+        await fillActiveTabFromBundle(bundle);
         pendingAutofillBundles.delete(bundle.bundleId || "");
         pendingAutofillPlans.delete(bundle.planId || "");
         void publishRedactedBrokerResponse(response);
@@ -583,6 +675,129 @@ async function handleAgenticAutofillBroker(
         type: "agenticAutofillBrokerResponse",
         response: buildLockedBrokerResponse(request),
     };
+}
+
+async function fillActiveTabFromBundle(bundle: AutofillBrokerResponse): Promise<void> {
+    const bundleFields = bundle.bundleFields || [];
+    const mappings = bundleFieldsToMappings(bundleFields);
+    if (!Object.values(mappings).some((value) => Boolean(value))) {
+        throw new Error("Autofill bundle contains no fillable values");
+    }
+    await messageTab({ type: "fillFields", mappings });
+}
+
+function bundleFieldsToMappings(fields: NonNullable<AutofillBrokerResponse["bundleFields"]>): FieldMappings {
+    const mappings: FieldMappings = {};
+    for (const field of fields) {
+        if (!field.value) continue;
+        switch (field.role) {
+            case "username":
+                mappings.username = field.value;
+                break;
+            case "password":
+                mappings.password = field.value;
+                break;
+            case "totp":
+                mappings.totp = field.value;
+                break;
+            case "person.full_name":
+                mappings.fullName = field.value;
+                break;
+            case "person.first_name":
+                mappings.firstName = field.value;
+                break;
+            case "person.last_name":
+                mappings.lastName = field.value;
+                break;
+            case "contact.email":
+                mappings.email = field.value;
+                break;
+            case "contact.phone":
+                mappings.phone = field.value;
+                break;
+            case "billing.address.line1":
+            case "address.line1":
+                mappings.addressLine1 = field.value;
+                break;
+            case "billing.address.line2":
+            case "address.line2":
+                mappings.addressLine2 = field.value;
+                break;
+            case "billing.address.city":
+            case "address.city":
+                mappings.city = field.value;
+                break;
+            case "billing.address.region":
+            case "address.region":
+                mappings.region = field.value;
+                break;
+            case "billing.address.postal_code":
+            case "address.postal_code":
+                mappings.postalCode = field.value;
+                break;
+            case "billing.address.country":
+            case "address.country":
+                mappings.country = field.value;
+                break;
+            case "payment.card.cardholder_name":
+            case "payment.cardholder_name":
+                mappings.cardholderName = field.value;
+                break;
+            case "payment.card.pan":
+                mappings.cardNumber = field.value;
+                break;
+            case "payment.card.expiry":
+            case "payment.card.expiry_mm_yy":
+                mappings.cardExpiry = field.value;
+                break;
+            case "payment.card.expiry_month":
+                mappings.cardExpiryMonth = field.value;
+                break;
+            case "payment.card.expiry_year":
+                mappings.cardExpiryYear = field.value;
+                break;
+            case "payment.card.cvv_transient":
+                mappings.cardCvv = field.value;
+                break;
+        }
+    }
+    return mappings;
+}
+
+async function processPendingNativeBrokerRequest(application: App): Promise<void> {
+    let claimed: unknown;
+    try {
+        claimed = await browser.runtime.sendNativeMessage("me.ch5.padloc", {
+            type: "claim-broker-request",
+            protocolVersion: 1,
+        });
+    } catch {
+        return;
+    }
+    if (!claimed || typeof claimed !== "object") return;
+    const pending = (claimed as { pending?: unknown }).pending;
+    if (!pending || typeof pending !== "object") return;
+    const request = (pending as { request?: unknown }).request;
+    if (!request || typeof request !== "object") return;
+    try {
+        await handleAgenticAutofillBroker(request as AutofillBrokerRequest, application);
+    } catch (error) {
+        const failedRequest = request as AutofillBrokerRequest;
+        await publishRedactedBrokerResponse({
+            ok: false,
+            protocolVersion: 1,
+            requestId: typeof failedRequest.requestId === "string" ? failedRequest.requestId : undefined,
+            vaultState: application.state.locked ? "locked" : "unknown",
+            reason: error instanceof Error ? error.message : "Padloc native broker request failed",
+            audit: {
+                operation: failedRequest.type || "status",
+                sessionId: failedRequest.binding?.sessionId || null,
+                origin: failedRequest.binding?.origin || null,
+                fieldCount: failedRequest.fields?.length || 0,
+                valuePolicy: "redacted audit only; no raw autofill values",
+            },
+        });
+    }
 }
 
 const brokerGlobal = globalThis as typeof globalThis & {

@@ -429,9 +429,21 @@ export class ExtensionApp extends App {
                         <div class="save-prompt-host">${this._escapeHtml(prompt.origin)}</div>
                         ${fieldRows}
                         <div class="save-prompt-password">
+                            <span class="save-prompt-label">Payment fields</span>
+                            <span class="save-prompt-value">${prompt.paymentFieldCount}</span>
+                        </div>
+                        <div class="save-prompt-password">
                             <span class="save-prompt-label">Transaction-only fields</span>
                             <span class="save-prompt-value">${prompt.transactionOnlyCount}</span>
                         </div>
+                        ${
+                            prompt.finalSubmitWarning
+                                ? `<div class="save-prompt-password">
+                                    <span class="save-prompt-label">Final submit</span>
+                                    <span class="save-prompt-value">Separate human approval required</span>
+                                </div>`
+                                : ""
+                        }
                     </div>
                     <div class="save-prompt-actions">
                         <button class="save-prompt-btn save-prompt-btn-primary" id="agentic-autofill-approve">Approve</button>

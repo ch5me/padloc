@@ -123,6 +123,28 @@ mochaSuite("Autofill broker", () => {
         expect(JSON.stringify(applyResponse)).not.to.contain("sentinel@example.test");
         expect(JSON.stringify(revokeResponse)).not.to.contain("4111111111111111");
     });
+
+    mochaTest("rejects applying after bundle expiry", async () => {
+        const { pendingPlan } = buildUnlockedBrokerPlanResponse(request, items(), Date.parse("2026-06-17T12:00:00.000Z"));
+        const { approval } = approveBrokerPlanResponse(
+            { type: "approve", protocolVersion: 1, planId: pendingPlan.planId, approved: true, ttlSeconds: 1 },
+            pendingPlan,
+            Date.parse("2026-06-17T12:00:00.000Z")
+        );
+        const bundleResponse = await mintBrokerBundleResponse(
+            { type: "mint-fill-bundle", protocolVersion: 1, planId: pendingPlan.planId, approvalId: approval.approvalId },
+            pendingPlan,
+            approval,
+            items(),
+            Date.parse("2026-06-17T12:00:00.000Z")
+        );
+
+        expect(() => applyBrokerBundleResponse(
+            { type: "apply-fill-bundle", protocolVersion: 1, planId: pendingPlan.planId, bundleId: bundleResponse.bundleId },
+            bundleResponse,
+            Date.parse("2026-06-17T12:00:02.000Z")
+        )).to.throw("expired");
+    });
 });
 
 function items() {
