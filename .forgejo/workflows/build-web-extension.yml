@@ -18,10 +18,13 @@ on:
             - "feature/**"
             - "fix/**"
         paths:
+            - ".forgejo/workflows/build-web-extension.yml"
             - "packages/app/**"
             - "packages/core/**"
             - "packages/extension/**"
             - "packages/locale/**"
+            - "scripts/build-web-extension.cjs"
+            - "scripts/package-web-extension.sh"
             - "assets/**"
 
 jobs:
