@@ -105,6 +105,46 @@ export async function mintBrokerBundleResponse(
     };
 }
 
+export function applyBrokerBundleResponse(
+    request: AutofillBrokerRequest,
+    bundle: AutofillBrokerResponse,
+    now = Date.now()
+): AutofillBrokerResponse {
+    if (request.planId !== bundle.planId) throw new Error("Autofill apply plan mismatch");
+    if (request.bundleId !== bundle.bundleId) throw new Error("Autofill apply bundle mismatch");
+    if (bundle.expiresAt && Date.parse(bundle.expiresAt) <= now) throw new Error("Autofill bundle expired");
+    return {
+        ok: true,
+        protocolVersion: AUTOFILL_BROKER_PROTOCOL_VERSION,
+        requestId: request.requestId,
+        vaultState: "unlocked",
+        reason: null,
+        planId: bundle.planId,
+        approvalId: bundle.approvalId,
+        bundleId: bundle.bundleId,
+        audit: audit("apply-fill-bundle", request, bundle.bundleFields ? bundle.bundleFields.length : 0),
+    };
+}
+
+export function revokeBrokerBundleResponse(
+    request: AutofillBrokerRequest,
+    bundle: AutofillBrokerResponse
+): AutofillBrokerResponse {
+    if (request.planId !== bundle.planId) throw new Error("Autofill revoke plan mismatch");
+    if (request.bundleId !== bundle.bundleId) throw new Error("Autofill revoke bundle mismatch");
+    return {
+        ok: true,
+        protocolVersion: AUTOFILL_BROKER_PROTOCOL_VERSION,
+        requestId: request.requestId,
+        vaultState: "unlocked",
+        reason: null,
+        planId: bundle.planId,
+        approvalId: bundle.approvalId,
+        bundleId: bundle.bundleId,
+        audit: audit("revoke-fill-bundle", request, bundle.bundleFields ? bundle.bundleFields.length : 0),
+    };
+}
+
 export function redactBrokerResponse(response: AutofillBrokerResponse): AutofillBrokerResponse {
     if (!response.bundleFields) return response;
     return {

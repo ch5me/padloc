@@ -30,6 +30,7 @@ export interface AutofillBrokerRequest {
     }>;
     planId?: string;
     approvalId?: string;
+    bundleId?: string;
     approved?: boolean;
     ttlSeconds?: number;
     valuePolicy?: string;

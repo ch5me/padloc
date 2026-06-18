@@ -7,14 +7,16 @@ import { FieldType, Field } from "@padloc/core/src/item";
 import { ExtensionPlatform } from "./platform";
 import { AgenticAutofillApprovalPrompt, Message, messageTab, SavePrompt, CredentialData } from "./message";
 import { clearSessionMasterKey, configureSessionStorage, getSessionMasterKey } from "./storage";
-import { AutofillBrokerRequest, buildLockedBrokerResponse } from "./autofill-broker-protocol";
+import { AutofillBrokerRequest, AutofillBrokerResponse, buildLockedBrokerResponse } from "./autofill-broker-protocol";
 import {
+    applyBrokerBundleResponse,
     approveBrokerPlanResponse,
     buildUnlockedBrokerPlanResponse,
     BrokerApproval,
     mintBrokerBundleResponse,
     PendingBrokerPlan,
     redactBrokerResponse,
+    revokeBrokerBundleResponse,
 } from "./autofill-broker";
 
 setPlatform(new ExtensionPlatform());
@@ -32,6 +34,7 @@ const actionApi = chrome.action;
 const pendingPrompts = new Map<string, SavePrompt>();
 const pendingAutofillPlans = new Map<string, PendingBrokerPlan>();
 const pendingAutofillApprovals = new Map<string, BrokerApproval>();
+const pendingAutofillBundles = new Map<string, AutofillBrokerResponse>();
 
 // Suppression map: url -> timestamp when prompt can be shown again
 const dismissedUrls = new Map<string, number>();
@@ -528,8 +531,29 @@ async function handleAgenticAutofillBroker(
         const response = await mintBrokerBundleResponse(request, plan, approval, await getItemsForActiveTab());
         pendingAutofillApprovals.delete(approval.approvalId);
         const redacted = redactBrokerResponse(response);
+        if (redacted.bundleId) pendingAutofillBundles.set(redacted.bundleId, redacted);
         void publishRedactedBrokerResponse(redacted);
         return { type: "agenticAutofillBrokerResponse", response: redacted };
+    }
+
+    if (request.type === "apply-fill-bundle") {
+        const bundle = request.bundleId ? pendingAutofillBundles.get(request.bundleId) : null;
+        if (!bundle) throw new Error("Autofill bundle not found");
+        const response = applyBrokerBundleResponse(request, bundle);
+        pendingAutofillBundles.delete(bundle.bundleId || "");
+        pendingAutofillPlans.delete(bundle.planId || "");
+        void publishRedactedBrokerResponse(response);
+        return { type: "agenticAutofillBrokerResponse", response };
+    }
+
+    if (request.type === "revoke-fill-bundle") {
+        const bundle = request.bundleId ? pendingAutofillBundles.get(request.bundleId) : null;
+        if (!bundle) throw new Error("Autofill bundle not found");
+        const response = revokeBrokerBundleResponse(request, bundle);
+        pendingAutofillBundles.delete(bundle.bundleId || "");
+        pendingAutofillPlans.delete(bundle.planId || "");
+        void publishRedactedBrokerResponse(response);
+        return { type: "agenticAutofillBrokerResponse", response };
     }
 
     return {
