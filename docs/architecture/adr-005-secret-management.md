@@ -67,7 +67,7 @@ map to Cloudflare secrets:
 
 ## CI/CD Secret Sync
 
-For GitHub Actions deployments:
+For Forgejo Actions deployments:
 
 1. Store the project-scoped `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`
    in GitHub repository secrets.
