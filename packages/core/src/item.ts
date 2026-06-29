@@ -44,6 +44,102 @@ export enum AutofillItemKind {
     MerchantProfile = "merchant_profile",
 }
 
+export enum VaultItemKind {
+    PasskeyCredential = "passkey_credential",
+}
+
+export type PasskeyApprovalMode = "none" | "push_required";
+
+export interface PasskeyRateLimitPolicy {
+    maxPerDay?: number;
+    maxPerWeek?: number;
+}
+
+export interface PasskeyTimeWindowPolicy {
+    startMinute: number;
+    endMinute: number;
+    daysOfWeek?: number[];
+    timezone?: string;
+}
+
+export class PasskeyCredentialPolicy extends Serializable {
+    constructor(vals: Partial<PasskeyCredentialPolicy> = {}) {
+        super();
+        Object.assign(this, vals);
+    }
+
+    allowedRpIds: string[] = [];
+    allowedTopOrigins: string[] = [];
+    allowedVendorFlows: string[] = [];
+    approval: PasskeyApprovalMode = "none";
+    rateLimit: PasskeyRateLimitPolicy = {};
+    timeWindows: PasskeyTimeWindowPolicy[] = [];
+    requireFlowBinding: boolean = false;
+    emergencyLockout: boolean = false;
+}
+
+export type PasskeyAuditOperation = "enroll-passkey" | "request-assertion";
+export type PasskeyAuditDecision = "allow" | "deny";
+
+export class PasskeyAuditEntry extends Serializable {
+    constructor(vals: Partial<PasskeyAuditEntry> = {}) {
+        super();
+        Object.assign(this, vals);
+    }
+
+    operation: PasskeyAuditOperation = "request-assertion";
+    decision: PasskeyAuditDecision = "deny";
+    reason: string = "";
+    actor: string | null = null;
+    profileId: string | null = null;
+    vendor: string | null = null;
+    rpId: string | null = null;
+    topOrigin: string | null = null;
+    flowId: string | null = null;
+    nonce: string | null = null;
+    approvalId: string | null = null;
+    rateLimitDayCount: number = 0;
+    rateLimitWeekCount: number = 0;
+
+    @AsDate()
+    createdAt: Date = new Date();
+}
+
+export interface PasskeyPublicKeyJwk extends Record<string, unknown> {
+    kty: string;
+    crv: string;
+    x: string;
+    y: string;
+    alg?: string;
+    ext?: boolean;
+    key_ops?: string[];
+}
+
+export class PasskeyCredential extends Serializable {
+    constructor(vals: Partial<PasskeyCredential> = {}) {
+        super();
+        Object.assign(this, vals);
+    }
+
+    algorithm: string = "ES256";
+    credentialId: string = "";
+    rpId: string = "";
+    privateKeyFieldIndex: number = 0;
+    publicKeySpki: string = "";
+    publicKeyJwk?: PasskeyPublicKeyJwk = undefined;
+    signCount: number = 0;
+    userHandle: string = "";
+
+    @AsDate()
+    createdAt: Date = new Date();
+
+    @AsSerializable(PasskeyCredentialPolicy)
+    policy: PasskeyCredentialPolicy = new PasskeyCredentialPolicy();
+
+    @AsSerializable(PasskeyAuditEntry)
+    auditTrail: PasskeyAuditEntry[] = [];
+}
+
 export enum AutofillFieldRole {
     Username = "username",
     Password = "password",
@@ -370,6 +466,11 @@ export class VaultItem extends Serializable {
     @AsSerializable(Field)
     fields: Field[] = [];
 
+    itemKind?: VaultItemKind = undefined;
+
+    @AsSerializable(PasskeyCredential)
+    passkeyCredential?: PasskeyCredential = undefined;
+
     /** array of tags assigned with this item */
     tags: Tag[] = [];
 
@@ -418,12 +519,16 @@ export async function createVaultItem({
     fields = [],
     tags = [],
     icon,
+    itemKind,
+    passkeyCredential,
 }: Partial<VaultItem>): Promise<VaultItem> {
     return new VaultItem({
         name,
         fields,
         tags,
         icon,
+        itemKind,
+        passkeyCredential,
         id: await uuid(),
     });
 }
@@ -474,6 +579,10 @@ export interface ItemTemplate {
     toString(): string;
     subTitle?: string;
     attachment?: boolean;
+}
+
+export function isPasskeyCredentialItem(item: VaultItem): item is VaultItem & { passkeyCredential: PasskeyCredential } {
+    return item.itemKind === VaultItemKind.PasskeyCredential && Boolean(item.passkeyCredential);
 }
 
 export const ITEM_TEMPLATES: ItemTemplate[] = [

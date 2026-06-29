@@ -58,6 +58,14 @@ The production bridge should expose these steps:
    through its content script, then returns redacted counts/proof.
 6. `revoke-fill-bundle`: Padloc revokes unused or failed bundles.
 
+For passkeys, reuse same native-messaging request/response shape and bindings
+instead of adding a parallel transport:
+
+1. `enroll-passkey`: generate a vault-held credential, return only registration
+   material, persist the encrypted private key in the vault.
+2. `request-assertion`: require bound `flowId` + `ttl` + `topOrigin` + `rpId`,
+   enforce credential policy, sign internally, return assertion only.
+
 Logs must contain item ids, roles, counts, origins, and last4 only where useful.
 No raw names, addresses, PAN, expiry, or CVV.
 
@@ -85,7 +93,7 @@ plan into a short-lived approval, and `mint-fill-bundle` creates a short-lived
 bundle. Raw bundle values stay in extension service-worker memory only and are
 consumed by `apply-fill-bundle` through the content script. UI/status/audit/native
 responses stay redacted. The host refuses any cached response or queued request
-with any non-empty nested `value` property.
+with any non-empty nested `value`, `secret`, or `privateKey` property.
 
 For fake-data dogfood, unlock Padloc and seed fixture items from extension UI:
 

@@ -46,7 +46,7 @@ suite("Autofill broker protocol", () => {
         const response = JSON.parse(result.stdout.subarray(4, 4 + length).toString("utf8"));
         expect(response.ok).to.equal(true);
         expect(response.vaultState).to.equal("locked");
-        expect(response.audit.valuePolicy).to.equal("redacted audit only; no raw autofill values");
+        expect(response.audit.valuePolicy).to.equal("redacted audit only; no raw autofill values or passkey secrets");
     });
 
     test("native host caches only redacted broker responses", () => {
@@ -128,6 +128,40 @@ suite("Autofill broker protocol", () => {
         expect(latest.reason).to.contain("non-redacted");
     });
 
+    test("native host rejects nested privateKey and secret payloads in cached responses", () => {
+        const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-private-key-`);
+        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const privateKey = nativeHostRequest(hostPath, {
+            type: "cache-redacted-response",
+            protocolVersion: 1,
+            response: {
+                ok: true,
+                protocolVersion: 1,
+                passkey: {
+                    registration: {
+                        privateKey: "raw-private-key",
+                    },
+                },
+            },
+        }, stateDir);
+        const secret = nativeHostRequest(hostPath, {
+            type: "cache-redacted-response",
+            protocolVersion: 1,
+            response: {
+                ok: true,
+                protocolVersion: 1,
+                passkey: {
+                    assertion: {
+                        secretToken: "raw-secret",
+                    },
+                },
+            },
+        }, stateDir);
+
+        expect(privateKey.ok).to.equal(false);
+        expect(secret.ok).to.equal(false);
+    });
+
     test("native host rejects non-string value payloads", () => {
         const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-object-value-`);
         const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
@@ -152,6 +186,29 @@ suite("Autofill broker protocol", () => {
 
         expect(objectValue.ok).to.equal(false);
         expect(numericValue.ok).to.equal(false);
+    });
+
+    test("native host rejects passkey secrets in queued printable paths", () => {
+        const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-passkey-request-`);
+        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const queued = nativeHostRequest(hostPath, {
+            type: "broker-request",
+            protocolVersion: 1,
+            request: {
+                type: "request-assertion",
+                protocolVersion: 1,
+                requestId: "req-passkey-unsafe",
+                passkey: {
+                    credentialId: "cred-1",
+                    rpId: "example-rp.test",
+                    topOrigin: "https://accounts.example-rp.test",
+                    privateKey: "should-not-print",
+                },
+            },
+        }, stateDir);
+
+        expect(queued.ok).to.equal(false);
+        expect(queued.reason).to.contain("sensitive payload");
     });
 
     test("native host caches redacted approval metadata", () => {

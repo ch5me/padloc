@@ -18,6 +18,7 @@ import {
     redactBrokerResponse,
     revokeBrokerBundleResponse,
 } from "./autofill-broker";
+import { enrollPasskeyCredential, requestPasskeyAssertion } from "./passkey-broker";
 
 setPlatform(new ExtensionPlatform());
 
@@ -307,6 +308,10 @@ async function getItemsForActiveTab() {
     const tab = await getActiveTab();
     const application = await getApp();
     return tab && tab.url ? application.getItemsForUrl(tab.url) : [];
+}
+
+function getAllVaultItems(application: App) {
+    return Array.from(application.vaults).flatMap((vault) => Array.from(vault.items));
 }
 
 async function getCountForActiveTab() {
@@ -637,6 +642,39 @@ async function handleAgenticAutofillBroker(
         throw new Error("Autofill approval requires Padloc approval UI");
     }
 
+    if (request.type === "enroll-passkey") {
+        const vaultId = request.passkey && "vaultId" in request.passkey ? request.passkey.vaultId : undefined;
+        const vault = vaultId ? application.getVault(vaultId) : application.mainVault;
+        if (!vault) throw new Error("Passkey enrollment requires an accessible vault");
+        const result = await enrollPasskeyCredential(request);
+        const createdItem = await application.createItem({
+            name: result.itemName,
+            vault: { id: vault.id },
+            icon: result.icon,
+            fields: result.fields,
+            itemKind: result.itemKind,
+            passkeyCredential: result.passkeyCredential,
+        });
+        if (result.response.passkey) {
+            result.response.passkey.itemId = createdItem.id;
+            result.response.passkey.itemName = createdItem.name;
+        }
+        void publishRedactedBrokerResponse(result.response);
+        return { type: "agenticAutofillBrokerResponse", response: result.response };
+    }
+
+    if (request.type === "request-assertion") {
+        const result = await requestPasskeyAssertion(request, getAllVaultItems(application));
+        if (result.updatedItem?.id) {
+            await application.updateItem(result.updatedItem, {
+                itemKind: result.updatedItem.itemKind,
+                passkeyCredential: result.updatedItem.passkeyCredential,
+            });
+        }
+        void publishRedactedBrokerResponse(result.response);
+        return { type: "agenticAutofillBrokerResponse", response: result.response };
+    }
+
     if (request.type === "mint-fill-bundle") {
         const plan = request.planId ? pendingAutofillPlans.get(request.planId) : null;
         const approval = request.approvalId ? pendingAutofillApprovals.get(request.approvalId) : null;
@@ -794,7 +832,7 @@ async function processPendingNativeBrokerRequest(application: App): Promise<void
                 sessionId: failedRequest.binding?.sessionId || null,
                 origin: failedRequest.binding?.origin || null,
                 fieldCount: failedRequest.fields?.length || 0,
-                valuePolicy: "redacted audit only; no raw autofill values",
+                valuePolicy: "redacted audit only; no raw autofill values or passkey secrets",
             },
         });
     }

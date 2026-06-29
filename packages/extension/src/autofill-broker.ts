@@ -216,7 +216,7 @@ function audit(operation: AutofillBrokerResponse["audit"]["operation"], request:
         sessionId: request.binding ? request.binding.sessionId : null,
         origin: request.binding ? request.binding.origin : null,
         fieldCount,
-        valuePolicy: "redacted audit only; no raw autofill values",
+        valuePolicy: "redacted audit only; no raw autofill values or passkey secrets",
     };
 }
 
