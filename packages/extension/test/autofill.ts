@@ -1,5 +1,6 @@
 import { expect } from "chai";
-import { FieldType } from "@padloc/core/src/item";
+import { suite, test } from "mocha";
+import { FieldType } from "../../core/src/item";
 
 suite("Autofill orchestration", () => {
     suite("Field role classification", () => {

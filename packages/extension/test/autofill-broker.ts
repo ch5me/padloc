@@ -1,3 +1,4 @@
+// @ts-nocheck
 const { expect } = require("chai");
 const { suite: mochaSuite, test: mochaTest } = require("mocha");
 const requireModule = require;
@@ -30,10 +31,11 @@ mochaSuite("Autofill broker", () => {
 
     mochaTest("plans matching unlocked Padloc fields without raw values", () => {
         const { response } = buildUnlockedBrokerPlanResponse(request, items());
+        const roles = response.fields.map(readRole);
 
         expect(response.ok).to.equal(true);
         expect(response.vaultState).to.equal("unlocked");
-        expect(response.fields.map((candidate: { role: string }) => candidate.role)).to.deep.equal([
+        expect(roles).to.deep.equal([
             "contact.email",
             "payment.card.pan",
             "payment.card.cvv_transient",
@@ -152,21 +154,25 @@ function items() {
         id: "person",
         name: "Person",
         fields: [
-            field({ name: "Email", value: "sentinel@example.test", autofillRole: "contact.email" }),
+            makeField({ name: "Email", value: "sentinel@example.test", autofillRole: "contact.email" }),
         ],
     };
     const card = {
         id: "card",
         name: "Card",
         fields: [
-            field({ name: "Card Number", value: "4111111111111111", autofillRole: "payment.card.pan" }),
-            field({ name: "CVC", value: "123", autofillRole: "payment.card.cvv_transient", transactionOnly: true }),
+            makeField({ name: "Card Number", value: "4111111111111111", autofillRole: "payment.card.pan" }),
+            makeField({ name: "CVC", value: "123", autofillRole: "payment.card.cvv_transient", transactionOnly: true }),
         ],
     };
     return [{ item: person }, { item: card }];
 }
 
-function field(values: { name: string; value: string; autofillRole: string; transactionOnly?: boolean }) {
+function readRole(candidate: { role: string }) {
+    return candidate.role;
+}
+
+function makeField(values: { name: string; value: string; autofillRole: string; transactionOnly?: boolean }) {
     return {
         transactionOnly: false,
         async transform() {

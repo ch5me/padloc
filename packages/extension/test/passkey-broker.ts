@@ -1,3 +1,4 @@
+// @ts-nocheck
 const { expect } = require("chai");
 const { suite: mochaSuite, test: mochaTest } = require("mocha");
 const requireModule = require;
@@ -9,42 +10,61 @@ const {
     verifyAssertionSignature,
 } = requireModule("../src/passkey-broker");
 
+const ALGORITHMS = [
+    {
+        label: "ES256",
+        value: -7,
+        generateKey: { name: "ECDSA", namedCurve: "P-256" },
+    },
+    {
+        label: "Ed25519",
+        value: -8,
+        generateKey: { name: "Ed25519" },
+    },
+];
+
 mochaSuite("Passkey broker", () => {
-    mochaTest("enroll stores private key in secret field and never leaks it in broker response", async () => {
-        const request = enrollmentRequest();
-        const result = await enrollPasskeyCredential(request, new Date("2026-06-29T18:00:00.000Z"));
-        const privateKeyField = result.fields[result.passkeyCredential.privateKeyFieldIndex];
+    for (const algorithm of ALGORITHMS) {
+        mochaTest(`${algorithm.label} enroll-import stores private key in secret field and never leaks it in broker response`, async () => {
+            const request = await enrollmentRequest({ algorithm: algorithm.value });
+            const result = await enrollPasskeyCredential(request, new Date("2026-06-29T18:00:00.000Z"));
+            const privateKeyField = result.fields[result.passkeyCredential.privateKeyFieldIndex];
 
-        expect(privateKeyField.type).to.equal(FieldType.Password);
-        expect(privateKeyField.value).to.be.a("string").and.not.equal("");
-        expect(result.passkeyCredential.privateKeyFieldIndex).to.equal(0);
-        expect(JSON.stringify(result.response)).not.to.contain(privateKeyField.value);
-        expect(JSON.stringify(result.response)).not.to.contain("privateKey");
-        expect(result.response.passkey.registration.attestationObject).to.be.a("string").and.not.equal("");
-    });
+            expect(privateKeyField.type).to.equal(FieldType.Password);
+            expect(privateKeyField.value).to.equal(request.passkey.privateKeyPkcs8);
+            expect(result.passkeyCredential.algorithm).to.equal(algorithm.value);
+            expect(result.passkeyCredential.privateKeyFieldIndex).to.equal(0);
+            expect(JSON.stringify(result.response)).not.to.contain(privateKeyField.value);
+            expect(JSON.stringify(result.response)).not.to.contain("privateKey");
+            expect(result.response.passkey.registration.attestationObject).to.be.a("string").and.not.equal("");
+            expect(result.response.passkey.registration.algorithm).to.equal(algorithm.value);
+        });
 
-    mochaTest("request-assertion allows bound flow and signature verifies against stored public key", async () => {
-        const enrolled = await enrollPasskeyCredential(enrollmentRequest(), new Date("2026-06-29T18:00:00.000Z"));
-        const item = asStoredItem(enrolled);
-        const request = assertionRequest(item.passkeyCredential.credentialId, "nonce-allow", "flow-allow");
-        const result = await requestPasskeyAssertion(request, [item], new Date("2026-06-29T18:05:00.000Z"));
+        mochaTest(`${algorithm.label} enroll-import -> assert -> signature verifies against stored public key`, async () => {
+            const request = await enrollmentRequest({ algorithm: algorithm.value });
+            const enrolled = await enrollPasskeyCredential(request, new Date("2026-06-29T18:00:00.000Z"));
+            const item = asStoredItem(enrolled);
+            const requestAssertion = assertionRequest(item.passkeyCredential.credentialId, "nonce-allow", "flow-allow");
+            const result = await requestPasskeyAssertion(requestAssertion, [item], new Date("2026-06-29T18:05:00.000Z"));
 
-        expect(result.response.ok).to.equal(true);
-        expect(result.updatedItem.passkeyCredential.signCount).to.equal(1);
-        expect(result.response.passkey.decision).to.equal("allow");
-        expect(JSON.stringify(result.response)).not.to.contain(item.fields[0].value);
+            expect(result.response.ok).to.equal(true);
+            expect(result.updatedItem.passkeyCredential.signCount).to.equal(1);
+            expect(result.updatedItem.passkeyCredential.algorithm).to.equal(algorithm.value);
+            expect(result.response.passkey.decision).to.equal("allow");
+            expect(JSON.stringify(result.response)).not.to.contain(item.fields[0].value);
 
-        const verified = await verifyAssertionSignature(
-            result.updatedItem.passkeyCredential,
-            result.response.passkey.assertion,
-            request.passkey
-        );
+            const verified = await verifyAssertionSignature(
+                result.updatedItem.passkeyCredential,
+                result.response.passkey.assertion,
+                requestAssertion.passkey
+            );
 
-        expect(verified).to.equal(true);
-    });
+            expect(verified).to.equal(true);
+        });
+    }
 
     mochaTest("denies disallowed rpId", async () => {
-        const enrolled = await enrollPasskeyCredential(enrollmentRequest(), new Date("2026-06-29T18:00:00.000Z"));
+        const enrolled = await enrollPasskeyCredential(await enrollmentRequest(), new Date("2026-06-29T18:00:00.000Z"));
         const item = asStoredItem(enrolled);
         const request = assertionRequest(item.passkeyCredential.credentialId, "nonce-rp", "flow-rp");
         request.passkey.rpId = "evil.example";
@@ -56,7 +76,7 @@ mochaSuite("Passkey broker", () => {
     });
 
     mochaTest("denies disallowed top origin", async () => {
-        const enrolled = await enrollPasskeyCredential(enrollmentRequest(), new Date("2026-06-29T18:00:00.000Z"));
+        const enrolled = await enrollPasskeyCredential(await enrollmentRequest(), new Date("2026-06-29T18:00:00.000Z"));
         const item = asStoredItem(enrolled);
         const request = assertionRequest(item.passkeyCredential.credentialId, "nonce-origin", "flow-origin");
         request.passkey.topOrigin = "https://blocked.example.test";
@@ -69,7 +89,7 @@ mochaSuite("Passkey broker", () => {
     });
 
     mochaTest("denies missing flow binding when required", async () => {
-        const enrolled = await enrollPasskeyCredential(enrollmentRequest(), new Date("2026-06-29T18:00:00.000Z"));
+        const enrolled = await enrollPasskeyCredential(await enrollmentRequest(), new Date("2026-06-29T18:00:00.000Z"));
         const item = asStoredItem(enrolled);
         const request = assertionRequest(item.passkeyCredential.credentialId, "nonce-flow", undefined);
         delete request.passkey.flowId;
@@ -82,7 +102,7 @@ mochaSuite("Passkey broker", () => {
 
     mochaTest("denies once daily rate limit is exhausted", async () => {
         const enrolled = await enrollPasskeyCredential(
-            enrollmentRequest({ policy: { ...basePolicy(), rateLimit: { maxPerDay: 1, maxPerWeek: 3 } } }),
+            await enrollmentRequest({ policy: { ...basePolicy(), rateLimit: { maxPerDay: 1, maxPerWeek: 3 } } }),
             new Date("2026-06-29T18:00:00.000Z")
         );
         const item = asStoredItem(enrolled);
@@ -104,7 +124,7 @@ mochaSuite("Passkey broker", () => {
 
     mochaTest("denies emergency lockout", async () => {
         const enrolled = await enrollPasskeyCredential(
-            enrollmentRequest({ policy: { ...basePolicy(), emergencyLockout: true } }),
+            await enrollmentRequest({ policy: { ...basePolicy(), emergencyLockout: true } }),
             new Date("2026-06-29T18:00:00.000Z")
         );
         const item = asStoredItem(enrolled);
@@ -129,9 +149,10 @@ function asStoredItem(enrolled: { itemName: string; fields: unknown[]; passkeyCr
     });
 }
 
-function enrollmentRequest(
-    overrides: { policy?: Record<string, unknown>; passkey?: Record<string, unknown> } = {}
+async function enrollmentRequest(
+    overrides: { algorithm?: number; fixtureSeed?: string; policy?: Record<string, unknown>; passkey?: Record<string, unknown> } = {}
 ) {
+    const fixture = await makeImportedCredentialFixture(overrides.algorithm || -7, overrides.fixtureSeed || "default");
     const policy = new PasskeyCredentialPolicy({
         ...basePolicy(),
         ...(overrides.policy || {}),
@@ -151,7 +172,11 @@ function enrollmentRequest(
         passkey: {
             itemName: "Example RP Passkey",
             rpId: "example-rp.test",
-            userHandle: "user@example-rp.test",
+            credentialId: fixture.credentialId,
+            privateKeyPkcs8: fixture.privateKeyPkcs8,
+            userHandle: fixture.userHandle,
+            signCount: fixture.signCount,
+            algorithm: fixture.algorithm,
             vendor: "throwaway-test-rp",
             policy,
             ...(overrides.passkey || {}),
@@ -202,5 +227,24 @@ function basePolicy() {
         timeWindows: [],
         requireFlowBinding: true,
         emergencyLockout: false,
+    };
+}
+
+async function makeImportedCredentialFixture(algorithm: number, seed: string) {
+    const subtle = globalThis.crypto.subtle;
+    const generateKey = ALGORITHMS.find((entry) => entry.value === algorithm)?.generateKey;
+    if (!generateKey) {
+        throw new Error(`Unsupported fixture algorithm ${algorithm}`);
+    }
+    const keyPair = await subtle.generateKey(generateKey, true, ["sign", "verify"]);
+    if (!("privateKey" in keyPair) || !keyPair.privateKey) {
+        throw new Error(`Fixture key generation failed for algorithm ${algorithm}`);
+    }
+    return {
+        algorithm,
+        credentialId: bytesToBase64(stringToBytes(`credential-${seed}-${algorithm}`)),
+        privateKeyPkcs8: bytesToBase64(new Uint8Array(await subtle.exportKey("pkcs8", keyPair.privateKey))),
+        userHandle: bytesToBase64(stringToBytes(`user-${seed}-${algorithm}`)),
+        signCount: 0,
     };
 }

@@ -13,7 +13,8 @@
         "outDir": "dist",
         "sourceMap": true,
         "module": "esnext",
-        "strict": true
+        "strict": true,
+        "skipLibCheck": true
     },
     "include": ["src/**/*.ts", "types/**/*.d.ts", "../app/types/**/*.ts"],
     "exclude": ["node_modules/**/*.ts"]

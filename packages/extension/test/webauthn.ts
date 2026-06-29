@@ -1,5 +1,6 @@
-import { AuthType } from "@padloc/core/src/auth";
+import { AuthType } from "../../core/src/auth";
 import { expect } from "chai";
+import { suite, test } from "mocha";
 import { ExtensionPlatform } from "../src/platform";
 import { webAuthnClient } from "../src/auth/webauthn";
 

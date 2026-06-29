@@ -108,8 +108,8 @@ export class PasskeyAuditEntry extends Serializable {
 export interface PasskeyPublicKeyJwk extends Record<string, unknown> {
     kty: string;
     crv: string;
-    x: string;
-    y: string;
+    x?: string;
+    y?: string;
     alg?: string;
     ext?: boolean;
     key_ops?: string[];
@@ -121,7 +121,7 @@ export class PasskeyCredential extends Serializable {
         Object.assign(this, vals);
     }
 
-    algorithm: string = "ES256";
+    algorithm: string | number = -7;
     credentialId: string = "";
     rpId: string = "";
     privateKeyFieldIndex: number = 0;

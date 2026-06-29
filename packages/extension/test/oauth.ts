@@ -1,5 +1,6 @@
-import { AuthType } from "@padloc/core/src/auth";
+import { AuthType } from "../../core/src/auth";
 import { expect } from "chai";
+import { setup, suite, teardown, test } from "mocha";
 import sinon from "sinon";
 import { browser } from "webextension-polyfill-ts";
 import { ExtensionPlatform } from "../src/platform";

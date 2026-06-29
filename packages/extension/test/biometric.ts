@@ -1,6 +1,7 @@
 import { expect } from "chai";
-import { AuthType } from "@padloc/core/src/auth";
-import { ErrorCode } from "@padloc/core/src/error";
+import { suite, test } from "mocha";
+import { AuthType } from "../../core/src/auth";
+import { ErrorCode } from "../../core/src/error";
 import { shouldAttemptBiometricReunlock, unlockWithBiometric } from "../src/auth/biometric";
 
 suite("Extension biometric re-unlock", () => {

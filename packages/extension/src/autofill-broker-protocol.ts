@@ -34,7 +34,10 @@ export interface PasskeyEnrollmentRequest {
     tags?: string[];
     rpId: string;
     userHandle?: string;
-    algorithm?: string;
+    credentialId?: string;
+    privateKeyPkcs8?: string;
+    signCount?: number;
+    algorithm?: string | number;
     topOrigin?: string;
     vendor?: string;
     policy: PasskeyCredentialPolicy;
@@ -99,7 +102,7 @@ export interface AutofillBrokerBundleField {
 export interface PasskeyRegistrationPayload {
     credentialId: string;
     rpId: string;
-    algorithm: string;
+    algorithm: string | number;
     userHandle: string;
     createdAt: string;
     publicKeySpki: string;

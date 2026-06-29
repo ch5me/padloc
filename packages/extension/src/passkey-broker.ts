@@ -62,40 +62,45 @@ export interface RequestAssertionResult {
     response: AutofillBrokerResponse;
 }
 
+const PASSKEY_ALGORITHM_ES256 = -7;
+const PASSKEY_ALGORITHM_ED25519 = -8;
+
 export async function enrollPasskeyCredential(
     request: AutofillBrokerRequest,
     now = new Date()
 ): Promise<EnrollPasskeyResult> {
     const enrollment = requirePasskeyEnrollmentRequest(request);
-    const algorithm = enrollment.algorithm || "ES256";
-    if (algorithm !== "ES256") {
-        throw new Error(`Unsupported passkey algorithm: ${algorithm}`);
+    const algorithm = normalizePasskeyAlgorithm(enrollment.algorithm);
+    if (!enrollment.credentialId) {
+        throw new Error("Passkey enrollment requires credentialId");
     }
-
+    if (!enrollment.privateKeyPkcs8) {
+        throw new Error("Passkey enrollment requires privateKeyPkcs8");
+    }
     const cryptoApi = await getWebCrypto();
-    const keyPair = await cryptoApi.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
-    if (!keyPair.publicKey || !keyPair.privateKey) {
-        throw new Error("Passkey key generation failed");
-    }
-    const credentialIdBytes = await randomBytes(cryptoApi, 32);
-    const userHandleBytes = enrollment.userHandle ? stringToBytes(enrollment.userHandle) : await randomBytes(cryptoApi, 16);
-    const publicKeySpkiBytes = new Uint8Array(await cryptoApi.subtle.exportKey("spki", keyPair.publicKey));
-    const privateKeyPkcs8Bytes = new Uint8Array(await cryptoApi.subtle.exportKey("pkcs8", keyPair.privateKey));
-    const publicKeyJwk = await cryptoApi.subtle.exportKey("jwk", keyPair.publicKey);
-    const cosePublicKey = encodeCoseEc2PublicKey(publicKeyJwk);
+    const credentialIdBytes = base64ToBytes(enrollment.credentialId);
+    const userHandle = enrollment.userHandle || bytesToBase64(await randomBytes(cryptoApi, 16));
+    const privateKeyPkcs8Bytes = base64ToBytes(enrollment.privateKeyPkcs8);
+    const importedPrivateKey = await importPrivateKeyForAlgorithm(cryptoApi, algorithm, privateKeyPkcs8Bytes);
+    const exportedPrivateKeyJwk = await cryptoApi.subtle.exportKey("jwk", importedPrivateKey);
+    const publicKeyJwk = toPublicJwk(exportedPrivateKeyJwk, algorithm);
+    const importedPublicKey = await importPublicKeyFromJwk(cryptoApi, algorithm, publicKeyJwk);
+    const publicKeySpkiBytes = new Uint8Array(await cryptoApi.subtle.exportKey("spki", importedPublicKey));
+    const cosePublicKey = encodeCosePublicKey(publicKeyJwk, algorithm);
+    const signCount = normalizeSignCount(enrollment.signCount ?? 0);
     const attestedAuthData = await buildAttestedCredentialData(enrollment.rpId, credentialIdBytes, cosePublicKey);
     const attestationObject = encodeAttestationObject(attestedAuthData);
     const createdAt = new Date(now);
 
     const passkeyCredential = new PasskeyCredential({
         algorithm,
-        credentialId: bytesToBase64(credentialIdBytes),
+        credentialId: enrollment.credentialId,
         rpId: enrollment.rpId,
         privateKeyFieldIndex: 0,
         publicKeySpki: bytesToBase64(publicKeySpkiBytes),
         publicKeyJwk: normalizePublicKeyJwk(publicKeyJwk),
-        signCount: 0,
-        userHandle: bytesToBase64(userHandleBytes),
+        signCount,
+        userHandle,
         createdAt,
         policy: new PasskeyCredentialPolicy(enrollment.policy),
         auditTrail: [],
@@ -131,7 +136,7 @@ export async function enrollPasskeyCredential(
 
     const itemName = enrollment.itemName || `Passkey ${enrollment.rpId}`;
     const fields = [
-        new Field({ name: "Private Key", type: FieldType.Password, value: bytesToBase64(privateKeyPkcs8Bytes) }),
+        new Field({ name: "Private Key", type: FieldType.Password, value: enrollment.privateKeyPkcs8 }),
         new Field({ name: "RP ID", type: FieldType.Url, value: `https://${enrollment.rpId}` }),
         new Field({ name: "Credential ID", type: FieldType.Text, value: passkeyCredential.credentialId }),
         new Field({ name: "User Handle", type: FieldType.Text, value: passkeyCredential.userHandle }),
@@ -206,17 +211,9 @@ export async function requestPasskeyAssertion(
     const authenticatorData = await buildAssertionAuthenticatorData(credential.rpId, nextSignCount);
     const signedPayload = concatBytes(authenticatorData, clientDataHash);
     const privateKeyPkcs8 = readStoredPrivateKey(item, credential);
-    const importedPrivateKey = await cryptoApi.subtle.importKey(
-        "pkcs8",
-        base64ToBytes(privateKeyPkcs8),
-        { name: "ECDSA", namedCurve: "P-256" },
-        false,
-        ["sign"]
-    );
-    const rawSignature = new Uint8Array(
-        await cryptoApi.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, importedPrivateKey, signedPayload)
-    );
-    const derSignature = rawEcdsaSignatureToDer(rawSignature);
+    const algorithm = normalizePasskeyAlgorithm(credential.algorithm);
+    const importedPrivateKey = await importPrivateKeyForAlgorithm(cryptoApi, algorithm, base64ToBytes(privateKeyPkcs8), false);
+    const signature = await signAssertionPayload(cryptoApi, algorithm, importedPrivateKey, signedPayload);
 
     credential.signCount = nextSignCount;
     const rateLimitAfter = measureRateLimit(credential, now, true);
@@ -233,7 +230,7 @@ export async function requestPasskeyAssertion(
     const assertion: PasskeyAssertionPayload = {
         credentialId: credential.credentialId,
         authenticatorData: bytesToBase64(authenticatorData),
-        signature: bytesToBase64(derSignature),
+        signature: bytesToBase64(signature),
         userHandle: credential.userHandle,
         signCount: credential.signCount,
     };
@@ -292,17 +289,11 @@ export async function verifyAssertionSignature(
     request: PasskeyAssertionRequest
 ): Promise<boolean> {
     const cryptoApi = await getWebCrypto();
-    const importedPublicKey = await cryptoApi.subtle.importKey(
-        "spki",
-        base64ToBytes(credential.publicKeySpki),
-        { name: "ECDSA", namedCurve: "P-256" },
-        false,
-        ["verify"]
-    );
+    const algorithm = normalizePasskeyAlgorithm(credential.algorithm);
+    const importedPublicKey = await importPublicKeyForAlgorithm(cryptoApi, algorithm, base64ToBytes(credential.publicKeySpki));
     const clientDataHash = await resolveClientDataHash(request, cryptoApi);
     const signedPayload = concatBytes(base64ToBytes(assertion.authenticatorData), clientDataHash);
-    const rawSignature = derEcdsaSignatureToRaw(base64ToBytes(assertion.signature), 32);
-    return cryptoApi.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, importedPublicKey, rawSignature, signedPayload);
+    return verifyAssertionPayload(cryptoApi, algorithm, importedPublicKey, base64ToBytes(assertion.signature), signedPayload);
 }
 
 function requirePasskeyEnrollmentRequest(request: AutofillBrokerRequest): PasskeyEnrollmentRequest {
@@ -310,8 +301,8 @@ function requirePasskeyEnrollmentRequest(request: AutofillBrokerRequest): Passke
         throw new Error("Passkey enrollment requires passkey payload");
     }
     const enrollment = request.passkey as PasskeyEnrollmentRequest;
-    if (!enrollment.rpId || !enrollment.policy) {
-        throw new Error("Passkey enrollment requires rpId and policy");
+    if (!enrollment.rpId || !enrollment.policy || !enrollment.credentialId || !enrollment.privateKeyPkcs8) {
+        throw new Error("Passkey enrollment requires rpId, policy, credentialId, and privateKeyPkcs8");
     }
     return enrollment;
 }
@@ -609,19 +600,34 @@ function encodeAttestationObject(authData: Uint8Array): Uint8Array {
     ]);
 }
 
-function encodeCoseEc2PublicKey(publicKeyJwk: JsonWebKey): Uint8Array {
-    const x = publicKeyJwk.x;
-    const y = publicKeyJwk.y;
-    if (!x || !y || publicKeyJwk.kty !== "EC" || publicKeyJwk.crv !== "P-256") {
-        throw new Error("Expected exported ES256 public JWK");
+function encodeCosePublicKey(publicKeyJwk: JsonWebKey, algorithm: number): Uint8Array {
+    if (algorithm === PASSKEY_ALGORITHM_ES256) {
+        const x = publicKeyJwk.x;
+        const y = publicKeyJwk.y;
+        if (!x || !y || publicKeyJwk.kty !== "EC" || publicKeyJwk.crv !== "P-256") {
+            throw new Error("Expected exported ES256 public JWK");
+        }
+        return encodeCborMap([
+            [1, 2],
+            [3, PASSKEY_ALGORITHM_ES256],
+            [-1, 1],
+            [-2, base64ToBytes(x)],
+            [-3, base64ToBytes(y)],
+        ]);
     }
-    return encodeCborMap([
-        [1, 2],
-        [3, -7],
-        [-1, 1],
-        [-2, base64ToBytes(x)],
-        [-3, base64ToBytes(y)],
-    ]);
+    if (algorithm === PASSKEY_ALGORITHM_ED25519) {
+        const x = publicKeyJwk.x;
+        if (!x || publicKeyJwk.kty !== "OKP" || publicKeyJwk.crv !== "Ed25519") {
+            throw new Error("Expected exported Ed25519 public JWK");
+        }
+        return encodeCborMap([
+            [1, 1],
+            [3, PASSKEY_ALGORITHM_ED25519],
+            [-1, 6],
+            [-2, base64ToBytes(x)],
+        ]);
+    }
+    throw new Error(`Unsupported passkey algorithm: ${algorithm}`);
 }
 
 function encodeCborMap(entries: Array<[string | number, string | number | Uint8Array]>): Uint8Array {
@@ -645,6 +651,102 @@ function encodeCborHead(majorType: number, value: number): Uint8Array {
     if (value < 256) return new Uint8Array([(majorType << 5) | 24, value]);
     if (value < 65536) return new Uint8Array([(majorType << 5) | 25, (value >> 8) & 0xff, value & 0xff]);
     throw new Error("CBOR value too large for minimal encoder");
+}
+
+async function importPrivateKeyForAlgorithm(
+    cryptoApi: Crypto,
+    algorithm: number,
+    privateKeyPkcs8: Uint8Array,
+    extractable = true
+): Promise<CryptoKey> {
+    if (algorithm === PASSKEY_ALGORITHM_ES256) {
+        return cryptoApi.subtle.importKey(
+            "pkcs8",
+            privateKeyPkcs8,
+            { name: "ECDSA", namedCurve: "P-256" },
+            extractable,
+            ["sign"]
+        );
+    }
+    if (algorithm === PASSKEY_ALGORITHM_ED25519) {
+        return cryptoApi.subtle.importKey("pkcs8", privateKeyPkcs8, { name: "Ed25519" }, extractable, ["sign"]);
+    }
+    throw new Error(`Unsupported passkey algorithm: ${algorithm}`);
+}
+
+async function importPublicKeyForAlgorithm(
+    cryptoApi: Crypto,
+    algorithm: number,
+    publicKeySpki: Uint8Array
+): Promise<CryptoKey> {
+    if (algorithm === PASSKEY_ALGORITHM_ES256) {
+        return cryptoApi.subtle.importKey(
+            "spki",
+            publicKeySpki,
+            { name: "ECDSA", namedCurve: "P-256" },
+            false,
+            ["verify"]
+        );
+    }
+    if (algorithm === PASSKEY_ALGORITHM_ED25519) {
+        return cryptoApi.subtle.importKey("spki", publicKeySpki, { name: "Ed25519" }, false, ["verify"]);
+    }
+    throw new Error(`Unsupported passkey algorithm: ${algorithm}`);
+}
+
+async function importPublicKeyFromJwk(
+    cryptoApi: Crypto,
+    algorithm: number,
+    publicKeyJwk: JsonWebKey
+): Promise<CryptoKey> {
+    if (algorithm === PASSKEY_ALGORITHM_ES256) {
+        return cryptoApi.subtle.importKey(
+            "jwk",
+            publicKeyJwk,
+            { name: "ECDSA", namedCurve: "P-256" },
+            true,
+            ["verify"]
+        );
+    }
+    if (algorithm === PASSKEY_ALGORITHM_ED25519) {
+        return cryptoApi.subtle.importKey("jwk", publicKeyJwk, { name: "Ed25519" }, true, ["verify"]);
+    }
+    throw new Error(`Unsupported passkey algorithm: ${algorithm}`);
+}
+
+async function signAssertionPayload(
+    cryptoApi: Crypto,
+    algorithm: number,
+    privateKey: CryptoKey,
+    signedPayload: Uint8Array
+): Promise<Uint8Array> {
+    if (algorithm === PASSKEY_ALGORITHM_ES256) {
+        const rawSignature = new Uint8Array(
+            await cryptoApi.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, privateKey, signedPayload)
+        );
+        return rawEcdsaSignatureToDer(rawSignature);
+    }
+    if (algorithm === PASSKEY_ALGORITHM_ED25519) {
+        return new Uint8Array(await cryptoApi.subtle.sign("Ed25519", privateKey, signedPayload));
+    }
+    throw new Error(`Unsupported passkey algorithm: ${algorithm}`);
+}
+
+async function verifyAssertionPayload(
+    cryptoApi: Crypto,
+    algorithm: number,
+    publicKey: CryptoKey,
+    signature: Uint8Array,
+    signedPayload: Uint8Array
+): Promise<boolean> {
+    if (algorithm === PASSKEY_ALGORITHM_ES256) {
+        const rawSignature = derEcdsaSignatureToRaw(signature, 32);
+        return cryptoApi.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, publicKey, rawSignature, signedPayload);
+    }
+    if (algorithm === PASSKEY_ALGORITHM_ED25519) {
+        return cryptoApi.subtle.verify("Ed25519", publicKey, signature, signedPayload);
+    }
+    throw new Error(`Unsupported passkey algorithm: ${algorithm}`);
 }
 
 function rawEcdsaSignatureToDer(rawSignature: Uint8Array): Uint8Array {
@@ -737,15 +839,60 @@ function readStoredPrivateKey(item: VaultItem, credential: PasskeyCredential): s
     return field.value;
 }
 
+function normalizePasskeyAlgorithm(value: unknown): number {
+    if (value === undefined || value === null || value === "" || value === "ES256") return PASSKEY_ALGORITHM_ES256;
+    if (value === PASSKEY_ALGORITHM_ES256) return PASSKEY_ALGORITHM_ES256;
+    if (value === PASSKEY_ALGORITHM_ED25519) return PASSKEY_ALGORITHM_ED25519;
+    if (value === "Ed25519") return PASSKEY_ALGORITHM_ED25519;
+    throw new Error(`Unsupported passkey algorithm: ${String(value)}`);
+}
+
+function normalizeSignCount(value: number): number {
+    if (!Number.isInteger(value) || value < 0) {
+        throw new Error("Passkey signCount must be a non-negative integer");
+    }
+    return value;
+}
+
+function toPublicJwk(privateKeyJwk: JsonWebKey, algorithm: number): JsonWebKey {
+    if (algorithm === PASSKEY_ALGORITHM_ES256) {
+        if (!privateKeyJwk.x || !privateKeyJwk.y || privateKeyJwk.kty !== "EC" || privateKeyJwk.crv !== "P-256") {
+            throw new Error("Expected exported ES256 private JWK");
+        }
+        return {
+            kty: privateKeyJwk.kty,
+            crv: privateKeyJwk.crv,
+            x: privateKeyJwk.x,
+            y: privateKeyJwk.y,
+            ext: privateKeyJwk.ext,
+            key_ops: ["verify"],
+        };
+    }
+    if (algorithm === PASSKEY_ALGORITHM_ED25519) {
+        if (!privateKeyJwk.x || privateKeyJwk.kty !== "OKP" || privateKeyJwk.crv !== "Ed25519") {
+            throw new Error("Expected exported Ed25519 private JWK");
+        }
+        return {
+            kty: privateKeyJwk.kty,
+            crv: privateKeyJwk.crv,
+            x: privateKeyJwk.x,
+            alg: privateKeyJwk.alg,
+            ext: privateKeyJwk.ext,
+            key_ops: ["verify"],
+        };
+    }
+    throw new Error(`Unsupported passkey algorithm: ${algorithm}`);
+}
+
 function normalizePublicKeyJwk(publicKeyJwk: JsonWebKey): PasskeyCredential["publicKeyJwk"] {
-    if (!publicKeyJwk.kty || !publicKeyJwk.crv || !publicKeyJwk.x || !publicKeyJwk.y) {
-        throw new Error("Expected exported ES256 public JWK");
+    if (!publicKeyJwk.kty || !publicKeyJwk.crv || !publicKeyJwk.x) {
+        throw new Error("Expected exported passkey public JWK");
     }
     return {
         kty: publicKeyJwk.kty,
         crv: publicKeyJwk.crv,
         x: publicKeyJwk.x,
-        y: publicKeyJwk.y,
+        ...(publicKeyJwk.y ? { y: publicKeyJwk.y } : {}),
         alg: publicKeyJwk.alg,
         ext: publicKeyJwk.ext,
         key_ops: publicKeyJwk.key_ops,
