@@ -56,6 +56,8 @@ jobs:
                   npx playwright install chromium --with-deps
             - name: Run extension runtime smoke tests
               run: npm run --prefix packages/extension test:harness
+            - name: Build ZIP for unsigned Chrome/Edge/Firefox Extension
+              run: scripts/package-web-extension.sh --extension-dir packages/extension/dist --zip-file packages/extension/padloc.zip
             # - name: Sign for Firefox
             #   if: forgejo.event.inputs.environment == 'Beta' || forgejo.event.inputs.environment == 'Production'
             #   run: cd packages/extension/dist && web-ext sign --id="${{ secrets.PL_WEB_EXTENSION_FIREFOX_ID }}" --channel=unlisted --api-key=${{ secrets.PL_WEB_EXTENSION_FIREFOX_API_KEY }} --api-secret=${{ secrets.PL_WEB_EXTENSION_FIREFOX_API_SECRET }}
@@ -69,14 +71,9 @@ jobs:
             - name: Archive Unsigned Web Extension (Chrome/Edge/Firefox)
               uses: actions/upload-artifact@v2
               with:
-                  name: padloc-web-extension-${{ github.sha }}-unsigned
-                  path: |
-                      packages/extension/dist
-                      !packages/extension/dist/web-ext-artifacts
-                      !packages/extension/dist/*.xpi
+                  name: padloc-web-extension-${{ github.sha }}-unsigned.zip
+                  path: packages/extension/padloc.zip
                   if-no-files-found: error
-            - name: Build ZIP for signing Chrome/Edge Extension
-              run: scripts/package-web-extension.sh --extension-dir packages/extension/dist --zip-file packages/extension/padloc.zip
             - name: Sign for Chrome/Edge
               id: sign_chrome
               env:
