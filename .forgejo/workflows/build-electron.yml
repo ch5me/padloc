@@ -46,8 +46,7 @@ jobs:
                   key: ${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
             - name: Install Flatpak build tools
               run: |
-                  sudo apt-get update
-                  sudo apt-get install -y flatpak flatpak-builder
+                  scripts/ci-apt-install.sh flatpak flatpak-builder
                   flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
             - name: Install dependencies
               run: |

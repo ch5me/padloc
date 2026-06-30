@@ -52,7 +52,9 @@ jobs:
                   echo "GRADLE_HOME=$gradle_home" >> "$FORGEJO_ENV"
                   echo "$gradle_home/bin" >> "$FORGEJO_PATH"
                   "$gradle_home/bin/gradle" --version
-            - uses: android-actions/setup-android@v2
+            - name: Install Android SDK
+              shell: bash
+              run: scripts/ci-install-android-sdk.sh
             - uses: actions/setup-node@v3
               with:
                   node-version-file: ".nvmrc"

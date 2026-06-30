@@ -290,8 +290,7 @@ jobs:
             - name: Install webkit2gtk (ubuntu only)
               if: matrix.platform == 'ubuntu-latest'
               run: |
-                  sudo apt-get update
-                  sudo apt-get install -y webkit2gtk-4.0
+                  scripts/ci-apt-install.sh webkit2gtk-4.0
             - name: Install coreutils
               if: matrix.platform == 'macos-latest'
               run: |
@@ -464,8 +463,7 @@ jobs:
             - name: Install Flatpak build tools
               if: matrix.platform == 'ubuntu-latest'
               run: |
-                  sudo apt-get update
-                  sudo apt-get install -y flatpak flatpak-builder
+                  scripts/ci-apt-install.sh flatpak flatpak-builder
                   flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
             - name: Install dependencies
               run: |
@@ -686,8 +684,10 @@ jobs:
                   echo "GRADLE_HOME=$gradle_home" >> "$FORGEJO_ENV"
                   echo "$gradle_home/bin" >> "$FORGEJO_PATH"
                   "$gradle_home/bin/gradle" --version
-            - uses: android-actions/setup-android@v2
+            - name: Install Android SDK
               if: matrix.platform == 'ubuntu-latest'
+              shell: bash
+              run: scripts/ci-install-android-sdk.sh
             - uses: actions/setup-node@v3
               with:
                   node-version-file: ".nvmrc"
