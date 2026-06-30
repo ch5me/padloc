@@ -18,16 +18,16 @@ on:
                 required: true
 
 env:
-    CH5_FORGEJO_API_URL: ${{ forgejo.server_url }}/api/v1
-    CH5_FORGEJO_REPOSITORY: ${{ forgejo.repository }}
+    CH5_FORGEJO_API_URL: ${{ github.server_url }}/api/v1
+    CH5_FORGEJO_REPOSITORY: ${{ github.repository }}
 
 jobs:
     create_release_tag:
         name: "Create release tag"
-        environment: ${{ forgejo.event.inputs.environment || 'Beta' }}
+        environment: ${{ github.event.inputs.environment || 'Beta' }}
         env:
-            PL_VENDOR_VERSION: ${{ forgejo.event.inputs.vendor_version || '0.0.1' }}
-            PL_VENDOR_BASE_URL: "${{ forgejo.server_url }}/${{ forgejo.repository }}"
+            PL_VENDOR_VERSION: ${{ github.event.inputs.vendor_version || '0.0.1' }}
+            PL_VENDOR_BASE_URL: "${{ github.server_url }}/${{ github.repository }}"
 
         runs-on: ubuntu-latest
         outputs:
@@ -134,15 +134,15 @@ jobs:
                   RELEASE_ID="$release_id" RELEASE_ASSET_FILE="packages/tauri/tauri-update.json" RELEASE_ASSET_NAME="tauri-update.json" "$RUNNER_TEMP/upload-forgejo-release-asset"
               env:
                   RELEASE_TAG: v${{ env.PL_VENDOR_VERSION }}
-                  RELEASE_TARGET: ${{ forgejo.sha }}
+                  RELEASE_TARGET: ${{ github.sha }}
 
     release_web_extension:
         name: "Release web extension"
-        environment: ${{ forgejo.event.inputs.environment || 'Beta' }}
+        environment: ${{ github.event.inputs.environment || 'Beta' }}
         needs: create_release_tag
         env:
-            RELEASE_BUILD: ${{ forgejo.event.inputs.build || '0' }}
-            PL_VENDOR_VERSION: ${{ forgejo.event.inputs.vendor_version || '0.0.1' }}
+            RELEASE_BUILD: ${{ github.event.inputs.build || '0' }}
+            PL_VENDOR_VERSION: ${{ github.event.inputs.vendor_version || '0.0.1' }}
             RELEASE_ID: ${{ needs.create_release_tag.outputs.release_id }}
 
         runs-on: ubuntu-latest
@@ -266,11 +266,11 @@ jobs:
 
     release_tauri:
         name: "Release Tauri apps"
-        environment: ${{ forgejo.event.inputs.environment || 'Beta' }}
+        environment: ${{ github.event.inputs.environment || 'Beta' }}
         needs: create_release_tag
         env:
             RELEASE_ID: ${{ needs.create_release_tag.outputs.release_id }}
-            PL_VENDOR_VERSION: ${{ forgejo.event.inputs.vendor_version || '0.0.1' }}
+            PL_VENDOR_VERSION: ${{ github.event.inputs.vendor_version || '0.0.1' }}
 
         strategy:
             fail-fast: false
@@ -440,11 +440,11 @@ jobs:
 
     release_electron:
         name: "Release Electron apps"
-        environment: ${{ forgejo.event.inputs.environment || 'Beta' }}
+        environment: ${{ github.event.inputs.environment || 'Beta' }}
         needs: create_release_tag
         env:
             RELEASE_ID: ${{ needs.create_release_tag.outputs.release_id }}
-            PL_VENDOR_VERSION: ${{ forgejo.event.inputs.vendor_version || '0.0.1' }}
+            PL_VENDOR_VERSION: ${{ github.event.inputs.vendor_version || '0.0.1' }}
 
         strategy:
             fail-fast: false
@@ -651,12 +651,12 @@ jobs:
 
     release_cordova:
         name: "Release Cordova apps"
-        environment: ${{ forgejo.event.inputs.environment || 'Beta' }}
+        environment: ${{ github.event.inputs.environment || 'Beta' }}
         needs: create_release_tag
         env:
-            RELEASE_BUILD: ${{ forgejo.event.inputs.build || '0' }}
+            RELEASE_BUILD: ${{ github.event.inputs.build || '0' }}
             RELEASE_ID: ${{ needs.create_release_tag.outputs.release_id }}
-            PL_VENDOR_VERSION: ${{ forgejo.event.inputs.vendor_version || '0.0.1' }}
+            PL_VENDOR_VERSION: ${{ github.event.inputs.vendor_version || '0.0.1' }}
             PL_SERVER_URL: ${{ secrets.PL_SERVER_URL }}
 
         strategy:
@@ -857,11 +857,11 @@ jobs:
 
     release_web_checksums:
         name: "Release web checksums"
-        environment: ${{ forgejo.event.inputs.environment || 'Beta' }}
+        environment: ${{ github.event.inputs.environment || 'Beta' }}
         needs: create_release_tag
         env:
             RELEASE_ID: ${{ needs.create_release_tag.outputs.release_id }}
-            PL_VENDOR_VERSION: ${{ forgejo.event.inputs.vendor_version || '0.0.1' }}
+            PL_VENDOR_VERSION: ${{ github.event.inputs.vendor_version || '0.0.1' }}
 
         runs-on: ubuntu-latest
         steps:
@@ -975,14 +975,14 @@ jobs:
               uses: docker/build-push-action@v3
               with:
                   push: true
-                  tags: padloc/server:v${{ forgejo.event.inputs.vendor_version || '0.0.1' }}
+                  tags: padloc/server:v${{ github.event.inputs.vendor_version || '0.0.1' }}
                   file: Dockerfile-server
 
             - name: Build and push Docker image (pwa)
               uses: docker/build-push-action@v3
               with:
                   push: true
-                  tags: padloc/pwa:v${{ forgejo.event.inputs.vendor_version || '0.0.1' }}
+                  tags: padloc/pwa:v${{ github.event.inputs.vendor_version || '0.0.1' }}
                   file: Dockerfile-pwa
 
     update_docs:
@@ -990,12 +990,12 @@ jobs:
         needs: release_tauri
         runs-on: ubuntu-latest
         env:
-            PL_VENDOR_VERSION: ${{ forgejo.event.inputs.vendor_version || '0.0.1' }}
+            PL_VENDOR_VERSION: ${{ github.event.inputs.vendor_version || '0.0.1' }}
             DOCS_FORGEJO_REPO: ${{ secrets.DOCS_FORGEJO_REPO }}
             DOCS_FORGEJO_TOKEN: ${{ secrets.DOCS_FORGEJO_TOKEN }}
         steps:
             - name: Update docs download URLs
-              if: forgejo.event.inputs.environment == 'Production'
+              if: github.event.inputs.environment == 'Production'
               shell: bash
               run: |
                   set -euo pipefail
@@ -1014,11 +1014,11 @@ jobs:
                         }
                     }'
             - name: Sleep for 1min
-              if: forgejo.event.inputs.environment == 'Production'
+              if: github.event.inputs.environment == 'Production'
               run: sleep 60s
               shell: bash
             - name: Rebuild docs page
-              if: forgejo.event.inputs.environment == 'Production'
+              if: github.event.inputs.environment == 'Production'
               shell: bash
               run: |
                   set -euo pipefail

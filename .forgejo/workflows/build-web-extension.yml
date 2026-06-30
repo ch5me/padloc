@@ -34,7 +34,7 @@ on:
 jobs:
     archive:
         runs-on: ubuntu-latest
-        environment: ${{ forgejo.event.inputs.environment || 'Local' }}
+        environment: ${{ github.event.inputs.environment || 'Local' }}
         steps:
             - uses: actions/checkout@v3
             - uses: actions/setup-node@v3
@@ -46,7 +46,7 @@ jobs:
                   env -u ESBUILD_BINARY_PATH npm ci
             - name: Build
               env:
-                  RELEASE_BUILD: ${{ forgejo.event.inputs.build || '0' }}
+                  RELEASE_BUILD: ${{ github.event.inputs.build || '0' }}
                   PL_SERVER_URL: ${{ secrets.PL_SERVER_URL || 'https://api-pad-staging.ch5.me' }}
                   PL_BUILD_ENV: ${{ secrets.PL_BUILD_ENV }}
               run: npm run web-extension:build
@@ -59,10 +59,10 @@ jobs:
             - name: Build ZIP for unsigned Chrome/Edge/Firefox Extension
               run: scripts/package-web-extension.sh --extension-dir packages/extension/dist --zip-file packages/extension/padloc.zip
             # - name: Sign for Firefox
-            #   if: forgejo.event.inputs.environment == 'Beta' || forgejo.event.inputs.environment == 'Production'
+            #   if: github.event.inputs.environment == 'Beta' || github.event.inputs.environment == 'Production'
             #   run: cd packages/extension/dist && web-ext sign --id="${{ secrets.PL_WEB_EXTENSION_FIREFOX_ID }}" --channel=unlisted --api-key=${{ secrets.PL_WEB_EXTENSION_FIREFOX_API_KEY }} --api-secret=${{ secrets.PL_WEB_EXTENSION_FIREFOX_API_SECRET }}
             # - name: Archive Signed Web Extension (Firefox)
-            #   if: forgejo.event.inputs.environment == 'Beta' || forgejo.event.inputs.environment == 'Production'
+            #   if: github.event.inputs.environment == 'Beta' || github.event.inputs.environment == 'Production'
             #   uses: actions/upload-artifact@v2
             #   with:
             #       name: padloc-web-extension-${{ github.sha }}-signed.xpi

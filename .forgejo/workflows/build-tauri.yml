@@ -21,7 +21,7 @@ on:
 
 jobs:
     build:
-        environment: ${{ forgejo.event.inputs.environment || 'Local' }}
+        environment: ${{ github.event.inputs.environment || 'Local' }}
 
         strategy:
             fail-fast: false
@@ -47,12 +47,19 @@ jobs:
               with:
                   node-version-file: ".nvmrc"
             - name: "Setup Rust"
-              uses: dtolnay/rust-toolchain@stable
-              with:
-                  targets: ${{ matrix.config.rust_target }}
-            - uses: Swatinem/rust-cache@v2
-              with:
-                  key: ${{ matrix.config.rust_target }}
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  curl -fsSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
+                  cargo_bin="$HOME/.cargo/bin"
+                  path_file="${FORGEJO_PATH:-${GITHUB_PATH:-}}"
+                  if [ -n "$path_file" ]; then
+                      echo "$cargo_bin" >> "$path_file"
+                  fi
+                  export PATH="$cargo_bin:$PATH"
+                  rustup target add "${{ matrix.config.rust_target }}"
+                  rustc --version
+                  cargo --version
             - name: Install webkit2gtk (ubuntu only)
               if: matrix.config.os == 'ubuntu-latest'
               run: |
@@ -63,14 +70,14 @@ jobs:
                   npm i -g npm@8.2.0
                   env -u ESBUILD_BINARY_PATH npm ci
             - name: Build (debug)
-              if: forgejo.event.inputs.environment != 'Production'
+              if: github.event.inputs.environment != 'Production'
               run: npm run tauri:build:debug
               env:
                   PL_SERVER_URL: ${{ secrets.PL_SERVER_URL }}
                   TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
                   TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
             - name: Build (production)
-              if: forgejo.event.inputs.environment == 'Production'
+              if: github.event.inputs.environment == 'Production'
               run: npm run tauri:build
               env:
                   PL_SERVER_URL: ${{ secrets.PL_SERVER_URL }}
@@ -80,34 +87,34 @@ jobs:
               uses: actions/upload-artifact@v2
               if: matrix.config.os == 'ubuntu-latest'
               with:
-                  name: padloc-linux-${{ forgejo.sha }}-unsigned.AppImage
+                  name: padloc-linux-${{ github.sha }}-unsigned.AppImage
                   path: packages/tauri/src-tauri/target/debug/bundle/appimage/padloc*.AppImage
                   if-no-files-found: error
             - name: Archive deb
               uses: actions/upload-artifact@v2
               if: matrix.config.os == 'ubuntu-latest'
               with:
-                  name: padloc-linux-${{ forgejo.sha }}-unsigned.deb
+                  name: padloc-linux-${{ github.sha }}-unsigned.deb
                   path: packages/tauri/src-tauri/target/debug/bundle/deb/*.deb
                   if-no-files-found: error
             - name: Archive dmg
               uses: actions/upload-artifact@v2
               if: matrix.config.os == 'macos-latest'
               with:
-                  name: padloc-macos-${{ matrix.config.arch }}-${{ forgejo.sha }}-unsigned.dmg
+                  name: padloc-macos-${{ matrix.config.arch }}-${{ github.sha }}-unsigned.dmg
                   path: packages/tauri/src-tauri/target/debug/bundle/dmg/*.dmg
                   if-no-files-found: error
             - name: Archive app
               uses: actions/upload-artifact@v2
               if: matrix.config.os == 'macos-latest'
               with:
-                  name: padloc-macos-${{ matrix.config.arch }}-${{ forgejo.sha }}-unsigned.app
+                  name: padloc-macos-${{ matrix.config.arch }}-${{ github.sha }}-unsigned.app
                   path: packages/tauri/src-tauri/target/debug/bundle/macos/*.app
                   if-no-files-found: error
             - name: Archive msi
               uses: actions/upload-artifact@v2
               if: matrix.config.os == 'windows-latest'
               with:
-                  name: padloc-windows-${{ forgejo.sha }}-unsigned.msi
+                  name: padloc-windows-${{ github.sha }}-unsigned.msi
                   path: packages/tauri/src-tauri/target/debug/bundle/msi/*.msi
                   if-no-files-found: error
