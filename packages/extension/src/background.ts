@@ -713,11 +713,12 @@ async function handleAgenticWebAuthnCreate(
                 topOrigin: request.topOrigin || request.origin,
                 userHandle: request.userHandle,
                 algorithm: request.algorithm,
+                clientDataHash: bytesToBase64(new Uint8Array(await crypto.subtle.digest("SHA-256", base64ToBytesLoose(request.clientDataJSON)))),
                 userVerification: request.userVerification,
                 vendor: request.rpId,
                 policy: new PasskeyCredentialPolicy({
                     allowedRpIds: [request.rpId],
-                    allowedTopOrigins: [request.topOrigin || request.origin],
+                    allowedTopOrigins: defaultAllowedTopOrigins(request.rpId, request.origin, request.topOrigin),
                     allowedVendorFlows: [request.rpId],
                     approval: "none",
                     rateLimit: {},
@@ -750,15 +751,15 @@ async function handleAgenticWebAuthnCreate(
                 id: toBrowserBase64Url(registration.credentialId),
                 rawId: toBrowserBase64Url(registration.credentialId),
                 type: "public-key",
-                authenticatorAttachment: "cross-platform",
-                clientExtensionResults: {},
+                authenticatorAttachment: "platform",
+                clientExtensionResults: { credProps: { rk: true } },
                 response: {
                     clientDataJSON: request.clientDataJSON,
                     attestationObject: toBrowserBase64Url(registration.attestationObject),
                     authenticatorData: toBrowserBase64Url(registration.authenticatorData),
                     publicKey: toBrowserBase64Url(registration.publicKeySpki),
                     publicKeyAlgorithm: Number(registration.algorithm),
-                    transports: ["usb", "hybrid", "internal"],
+                    transports: ["internal", "hybrid"],
                 },
             },
             valuePolicy: "redacted WebAuthn registration only; private key stays in Padloc signer store",
@@ -834,7 +835,7 @@ async function handleAgenticWebAuthnGet(
                 id: toBrowserBase64Url(assertion.credentialId),
                 rawId: toBrowserBase64Url(assertion.credentialId),
                 type: "public-key",
-                authenticatorAttachment: "cross-platform",
+                authenticatorAttachment: "platform",
                 clientExtensionResults: {},
                 response: {
                     clientDataJSON: request.clientDataJSON,
@@ -975,6 +976,14 @@ function selectPasskeyItem(
         .filter((item) => !allowedIds.length || allowedIds.includes(toBrowserBase64Url(item.passkeyCredential.credentialId)));
     if (matches.length !== 1) return null;
     return matches[0];
+}
+
+function defaultAllowedTopOrigins(rpId: string, origin: string, topOrigin?: string): string[] {
+    return Array.from(new Set([
+        topOrigin || origin,
+        origin,
+        `https://${rpId}`,
+    ].filter(Boolean)));
 }
 
 function findPasskeyItemByCredentialId(application: App, credentialId: string): VaultItem | null {

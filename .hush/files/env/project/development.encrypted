@@ -1,0 +1,27 @@
+path: ENC[AES256_GCM,data:fXMCq3N8amuWtIoGzkegtLpuT18Hn6w=,iv:e0xip+4M++SHJqA5tnCmMjG9idAFgbKNpMrHWHERRs8=,tag:OAI7T7GD4zDyYxisgbNnUA==,type:str]
+readers:
+    roles:
+        - ENC[AES256_GCM,data:r1T7u24=,iv:Mu2C+aT0kqoMQjoSAs1/eq78EVyb+AW7D2HmIPCJO/k=,tag:WUU1XfGQYN0OQsTYS0qIsg==,type:str]
+        - ENC[AES256_GCM,data:DCjUwcqY,iv:RmciR243RGYSkpaslKqefm7GRQfaplv4wWpoNzFT240=,tag:6ZvFcCUM7fzZI1r49TmiPA==,type:str]
+        - ENC[AES256_GCM,data:4zk=,iv:dQXvzMJf8zNvPY0XMwZg26UVviloh+4J4AzTm4B3AB8=,tag:oVwSrcwxuFyqBQuFA+jaKw==,type:str]
+    identities: []
+sensitive: ENC[AES256_GCM,data:R0YO0A==,iv:4J2JccXPOBh2d2RNlojly8/+GGaUOPJq0rPEgjbFTYQ=,tag:atwqJWWYFYFqHqRSC7Z8ng==,type:bool]
+entries:
+    env/project/development/GOOGLE_DISPOSABLE_ZACKATTACKTUCKER_PASSWORD:
+        value: ENC[AES256_GCM,data:Zl9LIwk8qWLzttb0UdA=,iv:nCUMzyJx/8DPhGiBigIxCyZUSnzU99bVi1LkTQg1LGE=,tag:YpxGIBT44H2wQykP56hO/g==,type:str]
+        sensitive: ENC[AES256_GCM,data:JErqFQ==,iv:bTTT2wdYROXScqwTeNqZRx5BYnXtqFkag8Ah77vKWBU=,tag:2VTOCcKJtCj9cOw/mp60BQ==,type:bool]
+sops:
+    age:
+        - recipient: age1d2p4atnnsa5vnyt0lvd0vz0ccdfm8ew2hvg5zkjus6l8qdg9lvgq5s7l6e
+          enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBJYXlCTm42ajl1KzZwUEJW
+            cjlEYU9ZYlVOQXBoaFZ1S2NGY1R6OStDbm1ZCnF0TGsyTndYZG13T1A4OUxqWk5m
+            QUNob0JpZERSUDNTQzNuU3U3dFY1M1kKLS0tIC9rZTJzUW5oT3hoZ0lkZGd1TlFz
+            dGtNOUVkTVZuTTF0YVlJRUIwcEh6azAKIttYsmaBI4DUruaVv0yt5BzQGiF2T4tk
+            Rl9hgsvGVsDRTX00vd8G1ZdvF0UWGGi9L1IWEor+ysNAyolLu+gdzg==
+            -----END AGE ENCRYPTED FILE-----
+    lastmodified: "2026-06-30T03:26:25Z"
+    mac: ENC[AES256_GCM,data:IEGkYaXEL3pWhOpAjE2KkXdc6FCHRwsNR8QORgIxVrizFRN8qwjAP8/957u34Y7auklzSk55tsRwuLbA5mnFJa+ArBo5dM71xNRH3PAnFdyJhVAtrr2lMHjmDGZaG2+iCcuWG+aM04zaTD/vcjKCECFHfXOxGzOsehA4Tif975E=,iv:UGTBobXjI6Xm0ajmTz3amDYU+zMxZ0yUdFCcCFe6egs=,tag:ubL62jyCz7+wNst4S3+AAQ==,type:str]
+    encrypted_regex: .*
+    version: 3.11.0

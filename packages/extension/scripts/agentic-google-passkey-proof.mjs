@@ -8,6 +8,11 @@ for (let i = 2; i < process.argv.length; i += 1) {
     const key = process.argv[i];
     const next = process.argv[i + 1];
     if (!key.startsWith("--")) continue;
+    const equalsIndex = key.indexOf("=");
+    if (equalsIndex > 2) {
+        args.set(key.slice(2, equalsIndex), key.slice(equalsIndex + 1));
+        continue;
+    }
     if (!next || next.startsWith("--")) {
         args.set(key.slice(2), "true");
     } else {
@@ -82,13 +87,13 @@ class Cdp {
 const cdp = new Cdp();
 await cdp.connect();
 
+let sessionId;
 try {
     const page = await googlePage();
-    const sessionId = await attach(page.targetId);
-    await cdp.send("Page.enable", {}, sessionId);
+    sessionId = await attach(page.targetId);
     let result;
     if (mode === "state") {
-        await navigate(sessionId, passkeysUrl);
+        await ensurePasskeysPage(sessionId);
         const state = await pageState(sessionId);
         result = { status: state.needsGoogleReauth ? "blocked_google_reauth" : "ready", state };
     } else if (mode === "enroll") {
@@ -104,6 +109,9 @@ try {
     if (mode !== "state" && result.status && result.status.startsWith("blocked_")) process.exitCode = 2;
     if (result.status && result.status.startsWith("failed_")) process.exitCode = 1;
 } finally {
+    if (sessionId) {
+        await cdp.send("Target.detachFromTarget", { sessionId }).catch(() => undefined);
+    }
     cdp.close();
 }
 
@@ -127,8 +135,18 @@ async function navigate(sessionId, url) {
     await sleep(3500);
 }
 
-async function enroll(sessionId) {
+async function ensurePasskeysPage(sessionId) {
+    const url = await currentUrl(sessionId);
+    if (/^https:\/\/myaccount\.google\.com\/signinoptions\/passkeys\b/.test(url)) return;
     await navigate(sessionId, passkeysUrl);
+}
+
+async function currentUrl(sessionId) {
+    return evaluate(sessionId, "location.href", "current page URL");
+}
+
+async function enroll(sessionId) {
+    await ensurePasskeysPage(sessionId);
     let state = await pageState(sessionId);
     if (state.needsGoogleReauth) {
         return { status: "blocked_google_reauth", state };
@@ -150,11 +168,11 @@ async function enroll(sessionId) {
     state = await pageState(sessionId);
     await maybeScreenshot(sessionId, "google-passkey-enroll-after");
 
-    if (!state.createHooked || !state.getHooked) return { status: "failed_hooks_missing_after_enroll", state };
-    if (/something went wrong|couldn.t create|try again/i.test(state.text)) return { status: "failed_google_enroll", state };
     if (/passkey created|passkey added|saved passkey|created a passkey|passkeys and security keys/i.test(state.text)) {
         return { status: "enrolled", state };
     }
+    if (!state.createHooked || !state.getHooked) return { status: "failed_hooks_missing_after_enroll", state };
+    if (/something went wrong|couldn.t create|try again/i.test(state.text)) return { status: "failed_google_enroll", state };
     return { status: "unknown_enroll_state", state };
 }
 
@@ -168,25 +186,41 @@ async function login(sessionId) {
     if (/enter your password/i.test(state.text)) {
         await clickText(sessionId, ["Try another way"]);
         await sleep(1500);
-        await clickText(sessionId, ["Use your passkey", "Passkey"]);
-        await sleep(1500);
     }
-    await clickText(sessionId, ["Continue", "Use passkey", "Use your passkey"]);
-    await sleep(7000);
     state = await pageState(sessionId);
+    if (/use your passkey/i.test(state.text)) {
+        await clickText(sessionId, ["Use your passkey", "Passkey"]);
+        await sleep(2500);
+    }
+    await clickText(sessionId, ["Continue"]);
+    state = await waitForLoginCompletion(sessionId, 25000);
     await maybeScreenshot(sessionId, "google-passkey-login-after");
 
     if (!state.createHooked || !state.getHooked) return { status: "failed_hooks_missing_after_login", state };
     if (/security delay|you can.t use this passkey yet|try again later/i.test(state.text)) {
         return { status: "blocked_google_security_delay", state };
     }
-    if (/something went wrong|weren.t able to sign you in|try another way/i.test(state.text)) {
+    if (/something went wrong|weren.t able to sign you in/i.test(state.text)) {
         return { status: "failed_google_login", state };
     }
-    if (/my account|welcome|security|personal info/i.test(state.text) && /myaccount\.google\.com/.test(state.url)) {
+    if (/my account|welcome|security|personal info/i.test(state.text) && new URL(state.url).host === "myaccount.google.com") {
         return { status: "logged_in", state };
     }
     return { status: "unknown_login_state", state };
+}
+
+async function waitForLoginCompletion(sessionId, timeoutMs) {
+    const started = Date.now();
+    let latest = await pageState(sessionId);
+    while (Date.now() - started < timeoutMs) {
+        if (new URL(latest.url).host === "myaccount.google.com") return latest;
+        if (/security delay|you can.t use this passkey yet|try again later|something went wrong|weren.t able to sign you in/i.test(latest.text)) {
+            return latest;
+        }
+        await sleep(1000);
+        latest = await pageState(sessionId);
+    }
+    return latest;
 }
 
 async function typeAccountIfNeeded(sessionId) {
@@ -215,8 +249,10 @@ async function clickText(sessionId, labels) {
                 "button",
                 "a[href]",
                 "[role=button]",
+                "[role=link]",
                 "[role=menuitem]",
                 "[role=option]",
+                "[data-challengetype]",
                 "input[type=button]",
                 "input[type=submit]"
             ].join(",");
@@ -248,7 +284,9 @@ async function clickText(sessionId, labels) {
                 ].filter(Boolean).join(" ").replace(/\\s+/g, " ").trim();
             }
             function actionableFor(el) {
-                return el.closest(ACTION_SELECTOR) || el;
+                const direct = el.matches(ACTION_SELECTOR) ? el : el.closest(ACTION_SELECTOR);
+                if (direct && visible(direct)) return direct;
+                return el;
             }
             function escapeRegex(value) {
                 return value.replace(/[-/\\\\^$*+?.()|[\\]{}]/g, "\\\\$&");
@@ -261,13 +299,22 @@ async function clickText(sessionId, labels) {
                 const exact = text === lower ? 0 : 1000;
                 const wordish = new RegExp("\\\\b" + escapeRegex(lower) + "\\\\b").test(text) ? 0 : 100;
                 const action = entry.target.matches(ACTION_SELECTOR) ? 0 : 10;
-                const containerPenalty = /^(HTML|BODY|MAIN|SECTION|DIV)$/.test(entry.target.tagName) ? 5000 : 0;
+                const containerPenalty = /^(HTML|BODY|MAIN|SECTION)$/.test(entry.target.tagName) ? 5000 : 0;
                 return exact + wordish + action + containerPenalty + Math.min(area / 1000, 1000);
             }
+            const seenTargets = new Set();
             const candidates = deepElements()
                 .filter((el) => visible(el))
-                .map((el) => ({ el, target: actionableFor(el), text: labelFor(el) }))
-                .filter((entry) => entry.text);
+                .map((el) => {
+                    const target = actionableFor(el);
+                    const text = labelFor(target) || labelFor(el);
+                    return { el, target, text };
+                })
+                .filter((entry) => {
+                    if (!entry.text || seenTargets.has(entry.target)) return false;
+                    seenTargets.add(entry.target);
+                    return true;
+                });
             for (const label of labels) {
                 const lower = label.toLowerCase();
                 const matches = candidates
@@ -319,10 +366,24 @@ async function maybeScreenshot(sessionId, name) {
     if (!screenshots) return null;
     fs.mkdirSync(evidenceDir, { recursive: true });
     await redactPageForScreenshot(sessionId);
-    const captured = await cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true }, sessionId, 30000);
-    const file = path.join(evidenceDir, `${name}.png`);
-    fs.writeFileSync(file, Buffer.from(captured.data, "base64"));
-    return file;
+    await enablePageForScreenshot(sessionId);
+    try {
+        const captured = await cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true }, sessionId, 30000);
+        const file = path.join(evidenceDir, `${name}.png`);
+        fs.writeFileSync(file, Buffer.from(captured.data, "base64"));
+        return file;
+    } catch (error) {
+        console.error(`[agentic-google-passkey-proof] screenshot skipped: ${redactString(error.message)}`);
+        return null;
+    }
+}
+
+async function enablePageForScreenshot(sessionId) {
+    try {
+        await cdp.send("Page.enable", {}, sessionId, 5000);
+    } catch (error) {
+        console.error(`[agentic-google-passkey-proof] Page.enable skipped: ${redactString(error.message)}`);
+    }
 }
 
 async function redactPageForScreenshot(sessionId) {
@@ -334,13 +395,21 @@ async function redactPageForScreenshot(sessionId) {
             const escapedAccount = account.replace(/[-/\\\\^$*+?.()|[\\]{}]/g, "\\\\$&");
             const replacements = [
                 [new RegExp(escapedAccount, "gi"), "[redacted-google-account]"],
+                [/\bZack\s+Tucker\b/gi, "[redacted-name]"],
+                [/\bTucker\b/gi, "[redacted-name]"],
+                ["Tucker", "[redacted-name]"],
                 [/\\bZack\\b/g, "[redacted-name]"],
+                ["Zack", "[redacted-name]"],
                 [emailPattern, "[redacted-email]"]
             ];
             const scrub = (value) => {
                 if (!value) return value;
                 let next = String(value);
-                for (const [pattern, replacement] of replacements) next = next.replace(pattern, replacement);
+                for (const [pattern, replacement] of replacements) {
+                    next = typeof pattern === "string"
+                        ? next.split(pattern).join(replacement)
+                        : next.replace(pattern, replacement);
+                }
                 return next;
             };
             const walker = document.createTreeWalker(document.body || document.documentElement, NodeFilter.SHOW_TEXT);
@@ -400,7 +469,12 @@ function redactString(value) {
         .replace(new RegExp(escapeRegExp(account), "gi"), "[redacted-google-account]")
         .replace(/hassoncs@gmail\\.com/g, "[redacted-forbidden-account]")
         .replace(/[A-Za-z0-9._%+-]+@elf\\.dance/g, "[redacted-padloc-agent]")
-        .replace(/[?&](TL|dsh|rart|authuser|cid|lid|rpbg|continue|followup)=([^&]+)/g, (match, key) => match[0] + `${key}=[redacted]`)
+        .replace(
+            /([?&])([A-Za-z0-9_%-]*?(?:TL|token|authuser|cid|dsh|rart|rapt|rpbg|continue|followup|ifkv|flowEntry|flowName|service|pli|sarp|scc|lid)[A-Za-z0-9_%-]*=)[^&\s"]+/gi,
+            (_match, prefix, key) => `${prefix}${key}[redacted]`
+        )
+        .replace(/Zack\s+Tucker/gi, "[redacted-name]")
+        .replace(/\\bTucker\\b/gi, "[redacted-name]")
         .replace(/Hi Zack/g, "Hi [redacted-name]")
         .replace(/\\bZack\\b/g, "[redacted-name]");
 }

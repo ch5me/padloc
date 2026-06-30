@@ -202,6 +202,19 @@ mochaSuite("Passkey broker", () => {
         expect(result.response.reason).to.equal("top_origin_not_allowed");
     });
 
+    mochaTest("allows HTTPS sibling origins under the passkey RP ID", async () => {
+        const enrolled = await enrollPasskeyCredential(await enrollmentRequest(), new Date("2026-06-29T18:00:00.000Z"));
+        const item = asStoredItem(enrolled);
+        const request = assertionRequest(item.passkeyCredential.credentialId, "nonce-related-origin", "flow-related-origin");
+        request.passkey.topOrigin = "https://login.example-rp.test";
+        request.binding.origin = "https://login.example-rp.test";
+        request.binding.topOrigin = "https://login.example-rp.test";
+        const result = await requestPasskeyAssertion(request, [item], new Date("2026-06-29T18:05:00.000Z"));
+
+        expect(result.response.ok).to.equal(true);
+        expect(result.response.passkey.assertion).to.exist;
+    });
+
     mochaTest("denies missing flow binding when required", async () => {
         const enrolled = await enrollPasskeyCredential(await enrollmentRequest(), new Date("2026-06-29T18:00:00.000Z"));
         const item = asStoredItem(enrolled);
@@ -262,8 +275,36 @@ mochaSuite("Passkey broker", () => {
         request.passkey.userVerification = "required";
         const assertion = await requestPasskeyAssertion(request, [item], new Date("2026-06-29T18:05:00.000Z"));
 
-        expect(readAuthenticatorFlags(enrolled.response.passkey.registration.authenticatorData) & 0x04).to.equal(0x04);
-        expect(readAuthenticatorFlags(assertion.response.passkey.assertion.authenticatorData) & 0x04).to.equal(0x04);
+        const registrationFlags = readAuthenticatorFlags(enrolled.response.passkey.registration.authenticatorData);
+        const assertionFlags = readAuthenticatorFlags(assertion.response.passkey.assertion.authenticatorData);
+        expect(registrationFlags & 0x04).to.equal(0x04);
+        expect(assertionFlags & 0x04).to.equal(0x04);
+        expect(registrationFlags & 0x18).to.equal(0x18);
+        expect(assertionFlags & 0x18).to.equal(0x18);
+    });
+
+    mochaTest("encodes attestationObject attStmt as a CBOR map", async () => {
+        const none = await enrollPasskeyCredential(await enrollmentRequest(), new Date("2026-06-29T18:00:00.000Z"));
+        const googleStyle = await enrollPasskeyCredential(
+            await enrollmentRequest({
+                passkey: {
+                    clientDataHash: bytesToBase64(new Uint8Array(32).fill(1)),
+                    userVerification: "preferred",
+                },
+            }),
+            new Date("2026-06-29T18:00:00.000Z")
+        );
+
+        const noneObject = decodeCbor(base64ToBytes(none.response.passkey.registration.attestationObject));
+        const googleStyleObject = decodeCbor(base64ToBytes(googleStyle.response.passkey.registration.attestationObject));
+
+        expect(noneObject.fmt).to.equal("none");
+        expect(noneObject.attStmt).to.deep.equal({});
+        expect(noneObject.attStmt).not.to.be.instanceOf(Uint8Array);
+        expect(googleStyleObject.fmt).to.equal("none");
+        expect(googleStyleObject.attStmt).to.deep.equal({});
+        expect(googleStyleObject.attStmt).not.to.be.instanceOf(Uint8Array);
+        expect(googleStyleObject.authData).to.be.instanceOf(Uint8Array);
     });
 });
 
@@ -481,4 +522,45 @@ async function makeImportedCredentialFixture(algorithm: number, seed: string) {
 
 function readAuthenticatorFlags(authenticatorData: string) {
     return base64ToBytes(authenticatorData)[32];
+}
+
+function decodeCbor(bytes) {
+    const decoded = decodeCborValue(bytes, 0);
+    expect(decoded.offset).to.equal(bytes.length);
+    return decoded.value;
+}
+
+function decodeCborValue(bytes, offset) {
+    const first = bytes[offset++];
+    const major = first >> 5;
+    const additional = first & 0x1f;
+    const length = readCborLength(bytes, offset, additional);
+    offset = length.offset;
+    if (major === 0) return { value: length.value, offset };
+    if (major === 1) return { value: -1 - length.value, offset };
+    if (major === 2) {
+        return { value: bytes.slice(offset, offset + length.value), offset: offset + length.value };
+    }
+    if (major === 3) {
+        const textBytes = bytes.slice(offset, offset + length.value);
+        return { value: new TextDecoder().decode(textBytes), offset: offset + length.value };
+    }
+    if (major === 5) {
+        const result = {};
+        for (let index = 0; index < length.value; index += 1) {
+            const key = decodeCborValue(bytes, offset);
+            const value = decodeCborValue(bytes, key.offset);
+            result[key.value] = value.value;
+            offset = value.offset;
+        }
+        return { value: result, offset };
+    }
+    throw new Error(`Unsupported CBOR major type ${major}`);
+}
+
+function readCborLength(bytes, offset, additional) {
+    if (additional < 24) return { value: additional, offset };
+    if (additional === 24) return { value: bytes[offset], offset: offset + 1 };
+    if (additional === 25) return { value: (bytes[offset] << 8) | bytes[offset + 1], offset: offset + 2 };
+    throw new Error(`Unsupported CBOR additional info ${additional}`);
 }

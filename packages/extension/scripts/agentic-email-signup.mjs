@@ -6,6 +6,11 @@ for (let i = 2; i < process.argv.length; i += 1) {
     const key = process.argv[i];
     const next = process.argv[i + 1];
     if (!key.startsWith("--")) continue;
+    const equalsIndex = key.indexOf("=");
+    if (equalsIndex > 2) {
+        args.set(key.slice(2, equalsIndex), key.slice(equalsIndex + 1));
+        continue;
+    }
     if (!next || next.startsWith("--")) {
         args.set(key.slice(2), "true");
     } else {

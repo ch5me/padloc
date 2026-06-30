@@ -134,9 +134,21 @@ test("main-world WebAuthn hooks survive extension reload on Google-shaped pages"
 });
 
 async function expectHooks(page: import("@playwright/test").Page) {
-    const hookState = await page.evaluate(() => ({
+    const hookState = await page.evaluate(async () => ({
         createHooked: !String(navigator.credentials.create).includes("[native code]"),
         getHooked: !String(navigator.credentials.get).includes("[native code]"),
+        uvpaa: await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable(),
+        capabilities: PublicKeyCredential.getClientCapabilities
+            ? await PublicKeyCredential.getClientCapabilities()
+            : {},
     }));
-    expect(hookState).toMatchObject({ createHooked: true, getHooked: true });
+    expect(hookState).toMatchObject({
+        createHooked: true,
+        getHooked: true,
+        uvpaa: true,
+        capabilities: {
+            passkeyPlatformAuthenticator: true,
+            userVerifyingPlatformAuthenticator: true,
+        },
+    });
 }

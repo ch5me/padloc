@@ -26,7 +26,17 @@
         "default_popup": "popup.html",
         "default_icon": "icon.png"
     },
-    "permissions": ["storage", "unlimitedStorage", "tabs", "activeTab", "contextMenus", "alarms", "identity", "nativeMessaging"],
+    "permissions": [
+        "storage",
+        "unlimitedStorage",
+        "tabs",
+        "activeTab",
+        "contextMenus",
+        "alarms",
+        "identity",
+        "nativeMessaging",
+        "scripting"
+    ],
     "host_permissions": ["<all_urls>"],
     "commands": {
         "_execute_action": {

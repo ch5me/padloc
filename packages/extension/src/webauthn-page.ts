@@ -37,8 +37,8 @@ type PadlocWebAuthnCredentialResponse = {
     id: string;
     rawId: string;
     type: "public-key";
-    authenticatorAttachment: "cross-platform";
-    clientExtensionResults: Record<string, never>;
+    authenticatorAttachment: "platform" | "cross-platform";
+    clientExtensionResults: { credProps?: { rk: boolean } };
     response: {
         clientDataJSON: string;
         attestationObject?: string;
@@ -57,8 +57,9 @@ type PadlocWebAuthnResponse =
 
 const BRIDGE_REQUEST_EVENT = "padloc-webauthn-request";
 const BRIDGE_RESPONSE_EVENT = "padloc-webauthn-response";
-const BRIDGE_PAGE_SOURCE = "padloc-webauthn-page";
-const BRIDGE_CONTENT_SOURCE = "padloc-webauthn-content";
+const BRIDGE_CHANNEL = webAuthnBridgeChannel();
+const BRIDGE_PAGE_SOURCE = `padloc-webauthn-page:${BRIDGE_CHANNEL}`;
+const BRIDGE_CONTENT_SOURCE = `padloc-webauthn-content:${BRIDGE_CHANNEL}`;
 
 const credentialContainer = navigator.credentials;
 const originalCreate = typeof credentialContainer?.create === "function"
@@ -68,8 +69,15 @@ const originalGet = typeof credentialContainer?.get === "function"
     ? credentialContainer.get.bind(credentialContainer)
     : undefined;
 const pendingRequests = new Map<string, (response: PadlocWebAuthnResponse) => void>();
+const padlocWindow = window as Window & { __padlocWebAuthnPageInstalledChannel?: string };
 
-if (credentialContainer && typeof originalCreate === "function" && typeof originalGet === "function") {
+if (
+    padlocWindow.__padlocWebAuthnPageInstalledChannel !== BRIDGE_CHANNEL &&
+    credentialContainer &&
+    typeof originalCreate === "function" &&
+    typeof originalGet === "function"
+) {
+    padlocWindow.__padlocWebAuthnPageInstalledChannel = BRIDGE_CHANNEL;
     navigator.credentials.create = async function create(options?: CredentialCreationOptions): Promise<Credential | null> {
         const publicKey = options?.publicKey;
         if (!publicKey) {
@@ -95,6 +103,8 @@ if (credentialContainer && typeof originalCreate === "function" && typeof origin
         }
         return toPublicKeyCredential(response.credential, "assertion") as unknown as Credential;
     };
+
+    installPublicKeyCredentialCapabilityHooks();
 
     window.addEventListener("message", (event) => {
         const data = event.data as { source?: string; type?: string; response?: PadlocWebAuthnResponse };
@@ -195,7 +205,7 @@ function toPublicKeyCredential(
               authenticatorData: credential.response.authenticatorData || "",
               publicKey: credential.response.publicKey || "",
               publicKeyAlgorithm: credential.response.publicKeyAlgorithm || -7,
-              transports: credential.response.transports || ["usb"],
+              transports: credential.response.transports || ["internal", "hybrid"],
           }
         : {
               clientDataJSON: credential.response.clientDataJSON,
@@ -207,7 +217,7 @@ function toPublicKeyCredential(
         ? {
               clientDataJSON: base64UrlToArrayBuffer(credential.response.clientDataJSON),
               attestationObject: base64UrlToArrayBuffer(credential.response.attestationObject || ""),
-              getTransports: () => credential.response.transports || ["usb"],
+              getTransports: () => credential.response.transports || ["internal", "hybrid"],
               getAuthenticatorData: () => base64UrlToArrayBuffer(credential.response.authenticatorData || ""),
               getPublicKey: () => base64UrlToArrayBuffer(credential.response.publicKey || ""),
               getPublicKeyAlgorithm: () => credential.response.publicKeyAlgorithm || -7,
@@ -246,6 +256,22 @@ function chooseSupportedAlgorithm(params: PublicKeyCredentialParameters[]): numb
     return null;
 }
 
+function installPublicKeyCredentialCapabilityHooks(): void {
+    if (typeof PublicKeyCredential === "undefined") return;
+    const credentialCtor = PublicKeyCredential as typeof PublicKeyCredential & {
+        getClientCapabilities?: () => Promise<Record<string, boolean>>;
+    };
+    credentialCtor.isUserVerifyingPlatformAuthenticatorAvailable = async () => true;
+    if (typeof credentialCtor.getClientCapabilities === "function") {
+        const originalGetClientCapabilities = credentialCtor.getClientCapabilities.bind(credentialCtor);
+        credentialCtor.getClientCapabilities = async () => ({
+            ...(await originalGetClientCapabilities().catch(() => ({}))),
+            passkeyPlatformAuthenticator: true,
+            userVerifyingPlatformAuthenticator: true,
+        });
+    }
+}
+
 function buildClientDataJson(
     type: "webauthn.create" | "webauthn.get",
     challenge: BufferSource,
@@ -279,6 +305,10 @@ function getOriginContext(): { crossOrigin: boolean; topOrigin?: string } {
             return { crossOrigin: true };
         }
     }
+}
+
+function webAuthnBridgeChannel(): string {
+    return document.documentElement.getAttribute("data-padloc-webauthn-channel") || "default";
 }
 
 function brandLikeNativeCredential(

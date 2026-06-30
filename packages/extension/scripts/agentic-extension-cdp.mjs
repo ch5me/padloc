@@ -8,6 +8,11 @@ for (let i = 2; i < process.argv.length; i += 1) {
     const key = process.argv[i];
     const next = process.argv[i + 1];
     if (!key.startsWith("--")) continue;
+    const equalsIndex = key.indexOf("=");
+    if (equalsIndex > 2) {
+        args.set(key.slice(2, equalsIndex), key.slice(equalsIndex + 1));
+        continue;
+    }
     if (!next || next.startsWith("--")) {
         args.set(key.slice(2), "true");
     } else {
@@ -87,6 +92,10 @@ try {
         console.log(JSON.stringify(await smoke(), null, 2));
     } else if (mode === "webauthn-proof") {
         const result = await webAuthnProof();
+        console.log(JSON.stringify(result, null, 2));
+        if (!result.ok) process.exitCode = 1;
+    } else if (mode === "inject-webauthn-hooks") {
+        const result = await injectWebAuthnHooks();
         console.log(JSON.stringify(result, null, 2));
         if (!result.ok) process.exitCode = 1;
     } else {
@@ -348,6 +357,86 @@ async function webAuthnProof() {
     }
 
     return { status: "webauthn-proof", ok: Boolean(pageState?.ok), pageState };
+}
+
+async function injectWebAuthnHooks() {
+    const sessionId = await attachWorker({ reloadOnUnresponsive: true });
+    const urlMatch = args.get("url-match") || "https://*.google.com/*";
+    const result = await evaluate(
+        sessionId,
+        `(async () => {
+            if (!chrome.scripting?.executeScript) {
+                return { ok: false, error: "chrome.scripting permission missing" };
+            }
+            const tabs = await chrome.tabs.query({ url: ${JSON.stringify(urlMatch)} });
+            const results = [];
+            function safeUrl(value) {
+                try {
+                    const url = new URL(value || "");
+                    return url.origin + url.pathname;
+                } catch {
+                    return "";
+                }
+            }
+            for (const tab of tabs) {
+                if (!tab.id || !/^https:\\/\\/(accounts|myaccount)\\.google\\.com\\//.test(tab.url || "")) continue;
+                const channel = "agentic-" + Date.now() + "-" + Math.random().toString(36).slice(2);
+                const tabResult = { tabId: tab.id, url: safeUrl(tab.url), channel, injections: [] };
+                try {
+                    await chrome.scripting.executeScript({
+                        target: { tabId: tab.id, allFrames: true },
+                        world: "MAIN",
+                        args: [channel],
+                        func: (nextChannel) => {
+                            document.documentElement.setAttribute("data-padloc-webauthn-channel", nextChannel);
+                        }
+                    });
+                } catch (error) {
+                    tabResult.injections.push({
+                        file: "bridge-channel",
+                        world: "MAIN",
+                        ok: false,
+                        error: error?.message || String(error)
+                    });
+                    results.push(tabResult);
+                    continue;
+                }
+                for (const injection of [
+                    { file: "content.js", world: "ISOLATED" },
+                    { file: "webauthn-page.js", world: "MAIN" }
+                ]) {
+                    try {
+                        const frames = await chrome.scripting.executeScript({
+                            target: { tabId: tab.id, allFrames: true },
+                            files: [injection.file],
+                            world: injection.world
+                        });
+                        tabResult.injections.push({
+                            file: injection.file,
+                            world: injection.world,
+                            ok: true,
+                            frames: frames.length
+                        });
+                    } catch (error) {
+                        tabResult.injections.push({
+                            file: injection.file,
+                            world: injection.world,
+                            ok: false,
+                            error: error?.message || String(error)
+                        });
+                    }
+                }
+                results.push(tabResult);
+            }
+            return {
+                ok: results.length > 0 && results.every((tab) => tab.injections.every((item) => item.ok)),
+                urlMatch: ${JSON.stringify(urlMatch)},
+                tabs: results
+            };
+        })()`,
+        "inject WebAuthn hooks"
+    );
+    return { status: "inject-webauthn-hooks", ...result };
 }
 
 async function attachWorker({ reloadOnUnresponsive = false } = {}) {

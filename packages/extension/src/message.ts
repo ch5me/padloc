@@ -108,8 +108,8 @@ export interface AgenticWebAuthnCredentialResponse {
     id: string;
     rawId: string;
     type: "public-key";
-    authenticatorAttachment: "cross-platform";
-    clientExtensionResults: Record<string, never>;
+    authenticatorAttachment: "platform" | "cross-platform";
+    clientExtensionResults: { credProps?: { rk: boolean } };
     response: {
         clientDataJSON: string;
         attestationObject?: string;

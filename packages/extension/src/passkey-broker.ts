@@ -76,6 +76,12 @@ const PASSKEY_SIGNER_HANDLE_PREFIX = "padloc-passkey-signer:";
 const PASSKEY_SIGNER_DB_NAME = "padloc-agentic-passkey-signers";
 const PASSKEY_SIGNER_DB_VERSION = 1;
 const PASSKEY_SIGNER_STORE_NAME = "keys";
+const AUTHENTICATOR_FLAG_USER_PRESENT = 0x01;
+const AUTHENTICATOR_FLAG_USER_VERIFIED = 0x04;
+const AUTHENTICATOR_FLAG_BACKUP_ELIGIBLE = 0x08;
+const AUTHENTICATOR_FLAG_BACKED_UP = 0x10;
+const AUTHENTICATOR_FLAG_ATTESTED_CREDENTIAL_DATA = 0x40;
+const PASSKEY_BACKUP_FLAGS = AUTHENTICATOR_FLAG_BACKUP_ELIGIBLE | AUTHENTICATOR_FLAG_BACKED_UP;
 const memoryPasskeySignerKeys = new Map<string, CryptoKey>();
 let allowMemoryOnlyPasskeySignerStoreForTests = false;
 
@@ -106,7 +112,7 @@ export async function enrollPasskeyCredential(
         cosePublicKey,
         shouldSetUserVerification(enrollment.userVerification)
     );
-    const attestationObject = encodeAttestationObject(attestedAuthData);
+    const attestationObject = await encodeAttestationObject(attestedAuthData);
     const createdAt = new Date(now);
 
     const passkeyCredential = new PasskeyCredential({
@@ -413,7 +419,7 @@ function evaluateAssertionPolicy(
     if (credential.auditTrail.some((entry) => entry.nonce === nonce)) return "reused_nonce";
     if (credential.policy.emergencyLockout) return "emergency_lockout";
     if (!credential.policy.allowedRpIds.includes(assertion.rpId)) return "rp_id_not_allowed";
-    if (!credential.policy.allowedTopOrigins.includes(assertion.topOrigin)) return "top_origin_not_allowed";
+    if (!isAllowedTopOrigin(credential, assertion.topOrigin)) return "top_origin_not_allowed";
     const requestedVendorFlow = assertion.vendor || binding?.vendor || "";
     if (credential.policy.allowedVendorFlows.length && !credential.policy.allowedVendorFlows.includes(requestedVendorFlow)) {
         return "vendor_flow_not_allowed";
@@ -424,6 +430,18 @@ function evaluateAssertionPolicy(
     if (rateLimit.maxPerWeek !== null && rateLimit.weekCount >= rateLimit.maxPerWeek) return "rate_limit_week_exceeded";
     if (!assertion.clientDataHash && !assertion.challenge) return "challenge_required";
     return null;
+}
+
+function isAllowedTopOrigin(credential: PasskeyCredential, topOrigin: string): boolean {
+    if (credential.policy.allowedTopOrigins.includes(topOrigin)) return true;
+    let parsed: URL;
+    try {
+        parsed = new URL(topOrigin);
+    } catch {
+        return false;
+    }
+    if (parsed.protocol !== "https:") return false;
+    return credential.policy.allowedRpIds.some((rpId) => parsed.hostname === rpId || parsed.hostname.endsWith(`.${rpId}`));
 }
 
 function denyWithoutItem(
@@ -651,7 +669,12 @@ async function buildAttestedCredentialData(
     userVerified = false
 ): Promise<Uint8Array> {
     const rpIdHash = await sha256(stringToBytes(rpId));
-    const flags = new Uint8Array([0x41 | (userVerified ? 0x04 : 0x00)]);
+    const flags = new Uint8Array([
+        AUTHENTICATOR_FLAG_USER_PRESENT |
+        PASSKEY_BACKUP_FLAGS |
+        AUTHENTICATOR_FLAG_ATTESTED_CREDENTIAL_DATA |
+        (userVerified ? AUTHENTICATOR_FLAG_USER_VERIFIED : 0),
+    ]);
     const signCount = new Uint8Array([0x00, 0x00, 0x00, 0x00]);
     const aaguid = new Uint8Array(16);
     const credentialLength = new Uint8Array([(credentialId.length >> 8) & 0xff, credentialId.length & 0xff]);
@@ -664,7 +687,11 @@ async function buildAssertionAuthenticatorData(
     userVerified = false
 ): Promise<Uint8Array> {
     const rpIdHash = await sha256(stringToBytes(rpId));
-    const flags = new Uint8Array([0x01 | (userVerified ? 0x04 : 0x00)]);
+    const flags = new Uint8Array([
+        AUTHENTICATOR_FLAG_USER_PRESENT |
+        PASSKEY_BACKUP_FLAGS |
+        (userVerified ? AUTHENTICATOR_FLAG_USER_VERIFIED : 0),
+    ]);
     const count = new Uint8Array([
         (signCount >>> 24) & 0xff,
         (signCount >>> 16) & 0xff,
@@ -678,10 +705,34 @@ function shouldSetUserVerification(userVerification: UserVerificationRequirement
     return userVerification === "required" || userVerification === "preferred";
 }
 
-function encodeAttestationObject(authData: Uint8Array): Uint8Array {
+async function encodeAttestationObject(
+    authData: Uint8Array,
+    selfAttestation?: {
+        cryptoApi: Crypto;
+        algorithm: number;
+        privateKey: CryptoKey;
+        clientDataHash: Uint8Array;
+    }
+): Promise<Uint8Array> {
+    if (selfAttestation) {
+        const signature = await signAssertionPayload(
+            selfAttestation.cryptoApi,
+            selfAttestation.algorithm,
+            selfAttestation.privateKey,
+            concatBytes(authData, selfAttestation.clientDataHash)
+        );
+        return encodeCborMap([
+            ["fmt", "packed"],
+            ["attStmt", cborEncoded(encodeCborMap([
+                ["alg", selfAttestation.algorithm],
+                ["sig", signature],
+            ]))],
+            ["authData", authData],
+        ]);
+    }
     return encodeCborMap([
         ["fmt", "none"],
-        ["attStmt", encodeCborMap([])],
+        ["attStmt", cborEncoded(encodeCborMap([]))],
         ["authData", authData],
     ]);
 }
@@ -716,14 +767,21 @@ function encodeCosePublicKey(publicKeyJwk: JsonWebKey, algorithm: number): Uint8
     throw new Error(`Unsupported passkey algorithm: ${algorithm}`);
 }
 
-function encodeCborMap(entries: Array<[string | number, string | number | Uint8Array]>): Uint8Array {
+type CborEncoded = { encodedCbor: Uint8Array };
+
+function cborEncoded(encodedCbor: Uint8Array): CborEncoded {
+    return { encodedCbor };
+}
+
+function encodeCborMap(entries: Array<[string | number, string | number | Uint8Array | CborEncoded]>): Uint8Array {
     const encodedEntries = entries.map(([key, value]) => concatBytes(encodeCborValue(key), encodeCborValue(value)));
     return concatBytes(encodeCborHead(5, entries.length), ...encodedEntries);
 }
 
-function encodeCborValue(value: string | number | Uint8Array): Uint8Array {
+function encodeCborValue(value: string | number | Uint8Array | CborEncoded): Uint8Array {
     if (typeof value === "number") return encodeCborNumber(value);
     if (typeof value === "string") return concatBytes(encodeCborHead(3, value.length), stringToBytes(value));
+    if ("encodedCbor" in value) return value.encodedCbor;
     return concatBytes(encodeCborHead(2, value.length), value);
 }
 

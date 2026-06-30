@@ -105,8 +105,6 @@ const css = `
 
 const WEBAUTHN_REQUEST_EVENT = "padloc-webauthn-request";
 const WEBAUTHN_RESPONSE_EVENT = "padloc-webauthn-response";
-const WEBAUTHN_PAGE_SOURCE = "padloc-webauthn-page";
-const WEBAUTHN_CONTENT_SOURCE = "padloc-webauthn-content";
 const WEBAUTHN_BACKGROUND_TIMEOUT_MS = 60000;
 
 class ExtensionContent {
@@ -125,18 +123,29 @@ class ExtensionContent {
         }
         browser.runtime.onMessage.addListener((msg: Message) => this._handleMessage(msg));
         this._listenForFormSubmit();
+        this.installWebAuthnBridge();
+    }
+
+    installWebAuthnBridge() {
         this._listenForWebAuthnRequests();
     }
 
     private _listenForWebAuthnRequests() {
+        const channel = webAuthnBridgeChannel();
+        const padlocWindow = window as Window & { __padlocWebAuthnContentInstalledChannels?: string[] };
+        const installedChannels = padlocWindow.__padlocWebAuthnContentInstalledChannels || [];
+        if (installedChannels.includes(channel)) return;
+        padlocWindow.__padlocWebAuthnContentInstalledChannels = [...installedChannels, channel];
+        const pageSource = `padloc-webauthn-page:${channel}`;
+        const contentSource = `padloc-webauthn-content:${channel}`;
         window.addEventListener("message", (event) => {
             const data = event.data as { source?: string; type?: string; request?: unknown };
-            if (data?.source !== WEBAUTHN_PAGE_SOURCE || data.type !== WEBAUTHN_REQUEST_EVENT) return;
-            void this._handleWebAuthnRequest(data.request);
+            if (data?.source !== pageSource || data.type !== WEBAUTHN_REQUEST_EVENT) return;
+            void this._handleWebAuthnRequest(data.request, contentSource);
         });
     }
 
-    private async _handleWebAuthnRequest(detail: unknown) {
+    private async _handleWebAuthnRequest(detail: unknown, contentSource: string) {
         const request = this._normalizeWebAuthnRequest(detail);
         if (!request) return;
         let response: AgenticWebAuthnResponse;
@@ -168,7 +177,7 @@ class ExtensionContent {
             };
         }
         window.postMessage({
-            source: WEBAUTHN_CONTENT_SOURCE,
+            source: contentSource,
             type: WEBAUTHN_RESPONSE_EVENT,
             response: {
                 requestId: request.requestId,
@@ -711,6 +720,10 @@ function hasFillMappings(mappings: FieldMappings): boolean {
     return Object.values(mappings).some((value) => !!value);
 }
 
+function webAuthnBridgeChannel(): string {
+    return document.documentElement.getAttribute("data-padloc-webauthn-channel") || "default";
+}
+
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T | null> {
     let timeoutId: number | undefined;
     try {
@@ -725,7 +738,11 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T
     }
 }
 
-if (typeof window.extension === "undefined") {
-    window.extension = new ExtensionContent();
-    window.extension.init();
+const padlocContentWindow = window as Window & { extension?: ExtensionContent };
+
+if (typeof padlocContentWindow.extension === "undefined") {
+    padlocContentWindow.extension = new ExtensionContent();
+    padlocContentWindow.extension.init();
+} else {
+    new ExtensionContent().installWebAuthnBridge();
 }

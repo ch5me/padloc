@@ -38,6 +38,7 @@ export interface PasskeyEnrollmentRequest {
     privateKeyPkcs8?: string;
     signCount?: number;
     algorithm?: string | number;
+    clientDataHash?: string;
     userVerification?: UserVerificationRequirement;
     topOrigin?: string;
     vendor?: string;
