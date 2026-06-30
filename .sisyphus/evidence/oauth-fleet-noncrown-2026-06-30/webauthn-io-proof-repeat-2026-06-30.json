@@ -1,0 +1,26 @@
+{
+  "status": "webauthn-io-proof",
+  "ok": true,
+  "cleanup": {
+    "ok": true,
+    "rpId": "webauthn.io",
+    "skipped": true,
+    "deletedCount": 0
+  },
+  "pageState": {
+    "url": "https://webauthn.io/profile",
+    "title": "WebAuthn.io",
+    "createHooked": true,
+    "getHooked": true,
+    "username": "padloc-agentic-1782848217165-359588@example.com",
+    "hasControls": false,
+    "registerSuccess": false,
+    "loginSuccess": true,
+    "error": "",
+    "successIndicator": "You're logged in!\n\nYou just logged in using Web Authentication. Instead of using a traditional, shared-key password, you used a piece of secure hardware to create a strong, attested, and scoped credential that is virtually unphishable! To k",
+    "text": "WebAuthn.io\nYou're logged in!\n\nYou just logged in using Web Authentication. Instead of using a traditional, shared-key password, you used a piece of secure hardware to create a strong, attested, and scoped credential that is virtually unphishable! To keep learning about Web Authentication and the FIDO2 framework, check out webauthn.guide.\n\nTry it again?\nCredentials for padloc-agentic-1782848204847-838814@example.com\n\n*Credentials are stored for 24 hours.\n\nzTT9OOZV1due...KS-Iel0e900o\nDescription:\nsynced passkey\nTransports:\n[\"internal\"]\nProvider Information:\nName: (Unavailable)\nAAGUID: 7a46cc38-26d9-47fe-9f3b-b52837c6020d\nDelete\n\nSponsored by\n\n ",
+    "ok": true,
+    "stage": "profile-existing",
+    "existingCredential": true
+  }
+}

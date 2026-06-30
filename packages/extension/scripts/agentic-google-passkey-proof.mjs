@@ -160,8 +160,7 @@ async function clearGoogleSession() {
     const blank = await cdp.send("Target.createTarget", { url: "about:blank" });
     const clearSessionId = await attach(blank.targetId);
     await cdp.send("Network.enable", {}, clearSessionId).catch(() => undefined);
-    await cdp.send("Network.clearBrowserCookies", {}, clearSessionId);
-    await cdp.send("Network.clearBrowserCache", {}, clearSessionId);
+    await clearCookiesForDomainSuffixes(clearSessionId, ["google.com", "youtube.com"]);
     for (const origin of ["https://accounts.google.com", "https://myaccount.google.com", "https://accounts.youtube.com"]) {
         await cdp.send("Storage.clearDataForOrigin", {
             origin,
@@ -176,6 +175,35 @@ async function clearGoogleSession() {
         targetId: created.targetId,
         closedGoogleTargets: googleTargets.length,
     };
+}
+
+async function clearCookiesForDomainSuffixes(sessionId, domainSuffixes) {
+    const allCookies = await cdp.send("Network.getAllCookies", {}, sessionId).catch(() => ({ cookies: [] }));
+    const targetCookies = (allCookies.cookies || []).filter((cookie) => {
+        const domain = String(cookie.domain || "").replace(/^\./, "");
+        return domainSuffixes.some((suffix) => domain === suffix || domain.endsWith(`.${suffix}`));
+    });
+    for (const cookie of targetCookies) {
+        const domain = String(cookie.domain || "").replace(/^\./, "");
+        const suffix = domainSuffixes.find((item) => domain === item || domain.endsWith(`.${item}`)) || domain;
+        await cdp.send(
+            "Network.deleteCookies",
+            {
+                name: cookie.name,
+                url: `https://${suffix}/`,
+            },
+            sessionId
+        ).catch(() => undefined);
+        await cdp.send(
+            "Network.deleteCookies",
+            {
+                name: cookie.name,
+                domain: cookie.domain,
+                path: cookie.path,
+            },
+            sessionId
+        ).catch(() => undefined);
+    }
 }
 
 async function enroll(sessionId) {
@@ -475,7 +503,9 @@ async function pageState(sessionId) {
         `(() => {
             const text = document.body?.innerText || "";
             const url = location.href;
-            const needsGoogleReauth = /accounts\\.google\\.com\\/v3\\/signin\\/challenge\\/(pwd|selection|pk)|To continue, first verify/i.test(url + "\\n" + text);
+            const needsGoogleReauth =
+                /accounts\\.google\\.com\\/(?:v3\\/signin\\/(?:identifier|challenge\\/(?:pwd|selection|pk))|info\\/sessionexpired)|To continue, first verify|Email or phone/i
+                    .test(url + "\\n" + text);
             return {
                 url,
                 title: document.title,

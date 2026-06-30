@@ -137,14 +137,26 @@ separate CDP port. Chris must complete the first Google ownership checkpoint in 
 browser. Do not request or store Crown passwords by default.
 
 For a non-Google public relying-party proof through the actual extension hook, use
-WebAuthn.io from an owned Chrome for Testing lane with Padloc unlocked:
+the deterministic local RP first, then WebAuthn.io from an owned Chrome for Testing
+lane with Padloc unlocked:
 
 ```sh
+npm --prefix packages/extension run agentic:extension-cdp -- --mode local-rp-webauthn-proof --port 9831 --extension-id phgggllfaobigoepghbbeojablefkkfa
 npm --prefix packages/extension run agentic:extension-cdp -- --mode webauthn-io-proof --port 9831 --extension-id phgggllfaobigoepghbbeojablefkkfa
+npm --prefix packages/extension run agentic:extension-cdp -- --mode webauthn-me-proof --port 9831 --extension-id phgggllfaobigoepghbbeojablefkkfa
 ```
 
-Pass means `status=webauthn-io-proof`, `ok=true`, WebAuthn.io shows
-`You're logged in!`, and provider metadata shows the Padloc AAGUID.
+Local RP pass means server-side registration and authentication checks pass,
+including challenge, origin, RP ID hash, AAGUID, flags, transports, and assertion
+signature. WebAuthn.io pass means `status=webauthn-io-proof`, `ok=true`,
+fresh register/login succeeds, and WebAuthn.io shows `You're logged in!`.
+WebAuthn.me is a secondary public-RP attempt; record the JSON blocker if its
+tutorial controls fail to attach.
+The WebAuthn.io helper deletes only `webauthn.io` test passkey items from the
+current Padloc test vault before a fresh proof so a reused discoverable-credential
+lane cannot assert with an older WebAuthn.io credential. Pass
+`--preserve-rp-passkeys=true` only when intentionally testing the existing-profile
+path.
 
 **First run**: Install the Chromium browser for Playwright:
 

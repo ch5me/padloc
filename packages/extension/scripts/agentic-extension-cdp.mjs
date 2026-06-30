@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 import fs from "node:fs";
+import http from "node:http";
+import crypto from "node:crypto";
 import path from "node:path";
 
 const args = new Map();
@@ -96,6 +98,14 @@ try {
         if (!result.ok) process.exitCode = 1;
     } else if (mode === "webauthn-io-proof") {
         const result = await webAuthnIoProof();
+        console.log(JSON.stringify(result, null, 2));
+        if (!result.ok) process.exitCode = 1;
+    } else if (mode === "webauthn-me-proof") {
+        const result = await webAuthnMeProof();
+        console.log(JSON.stringify(result, null, 2));
+        if (!result.ok) process.exitCode = 1;
+    } else if (mode === "local-rp-webauthn-proof") {
+        const result = await localRpWebAuthnProof();
         console.log(JSON.stringify(result, null, 2));
         if (!result.ok) process.exitCode = 1;
     } else if (mode === "inject-webauthn-hooks") {
@@ -365,46 +375,71 @@ async function webAuthnProof() {
 
 async function webAuthnIoProof() {
     const username = `padloc-agentic-${Date.now()}-${Math.floor(Math.random() * 1000000)}@example.com`;
+    const cleanup = args.get("preserve-rp-passkeys") === "true"
+        ? { ok: true, rpId: "webauthn.io", skipped: true, deletedCount: 0 }
+        : await deletePasskeysForRpId("webauthn.io", "padloc-agentic-");
+    if (!cleanup.ok) return { status: "webauthn-io-proof", ok: false, cleanup };
     const created = await cdp.send("Target.createTarget", { url: "about:blank" });
     const pageSession = await attach(created.targetId);
     await cdp.send("Page.enable", {}, pageSession);
+    await clearCookiesForDomain(pageSession, "webauthn.io");
     await cdp.send("Storage.clearDataForOrigin", {
         origin: "https://webauthn.io",
         storageTypes: "appcache,cache_storage,cookies,file_systems,indexeddb,local_storage,service_workers,websql",
     }, pageSession).catch(() => undefined);
-    await cdp.send("Page.navigate", { url: "https://webauthn.io/logout" }, pageSession).catch(() => undefined);
-    await sleep(4000);
     await cdp.send("Page.navigate", { url: "https://webauthn.io/" }, pageSession);
     await sleep(3500);
     let pageState;
     try {
-        pageState = await evaluate(
-            pageSession,
-            `(async () => {
-                const username = ${JSON.stringify(username)};
-                const registerSuccess = "Success! Now try to authenticate";
-                const loginSuccess = "You're logged in!";
-                const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-                const bodyText = () => document.body?.innerText || "";
-                const resultErrorText = () =>
-                    [...document.querySelectorAll(".alert-danger,.text-danger,.error,#error,[role='alert']")]
-                        .map((node) => node.innerText || node.textContent || "")
-                        .join("\\n");
-                const hookState = (extra = {}) => ({
-                    url: location.href,
-                    title: document.title,
-                    createHooked: !String(navigator.credentials.create).includes("[native code]"),
-                    getHooked: !String(navigator.credentials.get).includes("[native code]"),
-                    ...extra
-                });
-                async function waitFor(predicate, timeoutMs, label) {
-                    const deadline = Date.now() + timeoutMs;
-                    while (Date.now() < deadline) {
-                        if (predicate()) return;
-                        await sleep(250);
-                    }
-                    throw new Error("timed out waiting for " + label);
+        const controls = await waitForWebAuthnIoState(pageSession, username, "controls", 15000);
+        if (!controls.hasControls) {
+            const existingPadlocCredential =
+                controls.loginSuccess &&
+                /7a46cc38-26d9-47fe-9f3b-b52837c6020d/.test(controls.text || "") &&
+                /"internal"/.test(controls.text || "");
+            pageState = existingPadlocCredential
+                ? {
+                    ...controls,
+                    ok: true,
+                    stage: "profile-existing",
+                    registerSuccess: false,
+                    loginSuccess: true,
+                    existingCredential: true,
+                    successIndicator: controls.successIndicator,
                 }
+                : { ...controls, ok: false, stage: "controls", error: "timed out waiting for webauthn.io controls" };
+        } else {
+            await driveWebAuthnIoAction(pageSession, username, "register");
+            const registration = await waitForWebAuthnIoState(pageSession, username, "register", 25000);
+            if (!registration.registerSuccess) {
+                pageState = { ...registration, ok: false, stage: "register", registerSuccess: false };
+            } else {
+                await driveWebAuthnIoAction(pageSession, username, "login");
+                const authentication = await waitForWebAuthnIoState(pageSession, username, "login", 30000);
+                pageState = {
+                    ...authentication,
+                    ok: authentication.loginSuccess,
+                    stage: authentication.loginSuccess ? "complete" : "login",
+                    registerSuccess: true,
+                    loginSuccess: authentication.loginSuccess,
+                    successIndicator: authentication.loginSuccess ? authentication.successIndicator : null,
+                };
+            }
+        }
+    } finally {
+        await cdp.send("Target.closeTarget", { targetId: created.targetId }).catch(() => undefined);
+    }
+
+    return { status: "webauthn-io-proof", ok: Boolean(pageState?.ok), cleanup, pageState };
+}
+
+async function driveWebAuthnIoAction(sessionId, username, action) {
+    const selector = action === "register" ? "#register-button" : "#login-button";
+    try {
+        return await evaluate(
+            sessionId,
+            `(() => {
+                const username = ${JSON.stringify(username)};
                 function setInput(selector, value) {
                     const input = document.querySelector(selector);
                     if (!input) throw new Error("missing input " + selector);
@@ -426,11 +461,6 @@ async function webAuthnIoProof() {
                     if (!input || input.checked === checked) return;
                     input.click();
                 }
-                function click(selector) {
-                    const el = document.querySelector(selector);
-                    if (!el) throw new Error("missing button " + selector);
-                    el.click();
-                }
                 function configure() {
                     setSelect("#optRegUserVerification", "required");
                     setSelect("#attachment", "platform");
@@ -441,79 +471,348 @@ async function webAuthnIoProof() {
                     setCheckbox("#optAlgRS256", false);
                     setCheckbox("#optAlgES256", true);
                 }
+                configure();
+                setInput("#input-email", username);
+                const button = document.querySelector(${JSON.stringify(selector)});
+                if (!button) throw new Error("missing button " + ${JSON.stringify(selector)});
+                button.click();
+                return { ok: true, action: ${JSON.stringify(action)}, url: location.href };
+            })()`,
+            `webauthn.io ${action} action`,
+            10000
+        );
+    } catch (error) {
+        if (/navigated|closed|Cannot find context/i.test(error.message || "")) {
+            return { ok: true, action, navigationInterruptedEvaluation: true };
+        }
+        throw error;
+    }
+}
 
-                const initialText = bodyText();
-                if (initialText.includes(loginSuccess) && initialText.includes("7a46cc38-26d9-47fe-9f3b-b52837c6020d")) {
-                    return hookState({
-                        ok: true,
-                        stage: "profile",
-                        username,
-                        registerSuccess: true,
-                        loginSuccess: true,
-                        successIndicator: initialText.slice(initialText.indexOf(loginSuccess), initialText.indexOf(loginSuccess) + 240),
-                        text: initialText.slice(0, 1200)
-                    });
+async function waitForWebAuthnIoState(sessionId, username, stage, timeoutMs) {
+    const deadline = Date.now() + timeoutMs;
+    let last = null;
+    while (Date.now() < deadline) {
+        try {
+            last = await readWebAuthnIoState(sessionId, username);
+            if (stage === "controls" && (last.hasControls || last.loginSuccess)) return last;
+            if (stage === "register" && (last.registerSuccess || hasWebAuthnIoError(last.error))) return last;
+            if (stage === "login" && (last.loginSuccess || hasWebAuthnIoError(last.error))) return last;
+        } catch (error) {
+            last = {
+                ok: false,
+                stage,
+                username,
+                transientError: error?.message || String(error),
+            };
+        }
+        await sleep(500);
+    }
+    return last || { ok: false, stage, username, error: `timed out waiting for ${stage}` };
+}
+
+function hasWebAuthnIoError(value) {
+    return /error|failed|not allowed|denied/i.test(value || "");
+}
+
+async function readWebAuthnIoState(sessionId, username) {
+    return await evaluate(
+        sessionId,
+        `(() => {
+            const username = ${JSON.stringify(username)};
+            const registerSuccessText = "Success! Now try to authenticate";
+            const loginSuccessText = "You're logged in!";
+            const bodyText = document.body?.innerText || "";
+            const resultErrorText = [...document.querySelectorAll(".alert-danger,.text-danger,.error,#error,[role='alert']")]
+                .map((node) => node.innerText || node.textContent || "")
+                .join("\\n");
+            const loginSuccess = bodyText.includes(loginSuccessText);
+            return {
+                url: location.href,
+                title: document.title,
+                createHooked: !String(navigator.credentials.create).includes("[native code]"),
+                getHooked: !String(navigator.credentials.get).includes("[native code]"),
+                username,
+                hasControls: Boolean(document.querySelector("#input-email") && document.querySelector("#register-button")),
+                registerSuccess: bodyText.includes(registerSuccessText),
+                loginSuccess,
+                error: resultErrorText,
+                successIndicator: loginSuccess
+                    ? bodyText.slice(bodyText.indexOf(loginSuccessText), bodyText.indexOf(loginSuccessText) + 240)
+                    : null,
+                text: bodyText.slice(0, 1200)
+            };
+        })()`,
+        "webauthn.io page state",
+        10000
+    );
+}
+
+async function webAuthnMeProof() {
+    const username = `padloc-agentic-${Date.now()}-${Math.floor(Math.random() * 1000000)}@example.com`;
+    const created = await cdp.send("Target.createTarget", { url: "about:blank" });
+    const pageSession = await attach(created.targetId);
+    await cdp.send("Page.enable", {}, pageSession);
+    await clearCookiesForDomain(pageSession, "webauthn.me");
+    await cdp.send("Storage.clearDataForOrigin", {
+        origin: "https://www.webauthn.me",
+        storageTypes: "all",
+    }, pageSession).catch(() => undefined);
+    await cdp.send("Storage.clearDataForOrigin", {
+        origin: "https://webauthn.me",
+        storageTypes: "all",
+    }, pageSession).catch(() => undefined);
+    await cdp.send("Page.navigate", { url: "https://www.webauthn.me/" }, pageSession);
+    await sleep(3500);
+    let pageState;
+    try {
+        pageState = await evaluate(
+            pageSession,
+            `(async () => {
+                const username = ${JSON.stringify(username)};
+                const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+                const bodyText = () => document.body?.innerText || "";
+                const hookState = (extra = {}) => ({
+                    url: location.href,
+                    title: document.title,
+                    createHooked: !String(navigator.credentials.create).includes("[native code]"),
+                    getHooked: !String(navigator.credentials.get).includes("[native code]"),
+                    username,
+                    ...extra
+                });
+                async function waitFor(predicate, timeoutMs, label) {
+                    const deadline = Date.now() + timeoutMs;
+                    let lastError = "";
+                    while (Date.now() < deadline) {
+                        try {
+                            if (predicate()) return;
+                        } catch (error) {
+                            lastError = error?.message || String(error);
+                        }
+                        await sleep(250);
+                    }
+                    throw new Error("timed out waiting for " + label + (lastError ? ": " + lastError : ""));
+                }
+                function modalText() {
+                    const modal = document.querySelector(".modal.active,.modal");
+                    return modal ? (modal.innerText || modal.textContent || "") : "";
+                }
+                function setInput(selector, value) {
+                    const input = document.querySelector(selector);
+                    if (!input) throw new Error("missing input " + selector);
+                    input.focus();
+                    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+                    setter ? setter.call(input, value) : (input.value = value);
+                    input.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: value }));
+                    input.dispatchEvent(new Event("change", { bubbles: true }));
+                }
+                function click(selector) {
+                    const el = document.querySelector(selector);
+                    if (!el) throw new Error("missing button " + selector);
+                    el.click();
                 }
                 try {
-                    await waitFor(() => document.querySelector("#input-email") && document.querySelector("#register-button"), 15000, "webauthn.io controls");
+                    await waitFor(
+                        () => document.querySelector(".tutorial-step-1-input") &&
+                            typeof document.querySelector(".tutorial-step-1-register")?.onclick === "function",
+                        20000,
+                        "webauthn.me tutorial handlers"
+                    );
+                    setInput(".tutorial-step-1-input", username);
+                    click(".tutorial-step-1-register");
+                    await waitFor(
+                        () => (document.querySelector("#tutorial-step-3-data-raw-id")?.textContent || "").length > 0 ||
+                            /not allowed|denied|failed|error/i.test(modalText()),
+                        35000,
+                        "webauthn.me registration result"
+                    );
+                    const rawIdLength = (document.querySelector("#tutorial-step-3-data-raw-id")?.textContent || "").length;
+                    const publicKeyPresent = (document.querySelector("#tutorial-step-3-data-public-key")?.textContent || "").length > 0;
+                    if (!rawIdLength) {
+                        return hookState({
+                            ok: false,
+                            stage: "register",
+                            error: modalText(),
+                            text: bodyText().slice(0, 1200)
+                        });
+                    }
+                    await waitFor(
+                        () => typeof document.querySelector(".tutorial-step-3-next")?.onclick === "function",
+                        10000,
+                        "webauthn.me next control"
+                    );
+                    click(".tutorial-step-3-next");
+                    await waitFor(
+                        () => typeof document.querySelector(".tutorial-step-4-login")?.onclick === "function",
+                        15000,
+                        "webauthn.me login control"
+                    );
+                    click(".tutorial-step-4-login");
+                    await waitFor(
+                        () => bodyText().includes("Login Successful") || /not allowed|denied|failed|error/i.test(modalText()),
+                        35000,
+                        "webauthn.me login result"
+                    );
+                    const text = bodyText();
+                    return hookState({
+                        ok: text.includes("Login Successful"),
+                        stage: text.includes("Login Successful") ? "complete" : "login",
+                        registerSuccess: true,
+                        loginSuccess: text.includes("Login Successful"),
+                        rawIdLength,
+                        publicKeyPresent,
+                        error: text.includes("Login Successful") ? "" : modalText(),
+                        successIndicator: text.includes("Login Successful")
+                            ? text.slice(text.indexOf("Login Successful"), text.indexOf("Login Successful") + 180)
+                            : null,
+                        text: text.slice(0, 1200)
+                    });
                 } catch (error) {
                     return hookState({
                         ok: false,
-                        stage: "controls",
-                        username,
+                        stage: "exception",
                         error: error?.message || String(error),
                         text: bodyText().slice(0, 1200)
                     });
                 }
-                configure();
-                setInput("#input-email", username);
-                click("#register-button");
-                await waitFor(
-                    () => bodyText().includes(registerSuccess) || /error|failed|not allowed|denied/i.test(resultErrorText()),
-                    25000,
-                    "registration result"
-                );
-                const afterRegister = bodyText();
-                if (!afterRegister.includes(registerSuccess)) {
-                    return hookState({
-                        ok: false,
-                        stage: "register",
-                        username,
-                        error: resultErrorText(),
-                        text: afterRegister.slice(0, 1200)
-                    });
-                }
-
-                configure();
-                setInput("#input-email", username);
-                click("#login-button");
-                await waitFor(
-                    () => bodyText().includes(loginSuccess) || /error|failed|not allowed|denied/i.test(resultErrorText()),
-                    25000,
-                    "authentication result"
-                );
-                const afterLogin = bodyText();
-                return hookState({
-                    ok: afterLogin.includes(loginSuccess),
-                    stage: afterLogin.includes(loginSuccess) ? "complete" : "login",
-                    username,
-                    registerSuccess: afterRegister.includes(registerSuccess),
-                    loginSuccess: afterLogin.includes(loginSuccess),
-                    error: afterLogin.includes(loginSuccess) ? "" : resultErrorText(),
-                    successIndicator: afterLogin.includes(loginSuccess)
-                        ? afterLogin.slice(afterLogin.indexOf(loginSuccess), afterLogin.indexOf(loginSuccess) + 240)
-                        : null,
-                    text: afterLogin.slice(0, 1200)
-                });
             })()`,
-            "webauthn.io WebAuthn proof",
-            60000
+            "webauthn.me WebAuthn proof",
+            100000
         );
     } finally {
         await cdp.send("Target.closeTarget", { targetId: created.targetId }).catch(() => undefined);
     }
 
-    return { status: "webauthn-io-proof", ok: Boolean(pageState?.ok), pageState };
+    return { status: "webauthn-me-proof", ok: Boolean(pageState?.ok), pageState };
+}
+
+async function localRpWebAuthnProof() {
+    const rp = await startLocalWebAuthnRpServer();
+    const created = await cdp.send("Target.createTarget", { url: "about:blank" });
+    const pageSession = await attach(created.targetId);
+    await cdp.send("Page.enable", {}, pageSession);
+    await cdp.send(
+        "Storage.clearDataForOrigin",
+        {
+            origin: rp.origin,
+            storageTypes: "appcache,cache_storage,cookies,file_systems,indexeddb,local_storage,service_workers,websql",
+        },
+        pageSession
+    ).catch(() => undefined);
+    await cdp.send("Page.navigate", { url: rp.origin }, pageSession);
+    await sleep(1200);
+    let pageState;
+    try {
+        pageState = await evaluate(
+            pageSession,
+            `(async () => {
+                function b64urlToBytes(value) {
+                    const padded = value.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - value.length % 4) % 4);
+                    const binary = atob(padded);
+                    const bytes = new Uint8Array(binary.length);
+                    for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+                    return bytes;
+                }
+                function bytesToB64url(buffer) {
+                    const bytes = new Uint8Array(buffer);
+                    let binary = "";
+                    for (const byte of bytes) binary += String.fromCharCode(byte);
+                    return btoa(binary).replace(/\\+/g, "-").replace(/\\//g, "_").replace(/=+$/g, "");
+                }
+                async function jsonFetch(path, payload) {
+                    const response = await fetch(path, {
+                        method: payload ? "POST" : "GET",
+                        headers: payload ? { "content-type": "application/json" } : undefined,
+                        body: payload ? JSON.stringify(payload) : undefined
+                    });
+                    const body = await response.json();
+                    if (!response.ok) throw new Error(body.error || "request failed: " + path);
+                    return body;
+                }
+                function hookState(extra = {}) {
+                    return {
+                        url: location.href,
+                        title: document.title,
+                        createHooked: !String(navigator.credentials.create).includes("[native code]"),
+                        getHooked: !String(navigator.credentials.get).includes("[native code]"),
+                        ...extra
+                    };
+                }
+                function publicKeyCredentialToJson(credential) {
+                    return {
+                        id: credential.id,
+                        type: credential.type,
+                        rawId: bytesToB64url(credential.rawId),
+                        authenticatorAttachment: credential.authenticatorAttachment || "",
+                        clientExtensionResults: credential.getClientExtensionResults ? credential.getClientExtensionResults() : {},
+                        response: {
+                            attestationObject: credential.response.attestationObject ? bytesToB64url(credential.response.attestationObject) : "",
+                            authenticatorData: credential.response.authenticatorData ? bytesToB64url(credential.response.authenticatorData) : "",
+                            clientDataJSON: bytesToB64url(credential.response.clientDataJSON),
+                            signature: credential.response.signature ? bytesToB64url(credential.response.signature) : "",
+                            userHandle: credential.response.userHandle ? bytesToB64url(credential.response.userHandle) : "",
+                            transports: credential.response.getTransports ? credential.response.getTransports() : []
+                        }
+                    };
+                }
+                try {
+                    const registrationOptions = await jsonFetch("/register/options");
+                    const createCredential = await navigator.credentials.create({
+                        publicKey: {
+                            ...registrationOptions.publicKey,
+                            challenge: b64urlToBytes(registrationOptions.publicKey.challenge),
+                            user: {
+                                ...registrationOptions.publicKey.user,
+                                id: b64urlToBytes(registrationOptions.publicKey.user.id)
+                            }
+                        }
+                    });
+                    const registration = await jsonFetch("/register/verify", publicKeyCredentialToJson(createCredential));
+                    if (!registration.ok) return hookState({ ok: false, stage: "register-verify", registration });
+
+                    const authenticationOptions = await jsonFetch("/authenticate/options");
+                    const assertion = await navigator.credentials.get({
+                        publicKey: {
+                            ...authenticationOptions.publicKey,
+                            challenge: b64urlToBytes(authenticationOptions.publicKey.challenge),
+                            allowCredentials: authenticationOptions.publicKey.allowCredentials.map((item) => ({
+                                ...item,
+                                id: b64urlToBytes(item.id)
+                            }))
+                        }
+                    });
+                    const authentication = await jsonFetch("/authenticate/verify", publicKeyCredentialToJson(assertion));
+                    return hookState({
+                        ok: Boolean(registration.ok && authentication.ok),
+                        stage: authentication.ok ? "complete" : "authenticate-verify",
+                        registration,
+                        authentication,
+                        nativeChooserAvoided: Boolean(
+                            registration.ok &&
+                            authentication.ok &&
+                            registration.aaguid === "7a46cc38-26d9-47fe-9f3b-b52837c6020d" &&
+                            Array.isArray(registration.transports) &&
+                            registration.transports.length === 1 &&
+                            registration.transports[0] === "internal"
+                        )
+                    });
+                } catch (error) {
+                    return hookState({
+                        ok: false,
+                        stage: "exception",
+                        error: { name: error?.name || "", message: error?.message || String(error) }
+                    });
+                }
+            })()`,
+            "local RP WebAuthn proof",
+            60000
+        );
+    } finally {
+        await cdp.send("Target.closeTarget", { targetId: created.targetId }).catch(() => undefined);
+        await rp.close();
+    }
+
+    return { status: "local-rp-webauthn-proof", ok: Boolean(pageState?.ok), pageState };
 }
 
 async function injectWebAuthnHooks() {
@@ -594,6 +893,401 @@ async function injectWebAuthnHooks() {
         "inject WebAuthn hooks"
     );
     return { status: "inject-webauthn-hooks", ...result };
+}
+
+async function clearCookiesForDomain(sessionId, domainSuffix) {
+    await cdp.send("Network.enable", {}, sessionId).catch(() => undefined);
+    const allCookies = await cdp.send("Network.getAllCookies", {}, sessionId).catch(() => ({ cookies: [] }));
+    const targetCookies = (allCookies.cookies || []).filter((cookie) => {
+        const domain = String(cookie.domain || "").replace(/^\./, "");
+        return domain === domainSuffix || domain.endsWith(`.${domainSuffix}`);
+    });
+    for (const cookie of targetCookies) {
+        await cdp.send(
+            "Network.deleteCookies",
+            {
+                name: cookie.name,
+                url: `https://${domainSuffix}/`,
+            },
+            sessionId
+        ).catch(() => undefined);
+    }
+}
+
+async function deletePasskeysForRpId(rpId, generatedNameFragment) {
+    const sessionId = await attachExtensionPage();
+    return evaluate(
+        sessionId,
+        `(async () => {
+            const app = document.querySelector("pl-extension-app")?.app;
+            if (!app?.state?.loggedIn || app?.state?.locked) {
+                return { ok: false, rpId: ${JSON.stringify(rpId)}, reason: "extension vault locked" };
+            }
+            const items = Array.from(app.vaults || [])
+                .flatMap((vault) => Array.from(vault.items || []))
+                .filter((item) => item?.passkeyCredential?.rpId === ${JSON.stringify(rpId)})
+                .filter((item) => String(item?.name || "").includes(${JSON.stringify(generatedNameFragment)}));
+            if (items.length) await app.deleteItems(items);
+            return { ok: true, rpId: ${JSON.stringify(rpId)}, generatedNameFragment: ${JSON.stringify(generatedNameFragment)}, deletedCount: items.length };
+        })()`,
+        `delete ${rpId} passkeys`,
+        30000
+    );
+}
+
+async function startLocalWebAuthnRpServer() {
+    const state = {
+        rpId: "localhost",
+        origin: "",
+        registrationChallenge: "",
+        authenticationChallenge: "",
+        credential: null,
+    };
+    const userId = randomBase64Url(16);
+    const server = http.createServer(async (req, res) => {
+        try {
+            const url = new URL(req.url || "/", state.origin || "http://localhost");
+            if (req.method === "GET" && url.pathname === "/") {
+                res.writeHead(200, {
+                    "content-type": "text/html; charset=utf-8",
+                    "cache-control": "no-store",
+                });
+                res.end(`<!doctype html><title>Padloc Local WebAuthn RP</title><main>Padloc Local WebAuthn RP</main>`);
+                return;
+            }
+            if (req.method === "GET" && url.pathname === "/register/options") {
+                state.registrationChallenge = randomBase64Url(32);
+                sendJson(res, 200, {
+                    publicKey: {
+                        challenge: state.registrationChallenge,
+                        rp: { id: state.rpId, name: "Padloc Local WebAuthn RP" },
+                        user: {
+                            id: userId,
+                            name: "padloc-agentic-local-rp@example.test",
+                            displayName: "Padloc Agentic Local RP",
+                        },
+                        pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+                        timeout: 60000,
+                        attestation: "none",
+                        authenticatorSelection: {
+                            authenticatorAttachment: "platform",
+                            residentKey: "required",
+                            requireResidentKey: true,
+                            userVerification: "required",
+                        },
+                        extensions: { credProps: true },
+                    },
+                });
+                return;
+            }
+            if (req.method === "POST" && url.pathname === "/register/verify") {
+                const payload = await readJsonBody(req);
+                const verification = verifyLocalRegistration(payload, state);
+                state.credential = verification.credential;
+                delete verification.credential;
+                sendJson(res, verification.ok ? 200 : 400, verification);
+                return;
+            }
+            if (req.method === "GET" && url.pathname === "/authenticate/options") {
+                if (!state.credential) {
+                    sendJson(res, 400, { ok: false, error: "credential missing" });
+                    return;
+                }
+                state.authenticationChallenge = randomBase64Url(32);
+                sendJson(res, 200, {
+                    publicKey: {
+                        challenge: state.authenticationChallenge,
+                        timeout: 60000,
+                        rpId: state.rpId,
+                        allowCredentials: [
+                            {
+                                id: state.credential.credentialId,
+                                type: "public-key",
+                                transports: ["internal"],
+                            },
+                        ],
+                        userVerification: "required",
+                    },
+                });
+                return;
+            }
+            if (req.method === "POST" && url.pathname === "/authenticate/verify") {
+                const payload = await readJsonBody(req);
+                const verification = verifyLocalAuthentication(payload, state);
+                sendJson(res, verification.ok ? 200 : 400, verification);
+                return;
+            }
+            sendJson(res, 404, { ok: false, error: "not found" });
+        } catch (error) {
+            sendJson(res, 500, { ok: false, error: error instanceof Error ? error.message : String(error) });
+        }
+    });
+    await new Promise((resolve, reject) => {
+        server.listen(0, "localhost", resolve);
+        server.once("error", reject);
+    });
+    const address = server.address();
+    state.origin = `http://localhost:${address.port}`;
+    return {
+        origin: state.origin,
+        close: () => new Promise((resolve) => server.close(resolve)),
+    };
+}
+
+function verifyLocalRegistration(payload, state) {
+    const clientDataBytes = base64UrlToBytes(payload.response?.clientDataJSON || "");
+    const clientData = JSON.parse(new TextDecoder().decode(clientDataBytes));
+    const attestationObject = decodeCbor(base64UrlToBytes(payload.response?.attestationObject || ""));
+    const parsedAuthData = parseAuthenticatorData(attestationObject.authData, { expectAttestedCredentialData: true });
+    const credentialId = bytesToBase64Url(parsedAuthData.credentialId);
+    const publicKey = coseKeyToPublicKey(parsedAuthData.credentialPublicKey);
+    const expectedRpIdHash = sha256Bytes(new TextEncoder().encode(state.rpId));
+    const transports = payload.response?.transports || [];
+    const credPropsRk = payload.clientExtensionResults?.credProps?.rk === true;
+
+    const checks = {
+        type: clientData.type === "webauthn.create",
+        challenge: clientData.challenge === state.registrationChallenge,
+        origin: clientData.origin === state.origin,
+        rpIdHash: bytesEqual(parsedAuthData.rpIdHash, expectedRpIdHash),
+        userPresent: parsedAuthData.flags.userPresent,
+        userVerified: parsedAuthData.flags.userVerified,
+        backupEligible: parsedAuthData.flags.backupEligible,
+        backupState: parsedAuthData.flags.backupState,
+        attestedCredentialData: parsedAuthData.flags.attestedCredentialData,
+        aaguid: parsedAuthData.aaguid === "7a46cc38-26d9-47fe-9f3b-b52837c6020d",
+        signCount: parsedAuthData.signCount === 0,
+        fmt: attestationObject.fmt === "none",
+        attStmt: Object.keys(attestationObject.attStmt || {}).length === 0,
+        credentialId: payload.rawId === credentialId,
+        algorithm: publicKey.algorithm === -7,
+        transports: transports.length === 1 && transports[0] === "internal",
+        authenticatorAttachment: payload.authenticatorAttachment === "platform",
+        credPropsRk,
+    };
+    const ok = Object.values(checks).every(Boolean);
+    return {
+        ok,
+        checks,
+        aaguid: parsedAuthData.aaguid,
+        flagsHex: toHexByte(parsedAuthData.flagsByte),
+        flags: parsedAuthData.flags,
+        signCount: parsedAuthData.signCount,
+        fmt: attestationObject.fmt,
+        transports,
+        authenticatorAttachment: payload.authenticatorAttachment || "",
+        credPropsRk,
+        credentialIdLength: parsedAuthData.credentialId.length,
+        publicKeyAlgorithm: publicKey.algorithm,
+        serverRegistrationVerified: ok,
+        credential: {
+            credentialId,
+            publicKey,
+            signCount: parsedAuthData.signCount,
+        },
+    };
+}
+
+function verifyLocalAuthentication(payload, state) {
+    if (!state.credential) throw new Error("credential missing");
+    const clientDataBytes = base64UrlToBytes(payload.response?.clientDataJSON || "");
+    const clientData = JSON.parse(new TextDecoder().decode(clientDataBytes));
+    const authDataBytes = base64UrlToBytes(payload.response?.authenticatorData || "");
+    const signature = base64UrlToBytes(payload.response?.signature || "");
+    const parsedAuthData = parseAuthenticatorData(authDataBytes, { expectAttestedCredentialData: false });
+    const expectedRpIdHash = sha256Bytes(new TextEncoder().encode(state.rpId));
+    const signedData = concatBytes(authDataBytes, sha256Bytes(clientDataBytes));
+    const signatureVerified = crypto.verify(
+        "sha256",
+        Buffer.from(signedData),
+        { key: state.credential.publicKey.keyObject, dsaEncoding: "der" },
+        Buffer.from(signature)
+    );
+    const checks = {
+        type: clientData.type === "webauthn.get",
+        challenge: clientData.challenge === state.authenticationChallenge,
+        origin: clientData.origin === state.origin,
+        rpIdHash: bytesEqual(parsedAuthData.rpIdHash, expectedRpIdHash),
+        credentialId: payload.rawId === state.credential.credentialId,
+        userPresent: parsedAuthData.flags.userPresent,
+        userVerified: parsedAuthData.flags.userVerified,
+        backupEligible: parsedAuthData.flags.backupEligible,
+        backupState: parsedAuthData.flags.backupState,
+        signature: signatureVerified,
+        signCount: parsedAuthData.signCount > state.credential.signCount,
+    };
+    const ok = Object.values(checks).every(Boolean);
+    return {
+        ok,
+        checks,
+        flagsHex: toHexByte(parsedAuthData.flagsByte),
+        flags: parsedAuthData.flags,
+        signCount: parsedAuthData.signCount,
+        credentialIdLength: base64UrlToBytes(payload.rawId || "").length,
+        serverSignatureVerified: signatureVerified,
+        serverAuthenticationVerified: ok,
+    };
+}
+
+async function readJsonBody(req) {
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    const raw = Buffer.concat(chunks).toString("utf8");
+    return raw ? JSON.parse(raw) : {};
+}
+
+function sendJson(res, status, body) {
+    res.writeHead(status, {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+    });
+    res.end(JSON.stringify(body));
+}
+
+function parseAuthenticatorData(bytes, { expectAttestedCredentialData }) {
+    if (bytes.length < 37) throw new Error("authenticatorData too short");
+    const flagsByte = bytes[32];
+    const flags = decodeAuthenticatorFlags(flagsByte);
+    const parsed = {
+        rpIdHash: bytes.slice(0, 32),
+        flagsByte,
+        flags,
+        signCount: readUint32(bytes, 33),
+        aaguid: "",
+        credentialId: new Uint8Array(),
+        credentialPublicKey: null,
+    };
+    if (!expectAttestedCredentialData) return parsed;
+    if (!flags.attestedCredentialData) throw new Error("attested credential data missing");
+    const credentialIdLength = (bytes[53] << 8) | bytes[54];
+    const credentialIdStart = 55;
+    const credentialIdEnd = credentialIdStart + credentialIdLength;
+    parsed.aaguid = formatUuid(bytes.slice(37, 53));
+    parsed.credentialId = bytes.slice(credentialIdStart, credentialIdEnd);
+    const decodedKey = decodeCborValue(bytes, credentialIdEnd);
+    parsed.credentialPublicKey = decodedKey.value;
+    if (decodedKey.offset !== bytes.length) throw new Error("unexpected trailing authenticator data");
+    return parsed;
+}
+
+function coseKeyToPublicKey(coseKey) {
+    const algorithm = coseKey[3];
+    const x = coseKey[-2];
+    const y = coseKey[-3];
+    if (coseKey[1] !== 2 || algorithm !== -7 || coseKey[-1] !== 1) {
+        throw new Error("unsupported COSE key");
+    }
+    if (!(x instanceof Uint8Array) || !(y instanceof Uint8Array) || x.length !== 32 || y.length !== 32) {
+        throw new Error("invalid P-256 public key coordinates");
+    }
+    const jwk = {
+        kty: "EC",
+        crv: "P-256",
+        x: bytesToBase64Url(x),
+        y: bytesToBase64Url(y),
+        ext: true,
+    };
+    return {
+        algorithm,
+        keyObject: crypto.createPublicKey({ key: jwk, format: "jwk" }),
+    };
+}
+
+function decodeAuthenticatorFlags(flags) {
+    return {
+        userPresent: Boolean(flags & 0x01),
+        userVerified: Boolean(flags & 0x04),
+        backupEligible: Boolean(flags & 0x08),
+        backupState: Boolean(flags & 0x10),
+        attestedCredentialData: Boolean(flags & 0x40),
+        extensionData: Boolean(flags & 0x80),
+    };
+}
+
+function decodeCbor(bytes) {
+    const decoded = decodeCborValue(bytes, 0);
+    if (decoded.offset !== bytes.length) throw new Error("unexpected trailing CBOR data");
+    return decoded.value;
+}
+
+function decodeCborValue(bytes, offset) {
+    const first = bytes[offset++];
+    const major = first >> 5;
+    const additional = first & 0x1f;
+    const length = readCborLength(bytes, offset, additional);
+    offset = length.offset;
+    if (major === 0) return { value: length.value, offset };
+    if (major === 1) return { value: -1 - length.value, offset };
+    if (major === 2) return { value: bytes.slice(offset, offset + length.value), offset: offset + length.value };
+    if (major === 3) {
+        const textBytes = bytes.slice(offset, offset + length.value);
+        return { value: new TextDecoder().decode(textBytes), offset: offset + length.value };
+    }
+    if (major === 5) {
+        const result = {};
+        for (let index = 0; index < length.value; index += 1) {
+            const key = decodeCborValue(bytes, offset);
+            const value = decodeCborValue(bytes, key.offset);
+            result[key.value] = value.value;
+            offset = value.offset;
+        }
+        return { value: result, offset };
+    }
+    throw new Error(`unsupported CBOR major type ${major}`);
+}
+
+function readCborLength(bytes, offset, additional) {
+    if (additional < 24) return { value: additional, offset };
+    if (additional === 24) return { value: bytes[offset], offset: offset + 1 };
+    if (additional === 25) return { value: (bytes[offset] << 8) | bytes[offset + 1], offset: offset + 2 };
+    if (additional === 26) return { value: readUint32(bytes, offset), offset: offset + 4 };
+    throw new Error(`unsupported CBOR additional info ${additional}`);
+}
+
+function readUint32(bytes, offset) {
+    return ((bytes[offset] << 24) | (bytes[offset + 1] << 16) | (bytes[offset + 2] << 8) | bytes[offset + 3]) >>> 0;
+}
+
+function randomBase64Url(length) {
+    return bytesToBase64Url(crypto.randomBytes(length));
+}
+
+function base64UrlToBytes(value) {
+    const padded = value.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (value.length % 4)) % 4);
+    return new Uint8Array(Buffer.from(padded, "base64"));
+}
+
+function bytesToBase64Url(bytes) {
+    return Buffer.from(bytes).toString("base64url");
+}
+
+function sha256Bytes(bytes) {
+    return new Uint8Array(crypto.createHash("sha256").update(Buffer.from(bytes)).digest());
+}
+
+function concatBytes(...arrays) {
+    const total = arrays.reduce((sum, item) => sum + item.length, 0);
+    const out = new Uint8Array(total);
+    let offset = 0;
+    for (const item of arrays) {
+        out.set(item, offset);
+        offset += item.length;
+    }
+    return out;
+}
+
+function bytesEqual(a, b) {
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
+
+function formatUuid(bytes) {
+    const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function toHexByte(value) {
+    return `0x${value.toString(16).padStart(2, "0")}`;
 }
 
 async function attachWorker({ reloadOnUnresponsive = false } = {}) {
