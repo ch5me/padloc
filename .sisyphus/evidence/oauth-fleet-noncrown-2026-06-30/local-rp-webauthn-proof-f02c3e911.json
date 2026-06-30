@@ -1,0 +1,83 @@
+{
+    "status": "local-rp-webauthn-proof",
+    "ok": true,
+    "pageState": {
+        "url": "http://localhost:55203/",
+        "title": "Padloc Local WebAuthn RP",
+        "createHooked": true,
+        "getHooked": true,
+        "ok": true,
+        "stage": "complete",
+        "registration": {
+            "ok": true,
+            "checks": {
+                "type": true,
+                "challenge": true,
+                "origin": true,
+                "rpIdHash": true,
+                "userPresent": true,
+                "userVerified": true,
+                "backupEligible": true,
+                "backupState": true,
+                "attestedCredentialData": true,
+                "aaguid": true,
+                "signCount": true,
+                "fmt": true,
+                "attStmt": true,
+                "credentialId": true,
+                "algorithm": true,
+                "transports": true,
+                "authenticatorAttachment": true,
+                "credPropsRk": true
+            },
+            "aaguid": "7a46cc38-26d9-47fe-9f3b-b52837c6020d",
+            "flagsHex": "0x5d",
+            "flags": {
+                "userPresent": true,
+                "userVerified": true,
+                "backupEligible": true,
+                "backupState": true,
+                "attestedCredentialData": true,
+                "extensionData": false
+            },
+            "signCount": 0,
+            "fmt": "none",
+            "transports": ["internal"],
+            "authenticatorAttachment": "platform",
+            "credPropsRk": true,
+            "credentialIdLength": 32,
+            "publicKeyAlgorithm": -7,
+            "serverRegistrationVerified": true
+        },
+        "authentication": {
+            "ok": true,
+            "checks": {
+                "type": true,
+                "challenge": true,
+                "origin": true,
+                "rpIdHash": true,
+                "credentialId": true,
+                "userPresent": true,
+                "userVerified": true,
+                "backupEligible": true,
+                "backupState": true,
+                "signature": true,
+                "signCount": true
+            },
+            "flagsHex": "0x1d",
+            "flags": {
+                "userPresent": true,
+                "userVerified": true,
+                "backupEligible": true,
+                "backupState": true,
+                "attestedCredentialData": false,
+                "extensionData": false
+            },
+            "signCount": 1,
+            "credentialIdLength": 32,
+            "serverSignatureVerified": true,
+            "serverAuthenticationVerified": true
+        },
+        "nativeChooserAvoided": true
+    }
+}

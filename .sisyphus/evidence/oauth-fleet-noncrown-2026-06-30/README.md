@@ -85,10 +85,21 @@ Scope: non-Crown Google accounts only. Crown lane/account untouched.
 -   Repeat rerun: `webauthn-io-proof-repeat-2026-06-30.json`, passed with
     `--preserve-rp-passkeys=true` against the already-created public-RP
     credential state.
+-   Exact-main rerun after CI workflow repair:
+    `local-rp-webauthn-proof-f02c3e911.json`, passed with server-side
+    registration and assertion signature verification on Padloc main
+    `f02c3e911`.
+-   Exact-main WebAuthn.io rerun: `webauthn-io-proof-f02c3e911.json`, passed
+    fresh register plus login on Padloc main `f02c3e911`; WebAuthn.io showed
+    `Transports: ["internal"]` and AAGUID
+    `7a46cc38-26d9-47fe-9f3b-b52837c6020d`.
 -   Secondary public RP attempt: `webauthn.me` loaded with hooks active, but its
     tutorial controls never attached in the CFT lane; saved as
     `webauthn-me-proof-2026-06-30.json`, `ok=false`, blocker
     `timed out waiting for webauthn.me tutorial handlers`.
+-   Exact-main WebAuthn.me rerun: `webauthn-me-proof-f02c3e911.json`, still
+    blocked before tutorial handlers attach; hooks were active, so this remains
+    a site-specific blocker rather than a Padloc create/get failure.
 -   This proves the patched Padloc WebAuthn create/get path works on a
     deterministic RP and a non-Google public relying party. It does not replace
     the Google-specific policy/risk proof.
@@ -124,5 +135,11 @@ Scope: non-Crown Google accounts only. Crown lane/account untouched.
     against the already-created public-RP credential.
 -   `webauthn-me-proof-2026-06-30.json`: second public RP attempt and
     site-specific blocker.
+-   `local-rp-webauthn-proof-f02c3e911.json`: exact-main local RP proof after CI
+    workflow repair.
+-   `webauthn-io-proof-f02c3e911.json`: exact-main WebAuthn.io proof after CI
+    workflow repair.
+-   `webauthn-me-proof-f02c3e911.json`: exact-main WebAuthn.me blocker refresh
+    after CI workflow repair.
 
 Screenshots in this folder were redacted in-page before capture.
