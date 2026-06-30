@@ -1,14 +1,18 @@
 // @ts-nocheck
 const { expect } = require("chai");
-const { suite: mochaSuite, test: mochaTest } = require("mocha");
+const { afterEach, beforeEach, suite: mochaSuite, test: mochaTest } = require("mocha");
 const requireModule = require;
 const { base64ToBytes, bytesToBase64, stringToBytes } = requireModule("../../core/src/encoding");
 const { FieldType, PasskeyCredentialPolicy, VaultItem, VaultItemKind } = requireModule("../../core/src/item");
 const {
+    clearPasskeySignerMemoryCacheForTests,
+    configurePasskeySignerStoreForTests,
     enrollPasskeyCredential,
     requestPasskeyAssertion,
     verifyAssertionSignature,
 } = requireModule("../src/passkey-broker");
+
+const ORIGINAL_INDEXED_DB = globalThis.indexedDB;
 
 const ALGORITHMS = [
     {
@@ -24,8 +28,20 @@ const ALGORITHMS = [
 ];
 
 mochaSuite("Passkey broker", () => {
+    beforeEach(() => {
+        configurePasskeySignerStoreForTests({ allowMemoryOnly: true });
+        clearPasskeySignerMemoryCacheForTests();
+        restoreOriginalIndexedDb();
+    });
+
+    afterEach(() => {
+        configurePasskeySignerStoreForTests({ allowMemoryOnly: false });
+        clearPasskeySignerMemoryCacheForTests();
+        restoreOriginalIndexedDb();
+    });
+
     for (const algorithm of ALGORITHMS) {
-        mochaTest(`${algorithm.label} generated enroll stores Padloc-owned private key and returns WebAuthn registration material`, async () => {
+        mochaTest(`${algorithm.label} generated enroll stores opaque signer handle and returns WebAuthn registration material`, async () => {
             const request = await enrollmentRequest({
                 algorithm: algorithm.value,
                 passkey: {
@@ -34,12 +50,15 @@ mochaSuite("Passkey broker", () => {
                 },
             });
             const result = await enrollPasskeyCredential(request, new Date("2026-06-29T18:00:00.000Z"));
-            const privateKeyField = result.fields[result.passkeyCredential.privateKeyFieldIndex];
+            const signerHandleField = result.fields[result.passkeyCredential.privateKeyFieldIndex];
 
-            expect(privateKeyField.type).to.equal(FieldType.Password);
-            expect(privateKeyField.value).to.be.a("string").and.not.equal("");
+            expect(signerHandleField.name).to.equal("Signer Handle");
+            expect(signerHandleField.type).to.equal(FieldType.Password);
+            expect(signerHandleField.value).to.match(/^padloc-passkey-signer:/);
             expect(result.passkeyCredential.credentialId).to.be.a("string").and.not.equal("");
-            expect(JSON.stringify(result.response)).not.to.contain(privateKeyField.value);
+            expect(JSON.stringify(result.response)).not.to.contain(signerHandleField.value);
+            expect(JSON.stringify(result.fields)).not.to.contain("BEGIN PRIVATE KEY");
+            expect(JSON.stringify(result.fields)).not.to.contain("Private Key");
             expect(result.response.passkey.registration.attestationObject).to.be.a("string").and.not.equal("");
             expect(result.response.passkey.registration.publicKeySpki).to.be.a("string").and.not.equal("");
 
@@ -56,16 +75,19 @@ mochaSuite("Passkey broker", () => {
             expect(verified).to.equal(true);
         });
 
-        mochaTest(`${algorithm.label} enroll-import stores private key in secret field and never leaks it in broker response`, async () => {
+        mochaTest(`${algorithm.label} enroll-import stores opaque signer handle and never stores raw key bytes`, async () => {
             const request = await enrollmentRequest({ algorithm: algorithm.value });
             const result = await enrollPasskeyCredential(request, new Date("2026-06-29T18:00:00.000Z"));
-            const privateKeyField = result.fields[result.passkeyCredential.privateKeyFieldIndex];
+            const signerHandleField = result.fields[result.passkeyCredential.privateKeyFieldIndex];
 
-            expect(privateKeyField.type).to.equal(FieldType.Password);
-            expect(privateKeyField.value).to.equal(request.passkey.privateKeyPkcs8);
+            expect(signerHandleField.name).to.equal("Signer Handle");
+            expect(signerHandleField.type).to.equal(FieldType.Password);
+            expect(signerHandleField.value).to.match(/^padloc-passkey-signer:/);
+            expect(signerHandleField.value).not.to.equal(request.passkey.privateKeyPkcs8);
             expect(result.passkeyCredential.algorithm).to.equal(algorithm.value);
             expect(result.passkeyCredential.privateKeyFieldIndex).to.equal(0);
-            expect(JSON.stringify(result.response)).not.to.contain(privateKeyField.value);
+            expect(JSON.stringify(result)).not.to.contain(request.passkey.privateKeyPkcs8);
+            expect(JSON.stringify(result.response)).not.to.contain(signerHandleField.value);
             expect(JSON.stringify(result.response)).not.to.contain("privateKey");
             expect(result.response.passkey.registration.attestationObject).to.be.a("string").and.not.equal("");
             expect(result.response.passkey.registration.algorithm).to.equal(algorithm.value);
@@ -83,6 +105,7 @@ mochaSuite("Passkey broker", () => {
             expect(result.updatedItem.passkeyCredential.algorithm).to.equal(algorithm.value);
             expect(result.response.passkey.decision).to.equal("allow");
             expect(JSON.stringify(result.response)).not.to.contain(item.fields[0].value);
+            expect(item.fields[0].value).to.match(/^padloc-passkey-signer:/);
 
             const verified = await verifyAssertionSignature(
                 result.updatedItem.passkeyCredential,
@@ -93,6 +116,66 @@ mochaSuite("Passkey broker", () => {
             expect(verified).to.equal(true);
         });
     }
+
+    mochaTest("legacy private-key vault field fails loud instead of signing", async () => {
+        const enrolled = await enrollPasskeyCredential(await enrollmentRequest(), new Date("2026-06-29T18:00:00.000Z"));
+        const item = asStoredItem(enrolled);
+        item.fields[0].value = "legacy-raw-private-key";
+        const request = assertionRequest(item.passkeyCredential.credentialId, "nonce-legacy", "flow-legacy");
+
+        try {
+            await requestPasskeyAssertion(request, [item], new Date("2026-06-29T18:05:00.000Z"));
+            throw new Error("expected legacy private key field to fail");
+        } catch (error) {
+            expect(error.message).to.contain("Legacy passkey private key field is not supported");
+        }
+    });
+
+    mochaTest("generated enroll requires durable signer IndexedDB outside test mode", async () => {
+        configurePasskeySignerStoreForTests({ allowMemoryOnly: false });
+        Reflect.deleteProperty(globalThis, "indexedDB");
+
+        try {
+            await enrollPasskeyCredential(
+                await enrollmentRequest({
+                    passkey: {
+                        credentialId: undefined,
+                        privateKeyPkcs8: undefined,
+                    },
+                }),
+                new Date("2026-06-29T18:00:00.000Z")
+            );
+            throw new Error("expected enrollment without IndexedDB to fail");
+        } catch (error) {
+            expect(error.message).to.contain("IndexedDB unavailable");
+        }
+    });
+
+    mochaTest("assertion reloads signer key from IndexedDB after memory cache clears", async () => {
+        configurePasskeySignerStoreForTests({ allowMemoryOnly: false });
+        installMemoryIndexedDb();
+        const enrolled = await enrollPasskeyCredential(
+            await enrollmentRequest({
+                passkey: {
+                    credentialId: undefined,
+                    privateKeyPkcs8: undefined,
+                },
+            }),
+            new Date("2026-06-29T18:00:00.000Z")
+        );
+        const item = asStoredItem(enrolled);
+        clearPasskeySignerMemoryCacheForTests();
+        const request = assertionRequest(item.passkeyCredential.credentialId, "nonce-idb-reload", "flow-idb-reload");
+        const assertion = await requestPasskeyAssertion(request, [item], new Date("2026-06-29T18:05:00.000Z"));
+        const verified = await verifyAssertionSignature(
+            assertion.updatedItem.passkeyCredential,
+            assertion.response.passkey.assertion,
+            request.passkey
+        );
+
+        expect(assertion.response.ok).to.equal(true);
+        expect(verified).to.equal(true);
+    });
 
     mochaTest("denies disallowed rpId", async () => {
         const enrolled = await enrollPasskeyCredential(await enrollmentRequest(), new Date("2026-06-29T18:00:00.000Z"));
@@ -183,6 +266,108 @@ mochaSuite("Passkey broker", () => {
         expect(readAuthenticatorFlags(assertion.response.passkey.assertion.authenticatorData) & 0x04).to.equal(0x04);
     });
 });
+
+function restoreOriginalIndexedDb() {
+    if (typeof ORIGINAL_INDEXED_DB === "undefined") {
+        Reflect.deleteProperty(globalThis, "indexedDB");
+        return;
+    }
+    Reflect.set(globalThis, "indexedDB", ORIGINAL_INDEXED_DB);
+}
+
+function installMemoryIndexedDb() {
+    const databases = new Map();
+    const fakeIndexedDb = {
+        open(name) {
+            const request = makeIdbRequest();
+            queueMicrotask(() => {
+                let state = databases.get(name);
+                const isNew = !state;
+                if (!state) {
+                    state = { stores: new Map() };
+                    databases.set(name, state);
+                }
+                request.result = makeIdbDatabase(state);
+                if (isNew && typeof request.onupgradeneeded === "function") request.onupgradeneeded({ target: request });
+                queueMicrotask(() => request.onsuccess && request.onsuccess({ target: request }));
+            });
+            return request;
+        },
+        deleteDatabase(name) {
+            const request = makeIdbRequest();
+            queueMicrotask(() => {
+                databases.delete(name);
+                request.onsuccess && request.onsuccess({ target: request });
+            });
+            return request;
+        },
+    };
+    Reflect.set(globalThis, "indexedDB", fakeIndexedDb);
+    return fakeIndexedDb;
+}
+
+function makeIdbDatabase(state) {
+    return {
+        objectStoreNames: {
+            contains: (name) => state.stores.has(name),
+        },
+        createObjectStore(name) {
+            if (!state.stores.has(name)) state.stores.set(name, new Map());
+            return makeIdbObjectStore(state.stores.get(name));
+        },
+        transaction(name) {
+            if (!state.stores.has(name)) throw new Error(`missing object store ${name}`);
+            return {
+                objectStore: (requestedName) => {
+                    if (requestedName !== name) throw new Error(`unexpected object store ${requestedName}`);
+                    return makeIdbObjectStore(state.stores.get(name));
+                },
+            };
+        },
+        close() {},
+    };
+}
+
+function makeIdbObjectStore(store) {
+    return {
+        put(record) {
+            const request = makeIdbRequest();
+            queueMicrotask(() => {
+                store.set(record.handle, record);
+                request.result = record;
+                request.onsuccess && request.onsuccess({ target: request });
+            });
+            return request;
+        },
+        get(handle) {
+            const request = makeIdbRequest();
+            queueMicrotask(() => {
+                request.result = store.get(handle);
+                request.onsuccess && request.onsuccess({ target: request });
+            });
+            return request;
+        },
+        count() {
+            const request = makeIdbRequest();
+            queueMicrotask(() => {
+                request.result = store.size;
+                request.onsuccess && request.onsuccess({ target: request });
+            });
+            return request;
+        },
+    };
+}
+
+function makeIdbRequest() {
+    return {
+        error: null,
+        result: undefined,
+        onblocked: null,
+        onerror: null,
+        onsuccess: null,
+        onupgradeneeded: null,
+    };
+}
 
 function asStoredItem(enrolled: { itemName: string; fields: unknown[]; passkeyCredential: Record<string, unknown> }) {
     return new VaultItem({

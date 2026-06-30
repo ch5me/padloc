@@ -7,6 +7,7 @@ import fs from "fs";
 const EXT_DIST = path.resolve(__dirname, "../dist");
 const LOGIN_FIXTURE = path.join(__dirname, "fixtures", "login-form.html");
 const LOGIN_FORM_HTML = fs.readFileSync(LOGIN_FIXTURE, "utf8");
+const HEADFUL = process.env.PADLOC_EXTENSION_HEADFUL === "1";
 
 const test = base.extend<{ extensionId: string }>({
     context: async ({}, use) => {
@@ -14,6 +15,7 @@ const test = base.extend<{ extensionId: string }>({
         const context = await chromium.launchPersistentContext(userDataDir, {
             headless: false,
             args: [
+                ...(HEADFUL ? [] : ["--headless=new"]),
                 `--disable-extensions-except=${EXT_DIST}`,
                 `--load-extension=${EXT_DIST}`,
                 "--disable-backgrounding-occluded-windows",
@@ -74,8 +76,10 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
         expect(extId).toBeTruthy();
 
         const errors: string[] = [];
+        const warnings: string[] = [];
         page.on("console", (msg) => {
             if (msg.type() === "error") errors.push(msg.text());
+            if (msg.type() === "warning") warnings.push(msg.text());
         });
         page.on("pageerror", (err) => errors.push(err.message));
 
@@ -86,6 +90,14 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
             (e) => !e.includes("favicon") && !e.includes("net::ERR_BLOCKED_BY_CLIENT")
         );
         expect(critical, `Console errors: ${JSON.stringify(critical)}`).toHaveLength(0);
+
+        const criticalWarnings = warnings.filter(
+            (warning) =>
+                warning.includes("Lit is in dev mode") ||
+                warning.includes("lit-element") ||
+                warning.includes("scheduled an update")
+        );
+        expect(criticalWarnings, `Console warnings: ${JSON.stringify(criticalWarnings)}`).toHaveLength(0);
     });
 
     test("popup opens from toolbar action", async ({ page }) => {
@@ -130,16 +142,26 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
         const worker = context.serviceWorkers()[0] || await context.waitForEvent("serviceworker", { timeout: 15_000 });
         const state = await worker.evaluate(async () => {
             const backgroundSource = await fetch(chrome.runtime.getURL("background.js")).then((res) => res.text());
+            const backgroundMap = await fetch(chrome.runtime.getURL("background.js.map")).then((res) => res.text());
             return {
                 hasHistoryGlobal: typeof history !== "undefined",
                 hasXhrGlobal: typeof XMLHttpRequest !== "undefined",
                 hasMessageListeners: chrome.runtime.onMessage.hasListeners(),
                 hasImmediateBridge: backgroundSource.includes("registerImmediateMessageBridge"),
-                importsAjaxSender: backgroundSource.includes("AjaxSender") || backgroundSource.includes("new XMLHttpRequest"),
+                referencesXhr: /\bXMLHttpRequest\b/.test(backgroundSource),
                 importsPageRouter:
+                    /(^|[^.\w$])history\s*\.(?:state|replaceState|pushState|go)\b/m.test(backgroundSource) ||
                     backgroundSource.includes("history.replaceState") ||
                     backgroundSource.includes("history.pushState") ||
-                    backgroundSource.includes("window.router"),
+                    backgroundSource.includes("window.router") ||
+                    backgroundSource.includes("new Router("),
+                sourceMapIncludesBrowserOnlyAppModules:
+                    backgroundMap.includes("app/src/lib/ajax.ts") ||
+                    backgroundMap.includes("app/src/globals.ts") ||
+                    backgroundMap.includes("app/src/lib/route.ts"),
+                storesPasskeyPrivateKeyField: /name:\s*["']Private Key["']|["']Private Key["']\s*,\s*type:/.test(backgroundSource),
+                hasContextMenuDedupe: backgroundSource.includes("dedupeMatchedItems"),
+                hasContextMenuIdempotence: backgroundSource.includes("createContextMenuOnce"),
             };
         });
 
@@ -148,8 +170,12 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
             hasXhrGlobal: false,
             hasMessageListeners: true,
             hasImmediateBridge: true,
-            importsAjaxSender: false,
+            referencesXhr: false,
             importsPageRouter: false,
+            sourceMapIncludesBrowserOnlyAppModules: false,
+            storesPasskeyPrivateKeyField: false,
+            hasContextMenuDedupe: true,
+            hasContextMenuIdempotence: true,
         });
     });
 

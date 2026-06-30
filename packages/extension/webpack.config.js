@@ -26,9 +26,12 @@ module.exports = {
         chunkFilename: "[name].chunk.js",
         publicPath: "",
     },
-    mode: "development",
+    mode: process.env.NODE_ENV || "production",
     devtool: "source-map",
     stats: "minimal",
+    optimization: {
+        minimize: false,
+    },
     resolve: {
         extensions: [".ts", ".js", ".css", ".svg", ".png", ".jpg"],
         alias: {

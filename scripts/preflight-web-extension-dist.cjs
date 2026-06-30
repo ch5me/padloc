@@ -22,6 +22,21 @@ function failIf(file, source, checks) {
     }
 }
 
+function failIfMissing(file, source, checks) {
+    for (const check of checks) {
+        if (!check.pattern.test(source)) {
+            failures.push(`${file}: ${check.reason}`);
+        }
+    }
+}
+
+function readBuiltJavaScriptFiles() {
+    if (!fs.existsSync(distDir)) return [];
+    return fs.readdirSync(distDir)
+        .filter((file) => file.endsWith(".js"))
+        .map((file) => [file, read(file)]);
+}
+
 const manifestSource = read("manifest.json");
 let manifest = null;
 try {
@@ -52,10 +67,17 @@ read("content.js");
 
 failIf("background.js", background, [
     { pattern: /\bXMLHttpRequest\b/, reason: "service worker bundle must not include XMLHttpRequest" },
-    { pattern: /history\.(?:replaceState|pushState|go)\b/, reason: "service worker bundle must not include page history router calls" },
+    { pattern: /(^|[^.\w$])history\s*\.(?:state|replaceState|pushState|go)\b/m, reason: "service worker bundle must not include page history router calls" },
     { pattern: /window\.router\b/, reason: "service worker bundle must not import app globals/router" },
     { pattern: /new\s+Router\s*\(/, reason: "service worker bundle must not construct app router" },
     { pattern: /onMessage\.addListener\s*\(\s*async\b/, reason: "service worker message listeners must not be async catch-alls" },
+    { pattern: /name:\s*["']Private Key["']|["']Private Key["']\s*,\s*type:/, reason: "service worker bundle must not store passkey private keys in vault fields" },
+]);
+
+failIfMissing("background.js", background, [
+    { pattern: /dedupeMatchedItems/, reason: "service worker bundle must deduplicate matched context-menu items" },
+    { pattern: /createContextMenuOnce/, reason: "service worker bundle must create context-menu ids idempotently" },
+    { pattern: /duplicate id/, reason: "service worker bundle must retry stale duplicate context-menu ids" },
 ]);
 
 failIf("background.js.map", backgroundMap, [
@@ -68,6 +90,13 @@ failIf("webauthn-page.js", webauthnPage, [
     { pattern: /navigator\.credentials\.create\s*=\s*async/.test(webauthnPage) ? /a^/ : /(?:)/, reason: "missing create() interception" },
     { pattern: /navigator\.credentials\.get\s*=\s*async/.test(webauthnPage) ? /a^/ : /(?:)/, reason: "missing get() interception" },
 ]);
+
+for (const [file, source] of readBuiltJavaScriptFiles()) {
+    failIf(file, source, [
+        { pattern: /Lit is in dev mode|lit-dev-mode/, reason: "bundle must not include Lit dev-mode warning path" },
+        { pattern: /The main 'lit-element' module entrypoint is deprecated|deprecated-import-path/, reason: "bundle must not include deprecated lit-element entrypoint warning path" },
+    ]);
+}
 
 if (failures.length) {
     console.error("Padloc extension dist preflight failed:");

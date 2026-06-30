@@ -1,0 +1,7 @@
+{
+  "href": "https://accounts.google.com/v3/signin/challenge/pwd?TL=%5Bredacted%5D&authuser=%5Bredacted%5D&cid=%5Bredacted%5D&continue=https%3A%2F%2Fmyaccount.google.com%2Fsigninoptions%2Fpasskeys&dsh=%5Bredacted%5D&flowName=GlifWebSignIn&followup=https%3A%2F%2Fmyaccount.google.com%2Fsigninoptions%2Fpasskeys&rart=%5Bredacted%5D&rpbg=1",
+  "title": "Sign in - Google Accounts",
+  "createHooked": true,
+  "getHooked": true,
+  "text": "Loading\nHi [redacted-name]\n[redacted-google-account]\nSelect \"Try another way\" to use your passkey for an easier, more secure sign-in\nTo continue, first verify it’s you\nEnter your password\nShow password\nNext\nTry another way\nEnglish (United States)\nHelp\nPrivacy\nTerms"
+}

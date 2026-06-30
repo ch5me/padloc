@@ -166,6 +166,23 @@ export class LoginOrSignup extends StartForm {
         }
     }
 
+    private async _restartEmailVerification(email: string) {
+        try {
+            const { pendingAuth } = await this._getPendingAuth();
+            if (pendingAuth) {
+                this.router.setParams({ pendingAuth: undefined, pendingAuthData: undefined });
+                this.app.storage.delete(pendingAuth);
+            }
+        } catch (e) {}
+
+        await this.app.logout();
+        await alert($l("We failed to verify your email address. Please start over!"), {
+            type: "warning",
+            title: $l("Authentication Failed"),
+        });
+        router.go("start", { email });
+    }
+
     private async _authenticate({
         email,
         pendingRequest: req,
@@ -347,16 +364,10 @@ export class LoginOrSignup extends StartForm {
             this.go(invite ? `invite/${invite.orgId}/${invite.id}` : "items", params);
         } catch (e: any) {
             switch (e.code) {
+                case ErrorCode.AUTHENTICATION_FAILED:
                 case ErrorCode.AUTHENTICATION_REQUIRED:
                     this._loginButton.stop();
-
-                    await alert($l("We failed to verify your email address. Please start over!"), {
-                        type: "warning",
-                        title: $l("Authentication Failed"),
-                    });
-
-                    this.go("start", { email });
-
+                    await this._restartEmailVerification(email);
                     return;
                 case ErrorCode.INVALID_CREDENTIALS:
                     this._loginError = $l("Wrong master password. Please try again!");
@@ -379,23 +390,7 @@ export class LoginOrSignup extends StartForm {
                     return;
                 case ErrorCode.INVALID_SESSION:
                     this._loginButton.stop();
-
-                    await alert($l("We failed to verify your session. Please start over!"), {
-                        type: "warning",
-                        title: $l("Authentication Failed"),
-                    });
-
-                    try {
-                        const { pendingAuth } = await this._getPendingAuth();
-                        if (pendingAuth) {
-                            this.router.setParams({ pendingAuth: undefined, pendingAuthData: undefined });
-                            this.app.storage.delete(pendingAuth);
-                        }
-                    } catch (e) {}
-
-                    await this.app.logout();
-
-                    router.go("start", { email });
+                    await this._restartEmailVerification(email);
                     return;
                 case ErrorCode.NOT_FOUND:
                     this._loginButton.fail();
@@ -519,6 +514,12 @@ export class LoginOrSignup extends StartForm {
         } catch (e) {
             this._confirmPasswordButton.fail();
             switch (e.code) {
+                case ErrorCode.AUTHENTICATION_FAILED:
+                case ErrorCode.AUTHENTICATION_REQUIRED:
+                case ErrorCode.INVALID_SESSION:
+                    this._password = "";
+                    await this._restartEmailVerification(email);
+                    return;
                 case ErrorCode.ACCOUNT_EXISTS:
                     this._accountExists();
                     return;

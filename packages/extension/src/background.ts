@@ -387,12 +387,13 @@ async function updateBadgeAndContextMenu() {
             contexts: ["editable"],
         });
     } else {
-        const items = await getItemsForActiveTab();
+        const menuIds = new Set<string>();
+        const items = dedupeMatchedItems(await getItemsForActiveTab());
         for (const { item } of items) {
             const hasUsername = item.fields.some((f) => f.type === FieldType.Username);
             const hasPassword = item.fields.some((f) => f.type === FieldType.Password);
             // Top-level item — clicking it triggers multi-field fill if credentials exist
-            await browser.contextMenus.create({
+            await createContextMenuOnce(menuIds, {
                 id: `item/${item.id}`,
                 title: hasUsername && hasPassword ? `${item.name}  ▸  Fill Login` : item.name,
                 contexts: ["editable"],
@@ -400,7 +401,7 @@ async function updateBadgeAndContextMenu() {
 
             // Single-field sub-items
             for (const [index, field] of item.fields.entries()) {
-                await browser.contextMenus.create({
+                await createContextMenuOnce(menuIds, {
                     parentId: `item/${item.id}`,
                     id: `item/${item.id}/${index}`,
                     title: field.name,
@@ -417,6 +418,36 @@ async function updateBadgeAndContextMenu() {
     } else {
         actionApi.setIcon({ path: "icon.png" });
         actionApi.setTitle({ title: "CH5 Auth" });
+    }
+}
+
+function dedupeMatchedItems(items: MatchedVaultItem[]): MatchedVaultItem[] {
+    const seen = new Set<string>();
+    const deduped: MatchedVaultItem[] = [];
+    for (const item of items) {
+        if (seen.has(item.item.id)) continue;
+        seen.add(item.item.id);
+        deduped.push(item);
+    }
+    return deduped;
+}
+
+async function createContextMenuOnce(
+    menuIds: Set<string>,
+    createProperties: Menus.CreateCreatePropertiesType
+): Promise<void> {
+    if (!createProperties.id) throw new Error("Context menu id required");
+    if (menuIds.has(createProperties.id)) return;
+    menuIds.add(createProperties.id);
+    try {
+        await browser.contextMenus.create(createProperties);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!message.includes("duplicate id")) {
+            throw error;
+        }
+        await browser.contextMenus.remove(createProperties.id).catch(() => undefined);
+        await browser.contextMenus.create(createProperties);
     }
 }
 
@@ -730,7 +761,7 @@ async function handleAgenticWebAuthnCreate(
                     transports: ["usb", "hybrid", "internal"],
                 },
             },
-            valuePolicy: "redacted WebAuthn registration only; private key remains encrypted in Padloc",
+            valuePolicy: "redacted WebAuthn registration only; private key stays in Padloc signer store",
         });
     } catch (error) {
         return webAuthnMessage(denyWebAuthn(
@@ -812,7 +843,7 @@ async function handleAgenticWebAuthnGet(
                     userHandle: toBrowserBase64Url(assertion.userHandle),
                 },
             },
-            valuePolicy: "redacted WebAuthn assertion only; private key remains encrypted in Padloc",
+            valuePolicy: "redacted WebAuthn assertion only; private key stays in Padloc signer store",
         });
     } catch (error) {
         return webAuthnMessage(denyWebAuthn(

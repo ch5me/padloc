@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+import fs from "node:fs";
+import path from "node:path";
+
 const args = new Map();
 for (let i = 2; i < process.argv.length; i += 1) {
     const key = process.argv[i];
@@ -83,7 +86,9 @@ try {
     } else if (mode === "smoke") {
         console.log(JSON.stringify(await smoke(), null, 2));
     } else if (mode === "webauthn-proof") {
-        console.log(JSON.stringify(await webAuthnProof(), null, 2));
+        const result = await webAuthnProof();
+        console.log(JSON.stringify(result, null, 2));
+        if (!result.ok) process.exitCode = 1;
     } else {
         throw new Error(`unknown mode ${mode}`);
     }
@@ -101,7 +106,40 @@ async function clearStorage() {
     const result = await cdp.send(
         "Runtime.evaluate",
         {
-            expression: `(async () => { await chrome.storage.local.clear(); await chrome.storage.session.clear(); return { ok: true, id: chrome.runtime.id }; })()`,
+            expression: `(async () => {
+                await chrome.storage.local.clear();
+                await chrome.storage.session.clear();
+                await new Promise((resolve, reject) => {
+                    const req = indexedDB.deleteDatabase("padloc-agentic-passkey-signers");
+                    req.onsuccess = () => resolve();
+                    req.onerror = () => reject(req.error || new Error("failed to clear signer store"));
+                    req.onblocked = () => reject(new Error("blocked clearing passkey signer store"));
+                });
+                const verifyReq = indexedDB.open("padloc-agentic-passkey-signers", 1);
+                await new Promise((resolve, reject) => {
+                    verifyReq.onupgradeneeded = () => {
+                        const db = verifyReq.result;
+                        if (!db.objectStoreNames.contains("keys")) db.createObjectStore("keys", { keyPath: "handle" });
+                    };
+                    verifyReq.onsuccess = () => {
+                        const db = verifyReq.result;
+                        const tx = db.transaction("keys", "readonly");
+                        const countReq = tx.objectStore("keys").count();
+                        countReq.onsuccess = () => {
+                            db.close();
+                            countReq.result === 0
+                                ? resolve()
+                                : reject(new Error("passkey signer store still contains keys after clear"));
+                        };
+                        countReq.onerror = () => {
+                            db.close();
+                            reject(countReq.error || new Error("failed to verify signer store clear"));
+                        };
+                    };
+                    verifyReq.onerror = () => reject(verifyReq.error || new Error("failed to open signer store for verification"));
+                });
+                return { ok: true, id: chrome.runtime.id };
+            })()`,
             awaitPromise: true,
             returnByValue: true,
         },
@@ -131,22 +169,30 @@ async function attachExtensionPage() {
 }
 
 async function smoke() {
-    const workerSession = await attachWorker();
-    const workerState = await evaluate(
-        workerSession,
-        `(async () => {
-            const bg = await fetch(chrome.runtime.getURL("background.js")).then((res) => res.text());
-            return {
-                id: chrome.runtime.id,
-                hasMessageListeners: chrome.runtime.onMessage.hasListeners(),
-                hasXhrGlobal: typeof XMLHttpRequest !== "undefined",
-                hasHistoryGlobal: typeof history !== "undefined",
-                hasImmediateBridge: bg.includes("registerImmediateMessageBridge"),
-                importsAjaxSender: bg.includes("AjaxSender") || bg.includes("new XMLHttpRequest"),
-                importsPageRouter: bg.includes("history.replaceState") || bg.includes("history.pushState") || bg.includes("window.router")
-            };
-        })()`
-    );
+    const pingState = await pingExtensionRuntime();
+    const bg = readDistAsset("background.js");
+    const bgMap = readDistAsset("background.js.map");
+    const workerState = {
+        id: pingState.id,
+        hasRuntime: pingState.hasRuntime,
+        pingLastError: pingState.lastError,
+        pingResponseType: pingState.responseType,
+        hasMessageListeners: pingState.responseType === "pong",
+        hasImmediateBridge: bg.includes("registerImmediateMessageBridge"),
+        referencesXhr: /\bXMLHttpRequest\b/.test(bg),
+        importsPageRouter:
+            /(^|[^.\w$])history\s*\.(?:state|replaceState|pushState|go)\b/m.test(bg) ||
+            bg.includes("window.router") ||
+            bg.includes("new Router("),
+        sourceMapIncludesBrowserOnlyAppModules:
+            bgMap.includes("app/src/lib/ajax.ts") ||
+            bgMap.includes("app/src/globals.ts") ||
+            bgMap.includes("app/src/lib/route.ts"),
+        storesPasskeyPrivateKeyField: /name:\s*["']Private Key["']|["']Private Key["']\s*,\s*type:/.test(bg),
+        hasContextMenuDedupe: bg.includes("dedupeMatchedItems"),
+        hasContextMenuIdempotence: bg.includes("createContextMenuOnce"),
+        hasContextMenuDuplicateRetry: bg.includes("duplicate id"),
+    };
 
     const created = await cdp.send("Target.createTarget", { url: "https://example.com/" });
     const pageSession = await attach(created.targetId);
@@ -176,11 +222,39 @@ async function smoke() {
                 createResult = { ok: false, name: error?.name || "", message: error?.message || String(error) };
             }
             return { ...hookState, createResult };
-        })()`
+        })()`,
+        "example.com WebAuthn hook probe"
     );
     await cdp.send("Target.closeTarget", { targetId: created.targetId });
 
     return { status: "smoke", workerState, pageState };
+}
+
+function readDistAsset(file) {
+    return fs.readFileSync(path.join(extensionPath, file), "utf8");
+}
+
+async function pingExtensionRuntime() {
+    const sessionId = await attachExtensionPage();
+    return evaluate(
+        sessionId,
+        `(async () => new Promise((resolve) => {
+            const runtime = globalThis.chrome?.runtime;
+            if (!runtime) {
+                resolve({ id: "${extensionId}", hasRuntime: false, responseType: "", lastError: "chrome.runtime missing" });
+                return;
+            }
+            runtime.sendMessage(runtime.id, { type: "ping" }, (resp) => {
+                resolve({
+                    id: runtime.id,
+                    hasRuntime: true,
+                    responseType: resp?.type || "",
+                    lastError: runtime.lastError?.message || ""
+                });
+            });
+        }))()`,
+        "extension runtime ping"
+    );
 }
 
 async function webAuthnProof() {
@@ -188,70 +262,114 @@ async function webAuthnProof() {
     const pageSession = await attach(created.targetId);
     await cdp.send("Page.enable", {}, pageSession);
     await sleep(1500);
-    const pageState = await evaluate(
-        pageSession,
-        `(async () => {
-            function bufferToBase64Url(buffer) {
-                const bytes = new Uint8Array(buffer);
-                let binary = "";
-                for (const byte of bytes) binary += String.fromCharCode(byte);
-                return btoa(binary).replace(/\\+/g, "-").replace(/\\//g, "_").replace(/=+$/g, "");
-            }
-            const createCredential = await navigator.credentials.create({ publicKey: {
-                challenge: crypto.getRandomValues(new Uint8Array(32)),
-                rp: { id: "example.com", name: "Example" },
-                user: { id: crypto.getRandomValues(new Uint8Array(16)), name: "agent@example.com", displayName: "Agent" },
-                pubKeyCredParams: [{ type: "public-key", alg: -7 }],
-                authenticatorSelection: { userVerification: "required" }
-            }});
-            const assertion = await navigator.credentials.get({ publicKey: {
-                challenge: crypto.getRandomValues(new Uint8Array(32)),
-                rpId: "example.com",
-                allowCredentials: [{ type: "public-key", id: createCredential.rawId }],
-                userVerification: "required"
-            }});
-            return {
-                createHooked: !String(navigator.credentials.create).includes("[native code]"),
-                getHooked: !String(navigator.credentials.get).includes("[native code]"),
-                create: {
-                    ok: Boolean(createCredential),
-                    type: createCredential?.type || "",
-                    idLength: createCredential?.id?.length || 0,
-                    rawIdLength: createCredential?.rawId?.byteLength || 0,
-                    hasAttestationObject: Boolean(createCredential?.response?.attestationObject),
-                    hasClientDataJSON: Boolean(createCredential?.response?.clientDataJSON)
-                },
-                get: {
-                    ok: Boolean(assertion),
-                    type: assertion?.type || "",
-                    idLength: assertion?.id?.length || 0,
-                    rawIdLength: assertion?.rawId?.byteLength || 0,
-                    sameCredential: bufferToBase64Url(assertion.rawId) === bufferToBase64Url(createCredential.rawId),
-                    hasAuthenticatorData: Boolean(assertion?.response?.authenticatorData),
-                    hasSignature: Boolean(assertion?.response?.signature),
-                    hasClientDataJSON: Boolean(assertion?.response?.clientDataJSON)
+    let pageState;
+    try {
+        pageState = await evaluate(
+            pageSession,
+            `(async () => {
+                function bufferToBase64Url(buffer) {
+                    const bytes = new Uint8Array(buffer);
+                    let binary = "";
+                    for (const byte of bytes) binary += String.fromCharCode(byte);
+                    return btoa(binary).replace(/\\+/g, "-").replace(/\\//g, "_").replace(/=+$/g, "");
                 }
-            };
-        })()`
-    );
-    await cdp.send("Target.closeTarget", { targetId: created.targetId });
+                function webAuthnState(extra = {}) {
+                    return {
+                        createHooked: !String(navigator.credentials.create).includes("[native code]"),
+                        getHooked: !String(navigator.credentials.get).includes("[native code]"),
+                        ...extra
+                    };
+                }
+                let createCredential;
+                try {
+                    createCredential = await navigator.credentials.create({ publicKey: {
+                        challenge: crypto.getRandomValues(new Uint8Array(32)),
+                        rp: { id: "example.com", name: "Example" },
+                        user: { id: crypto.getRandomValues(new Uint8Array(16)), name: "agent@example.com", displayName: "Agent" },
+                        pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+                        authenticatorSelection: { userVerification: "required" }
+                    }});
+                } catch (error) {
+                    return webAuthnState({
+                        ok: false,
+                        stage: "create",
+                        error: { name: error?.name || "", message: error?.message || String(error) }
+                    });
+                }
+                let assertion;
+                try {
+                    assertion = await navigator.credentials.get({ publicKey: {
+                        challenge: crypto.getRandomValues(new Uint8Array(32)),
+                        rpId: "example.com",
+                        allowCredentials: [{ type: "public-key", id: createCredential.rawId }],
+                        userVerification: "required"
+                    }});
+                } catch (error) {
+                    return webAuthnState({
+                        ok: false,
+                        stage: "get",
+                        create: {
+                            ok: Boolean(createCredential),
+                            type: createCredential?.type || "",
+                            idLength: createCredential?.id?.length || 0,
+                            rawIdLength: createCredential?.rawId?.byteLength || 0,
+                            hasAttestationObject: Boolean(createCredential?.response?.attestationObject),
+                            hasClientDataJSON: Boolean(createCredential?.response?.clientDataJSON)
+                        },
+                        error: { name: error?.name || "", message: error?.message || String(error) }
+                    });
+                }
+                return webAuthnState({
+                    ok: Boolean(createCredential && assertion),
+                    create: {
+                        ok: Boolean(createCredential),
+                        type: createCredential?.type || "",
+                        idLength: createCredential?.id?.length || 0,
+                        rawIdLength: createCredential?.rawId?.byteLength || 0,
+                        hasAttestationObject: Boolean(createCredential?.response?.attestationObject),
+                        hasClientDataJSON: Boolean(createCredential?.response?.clientDataJSON)
+                    },
+                    get: {
+                        ok: Boolean(assertion),
+                        type: assertion?.type || "",
+                        idLength: assertion?.id?.length || 0,
+                        rawIdLength: assertion?.rawId?.byteLength || 0,
+                        sameCredential: bufferToBase64Url(assertion.rawId) === bufferToBase64Url(createCredential.rawId),
+                        hasAuthenticatorData: Boolean(assertion?.response?.authenticatorData),
+                        hasSignature: Boolean(assertion?.response?.signature),
+                        hasClientDataJSON: Boolean(assertion?.response?.clientDataJSON)
+                    }
+                });
+            })()`,
+            "example.com WebAuthn proof"
+        );
+    } finally {
+        await cdp.send("Target.closeTarget", { targetId: created.targetId }).catch(() => undefined);
+    }
 
-    return { status: "webauthn-proof", pageState };
+    return { status: "webauthn-proof", ok: Boolean(pageState?.ok), pageState };
 }
 
-async function attachWorker() {
+async function attachWorker({ reloadOnUnresponsive = false } = {}) {
     let openedPopup = false;
+    let reloaded = false;
     let lastError = "";
-    for (let attempt = 0; attempt < 8; attempt += 1) {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
         const targets = await cdp.send("Target.getTargets");
         const worker = targets.targetInfos.find(
             (target) => target.type === "service_worker" && (target.url || "").startsWith(`chrome-extension://${extensionId}/`)
         );
         if (worker) {
             try {
-                return await attach(worker.targetId);
+                return await attach(worker.targetId, "extension service worker");
             } catch (error) {
                 lastError = error instanceof Error ? error.message : String(error);
+                if (reloadOnUnresponsive && !reloaded && /Runtime\.enable timed out|Runtime\.evaluate timed out/.test(lastError)) {
+                    reloaded = true;
+                    await reloadExtension();
+                    await sleep(1000);
+                    continue;
+                }
             }
         } else if (!openedPopup) {
             openedPopup = true;
@@ -262,19 +380,34 @@ async function attachWorker() {
     throw new Error(`extension service worker missing for ${extensionId}${lastError ? `: ${lastError}` : ""}`);
 }
 
-async function attach(targetId) {
+async function attach(targetId, label = "target") {
     const { sessionId } = await cdp.send("Target.attachToTarget", { targetId, flatten: true });
-    await cdp.send("Runtime.enable", {}, sessionId);
+    try {
+        await cdp.send("Runtime.enable", {}, sessionId);
+    } catch (error) {
+        await cdp.send("Target.detachFromTarget", { sessionId }).catch(() => undefined);
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`${label} Runtime.enable failed: ${message}`);
+    }
     return sessionId;
 }
 
-async function evaluate(sessionId, expression) {
-    const result = await cdp.send(
-        "Runtime.evaluate",
-        { expression, awaitPromise: true, returnByValue: true, timeout: 10000 },
-        sessionId
-    );
-    if (result.exceptionDetails) throw new Error(result.exceptionDetails.text || "evaluation failed");
+async function evaluate(sessionId, expression, label = "Runtime.evaluate") {
+    let result;
+    try {
+        result = await cdp.send(
+            "Runtime.evaluate",
+            { expression, awaitPromise: true, returnByValue: true, timeout: 10000 },
+            sessionId
+        );
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`${label}: ${message}`);
+    }
+    if (result.exceptionDetails) {
+        const details = result.exceptionDetails.exception?.description || result.exceptionDetails.text || "evaluation failed";
+        throw new Error(`${label}: ${details}`);
+    }
     return result.result.value;
 }
 

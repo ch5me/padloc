@@ -1,0 +1,28 @@
+{
+  "rect": {
+    "text": "Continue",
+    "rect": {
+      "x": 365.40625,
+      "y": 606.0859375,
+      "width": 209.09375,
+      "height": 52
+    },
+    "tag": "DIV",
+    "role": "",
+    "cls": "TNTaPb"
+  },
+  "screenshot": "[screenshot-not-committed]",
+  "state": {
+    "url": "https://accounts.google.com/v3/signin/challenge/pk/error?[redacted]",
+    "title": "Something went wrong",
+    "createHooked": true,
+    "getHooked": true,
+    "text": "Loading Something went wrong [redacted-google-account] We weren't able to sign you in. Try again or try another way. Try again Try another way English (United States) Help Privacy Terms Something went wrong"
+  },
+  "console": [
+    {
+      "type": "warning",
+      "text": "Blocked aria-hidden on an element because its descendant retained focus. The focus must not be hidden from assistive technology users. Avoid using aria-hidden on a focused element or its ancestor. Consider using the inert attribute instead, which will also prevent focus. For more details, see the aria-hidden section of the WAI-ARIA specification at https://w3c.github.io/aria/#aria-hidden.\nElement with focus: <div.VfPpkd-qNpTzb-P1ekSe VfPpkd-qNpTzb-P1ekSe-OWXEXe-A9y3zc VfPpkd-qNpTzb-P1ekSe-OWXEXe"
+    }
+  ]
+}

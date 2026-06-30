@@ -24,7 +24,9 @@
         "agentic:extension-cdp": "node scripts/agentic-extension-cdp.mjs",
         "preflight:source": "node ../../scripts/preflight-web-extension-source.cjs",
         "preflight:dist": "node ../../scripts/preflight-web-extension-dist.cjs",
+        "check:source": "npm run preflight:source && npx tsc -p tsconfig.json --noEmit --pretty false && npm run test:passkey-broker",
         "test": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\"}' mocha --require ts-node/register/transpile-only --require tsconfig-paths/register 'test/**/*.ts'",
+        "test:passkey-broker": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\"}' mocha --require ts-node/register/transpile-only --require tsconfig-paths/register test/passkey-broker.ts",
         "test:harness": "playwright test --config test-harness/playwright.config.ts",
         "test:harness:install": "playwright install chromium"
     },

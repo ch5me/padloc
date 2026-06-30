@@ -134,7 +134,6 @@ export abstract class StartForm extends Routing(StateMixin(LitElement)) {
 
     reset() {
         this._animateIn(this.renderRoot.querySelectorAll(".animated:not([collapsed])"));
-        this.requestUpdate();
         this._logo && setTimeout(() => (this._logo.reveal = true), 500);
     }
 

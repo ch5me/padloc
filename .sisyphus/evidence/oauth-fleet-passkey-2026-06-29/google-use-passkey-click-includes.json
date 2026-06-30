@@ -1,0 +1,162 @@
+{
+  "clicked": {
+    "ok": true,
+    "chosen": {
+      "i": 60,
+      "tag": "LI",
+      "role": null,
+      "text": "Use your passkey"
+    },
+    "candidates": [
+      {
+        "i": 0,
+        "tag": "HTML",
+        "role": null,
+        "text": "Loading Hi [redacted-name] [redacted-google-account] Choose how you want to sign in: Enter your password Use your passkey Try anot"
+      },
+      {
+        "i": 1,
+        "tag": "BODY",
+        "role": null,
+        "text": "Loading Hi [redacted-name] [redacted-google-account] Choose how you want to sign in: Enter your password Use your passkey Try anot"
+      },
+      {
+        "i": 2,
+        "tag": "DIV",
+        "role": null,
+        "text": "Loading Hi [redacted-name] [redacted-google-account] Choose how you want to sign in: Enter your password Use your passkey Try anot"
+      },
+      {
+        "i": 3,
+        "tag": "DIV",
+        "role": null,
+        "text": "Loading Hi [redacted-name] [redacted-google-account] Choose how you want to sign in: Enter your password Use your passkey Try anot"
+      },
+      {
+        "i": 4,
+        "tag": "DIV",
+        "role": null,
+        "text": "Loading Hi [redacted-name] [redacted-google-account] Choose how you want to sign in: Enter your password Use your passkey Try anot"
+      },
+      {
+        "i": 13,
+        "tag": "DIV",
+        "role": null,
+        "text": "Hi [redacted-name] [redacted-google-account] Choose how you want to sign in: Enter your password Use your passkey Try another way"
+      },
+      {
+        "i": 14,
+        "tag": "C-WIZ",
+        "role": null,
+        "text": "Hi [redacted-name] [redacted-google-account] Choose how you want to sign in: Enter your password Use your passkey Try another way"
+      },
+      {
+        "i": 15,
+        "tag": "MAIN",
+        "role": null,
+        "text": "Hi [redacted-name] [redacted-google-account] Choose how you want to sign in: Enter your password Use your passkey Try another way"
+      },
+      {
+        "i": 36,
+        "tag": "DIV",
+        "role": null,
+        "text": "Choose how you want to sign in: Enter your password Use your passkey Try another way"
+      },
+      {
+        "i": 37,
+        "tag": "DIV",
+        "role": null,
+        "text": "Choose how you want to sign in: Enter your password Use your passkey Try another way"
+      },
+      {
+        "i": 38,
+        "tag": "DIV",
+        "role": null,
+        "text": "Choose how you want to sign in: Enter your password Use your passkey Try another way"
+      },
+      {
+        "i": 39,
+        "tag": "DIV",
+        "role": null,
+        "text": "Choose how you want to sign in: Enter your password Use your passkey Try another way"
+      },
+      {
+        "i": 40,
+        "tag": "SPAN",
+        "role": null,
+        "text": "Choose how you want to sign in: Enter your password Use your passkey Try another way"
+      },
+      {
+        "i": 41,
+        "tag": "SECTION",
+        "role": null,
+        "text": "Choose how you want to sign in: Enter your password Use your passkey Try another way"
+      },
+      {
+        "i": 42,
+        "tag": "DIV",
+        "role": null,
+        "text": "Choose how you want to sign in: Enter your password Use your passkey Try another way"
+      },
+      {
+        "i": 43,
+        "tag": "DIV",
+        "role": null,
+        "text": "Choose how you want to sign in: Enter your password Use your passkey Try another way"
+      },
+      {
+        "i": 44,
+        "tag": "SECTION",
+        "role": null,
+        "text": "Choose how you want to sign in: Enter your password Use your passkey Try another way"
+      },
+      {
+        "i": 50,
+        "tag": "DIV",
+        "role": null,
+        "text": "Enter your password Use your passkey Try another way"
+      },
+      {
+        "i": 51,
+        "tag": "DIV",
+        "role": null,
+        "text": "Enter your password Use your passkey Try another way"
+      },
+      {
+        "i": 52,
+        "tag": "DIV",
+        "role": null,
+        "text": "Enter your password Use your passkey Try another way"
+      },
+      {
+        "i": 53,
+        "tag": "UL",
+        "role": null,
+        "text": "Enter your password Use your passkey Try another way"
+      },
+      {
+        "i": 60,
+        "tag": "LI",
+        "role": null,
+        "text": "Use your passkey"
+      },
+      {
+        "i": 61,
+        "tag": "DIV",
+        "role": "link",
+        "text": "Use your passkey"
+      },
+      {
+        "i": 65,
+        "tag": "DIV",
+        "role": null,
+        "text": "Use your passkey"
+      }
+    ]
+  },
+  "href": "https://accounts.google.com/v3/signin/challenge/selection?TL=%5Bredacted%5D&authuser=%5Bredacted%5D&continue=https%3A%2F%2Fmyaccount.google.com%2Fsigninoptions%2Fpasskeys&dsh=%5Bredacted%5D&flowName=GlifWebSignIn&followup=https%3A%2F%2Fmyaccount.google.com%2Fsigninoptions%2Fpasskeys&lid=1&rart=%5Bredacted%5D&rpbg=1",
+  "title": "Hi [redacted-name]",
+  "createHooked": true,
+  "getHooked": true,
+  "text": "Loading\nHi [redacted-name]\n[redacted-google-account]\nChoose how you want to sign in:\nEnter your password\nUse your passkey\nTry another way\nEnglish (United States)\nHelp\nPrivacy\nTerms\nHi [redacted-name]"
+}

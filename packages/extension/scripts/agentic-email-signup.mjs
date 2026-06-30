@@ -176,7 +176,8 @@ function signupState(el) {
         step: el?._step || "",
         loggedIn: Boolean(el?.app?.state?.loggedIn),
         locked: Boolean(el?.app?.state?.locked),
-        passwordReady: Boolean(el?._password)
+        passwordReady: Boolean(el?._password),
+        accountEmail: el?.app?.account?.email || null
     };
 }
 function setValue(el, value) {
@@ -311,23 +312,28 @@ async function complete() {
                 const codeInput = prompt._input || prompt.renderRoot?.querySelector("pl-input");
                 if (!codeInput) return { ok: false, reason: "code input missing" };
                 const rawCode = ${JSON.stringify(code)};
+                const digits = String(rawCode).replace(/\\D/g, "");
+                if (digits.length !== 6) {
+                    return { ok: false, reason: "extracted code was not six digits", digitCount: digits.length };
+                }
+                const submittedCode = digits;
                 if (prompt.validate) {
                     try {
-                        const validated = await prompt.validate(rawCode, codeInput);
+                        const validated = await prompt.validate(submittedCode, codeInput);
                         prompt.done(validated);
                     } catch (error) {
                         prompt._validationMessage = error && error.message ? error.message : String(error);
                         return { ok: false, reason: "code validation failed" };
                     }
                 } else if (typeof prompt.done === "function") {
-                    prompt.done(rawCode);
+                    prompt.done(submittedCode);
                 } else if (typeof prompt._confirm === "function") {
-                    setValue(codeInput, rawCode);
+                    setValue(codeInput, submittedCode);
                     await prompt._confirm();
                 } else {
                     const submit = prompt._confirmButton || prompt.renderRoot?.querySelector("#confirmButton") || byVisibleText("Submit");
                     if (!submit) return { ok: false, reason: "submit missing" };
-                    setValue(codeInput, rawCode);
+                    setValue(codeInput, submittedCode);
                     clickElement(submit);
                 }
                 return { ok: true };
@@ -340,10 +346,15 @@ async function complete() {
                 ${domHelpers}
                 const login = await loginSignup();
                 const state = signupState(login);
-                return { ok: state.page === "signup" || state.page === "login", state };
+                return { ok: state.page === "signup" || state.page === "login" || (state.loggedIn && state.locked), state };
             })()`,
             30000,
             "signup route after email verification"
+        );
+    }
+    if (signupReady.state?.loggedIn && signupReady.state?.locked && !signupReady.state?.page) {
+        throw new Error(
+            `extension is locked on existing Padloc account ${signupReady.state.accountEmail || "(unknown)"}; reset extension storage before signup`
         );
     }
     if (signupReady.state?.page === "login") {
@@ -511,6 +522,7 @@ async function status() {
             };
         })()`
     );
+    result.href = redactUrl(result.href);
     console.log(JSON.stringify(result));
 }
 

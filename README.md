@@ -155,6 +155,18 @@ To build and run the extension Playwright test harness (runtime smoke tests):
 npm run test:extension
 ```
 
+For iteration, use changed-only CH5 planning first:
+
+```sh
+npm run test:changed -- --since hq/main
+```
+
+The extension harness is headless by default. For visual debugging only:
+
+```sh
+PADLOC_EXTENSION_HEADFUL=1 npm run test:extension
+```
+
 The extension harness requires Chromium. Install it via:
 
 ```sh

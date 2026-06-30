@@ -1,6 +1,7 @@
 import { Tag } from "@padloc/core/src/item";
 import { $l } from "@padloc/locale/src/translate";
-import { css, customElement, html, LitElement, property, query } from "lit-element";
+import { css, html, LitElement } from "lit";
+import { customElement, property, query } from "lit/decorators.js";
 import { app, router } from "../globals";
 import { shared } from "../styles";
 

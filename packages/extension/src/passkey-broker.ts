@@ -48,6 +48,14 @@ interface PasskeyCredentialMatch {
     credential: PasskeyCredential;
 }
 
+interface PasskeySignerKeyMaterial {
+    credentialId: string;
+    signerHandle: string;
+    privateKey: CryptoKey;
+    publicKeySpki: string;
+    publicKeyJwk: NonNullable<PasskeyCredential["publicKeyJwk"]>;
+}
+
 export interface EnrollPasskeyResult {
     itemName: string;
     icon: string;
@@ -64,6 +72,20 @@ export interface RequestAssertionResult {
 
 const PASSKEY_ALGORITHM_ES256 = -7;
 const PASSKEY_ALGORITHM_ED25519 = -8;
+const PASSKEY_SIGNER_HANDLE_PREFIX = "padloc-passkey-signer:";
+const PASSKEY_SIGNER_DB_NAME = "padloc-agentic-passkey-signers";
+const PASSKEY_SIGNER_DB_VERSION = 1;
+const PASSKEY_SIGNER_STORE_NAME = "keys";
+const memoryPasskeySignerKeys = new Map<string, CryptoKey>();
+let allowMemoryOnlyPasskeySignerStoreForTests = false;
+
+export function configurePasskeySignerStoreForTests(options: { allowMemoryOnly?: boolean } = {}): void {
+    allowMemoryOnlyPasskeySignerStoreForTests = Boolean(options.allowMemoryOnly);
+}
+
+export function clearPasskeySignerMemoryCacheForTests(): void {
+    memoryPasskeySignerKeys.clear();
+}
 
 export async function enrollPasskeyCredential(
     request: AutofillBrokerRequest,
@@ -75,12 +97,7 @@ export async function enrollPasskeyCredential(
     const keyMaterial = await resolveEnrollmentKeyMaterial(cryptoApi, algorithm, enrollment);
     const credentialIdBytes = base64ToBytes(keyMaterial.credentialId);
     const userHandle = enrollment.userHandle || bytesToBase64(await randomBytes(cryptoApi, 16));
-    const privateKeyPkcs8Bytes = base64ToBytes(keyMaterial.privateKeyPkcs8);
-    const importedPrivateKey = await importPrivateKeyForAlgorithm(cryptoApi, algorithm, privateKeyPkcs8Bytes);
-    const exportedPrivateKeyJwk = await cryptoApi.subtle.exportKey("jwk", importedPrivateKey);
-    const publicKeyJwk = toPublicJwk(exportedPrivateKeyJwk, algorithm);
-    const importedPublicKey = await importPublicKeyFromJwk(cryptoApi, algorithm, publicKeyJwk);
-    const publicKeySpkiBytes = new Uint8Array(await cryptoApi.subtle.exportKey("spki", importedPublicKey));
+    const publicKeyJwk = keyMaterial.publicKeyJwk;
     const cosePublicKey = encodeCosePublicKey(publicKeyJwk, algorithm);
     const signCount = normalizeSignCount(enrollment.signCount ?? 0);
     const attestedAuthData = await buildAttestedCredentialData(
@@ -97,8 +114,8 @@ export async function enrollPasskeyCredential(
         credentialId: keyMaterial.credentialId,
         rpId: enrollment.rpId,
         privateKeyFieldIndex: 0,
-        publicKeySpki: bytesToBase64(publicKeySpkiBytes),
-        publicKeyJwk: normalizePublicKeyJwk(publicKeyJwk),
+        publicKeySpki: keyMaterial.publicKeySpki,
+        publicKeyJwk: publicKeyJwk,
         signCount,
         userHandle,
         createdAt,
@@ -136,11 +153,13 @@ export async function enrollPasskeyCredential(
 
     const itemName = enrollment.itemName || `Passkey ${enrollment.rpId}`;
     const fields = [
-        new Field({ name: "Private Key", type: FieldType.Password, value: keyMaterial.privateKeyPkcs8 }),
+        new Field({ name: "Signer Handle", type: FieldType.Password, value: keyMaterial.signerHandle }),
         new Field({ name: "RP ID", type: FieldType.Url, value: `https://${enrollment.rpId}` }),
         new Field({ name: "Credential ID", type: FieldType.Text, value: passkeyCredential.credentialId }),
         new Field({ name: "User Handle", type: FieldType.Text, value: passkeyCredential.userHandle }),
     ];
+
+    await storePasskeySignerKey(keyMaterial.signerHandle, keyMaterial.privateKey);
 
     return {
         itemName,
@@ -214,10 +233,13 @@ export async function requestPasskeyAssertion(
         shouldSetUserVerification(assertionRequest.userVerification)
     );
     const signedPayload = concatBytes(authenticatorData, clientDataHash);
-    const privateKeyPkcs8 = readStoredPrivateKey(item, credential);
+    const signerHandle = readStoredSignerHandle(item, credential);
     const algorithm = normalizePasskeyAlgorithm(credential.algorithm);
-    const importedPrivateKey = await importPrivateKeyForAlgorithm(cryptoApi, algorithm, base64ToBytes(privateKeyPkcs8), false);
-    const signature = await signAssertionPayload(cryptoApi, algorithm, importedPrivateKey, signedPayload);
+    const signerKey = await loadPasskeySignerKey(signerHandle);
+    if (!signerKey) {
+        throw new Error("Padloc passkey signer key missing; re-enroll passkey");
+    }
+    const signature = await signAssertionPayload(cryptoApi, algorithm, signerKey, signedPayload);
 
     credential.signCount = nextSignCount;
     const rateLimitAfter = measureRateLimit(credential, now, true);
@@ -315,35 +337,49 @@ async function resolveEnrollmentKeyMaterial(
     cryptoApi: Crypto,
     algorithm: number,
     enrollment: PasskeyEnrollmentRequest
-): Promise<{ credentialId: string; privateKeyPkcs8: string }> {
+): Promise<PasskeySignerKeyMaterial> {
     if (enrollment.credentialId && enrollment.privateKeyPkcs8) {
+        const privateKeyPkcs8 = base64ToBytes(enrollment.privateKeyPkcs8);
+        const privateKey = await importPrivateKeyForAlgorithm(cryptoApi, algorithm, privateKeyPkcs8, false);
+        const publicKeyJwk = await derivePublicJwkFromPrivateKeyPkcs8(cryptoApi, algorithm, privateKeyPkcs8);
+        const publicKeySpki = await exportPublicKeySpki(cryptoApi, algorithm, publicKeyJwk);
         return {
             credentialId: enrollment.credentialId,
-            privateKeyPkcs8: enrollment.privateKeyPkcs8,
+            signerHandle: await makePasskeySignerHandle(cryptoApi),
+            privateKey,
+            publicKeySpki,
+            publicKeyJwk,
         };
     }
     if (enrollment.credentialId || enrollment.privateKeyPkcs8) {
         throw new Error("Passkey enrollment requires both credentialId and privateKeyPkcs8 when importing");
     }
     const keyPair = await generateKeyPairForAlgorithm(cryptoApi, algorithm);
-    if (!("privateKey" in keyPair) || !keyPair.privateKey) {
+    if (!("privateKey" in keyPair) || !keyPair.privateKey || !keyPair.publicKey) {
         throw new Error("Passkey key generation failed");
     }
-    const privateKeyPkcs8 = bytesToBase64(new Uint8Array(await cryptoApi.subtle.exportKey("pkcs8", keyPair.privateKey)));
+    const publicKeyJwk = normalizePublicKeyJwk(await cryptoApi.subtle.exportKey("jwk", keyPair.publicKey));
+    const publicKeySpki = bytesToBase64(new Uint8Array(await cryptoApi.subtle.exportKey("spki", keyPair.publicKey)));
     const credentialId = bytesToBase64(await randomBytes(cryptoApi, 32)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-    return { credentialId, privateKeyPkcs8 };
+    return {
+        credentialId,
+        signerHandle: await makePasskeySignerHandle(cryptoApi),
+        privateKey: keyPair.privateKey,
+        publicKeySpki,
+        publicKeyJwk,
+    };
 }
 
 async function generateKeyPairForAlgorithm(cryptoApi: Crypto, algorithm: number): Promise<CryptoKeyPair> {
     if (algorithm === PASSKEY_ALGORITHM_ES256) {
         return cryptoApi.subtle.generateKey(
             { name: "ECDSA", namedCurve: "P-256" },
-            true,
+            false,
             ["sign", "verify"]
         );
     }
     if (algorithm === PASSKEY_ALGORITHM_ED25519) {
-        return cryptoApi.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]) as Promise<CryptoKeyPair>;
+        return cryptoApi.subtle.generateKey({ name: "Ed25519" }, false, ["sign", "verify"]) as Promise<CryptoKeyPair>;
     }
     throw new Error(`Unsupported passkey algorithm: ${algorithm}`);
 }
@@ -724,6 +760,25 @@ async function importPrivateKeyForAlgorithm(
     throw new Error(`Unsupported passkey algorithm: ${algorithm}`);
 }
 
+async function derivePublicJwkFromPrivateKeyPkcs8(
+    cryptoApi: Crypto,
+    algorithm: number,
+    privateKeyPkcs8: Uint8Array
+): Promise<NonNullable<PasskeyCredential["publicKeyJwk"]>> {
+    const extractablePrivateKey = await importPrivateKeyForAlgorithm(cryptoApi, algorithm, privateKeyPkcs8);
+    const exportedPrivateKeyJwk = await cryptoApi.subtle.exportKey("jwk", extractablePrivateKey);
+    return normalizePublicKeyJwk(toPublicJwk(exportedPrivateKeyJwk, algorithm));
+}
+
+async function exportPublicKeySpki(
+    cryptoApi: Crypto,
+    algorithm: number,
+    publicKeyJwk: NonNullable<PasskeyCredential["publicKeyJwk"]>
+): Promise<string> {
+    const publicKey = await importPublicKeyFromJwk(cryptoApi, algorithm, publicKeyJwk);
+    return bytesToBase64(new Uint8Array(await cryptoApi.subtle.exportKey("spki", publicKey)));
+}
+
 async function importPublicKeyForAlgorithm(
     cryptoApi: Crypto,
     algorithm: number,
@@ -881,12 +936,92 @@ function cloneCredential(credential: PasskeyCredential): PasskeyCredential {
     return new PasskeyCredential().fromRaw(credential.toRaw()) as PasskeyCredential;
 }
 
-function readStoredPrivateKey(item: VaultItem, credential: PasskeyCredential): string {
+function readStoredSignerHandle(item: VaultItem, credential: PasskeyCredential): string {
     const field = item.fields[credential.privateKeyFieldIndex];
     if (!field?.value) {
-        throw new Error("Passkey private key field missing");
+        throw new Error("Passkey signer handle field missing");
+    }
+    if (!field.value.startsWith(PASSKEY_SIGNER_HANDLE_PREFIX)) {
+        throw new Error("Legacy passkey private key field is not supported; re-enroll passkey");
     }
     return field.value;
+}
+
+async function makePasskeySignerHandle(cryptoApi: Crypto): Promise<string> {
+    return `${PASSKEY_SIGNER_HANDLE_PREFIX}${bytesToBase64(await randomBytes(cryptoApi, 32))
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/g, "")}`;
+}
+
+async function storePasskeySignerKey(handle: string, privateKey: CryptoKey): Promise<void> {
+    const indexedDb = getIndexedDb();
+    if (!indexedDb) {
+        if (allowMemoryOnlyPasskeySignerStoreForTests) {
+            memoryPasskeySignerKeys.set(handle, privateKey);
+            return;
+        }
+        throw new Error("Padloc passkey signer IndexedDB unavailable; refusing volatile passkey enrollment");
+    }
+    const db = await openPasskeySignerDb(indexedDb);
+    try {
+        await idbRequestToPromise(
+            db.transaction(PASSKEY_SIGNER_STORE_NAME, "readwrite")
+                .objectStore(PASSKEY_SIGNER_STORE_NAME)
+                .put({ handle, privateKey, createdAt: new Date().toISOString() })
+        );
+    } finally {
+        db.close();
+    }
+    memoryPasskeySignerKeys.set(handle, privateKey);
+}
+
+async function loadPasskeySignerKey(handle: string): Promise<CryptoKey | null> {
+    const memoryKey = memoryPasskeySignerKeys.get(handle);
+    if (memoryKey) return memoryKey;
+    const indexedDb = getIndexedDb();
+    if (!indexedDb) {
+        if (allowMemoryOnlyPasskeySignerStoreForTests) return null;
+        throw new Error("Padloc passkey signer IndexedDB unavailable; cannot load durable passkey signer");
+    }
+    const db = await openPasskeySignerDb(indexedDb);
+    try {
+        const record = await idbRequestToPromise<{ privateKey?: CryptoKey } | undefined>(
+            db.transaction(PASSKEY_SIGNER_STORE_NAME, "readonly")
+                .objectStore(PASSKEY_SIGNER_STORE_NAME)
+                .get(handle)
+        );
+        if (!record?.privateKey) return null;
+        memoryPasskeySignerKeys.set(handle, record.privateKey);
+        return record.privateKey;
+    } finally {
+        db.close();
+    }
+}
+
+function getIndexedDb(): IDBFactory | null {
+    return typeof indexedDB === "undefined" ? null : indexedDB;
+}
+
+function openPasskeySignerDb(indexedDb: IDBFactory): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+        const request = indexedDb.open(PASSKEY_SIGNER_DB_NAME, PASSKEY_SIGNER_DB_VERSION);
+        request.onupgradeneeded = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains(PASSKEY_SIGNER_STORE_NAME)) {
+                db.createObjectStore(PASSKEY_SIGNER_STORE_NAME, { keyPath: "handle" });
+            }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error("Failed to open Padloc passkey signer store"));
+    });
+}
+
+function idbRequestToPromise<T>(request: IDBRequest<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error("Padloc passkey signer store request failed"));
+    });
 }
 
 function normalizePasskeyAlgorithm(value: unknown): number {
@@ -934,7 +1069,7 @@ function toPublicJwk(privateKeyJwk: JsonWebKey, algorithm: number): JsonWebKey {
     throw new Error(`Unsupported passkey algorithm: ${algorithm}`);
 }
 
-function normalizePublicKeyJwk(publicKeyJwk: JsonWebKey): PasskeyCredential["publicKeyJwk"] {
+function normalizePublicKeyJwk(publicKeyJwk: JsonWebKey): NonNullable<PasskeyCredential["publicKeyJwk"]> {
     if (!publicKeyJwk.kty || !publicKeyJwk.crv || !publicKeyJwk.x) {
         throw new Error("Expected exported passkey public JWK");
     }

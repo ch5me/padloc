@@ -2,6 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 import path from "path";
 
 const EXTENSION_DIST = path.resolve(__dirname, "../dist");
+const HEADFUL = process.env.PADLOC_EXTENSION_HEADFUL === "1";
 
 export default defineConfig({
     testDir: __dirname,
@@ -24,6 +25,7 @@ export default defineConfig({
                 launchOptions: {
                     headless: false,
                     args: [
+                        ...(HEADFUL ? [] : ["--headless=new"]),
                         `--disable-extensions-except=${EXTENSION_DIST}`,
                         `--load-extension=${EXTENSION_DIST}`,
                         "--disable-backgrounding-occluded-windows",

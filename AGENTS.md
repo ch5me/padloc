@@ -25,6 +25,11 @@
 - Local worker only: `npm run worker:dev`
 - Local web only: `npm run pwa:start`
 - Legacy local stack: `npm run start`
+- Changed-only tests/proofs: `npm run test:changed -- --since <ref>` or
+  `npm run test:changed -- --files <csv>`; this wraps `ch5 plan padloc` and
+  refuses broad fallback tasks unless `--allow-fallback` is explicit.
+- Extension harness is headless by default. Use `PADLOC_EXTENSION_HEADFUL=1`
+  or `npm run test:extension:headful` only for visual debugging.
 - DevMux local status: `npm run svc:status`
 - Runtime contract check: `npm run runtime-config:check`
 - Worker dry-run: `npm run worker:deploy:dry-run`
@@ -68,6 +73,9 @@
   runtime mutation.
 - If email auth breaks, first verify the live Worker secret values and sender
   domain before changing app logic.
+- Do not run the full Playwright extension harness headfully by default. Start
+  with `npm run test:changed`; if a browser harness is needed, keep it headless
+  unless a human-visible native/browser state is the thing being debugged.
 
 ## Sharp Edges
 

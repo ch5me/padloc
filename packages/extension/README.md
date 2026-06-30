@@ -93,6 +93,12 @@ liveness.
 npm run test:extension
 ```
 
+Run changed-only proof first when iterating:
+
+```sh
+npm run test:changed -- --since hq/main
+```
+
 This runs `web-extension:build` followed by the Playwright harness. Equivalent
 to:
 
@@ -100,6 +106,9 @@ to:
 npm run web-extension:build
 cd packages/extension && npx playwright test
 ```
+
+The harness is headless by default so it does not steal focus. Use
+`PADLOC_EXTENSION_HEADFUL=1 npm run test:extension` only for visual debugging.
 
 **First run**: Install the Chromium browser for Playwright:
 

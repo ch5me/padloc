@@ -30,10 +30,16 @@ export class Unlock extends StartForm {
     private _bioauthButton: Button;
 
     private _failedCount = 0;
+    private _visibilityChangeHandler = () => this._focused();
 
     connectedCallback() {
         super.connectedCallback();
-        document.addEventListener("visibilitychange", () => this._focused());
+        document.addEventListener("visibilitychange", this._visibilityChangeHandler);
+    }
+
+    disconnectedCallback() {
+        document.removeEventListener("visibilitychange", this._visibilityChangeHandler);
+        super.disconnectedCallback();
     }
 
     async reset() {
