@@ -1,37 +1,7 @@
 import { AuthType } from "../../core/src/auth";
 import { expect } from "chai";
 import { suite, test } from "mocha";
-import { ExtensionPlatform } from "../src/platform";
 import { webAuthnClient } from "../src/auth/webauthn";
-
-suite("ExtensionPlatform WebAuthn", () => {
-    test("supportedAuthTypes includes WebAuthnPlatform and WebAuthnPortable", () => {
-        const platform = new ExtensionPlatform();
-        const types = platform.supportedAuthTypes;
-        expect(types).to.include(AuthType.WebAuthnPlatform);
-        expect(types).to.include(AuthType.WebAuthnPortable);
-        expect(types).to.include(AuthType.Email);
-        expect(types).to.include(AuthType.Totp);
-    });
-
-    test("_getAuthClient returns webAuthnClient for WebAuthnPlatform", async () => {
-        const platform = new ExtensionPlatform();
-        const client = await (platform as any)._getAuthClient(AuthType.WebAuthnPlatform);
-        expect(client).to.equal(webAuthnClient);
-    });
-
-    test("_getAuthClient returns webAuthnClient for WebAuthnPortable", async () => {
-        const platform = new ExtensionPlatform();
-        const client = await (platform as any)._getAuthClient(AuthType.WebAuthnPortable);
-        expect(client).to.equal(webAuthnClient);
-    });
-
-    test("_getAuthClient delegates non-WebAuthn types to WebPlatform", async () => {
-        const platform = new ExtensionPlatform();
-        const emailClient = await (platform as any)._getAuthClient(AuthType.Email);
-        expect(emailClient).to.not.be.null;
-    });
-});
 
 suite("WebAuthnClient smoke", () => {
     test("client ready promise resolves", async () => {

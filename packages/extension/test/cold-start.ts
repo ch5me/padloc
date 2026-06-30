@@ -1,4 +1,5 @@
 import { expect } from "chai";
+import { setup, suite, teardown, test } from "mocha";
 import sinon from "sinon";
 import { browser } from "webextension-polyfill-ts";
 import { ExtensionStorage } from "../src/storage";
@@ -327,7 +328,7 @@ suite("ExtensionApp routing decision logic", () => {
             matchingItems.length &&
             (hasNewMatchingItems || (routerState.path === "items" && !routerState.params.search));
 
-        expect(shouldGoToItems).to.be.false;
+        expect(Boolean(shouldGoToItems)).to.be.false;
     });
 
     test("falls back to vaults when routerState.path is empty", () => {

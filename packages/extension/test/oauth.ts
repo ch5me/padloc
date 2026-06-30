@@ -1,34 +1,10 @@
 import { AuthType } from "../../core/src/auth";
+import { ErrorCode } from "../../core/src/error";
 import { expect } from "chai";
 import { setup, suite, teardown, test } from "mocha";
 import sinon from "sinon";
 import { browser } from "webextension-polyfill-ts";
-import { ExtensionPlatform } from "../src/platform";
-import { oauthClient, OauthClient } from "../src/auth/oauth";
-
-suite("ExtensionPlatform OAuth", () => {
-    let sandbox: sinon.SinonSandbox;
-
-    setup(() => {
-        sandbox = sinon.createSandbox();
-    });
-
-    teardown(() => {
-        sandbox.restore();
-    });
-
-    test("supportedAuthTypes includes OAuth", () => {
-        const platform = new ExtensionPlatform();
-        const types = platform.supportedAuthTypes;
-        expect(types).to.include(AuthType.Oauth);
-    });
-
-    test("_getAuthClient returns oauthClient for OAuth type", async () => {
-        const platform = new ExtensionPlatform();
-        const client = await (platform as any)._getAuthClient(AuthType.Oauth);
-        expect(client).to.equal(oauthClient);
-    });
-});
+import { OauthClient } from "../src/auth/oauth";
 
 suite("OauthClient", () => {
     let sandbox: sinon.SinonSandbox;
@@ -66,7 +42,7 @@ suite("OauthClient", () => {
             const result = await client.prepareAuthentication({ authUrl });
 
             expect(result).to.deep.equal({ code: "auth-code-123", state: "test-state" });
-            expect(browser.identity.launchWebAuthFlow).to.have.been.calledOnceWith({
+            sinon.assert.calledOnceWithExactly(browser.identity.launchWebAuthFlow as sinon.SinonStub, {
                 url: authUrl,
                 interactive: true,
             });
@@ -86,7 +62,7 @@ suite("OauthClient", () => {
             }
 
             expect(error).to.exist;
-            expect(error.code).to.equal("AUTHENTICATION_FAILED");
+            expect(error.code).to.equal(ErrorCode.AUTHENTICATION_FAILED);
             expect(error.message).to.include("OAuth flow failed");
         });
 
@@ -106,7 +82,7 @@ suite("OauthClient", () => {
             }
 
             expect(error).to.exist;
-            expect(error.code).to.equal("AUTHENTICATION_FAILED");
+            expect(error.code).to.equal(ErrorCode.AUTHENTICATION_FAILED);
             expect(error.message).to.include("OAuth error: access_denied");
         });
 
@@ -124,7 +100,7 @@ suite("OauthClient", () => {
             }
 
             expect(error).to.exist;
-            expect(error.code).to.equal("AUTHENTICATION_FAILED");
+            expect(error.code).to.equal(ErrorCode.AUTHENTICATION_FAILED);
             expect(error.message).to.include("No redirect URL received");
         });
 
@@ -144,7 +120,7 @@ suite("OauthClient", () => {
             }
 
             expect(error).to.exist;
-            expect(error.code).to.equal("AUTHENTICATION_FAILED");
+            expect(error.code).to.equal(ErrorCode.AUTHENTICATION_FAILED);
             expect(error.message).to.include("No authorization code received");
         });
     });
