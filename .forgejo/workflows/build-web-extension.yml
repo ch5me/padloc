@@ -63,13 +63,13 @@ jobs:
             #   if: forgejo.event.inputs.environment == 'Beta' || forgejo.event.inputs.environment == 'Production'
             #   uses: actions/upload-artifact@v2
             #   with:
-            #       name: padloc-web-extension-${{ forgejo.sha }}-signed.xpi
+            #       name: padloc-web-extension-${{ github.sha }}-signed.xpi
             #       path: packages/extension/dist/web-ext-artifacts/*.xpi
             #       if-no-files-found: error
             - name: Archive Unsigned Web Extension (Chrome/Edge/Firefox)
               uses: actions/upload-artifact@v2
               with:
-                  name: padloc-web-extension-${{ forgejo.sha }}-unsigned
+                  name: padloc-web-extension-${{ github.sha }}-unsigned
                   path: |
                       packages/extension/dist
                       !packages/extension/dist/web-ext-artifacts
@@ -97,6 +97,6 @@ jobs:
               if: steps.sign_chrome.outputs.signed == 'true'
               uses: actions/upload-artifact@v2
               with:
-                  name: padloc-web-extension-${{ forgejo.sha }}-signed.crx
+                  name: padloc-web-extension-${{ github.sha }}-signed.crx
                   path: packages/extension/padloc-signed.crx
                   if-no-files-found: error
