@@ -5,6 +5,7 @@ const rootDir = resolve(__dirname, "../..");
 const assetsDir = resolve(rootDir, process.env.PL_ASSETS_DIR || "assets");
 const { version } = require(resolve(__dirname, "package.json"));
 const { name, description, author, scheme, terms_of_service } = require(join(assetsDir, "manifest.json"));
+const safeName = packageName(name);
 
 module.exports = [
     {
@@ -16,6 +17,7 @@ module.exports = [
             path: resolve(__dirname, "app"),
             filename: "[name].js",
             chunkFilename: "[name].chunk.js",
+            hashFunction: "sha256",
         },
         mode: "development",
         devtool: "source-map",
@@ -42,7 +44,8 @@ module.exports = [
             {
                 apply(compiler) {
                     const package = JSON.stringify({
-                        name,
+                        name: safeName,
+                        productName: name,
                         description,
                         version: process.env.PL_VENDOR_VERSION || version,
                         author,
@@ -61,3 +64,12 @@ module.exports = [
         ],
     },
 ];
+
+function packageName(value) {
+    return (
+        String(value)
+            .toLowerCase()
+            .replace(/[^a-z0-9_-]+/g, "-")
+            .replace(/^-+|-+$/g, "") || "padloc"
+    );
+}

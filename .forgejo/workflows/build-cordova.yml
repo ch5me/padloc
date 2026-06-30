@@ -55,12 +55,11 @@ jobs:
             - name: Install Android SDK
               shell: bash
               run: scripts/ci-install-android-sdk.sh
-            - uses: actions/setup-node@v3
+            - uses: actions/setup-node@v4
               with:
                   node-version-file: ".nvmrc"
             - name: Install dependencies
               run: |
-                  npm i -g npm@8.2.0
                   env -u ESBUILD_BINARY_PATH npm ci
             - name: Create android-upload-key.keystore
               run: |
@@ -89,12 +88,11 @@ jobs:
         environment: ${{ github.event.inputs.environment || 'Local' }}
         steps:
             - uses: actions/checkout@v3
-            - uses: actions/setup-node@v3
+            - uses: actions/setup-node@v4
               with:
                   node-version-file: ".nvmrc"
             - name: Install dependencies
               run: |
-                  npm i -g npm@8.2.0
                   env -u ESBUILD_BINARY_PATH npm ci
             - name: Build (iOS)
               env:

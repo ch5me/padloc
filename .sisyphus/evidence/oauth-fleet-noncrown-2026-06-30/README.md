@@ -8,7 +8,7 @@ Scope: non-Crown Google accounts only. Crown lane/account untouched.
     `/Users/hassoncs/.browser-profiles/magic-browser-noncrown-zack-20260630`.
 -   Blue: Chrome for Testing CDP `127.0.0.1:9832`, PID `59793`, profile
     `/Users/hassoncs/.browser-profiles/magic-browser-noncrown-blue-20260630`.
--   Generic RP: Chrome for Testing CDP `127.0.0.1:9834`, PID `22673`, profile
+-   Generic RP: Chrome for Testing CDP `127.0.0.1:9834`, PID `47342`, profile
     `/Users/hassoncs/.browser-profiles/magic-browser-padloc-local-rp-20260630`.
 -   Crown lane observed only for liveness, not mutated: CDP `127.0.0.1:9821`,
     PID `5246`, profile
@@ -93,16 +93,23 @@ Scope: non-Crown Google accounts only. Crown lane/account untouched.
     fresh register plus login on Padloc main `f02c3e911`; WebAuthn.io showed
     `Transports: ["internal"]` and AAGUID
     `7a46cc38-26d9-47fe-9f3b-b52837c6020d`.
--   Secondary public RP attempt: `webauthn.me` loaded with hooks active, but its
-    tutorial controls never attached in the CFT lane; saved as
-    `webauthn-me-proof-2026-06-30.json`, `ok=false`, blocker
-    `timed out waiting for webauthn.me tutorial handlers`.
+-   Secondary public RP attempt: `webauthn.me` originally loaded with hooks
+    active, but its tutorial controls never attached in the CFT lane; saved as
+    `webauthn-me-proof-2026-06-30.json`, `ok=false`.
 -   Exact-main WebAuthn.me rerun: `webauthn-me-proof-f02c3e911.json`, still
-    blocked before tutorial handlers attach; hooks were active, so this remains
-    a site-specific blocker rather than a Padloc create/get failure.
+    blocked before tutorial handlers attach; hooks were active.
+-   Node 24 rerun after rebuilding the extension with webpack `5.108.3`:
+    `local-rp-webauthn-proof-node24.json`, `webauthn-io-proof-node24.json`, and
+    `webauthn-me-proof-node24.json` all passed on CFT `9834` after signing into
+    a fresh disposable Padloc account. `webauthn.me` now proves direct
+    `navigator.credentials.create/get` on that origin instead of relying on
+    stale tutorial handlers.
 -   This proves the patched Padloc WebAuthn create/get path works on a
-    deterministic RP and a non-Google public relying party. It does not replace
-    the Google-specific policy/risk proof.
+    deterministic RP and two non-Google public relying parties. It does not
+    replace the Google-specific policy/risk proof.
+-   Node 24 build gates passed locally: `check:source`, plain extension build
+    without `--openssl-legacy-provider`, PWA webpack build, Electron webpack
+    plus app metadata sanity, and Tauri config plus webpack sanity.
 
 ## Evidence Files
 
@@ -141,5 +148,11 @@ Scope: non-Crown Google accounts only. Crown lane/account untouched.
     workflow repair.
 -   `webauthn-me-proof-f02c3e911.json`: exact-main WebAuthn.me blocker refresh
     after CI workflow repair.
+-   `local-rp-webauthn-proof-node24.json`: Node 24 local RP proof after webpack
+    upgrade and extension rebuild.
+-   `webauthn-io-proof-node24.json`: Node 24 WebAuthn.io proof after webpack
+    upgrade and extension rebuild.
+-   `webauthn-me-proof-node24.json`: Node 24 WebAuthn.me direct WebAuthn proof
+    after webpack upgrade and extension rebuild.
 
 Screenshots in this folder were redacted in-page before capture.

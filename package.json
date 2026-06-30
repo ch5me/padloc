@@ -11,8 +11,8 @@
         "url": "git+https://github.com/padloc/padloc.git"
     },
     "engines": {
-        "node": "16.x",
-        "npm": "8.x"
+        "node": "24.x",
+        "npm": "11.x"
     },
     "main": "main.js",
     "devDependencies": {
@@ -45,15 +45,15 @@
         "pwa:start": "lerna run start --scope @padloc/pwa",
         "electron:start": "lerna run start --scope @padloc/electron",
         "electron:build": "lerna run build --scope @padloc/electron",
-        "electron:build:flatpak": "lerna run build:flatpak",
+        "electron:build:flatpak": "lerna run build:flatpak --scope @padloc/electron",
         "web-extension:preflight": "npm --prefix packages/extension run check:source && if [ -f packages/extension/dist/manifest.json ]; then npm --prefix packages/extension run preflight:dist; fi",
         "web-extension:build": "node scripts/build-web-extension.cjs",
         "cordova:start:android": "lerna run start:android",
         "cordova:start:ios": "lerna run start:ios",
         "cordova:build": "lerna run build:android && lerna run build:ios",
-        "cordova:build:android": "lerna run build:android",
-        "cordova:build:android:signed": "lerna run build:android:signed",
-        "cordova:build:ios": "lerna run build:ios",
+        "cordova:build:android": "lerna run build:android --scope @padloc/cordova",
+        "cordova:build:android:signed": "lerna run build:android:signed --scope @padloc/cordova",
+        "cordova:build:ios": "lerna run build:ios --scope @padloc/cordova",
         "cordova:build:ios:signed": "lerna run build:ios:signed",
         "start": "npm run pwa:build && concurrently --prefix=name --prefix-length=20 -n worker,pwa \"npm run worker:dev\" \"npm run pwa:start\"",
         "server:start-dry": "npm run worker:deploy:dry-run",
@@ -62,7 +62,7 @@
         "tauri:dev": "concurrently --prefix=name --prefix-length=20 -n worker,tauri \"npm run worker:dev\" \"PL_SERVER_URL=http://127.0.0.1:8787 npm --prefix packages/tauri run dev\"",
         "tauri:update": "lerna run update-tauri",
         "tauri:build": "lerna run build --scope @padloc/tauri",
-        "tauri:build:debug": "lerna run build:debug",
+        "tauri:build:debug": "lerna run build:debug --scope @padloc/tauri",
         "test": "lerna run test",
         "test:extension": "npm run web-extension:build && npm run --prefix packages/extension test:harness",
         "test:extension:headful": "PADLOC_EXTENSION_HEADFUL=1 npm run test:extension",

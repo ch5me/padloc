@@ -13,5 +13,9 @@
         "url": "https://github.com/padloc/padloc.git",
         "directory": "packages/locale"
     },
-    "description": "Padloc localization package"
+    "description": "Padloc localization package",
+    "engines": {
+        "node": "24.x",
+        "npm": "11.x"
+    }
 }

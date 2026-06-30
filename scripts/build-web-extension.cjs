@@ -1,21 +1,10 @@
 const path = require("path");
 const { spawnSync } = require("child_process");
 
-const needsLegacyOpenSslProvider = Number(process.versions.node.split(".")[0]) >= 17;
-
-if (
-    needsLegacyOpenSslProvider &&
-    !(process.env.NODE_OPTIONS || "").split(/\s+/).includes("--openssl-legacy-provider")
-) {
-    const env = {
-        ...process.env,
-        NODE_OPTIONS: [process.env.NODE_OPTIONS, "--openssl-legacy-provider"].filter(Boolean).join(" "),
-    };
-    const result = spawnSync(process.execPath, [__filename, ...process.argv.slice(2)], {
-        env,
-        stdio: "inherit",
-    });
-    process.exit(result.status === null ? 1 : result.status);
+const nodeMajor = Number(process.versions.node.split(".")[0]);
+if (nodeMajor !== 24) {
+    console.error(`Padloc web extension builds require Node 24.x; got ${process.version}.`);
+    process.exit(1);
 }
 
 const targets = require("../config/environment-targets.json");

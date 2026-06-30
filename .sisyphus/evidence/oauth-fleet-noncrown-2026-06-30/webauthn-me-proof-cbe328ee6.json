@@ -1,0 +1,20 @@
+{
+    "status": "webauthn-me-proof",
+    "ok": true,
+    "pageState": {
+        "url": "https://www.webauthn.me/",
+        "title": "Web Authentication (WebAuthn) Credential and Login Demo",
+        "createHooked": true,
+        "getHooked": true,
+        "username": "padloc-agentic-1782856981188-231147@example.com",
+        "ok": true,
+        "stage": "complete",
+        "registerSuccess": true,
+        "loginSuccess": true,
+        "rawIdLength": 32,
+        "publicKeyPresent": true,
+        "assertionIdMatches": true,
+        "tutorialPresent": true,
+        "text": "Crafted by\nTUTORIAL\nINFO\nDEBUGGER\nPASSKEYS\nWeb Authentication is a new standard enabling the creation and use of strong, attested, scoped, public key-based credentials by web applications, for the purpose of strongly authenticating users using hardware authenticators.\nLEARN MORE\n1\nRegister Your User\nConnect a USB authenticator, or make sure your device has a built in one like TouchID, and enter your username or email address.\nname:\nREGISTER\n2\nTouch Your Authenticator\n3\nYour New Credential\nYou have created a new credential. The rawId and the public key are all that are needed to identify you. These are meant to be passed to the Relying Party.\nYour rawId\nYour Public Key\nNEXT\n4\nAuthenticate With Your Credential\nUsing the rawId you can authenticate as the user you just created.\nallowCredentials: [\n  {\n    type: 'public-key',\n    id: \n\n  }\n],\nLOGIN\n5\nTouch Your Authenticator\n6\nLogin Successful\nNow you can try the debugger to play with all options\nLEARN MORE\nTRY THE DEBUGGER\nBrowser Status\n\nWeb Authentication is (partially) supported in most modern browsers.\n\nTEST YOUR BROWSER\nFIREFOX\nCHROME\nEDGE\n\nWith Auth0 you can easily add WebAuthn as a second factor\nto add an extra layer of security"
+    }
+}

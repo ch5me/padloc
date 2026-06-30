@@ -27,7 +27,7 @@ tauriConfig.tauri.bundle.identifier = manifest.appId;
 tauriConfig.tauri.windows[0].title = vendorName;
 tauriConfig.tauri.updater.endpoints[0] = `${vendorBaseUrl}/releases/latest/download/tauri-update.json`;
 
-writeFileSync(tauriConfigFilePath, JSON.stringify(tauriConfig, null, 4), "utf-8");
+writeFileSync(tauriConfigFilePath, `${JSON.stringify(tauriConfig, null, 4)}\n`, "utf-8");
 
 const cargoToml = TOML.parse(readFileSync(cargoTomlFilePath, "utf-8"));
 
@@ -36,6 +36,7 @@ cargoToml.package.description = vendorName;
 cargoToml.package.version = vendorVersion;
 cargoToml.package.authors = [manifest.author];
 cargoToml.package.repository = vendorBaseUrl;
+cargoToml.package["default-run"] = vendorCrateName;
 
 writeFileSync(cargoTomlFilePath, TOML.stringify(cargoToml), "utf-8");
 

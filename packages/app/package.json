@@ -16,8 +16,8 @@
         "directory": "packages/app"
     },
     "engines": {
-        "node": "16.x",
-        "npm": "8.x"
+        "node": "24.x",
+        "npm": "11.x"
     },
     "dependencies": {
         "@padloc/core": "4.3.0",

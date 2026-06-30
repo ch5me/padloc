@@ -25,6 +25,7 @@ module.exports = {
         filename: "[name].js",
         chunkFilename: "[name].chunk.js",
         publicPath: "",
+        hashFunction: "sha256",
     },
     mode: process.env.NODE_ENV || "production",
     devtool: "source-map",

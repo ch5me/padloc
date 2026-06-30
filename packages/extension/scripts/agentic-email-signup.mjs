@@ -75,7 +75,9 @@ async function discoverExtensionId() {
             return match ? { id: match[1], type: target.type, url: target.url || "" } : null;
         })
         .filter(Boolean);
-    const serviceWorker = extensionTargets.find((target) => target.type === "service_worker" && /\/background\.js$/.test(target.url));
+    const serviceWorker = extensionTargets.find(
+        (target) => target.type === "service_worker" && /\/background\.js$/.test(target.url)
+    );
     const selected = serviceWorker || extensionTargets.find((target) => target.type === "page") || extensionTargets[0];
     if (!selected?.id) {
         throw new Error("extension id not provided and no loaded extension target was discoverable");

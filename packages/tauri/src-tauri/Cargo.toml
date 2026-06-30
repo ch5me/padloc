@@ -1,11 +1,11 @@
 [package]
-name = "padloc"
-version = "4.2.0"
-description = "Padloc"
+name = "ch5-auth"
+version = "4.3.0"
+description = "CH5 Auth"
 authors = [ "Martin Kleinschrodt <martin@maklesoft.com>" ]
 license = "GPL-3.0"
 repository = "https://github.com/padloc/padloc"
-default-run = "padloc"
+default-run = "ch5-auth"
 edition = "2021"
 build = "src/build.rs"
 

@@ -124,7 +124,7 @@ Live smoke commands:
 
 ```bash
 cd /Users/hassoncs/src/ch5/padloc
-NODE_OPTIONS=--openssl-legacy-provider npm --prefix packages/extension run build
+npm --prefix packages/extension run build
 
 cd /Users/hassoncs/src/ch5/magic-browser
 pnpm run build

@@ -31,11 +31,6 @@ if [ -n "$path_file" ]; then
   } >> "$path_file"
 fi
 
-"$sdkmanager" --sdk_root="$android_home" \
-  "platform-tools" \
-  "platforms;android-30" \
-  "build-tools;30.0.3"
-
 set +o pipefail
 yes | "$sdkmanager" --sdk_root="$android_home" --licenses >/dev/null
 license_status="${PIPESTATUS[1]}"
@@ -43,5 +38,10 @@ set -o pipefail
 if [ "$license_status" -ne 0 ]; then
   exit "$license_status"
 fi
+
+"$sdkmanager" --sdk_root="$android_home" \
+  "platform-tools" \
+  "platforms;android-30" \
+  "build-tools;30.0.3"
 
 "$sdkmanager" --sdk_root="$android_home" --list_installed

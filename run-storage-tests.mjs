@@ -14,7 +14,7 @@ await esbuild.build({
     entryPoints: ["packages/worker/test/storage-contract.ts"],
     bundle: true,
     platform: "node",
-    target: "node20",
+    target: "node24",
     format: "esm",
     outfile,
     external: ["better-sqlite3", "miniflare"],

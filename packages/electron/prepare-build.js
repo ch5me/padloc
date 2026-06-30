@@ -6,6 +6,7 @@ const rootDir = resolve(__dirname, "../..");
 const assetsDir = resolve(rootDir, process.env.PL_ASSETS_DIR || "assets");
 const { name, appId, scheme, build: buildVersion } = require(join(assetsDir, "manifest.json"));
 const buildDir = resolve(__dirname, "build");
+const safeName = packageName(name);
 
 async function main() {
     if (fs.existsSync(buildDir)) {
@@ -34,13 +35,13 @@ async function main() {
         appId,
         buildVersion,
         productName: name,
-        artifactName: `${name.toLowerCase()}_\${version}_\${os}_electron_\${arch}.\${ext}`,
+        artifactName: `${safeName}_\${version}_\${os}_electron_\${arch}.\${ext}`,
         directories: {
             app: "app",
             buildResources: "build",
         },
         mac: {
-            artifactName: `${name.toLowerCase()}_\${version}_macos_electron_\${arch}.\${ext}`,
+            artifactName: `${safeName}_\${version}_macos_electron_\${arch}.\${ext}`,
             hardenedRuntime: true,
             darkModeSupport: true,
             gatekeeperAssess: false,
@@ -68,7 +69,7 @@ async function main() {
             publish: ["github"],
         },
         win: {
-            artifactName: `${name.toLowerCase()}_\${version}_windows_electron_\${arch}.\${ext}`,
+            artifactName: `${safeName}_\${version}_windows_electron_\${arch}.\${ext}`,
         },
         afterSign: "scripts/notarize.js",
     };
@@ -86,6 +87,15 @@ async function main() {
     };
 
     fs.writeFileSync(join(buildDir, "build-flatpak.json"), JSON.stringify(flatpakConfig, null, 4), "utf-8");
+}
+
+function packageName(value) {
+    return (
+        String(value)
+            .toLowerCase()
+            .replace(/[^a-z0-9_-]+/g, "-")
+            .replace(/^-+|-+$/g, "") || "padloc"
+    );
 }
 
 main();

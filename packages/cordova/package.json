@@ -3,9 +3,17 @@
     "version": "4.3.0",
     "displayName": "Padloc",
     "private": true,
+    "scripts": {
+        "prepare-build": "node update-config-xml.js && webpack",
+        "prepare:android": "test -d platforms/android || ./node_modules/.bin/cordova platform add android --no-save",
+        "prepare:ios": "test -d platforms/ios || ./node_modules/.bin/cordova platform add ios --no-save",
+        "build:android": "npm run prepare-build && npm run prepare:android && ./node_modules/.bin/cordova build android",
+        "build:android:signed": "npm run prepare-build && npm run prepare:android && ./node_modules/.bin/cordova build android --release -- --packageType=apk --keystore=./android-upload-key.keystore --storePassword=\"$PL_ANDROID_STORE_PASSWORD\" --alias=\"$PL_ANDROID_KEYSTORE_ALIAS\" --password=\"$PL_ANDROID_STORE_PASSWORD\"",
+        "build:ios": "npm run prepare-build && npm run prepare:ios && ./node_modules/.bin/cordova build ios"
+    },
     "engines": {
-        "node": "16.x",
-        "npm": "8.x"
+        "node": "24.x",
+        "npm": "11.x"
     },
     "cordova": {
         "platforms": [
@@ -71,8 +79,8 @@
         "style-loader": "2.0.0",
         "ts-loader": "9.2.2",
         "ts-node": "10.0.0",
-        "webpack": "5.38.1",
-        "webpack-cli": "4.7.0",
+        "webpack": "5.108.3",
+        "webpack-cli": "4.10.0",
         "xml-js": "1.6.11"
     }
 }

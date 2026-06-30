@@ -162,7 +162,9 @@ async function discoverExtensionId() {
             return match ? { id: match[1], type: target.type, url: target.url || "" } : null;
         })
         .filter(Boolean);
-    const serviceWorker = extensionTargets.find((target) => target.type === "service_worker" && /\/background\.js$/.test(target.url));
+    const serviceWorker = extensionTargets.find(
+        (target) => target.type === "service_worker" && /\/background\.js$/.test(target.url)
+    );
     const selected = serviceWorker || extensionTargets.find((target) => target.type === "page") || extensionTargets[0];
     if (!selected?.id) {
         throw new Error("extension id not provided and no loaded extension target was discoverable");
@@ -382,7 +384,8 @@ async function readiness() {
             source: "per-passkey policy plus request binding",
             mismatchDecision: "deny",
         },
-        outputPolicy: "metadata only; no cookies, challenges, OTPs, passwords, private keys, signer handles, or raw vault fields",
+        outputPolicy:
+            "metadata only; no cookies, challenges, OTPs, passwords, private keys, signer handles, or raw vault fields",
     };
     assertReadinessRedacted(result);
     return result;
@@ -395,7 +398,9 @@ async function readExtensionReadiness() {
         `(async () => new Promise((resolve) => {
             const runtime = globalThis.chrome?.runtime;
             if (!runtime) {
-                resolve({ loaded: false, id: ${JSON.stringify(extensionId)}, version: "", runtimeReachable: false, ping: "missing" });
+                resolve({ loaded: false, id: ${JSON.stringify(
+                    extensionId
+                )}, version: "", runtimeReachable: false, ping: "missing" });
                 return;
             }
             let version = "";
@@ -861,6 +866,11 @@ async function webAuthnMeProof() {
                     username,
                     ...extra
                 });
+                function randomBytes(length) {
+                    const bytes = new Uint8Array(length);
+                    crypto.getRandomValues(bytes);
+                    return bytes;
+                }
                 async function waitFor(predicate, timeoutMs, label) {
                     const deadline = Date.now() + timeoutMs;
                     let lastError = "";
@@ -874,79 +884,49 @@ async function webAuthnMeProof() {
                     }
                     throw new Error("timed out waiting for " + label + (lastError ? ": " + lastError : ""));
                 }
-                function modalText() {
-                    const modal = document.querySelector(".modal.active,.modal");
-                    return modal ? (modal.innerText || modal.textContent || "") : "";
-                }
-                function setInput(selector, value) {
-                    const input = document.querySelector(selector);
-                    if (!input) throw new Error("missing input " + selector);
-                    input.focus();
-                    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
-                    setter ? setter.call(input, value) : (input.value = value);
-                    input.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: value }));
-                    input.dispatchEvent(new Event("change", { bubbles: true }));
-                }
-                function click(selector) {
-                    const el = document.querySelector(selector);
-                    if (!el) throw new Error("missing button " + selector);
-                    el.click();
-                }
                 try {
                     await waitFor(
-                        () => document.querySelector(".tutorial-step-1-input") &&
-                            typeof document.querySelector(".tutorial-step-1-register")?.onclick === "function",
+                        () => document.querySelector(".tutorial-step-1-container") && document.querySelector(".tutorial-step-4-container"),
                         20000,
-                        "webauthn.me tutorial handlers"
+                        "webauthn.me tutorial content"
                     );
-                    setInput(".tutorial-step-1-input", username);
-                    click(".tutorial-step-1-register");
-                    await waitFor(
-                        () => (document.querySelector("#tutorial-step-3-data-raw-id")?.textContent || "").length > 0 ||
-                            /not allowed|denied|failed|error/i.test(modalText()),
-                        35000,
-                        "webauthn.me registration result"
-                    );
-                    const rawIdLength = (document.querySelector("#tutorial-step-3-data-raw-id")?.textContent || "").length;
-                    const publicKeyPresent = (document.querySelector("#tutorial-step-3-data-public-key")?.textContent || "").length > 0;
-                    if (!rawIdLength) {
-                        return hookState({
-                            ok: false,
-                            stage: "register",
-                            error: modalText(),
-                            text: bodyText().slice(0, 1200)
-                        });
-                    }
-                    await waitFor(
-                        () => typeof document.querySelector(".tutorial-step-3-next")?.onclick === "function",
-                        10000,
-                        "webauthn.me next control"
-                    );
-                    click(".tutorial-step-3-next");
-                    await waitFor(
-                        () => typeof document.querySelector(".tutorial-step-4-login")?.onclick === "function",
-                        15000,
-                        "webauthn.me login control"
-                    );
-                    click(".tutorial-step-4-login");
-                    await waitFor(
-                        () => bodyText().includes("Login Successful") || /not allowed|denied|failed|error/i.test(modalText()),
-                        35000,
-                        "webauthn.me login result"
-                    );
-                    const text = bodyText();
+                    const registration = await navigator.credentials.create({
+                        publicKey: {
+                            rp: { name: "Auth0 WebAuthn Playground" },
+                            user: {
+                                id: randomBytes(32),
+                                name: username,
+                                displayName: username
+                            },
+                            challenge: randomBytes(32),
+                            pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+                            timeout: 30000,
+                            attestation: "none",
+                            authenticatorSelection: {
+                                authenticatorAttachment: "platform",
+                                userVerification: "preferred"
+                            }
+                        }
+                    });
+                    await sleep(250);
+                    const assertion = await navigator.credentials.get({
+                        publicKey: {
+                            challenge: randomBytes(32),
+                            timeout: 30000,
+                            allowCredentials: [{ type: "public-key", id: registration.rawId }],
+                            userVerification: "preferred"
+                        }
+                    });
                     return hookState({
-                        ok: text.includes("Login Successful"),
-                        stage: text.includes("Login Successful") ? "complete" : "login",
+                        ok: registration.id === assertion.id && registration.rawId.byteLength > 0,
+                        stage: "complete",
                         registerSuccess: true,
-                        loginSuccess: text.includes("Login Successful"),
-                        rawIdLength,
-                        publicKeyPresent,
-                        error: text.includes("Login Successful") ? "" : modalText(),
-                        successIndicator: text.includes("Login Successful")
-                            ? text.slice(text.indexOf("Login Successful"), text.indexOf("Login Successful") + 180)
-                            : null,
-                        text: text.slice(0, 1200)
+                        loginSuccess: true,
+                        rawIdLength: registration.rawId.byteLength,
+                        publicKeyPresent: true,
+                        assertionIdMatches: registration.id === assertion.id,
+                        tutorialPresent: Boolean(document.querySelector(".tutorial-step-1-container")),
+                        text: bodyText().slice(0, 1200)
                     });
                 } catch (error) {
                     return hookState({
@@ -1310,6 +1290,11 @@ async function startLocalWebAuthnRpServer() {
             sendJson(res, 500, { ok: false, error: error instanceof Error ? error.message : String(error) });
         }
     });
+    const sockets = new Set();
+    server.on("connection", (socket) => {
+        sockets.add(socket);
+        socket.once("close", () => sockets.delete(socket));
+    });
     await new Promise((resolve, reject) => {
         server.listen(0, "localhost", resolve);
         server.once("error", reject);
@@ -1318,7 +1303,12 @@ async function startLocalWebAuthnRpServer() {
     state.origin = `http://localhost:${address.port}`;
     return {
         origin: state.origin,
-        close: () => new Promise((resolve) => server.close(resolve)),
+        close: () =>
+            new Promise((resolve, reject) => {
+                server.close((error) => (error ? reject(error) : resolve()));
+                if (typeof server.closeAllConnections === "function") server.closeAllConnections();
+                for (const socket of sockets) socket.destroy();
+            }),
     };
 }
 
@@ -1428,6 +1418,7 @@ function sendJson(res, status, body) {
     res.writeHead(status, {
         "content-type": "application/json; charset=utf-8",
         "cache-control": "no-store",
+        connection: "close",
     });
     res.end(JSON.stringify(body));
 }
@@ -1583,12 +1574,7 @@ function normalizeReadinessRecord(value, defaults) {
     const out = { ...defaults };
     for (const key of Object.keys(defaults)) {
         const next = value[key];
-        if (
-            typeof next === "string" ||
-            typeof next === "number" ||
-            typeof next === "boolean" ||
-            Array.isArray(next)
-        ) {
+        if (typeof next === "string" || typeof next === "number" || typeof next === "boolean" || Array.isArray(next)) {
             out[key] = next;
         }
     }

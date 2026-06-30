@@ -17,5 +17,9 @@
         "@padloc/locale": "4.3.0",
         "date-fns": "2.22.1"
     },
-    "description": "Padloc core logic package"
+    "description": "Padloc core logic package",
+    "engines": {
+        "node": "24.x",
+        "npm": "11.x"
+    }
 }

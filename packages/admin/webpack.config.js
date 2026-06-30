@@ -31,6 +31,7 @@ module.exports = {
         filename: "[name].js",
         chunkFilename: "[name].chunk.js",
         publicPath: adminUrlPath,
+        hashFunction: "sha256",
     },
     mode: "development",
     devtool: "source-map",
