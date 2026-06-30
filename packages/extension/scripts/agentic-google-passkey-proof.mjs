@@ -98,7 +98,9 @@ try {
     } else {
         throw new Error(`unknown mode ${mode}`);
     }
-    console.log(JSON.stringify(redact(result), null, 2));
+    const redacted = redact(result);
+    if (screenshots) writeJsonEvidence(mode, redacted);
+    console.log(JSON.stringify(redacted, null, 2));
     if (mode !== "state" && result.status && result.status.startsWith("blocked_")) process.exitCode = 2;
     if (result.status && result.status.startsWith("failed_")) process.exitCode = 1;
 } finally {
@@ -209,6 +211,15 @@ async function clickText(sessionId, labels) {
         sessionId,
         `(async () => {
             const labels = ${JSON.stringify(labels)};
+            const ACTION_SELECTOR = [
+                "button",
+                "a[href]",
+                "[role=button]",
+                "[role=menuitem]",
+                "[role=option]",
+                "input[type=button]",
+                "input[type=submit]"
+            ].join(",");
             function deepElements(root = document) {
                 const out = [];
                 const visit = (node) => {
@@ -227,19 +238,56 @@ async function clickText(sessionId, labels) {
                 const style = getComputedStyle(el);
                 return rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.display !== "none";
             }
+            function labelFor(el) {
+                return [
+                    el.getAttribute("aria-label"),
+                    el.getAttribute("title"),
+                    el.value,
+                    el.innerText,
+                    el.textContent
+                ].filter(Boolean).join(" ").replace(/\\s+/g, " ").trim();
+            }
+            function actionableFor(el) {
+                return el.closest(ACTION_SELECTOR) || el;
+            }
+            function escapeRegex(value) {
+                return value.replace(/[-/\\\\^$*+?.()|[\\]{}]/g, "\\\\$&");
+            }
+            function score(entry, label) {
+                const text = entry.text.toLowerCase();
+                const lower = label.toLowerCase();
+                const rect = entry.target.getBoundingClientRect();
+                const area = Math.max(1, rect.width * rect.height);
+                const exact = text === lower ? 0 : 1000;
+                const wordish = new RegExp("\\\\b" + escapeRegex(lower) + "\\\\b").test(text) ? 0 : 100;
+                const action = entry.target.matches(ACTION_SELECTOR) ? 0 : 10;
+                const containerPenalty = /^(HTML|BODY|MAIN|SECTION|DIV)$/.test(entry.target.tagName) ? 5000 : 0;
+                return exact + wordish + action + containerPenalty + Math.min(area / 1000, 1000);
+            }
             const candidates = deepElements()
                 .filter((el) => visible(el))
-                .map((el) => ({ el, text: (el.innerText || el.textContent || "").replace(/\\s+/g, " ").trim() }))
+                .map((el) => ({ el, target: actionableFor(el), text: labelFor(el) }))
                 .filter((entry) => entry.text);
             for (const label of labels) {
                 const lower = label.toLowerCase();
-                const match = candidates.find((entry) => entry.text.toLowerCase() === lower)
-                    || candidates.find((entry) => entry.text.toLowerCase().includes(lower));
+                const matches = candidates
+                    .filter((entry) => {
+                        const text = entry.text.toLowerCase();
+                        return text === lower || text.includes(lower);
+                    })
+                    .sort((a, b) => score(a, label) - score(b, label));
+                const match = matches[0];
                 if (!match) continue;
-                match.el.scrollIntoView({ block: "center", inline: "center" });
+                match.target.scrollIntoView({ block: "center", inline: "center" });
                 await new Promise((resolve) => requestAnimationFrame(resolve));
-                match.el.click();
-                return { ok: true, text: match.text.slice(0, 120) };
+                match.target.click();
+                return {
+                    ok: true,
+                    text: match.text.slice(0, 120),
+                    tag: match.target.tagName,
+                    role: match.target.getAttribute("role") || "",
+                    ariaLabel: match.target.getAttribute("aria-label") || ""
+                };
             }
             return { ok: false, candidates: candidates.slice(0, 30).map((entry) => entry.text.slice(0, 120)) };
         })()`,
@@ -270,10 +318,62 @@ async function pageState(sessionId) {
 async function maybeScreenshot(sessionId, name) {
     if (!screenshots) return null;
     fs.mkdirSync(evidenceDir, { recursive: true });
+    await redactPageForScreenshot(sessionId);
     const captured = await cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true }, sessionId, 30000);
     const file = path.join(evidenceDir, `${name}.png`);
     fs.writeFileSync(file, Buffer.from(captured.data, "base64"));
     return file;
+}
+
+async function redactPageForScreenshot(sessionId) {
+    await evaluate(
+        sessionId,
+        `(() => {
+            const account = ${JSON.stringify(account)};
+            const emailPattern = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}/g;
+            const escapedAccount = account.replace(/[-/\\\\^$*+?.()|[\\]{}]/g, "\\\\$&");
+            const replacements = [
+                [new RegExp(escapedAccount, "gi"), "[redacted-google-account]"],
+                [/\\bZack\\b/g, "[redacted-name]"],
+                [emailPattern, "[redacted-email]"]
+            ];
+            const scrub = (value) => {
+                if (!value) return value;
+                let next = String(value);
+                for (const [pattern, replacement] of replacements) next = next.replace(pattern, replacement);
+                return next;
+            };
+            const walker = document.createTreeWalker(document.body || document.documentElement, NodeFilter.SHOW_TEXT);
+            let node;
+            let changed = 0;
+            while ((node = walker.nextNode())) {
+                const next = scrub(node.nodeValue);
+                if (next !== node.nodeValue) {
+                    node.nodeValue = next;
+                    changed += 1;
+                }
+            }
+            for (const el of document.querySelectorAll("[aria-label], [title], input, textarea")) {
+                for (const attr of ["aria-label", "title", "value"]) {
+                    if (attr === "value" && !("value" in el)) continue;
+                    const current = attr === "value" ? el.value : el.getAttribute(attr);
+                    const next = scrub(current);
+                    if (next && next !== current) {
+                        attr === "value" ? (el.value = next) : el.setAttribute(attr, next);
+                        changed += 1;
+                    }
+                }
+            }
+            return { changed };
+        })()`,
+        "redact page for screenshot"
+    );
+}
+
+function writeJsonEvidence(mode, redacted) {
+    fs.mkdirSync(evidenceDir, { recursive: true });
+    const file = path.join(evidenceDir, `google-passkey-${mode}.json`);
+    fs.writeFileSync(file, `${JSON.stringify(redacted, null, 2)}\n`);
 }
 
 async function evaluate(sessionId, expression, label) {
