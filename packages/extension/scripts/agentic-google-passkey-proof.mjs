@@ -233,6 +233,12 @@ async function login(sessionId) {
     if (/security delay|you can.t use this passkey yet|try again later/i.test(state.text)) {
         return { status: "blocked_google_security_delay", state };
     }
+    if (/your key requires a password to sign in|2-Step Verification only security key/i.test(state.text)) {
+        return { status: "failed_google_2sv_only_security_key", state };
+    }
+    if (/choose how you want to sign in|enter your password/i.test(state.text) && !/use your passkey|security key|fingerprint|face|screen lock/i.test(state.text)) {
+        return { status: "blocked_google_password_required_no_passkey_offer", state };
+    }
     if (/something went wrong|weren.t able to sign you in/i.test(state.text)) {
         return { status: "failed_google_login", state };
     }
@@ -315,7 +321,10 @@ async function waitForLoginCompletion(sessionId, timeoutMs) {
     let latest = await pageState(sessionId);
     while (Date.now() - started < timeoutMs) {
         if (new URL(latest.url).host === "myaccount.google.com" && (latest.title || latest.text)) return latest;
-        if (/security delay|you can.t use this passkey yet|try again later|something went wrong|weren.t able to sign you in/i.test(latest.text)) {
+        if (/security delay|you can.t use this passkey yet|try again later|your key requires a password to sign in|2-Step Verification only security key|something went wrong|weren.t able to sign you in/i.test(latest.text)) {
+            return latest;
+        }
+        if (/choose how you want to sign in|enter your password/i.test(latest.text) && !/use your passkey|security key|fingerprint|face|screen lock/i.test(latest.text)) {
             return latest;
         }
         await sleep(1000);

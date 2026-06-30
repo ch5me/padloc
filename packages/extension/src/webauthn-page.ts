@@ -205,7 +205,7 @@ function toPublicKeyCredential(
               authenticatorData: credential.response.authenticatorData || "",
               publicKey: credential.response.publicKey || "",
               publicKeyAlgorithm: credential.response.publicKeyAlgorithm || -7,
-              transports: credential.response.transports || ["internal", "hybrid"],
+              transports: credential.response.transports || ["internal"],
           }
         : {
               clientDataJSON: credential.response.clientDataJSON,
@@ -217,7 +217,7 @@ function toPublicKeyCredential(
         ? {
               clientDataJSON: base64UrlToArrayBuffer(credential.response.clientDataJSON),
               attestationObject: base64UrlToArrayBuffer(credential.response.attestationObject || ""),
-              getTransports: () => credential.response.transports || ["internal", "hybrid"],
+              getTransports: () => credential.response.transports || ["internal"],
               getAuthenticatorData: () => base64UrlToArrayBuffer(credential.response.authenticatorData || ""),
               getPublicKey: () => base64UrlToArrayBuffer(credential.response.publicKey || ""),
               getPublicKeyAlgorithm: () => credential.response.publicKeyAlgorithm || -7,

@@ -8,6 +8,7 @@ const {
     clearPasskeySignerMemoryCacheForTests,
     configurePasskeySignerStoreForTests,
     enrollPasskeyCredential,
+    PADLOC_AGENTIC_VAULT_AAGUID,
     requestPasskeyAssertion,
     verifyAssertionSignature,
 } = requireModule("../src/passkey-broker");
@@ -283,6 +284,31 @@ mochaSuite("Passkey broker", () => {
         expect(assertionFlags & 0x18).to.equal(0x18);
     });
 
+    mochaTest("generated registration uses Padloc platform-passkey identity metadata", async () => {
+        const enrolled = await enrollPasskeyCredential(
+            await enrollmentRequest({ passkey: { userVerification: "required" } }),
+            new Date("2026-06-29T18:00:00.000Z")
+        );
+        const registration = enrolled.response.passkey.registration;
+        const decodedAuthData = decodeAuthenticatorData(registration.authenticatorData);
+        const attestationObject = decodeCbor(base64ToBytes(registration.attestationObject));
+        const decodedAttestationAuthData = decodeAuthenticatorData(bytesToBase64(attestationObject.authData));
+
+        expect(registration.aaguid).to.equal(PADLOC_AGENTIC_VAULT_AAGUID);
+        expect(decodedAuthData.aaguid).to.equal(PADLOC_AGENTIC_VAULT_AAGUID);
+        expect(decodedAttestationAuthData.aaguid).to.equal(PADLOC_AGENTIC_VAULT_AAGUID);
+        expect(decodedAuthData.flags & 0x01).to.equal(0x01);
+        expect(decodedAuthData.flags & 0x04).to.equal(0x04);
+        expect(decodedAuthData.flags & 0x40).to.equal(0x40);
+        expect(decodedAuthData.flags & 0x18).to.equal(0x18);
+        expect(decodedAttestationAuthData.flags).to.equal(decodedAuthData.flags);
+        expect(decodedAuthData.signCount).to.equal(0);
+        expect(attestationObject.fmt).to.equal("none");
+        expect(registration.authenticatorAttachment).to.equal("platform");
+        expect(registration.clientExtensionResults).to.deep.equal({ credProps: { rk: true } });
+        expect(registration.transports).to.deep.equal(["internal"]);
+    });
+
     mochaTest("encodes attestationObject attStmt as a CBOR map", async () => {
         const none = await enrollPasskeyCredential(await enrollmentRequest(), new Date("2026-06-29T18:00:00.000Z"));
         const googleStyle = await enrollPasskeyCredential(
@@ -522,6 +548,20 @@ async function makeImportedCredentialFixture(algorithm: number, seed: string) {
 
 function readAuthenticatorFlags(authenticatorData: string) {
     return base64ToBytes(authenticatorData)[32];
+}
+
+function decodeAuthenticatorData(authenticatorData: string) {
+    const bytes = base64ToBytes(authenticatorData);
+    return {
+        flags: bytes[32],
+        signCount: (bytes[33] << 24) | (bytes[34] << 16) | (bytes[35] << 8) | bytes[36],
+        aaguid: formatUuid(bytes.slice(37, 53)),
+    };
+}
+
+function formatUuid(bytes) {
+    const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 function decodeCbor(bytes) {

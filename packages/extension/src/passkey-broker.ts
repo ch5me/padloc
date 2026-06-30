@@ -82,6 +82,9 @@ const AUTHENTICATOR_FLAG_BACKUP_ELIGIBLE = 0x08;
 const AUTHENTICATOR_FLAG_BACKED_UP = 0x10;
 const AUTHENTICATOR_FLAG_ATTESTED_CREDENTIAL_DATA = 0x40;
 const PASSKEY_BACKUP_FLAGS = AUTHENTICATOR_FLAG_BACKUP_ELIGIBLE | AUTHENTICATOR_FLAG_BACKED_UP;
+export const PADLOC_AGENTIC_VAULT_AAGUID = "7a46cc38-26d9-47fe-9f3b-b52837c6020d";
+export const PADLOC_AGENTIC_VAULT_TRANSPORTS = ["internal"];
+export const PADLOC_AGENTIC_VAULT_AUTHENTICATOR_ATTACHMENT = "platform";
 const memoryPasskeySignerKeys = new Map<string, CryptoKey>();
 let allowMemoryOnlyPasskeySignerStoreForTests = false;
 
@@ -146,11 +149,15 @@ export async function enrollPasskeyCredential(
         algorithm: passkeyCredential.algorithm,
         userHandle: passkeyCredential.userHandle,
         createdAt: createdAt.toISOString(),
+        aaguid: PADLOC_AGENTIC_VAULT_AAGUID,
         publicKeySpki: passkeyCredential.publicKeySpki,
         publicKeyJwk: passkeyCredential.publicKeyJwk,
         credentialPublicKeyCose: bytesToBase64(cosePublicKey),
         authenticatorData: bytesToBase64(attestedAuthData),
         attestationObject: bytesToBase64(attestationObject),
+        authenticatorAttachment: PADLOC_AGENTIC_VAULT_AUTHENTICATOR_ATTACHMENT,
+        clientExtensionResults: { credProps: { rk: true } },
+        transports: [...PADLOC_AGENTIC_VAULT_TRANSPORTS],
         policy: {
             approval: passkeyCredential.policy.approval,
             requireFlowBinding: passkeyCredential.policy.requireFlowBinding,
@@ -676,9 +683,18 @@ async function buildAttestedCredentialData(
         (userVerified ? AUTHENTICATOR_FLAG_USER_VERIFIED : 0),
     ]);
     const signCount = new Uint8Array([0x00, 0x00, 0x00, 0x00]);
-    const aaguid = new Uint8Array(16);
+    const aaguid = uuidToBytes(PADLOC_AGENTIC_VAULT_AAGUID);
     const credentialLength = new Uint8Array([(credentialId.length >> 8) & 0xff, credentialId.length & 0xff]);
     return concatBytes(rpIdHash, flags, signCount, aaguid, credentialLength, credentialId, credentialPublicKey);
+}
+
+function uuidToBytes(uuid: string): Uint8Array {
+    const hex = uuid.replace(/-/g, "");
+    const pairs = hex.match(/.{2}/g);
+    if (!/^[0-9a-f]{32}$/i.test(hex) || !pairs || pairs.length !== 16) {
+        throw new Error(`Invalid Padloc passkey AAGUID: ${uuid}`);
+    }
+    return new Uint8Array(pairs.map((pair) => parseInt(pair, 16)));
 }
 
 async function buildAssertionAuthenticatorData(

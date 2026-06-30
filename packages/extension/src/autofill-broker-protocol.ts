@@ -108,11 +108,15 @@ export interface PasskeyRegistrationPayload {
     algorithm: string | number;
     userHandle: string;
     createdAt: string;
+    aaguid: string;
     publicKeySpki: string;
     publicKeyJwk?: Record<string, unknown>;
     credentialPublicKeyCose: string;
     authenticatorData: string;
     attestationObject: string;
+    authenticatorAttachment: "platform" | "cross-platform";
+    clientExtensionResults: { credProps: { rk: boolean } };
+    transports: string[];
     policy: {
         approval: PasskeyApprovalMode;
         requireFlowBinding: boolean;
