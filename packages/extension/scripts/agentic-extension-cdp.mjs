@@ -27,6 +27,9 @@ const mode = args.get("mode") || "smoke";
 const port = args.get("port") || "9800";
 const extensionId = args.get("extension-id") || "phgggllfaobigoepghbbeojablefkkfa";
 const extensionPath = args.get("extension-path") || new URL("../dist", import.meta.url).pathname;
+const PADLOC_AGENTIC_VAULT_AAGUID = "7a46cc38-26d9-47fe-9f3b-b52837c6020d";
+const PADLOC_AGENTIC_VAULT_TRANSPORTS = ["internal"];
+const PADLOC_AGENTIC_VAULT_AUTHENTICATOR_ATTACHMENT = "platform";
 
 class Cdp {
     nextId = 1;
@@ -78,7 +81,15 @@ class Cdp {
     }
 }
 
-const cdp = new Cdp();
+if (mode === "readiness-redaction-self-test") {
+    const result = readinessRedactionSelfTest();
+    console.log(JSON.stringify(result, null, 2));
+    if (!result.ok) process.exitCode = 1;
+    process.exit();
+}
+
+let cdp;
+cdp = new Cdp();
 await cdp.connect();
 
 try {
@@ -92,6 +103,10 @@ try {
         console.log(JSON.stringify(await reloadExtension(), null, 2));
     } else if (mode === "smoke") {
         console.log(JSON.stringify(await smoke(), null, 2));
+    } else if (mode === "readiness") {
+        const result = await readiness();
+        console.log(JSON.stringify(result, null, 2));
+        if (!result.ok && args.get("fail-on-not-ready") !== "false") process.exitCode = 1;
     } else if (mode === "webauthn-proof") {
         const result = await webAuthnProof();
         console.log(JSON.stringify(result, null, 2));
@@ -253,6 +268,219 @@ async function smoke() {
     await cdp.send("Target.closeTarget", { targetId: created.targetId });
 
     return { status: "smoke", workerState, pageState };
+}
+
+async function readiness() {
+    const requireSignerKeys = args.get("require-signer-keys") !== "false";
+    const probeOrigin = args.get("probe-origin") || "https://example.com/";
+    const reasons = [];
+
+    const extension = await readExtensionReadiness().catch((error) => ({
+        loaded: false,
+        id: extensionId,
+        version: "",
+        runtimeReachable: false,
+        ping: "failed",
+        error: safeReadinessError(error),
+    }));
+    if (!extension.loaded) reasons.push("extension_not_loaded");
+
+    const vault = extension.loaded
+        ? await readVaultReadiness().catch((error) => ({
+              appReady: false,
+              loggedIn: false,
+              locked: true,
+              unlocked: false,
+              vaultCount: 0,
+              passkeyCredentialCount: 0,
+              error: safeReadinessError(error),
+          }))
+        : {
+              appReady: false,
+              loggedIn: false,
+              locked: true,
+              unlocked: false,
+              vaultCount: 0,
+              passkeyCredentialCount: 0,
+          };
+    if (!vault.unlocked) reasons.push("vault_locked");
+
+    const signerStore = extension.loaded
+        ? await readSignerStoreReadiness().catch((error) => ({
+              available: false,
+              hasKeys: false,
+              keyCount: 0,
+              error: safeReadinessError(error),
+          }))
+        : { available: false, hasKeys: false, keyCount: 0 };
+    if (!signerStore.available || (requireSignerKeys && !signerStore.hasKeys)) reasons.push("signer_store_missing");
+
+    const webAuthn = await readWebAuthnHookReadiness(probeOrigin).catch((error) => ({
+        probeOrigin: originOnly(probeOrigin),
+        createHooked: false,
+        getHooked: false,
+        error: safeReadinessError(error),
+    }));
+    if (!webAuthn.createHooked || !webAuthn.getHooked) reasons.push("webauthn_hooks_inactive");
+
+    const passkeyIdentity = {
+        aaguid: PADLOC_AGENTIC_VAULT_AAGUID,
+        transports: [...PADLOC_AGENTIC_VAULT_TRANSPORTS],
+        authenticatorAttachment: PADLOC_AGENTIC_VAULT_AUTHENTICATOR_ATTACHMENT,
+        credPropsRk: true,
+    };
+    if (
+        passkeyIdentity.transports.length !== 1 ||
+        passkeyIdentity.transports[0] !== "internal" ||
+        passkeyIdentity.authenticatorAttachment !== "platform"
+    ) {
+        reasons.push("unsupported_transport_shape");
+    }
+
+    const result = {
+        status: "readiness",
+        ok: reasons.length === 0,
+        reasons,
+        extension,
+        vault,
+        signerStore,
+        webAuthn,
+        passkeyIdentity,
+        rpPolicy: {
+            enforced: true,
+            source: "per-passkey policy plus request binding",
+            mismatchDecision: "deny",
+        },
+        outputPolicy: "metadata only; no cookies, challenges, OTPs, passwords, private keys, signer handles, or raw vault fields",
+    };
+    assertReadinessRedacted(result);
+    return result;
+}
+
+async function readExtensionReadiness() {
+    const sessionId = await attachExtensionPage();
+    const result = await evaluate(
+        sessionId,
+        `(async () => new Promise((resolve) => {
+            const runtime = globalThis.chrome?.runtime;
+            if (!runtime) {
+                resolve({ loaded: false, id: ${JSON.stringify(extensionId)}, version: "", runtimeReachable: false, ping: "missing" });
+                return;
+            }
+            let version = "";
+            try {
+                version = runtime.getManifest()?.version || "";
+            } catch {}
+            runtime.sendMessage(runtime.id, { type: "ping" }, (resp) => {
+                const lastError = runtime.lastError?.message || "";
+                const pong = resp?.type === "pong";
+                resolve({
+                    loaded: Boolean(runtime.id && pong),
+                    id: runtime.id || ${JSON.stringify(extensionId)},
+                    version,
+                    runtimeReachable: Boolean(runtime.id),
+                    ping: pong ? "pong" : "missing",
+                    error: lastError ? "runtime_message_failed" : ""
+                });
+            });
+        }))()`,
+        "extension readiness ping"
+    );
+    return normalizeReadinessRecord(result, {
+        loaded: false,
+        id: extensionId,
+        version: "",
+        runtimeReachable: false,
+        ping: "missing",
+        error: "",
+    });
+}
+
+async function readVaultReadiness() {
+    const sessionId = await attachExtensionPage();
+    const result = await evaluate(
+        sessionId,
+        `(() => {
+            const app = document.querySelector("pl-extension-app")?.app;
+            const vaults = Array.from(app?.vaults || []);
+            const items = vaults.flatMap((vault) => Array.from(vault?.items || []));
+            return {
+                appReady: Boolean(app),
+                loggedIn: Boolean(app?.state?.loggedIn),
+                locked: Boolean(!app || app?.state?.locked || !app?.state?.loggedIn),
+                unlocked: Boolean(app?.state?.loggedIn && !app?.state?.locked),
+                vaultCount: vaults.length,
+                passkeyCredentialCount: items.filter((item) => Boolean(item?.passkeyCredential?.credentialId)).length
+            };
+        })()`,
+        "vault readiness"
+    );
+    return normalizeReadinessRecord(result, {
+        appReady: false,
+        loggedIn: false,
+        locked: true,
+        unlocked: false,
+        vaultCount: 0,
+        passkeyCredentialCount: 0,
+    });
+}
+
+async function readSignerStoreReadiness() {
+    const sessionId = await attachExtensionPage();
+    const result = await evaluate(
+        sessionId,
+        `(async () => {
+            if (!globalThis.indexedDB) return { available: false, hasKeys: false, keyCount: 0, error: "indexeddb_unavailable" };
+            const openRequest = indexedDB.open("padloc-agentic-passkey-signers", 1);
+            const db = await new Promise((resolve, reject) => {
+                openRequest.onupgradeneeded = () => {
+                    const database = openRequest.result;
+                    if (!database.objectStoreNames.contains("keys")) database.createObjectStore("keys", { keyPath: "handle" });
+                };
+                openRequest.onsuccess = () => resolve(openRequest.result);
+                openRequest.onerror = () => reject(openRequest.error || new Error("signer_store_open_failed"));
+            });
+            try {
+                const tx = db.transaction("keys", "readonly");
+                const countRequest = tx.objectStore("keys").count();
+                const keyCount = await new Promise((resolve, reject) => {
+                    countRequest.onsuccess = () => resolve(countRequest.result || 0);
+                    countRequest.onerror = () => reject(countRequest.error || new Error("signer_store_count_failed"));
+                });
+                return { available: true, hasKeys: keyCount > 0, keyCount };
+            } finally {
+                db.close();
+            }
+        })()`,
+        "signer store readiness"
+    );
+    return normalizeReadinessRecord(result, {
+        available: false,
+        hasKeys: false,
+        keyCount: 0,
+        error: "",
+    });
+}
+
+async function readWebAuthnHookReadiness(probeOrigin) {
+    const url = new URL(probeOrigin);
+    const created = await cdp.send("Target.createTarget", { url: url.origin + "/" });
+    const pageSession = await attach(created.targetId);
+    try {
+        await cdp.send("Page.enable", {}, pageSession);
+        await sleep(1500);
+        return await evaluate(
+            pageSession,
+            `(() => ({
+                probeOrigin: ${JSON.stringify(url.origin)},
+                createHooked: !String(navigator.credentials.create).includes("[native code]"),
+                getHooked: !String(navigator.credentials.get).includes("[native code]")
+            }))()`,
+            "WebAuthn hook readiness"
+        );
+    } finally {
+        await cdp.send("Target.closeTarget", { targetId: created.targetId }).catch(() => undefined);
+    }
 }
 
 function readDistAsset(file) {
@@ -1317,6 +1545,117 @@ function formatUuid(bytes) {
 
 function toHexByte(value) {
     return `0x${value.toString(16).padStart(2, "0")}`;
+}
+
+function normalizeReadinessRecord(value, defaults) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return { ...defaults };
+    const out = { ...defaults };
+    for (const key of Object.keys(defaults)) {
+        const next = value[key];
+        if (
+            typeof next === "string" ||
+            typeof next === "number" ||
+            typeof next === "boolean" ||
+            Array.isArray(next)
+        ) {
+            out[key] = next;
+        }
+    }
+    return out;
+}
+
+function safeReadinessError(error) {
+    const message = error instanceof Error ? error.message : String(error || "");
+    if (/timed out/i.test(message)) return "timeout";
+    if (/missing|not found/i.test(message)) return "missing";
+    if (/denied|permission/i.test(message)) return "permission_denied";
+    if (/indexeddb/i.test(message)) return "indexeddb_unavailable";
+    if (/runtime/i.test(message)) return "runtime_unavailable";
+    return "unavailable";
+}
+
+function originOnly(value) {
+    try {
+        return new URL(value).origin;
+    } catch {
+        return "";
+    }
+}
+
+function assertReadinessRedacted(value, pathParts = []) {
+    if (Array.isArray(value)) {
+        value.forEach((item, index) => assertReadinessRedacted(item, [...pathParts, String(index)]));
+        return;
+    }
+    if (value && typeof value === "object") {
+        for (const [key, nested] of Object.entries(value)) {
+            const normalizedKey = key.replace(/[_-]/g, "").toLowerCase();
+            if (
+                normalizedKey === "value" ||
+                normalizedKey.includes("privatekey") ||
+                normalizedKey.includes("signerhandle") ||
+                normalizedKey.includes("pkcs8") ||
+                normalizedKey.includes("cookie") ||
+                normalizedKey.includes("challenge") ||
+                normalizedKey.includes("password") ||
+                normalizedKey.includes("secret") ||
+                normalizedKey.includes("token") ||
+                normalizedKey.includes("otp")
+            ) {
+                throw new Error(`readiness output contains forbidden key ${[...pathParts, key].join(".")}`);
+            }
+            assertReadinessRedacted(nested, [...pathParts, key]);
+        }
+        return;
+    }
+    if (typeof value === "string" && /-----BEGIN [A-Z ]*PRIVATE KEY-----|Bearer\s+[A-Za-z0-9._-]{12,}/i.test(value)) {
+        throw new Error(`readiness output contains forbidden string at ${pathParts.join(".") || "<root>"}`);
+    }
+}
+
+function readinessRedactionSelfTest() {
+    const good = {
+        status: "readiness",
+        ok: true,
+        reasons: [],
+        extension: { loaded: true, id: extensionId, version: "4.3.0", runtimeReachable: true, ping: "pong", error: "" },
+        vault: {
+            appReady: true,
+            loggedIn: true,
+            locked: false,
+            unlocked: true,
+            vaultCount: 1,
+            passkeyCredentialCount: 1,
+        },
+        signerStore: { available: true, hasKeys: true, keyCount: 1, error: "" },
+        webAuthn: { probeOrigin: "https://example.com", createHooked: true, getHooked: true },
+        passkeyIdentity: {
+            aaguid: PADLOC_AGENTIC_VAULT_AAGUID,
+            transports: [...PADLOC_AGENTIC_VAULT_TRANSPORTS],
+            authenticatorAttachment: PADLOC_AGENTIC_VAULT_AUTHENTICATOR_ATTACHMENT,
+            credPropsRk: true,
+        },
+        rpPolicy: { enforced: true, source: "per-passkey policy plus request binding", mismatchDecision: "deny" },
+        outputPolicy: "metadata only",
+    };
+    try {
+        assertReadinessRedacted(good);
+        let rejectedForbiddenKey = false;
+        try {
+            assertReadinessRedacted({ ...good, passkey: { signerHandle: "padloc-passkey-signer:raw" } });
+        } catch {
+            rejectedForbiddenKey = true;
+        }
+        let rejectedForbiddenString = false;
+        try {
+            assertReadinessRedacted({ ...good, audit: "-----BEGIN PRIVATE KEY-----" });
+        } catch {
+            rejectedForbiddenString = true;
+        }
+        return { status: "readiness-redaction-self-test", ok: rejectedForbiddenKey && rejectedForbiddenString };
+    } catch (error) {
+        return { status: "readiness-redaction-self-test", ok: false, error: safeReadinessError(error) };
+    }
 }
 
 async function attachWorker({ reloadOnUnresponsive = false } = {}) {

@@ -363,6 +363,16 @@ function checkExtensionUiSource() {
             "packages/extension/scripts/agentic-extension-cdp.mjs: smoke must avoid service-worker inspector hangs and label failing phases"
         );
     }
+    if (
+        !cdpHelperSource.includes('mode === "readiness"') ||
+        !cdpHelperSource.includes("readiness-redaction-self-test") ||
+        !cdpHelperSource.includes("assertReadinessRedacted") ||
+        !cdpHelperSource.includes("signer_store_missing")
+    ) {
+        failures.push(
+            "packages/extension/scripts/agentic-extension-cdp.mjs: missing fail-closed readiness mode with redaction self-test"
+        );
+    }
 
     const signupHelperSource = read("packages/extension/scripts/agentic-email-signup.mjs");
     if (!signupHelperSource.includes('replace(/\\\\D/g, "")')) {
