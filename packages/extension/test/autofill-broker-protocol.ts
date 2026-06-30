@@ -52,30 +52,38 @@ suite("Autofill broker protocol", () => {
     test("native host caches only redacted broker responses", () => {
         const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-`);
         const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
-        const cached = nativeHostRequest(hostPath, {
-            type: "cache-redacted-response",
-            protocolVersion: 1,
-            response: {
-                ok: true,
+        const cached = nativeHostRequest(
+            hostPath,
+            {
+                type: "cache-redacted-response",
                 protocolVersion: 1,
-                vaultState: "unlocked",
-                reason: null,
-                bundleFields: [{ selector: "#email", value: "" }],
-                audit: { valuePolicy: "redacted audit only; no raw autofill values" },
+                response: {
+                    ok: true,
+                    protocolVersion: 1,
+                    vaultState: "unlocked",
+                    reason: null,
+                    bundleFields: [{ selector: "#email", value: "" }],
+                    audit: { valuePolicy: "redacted audit only; no raw autofill values" },
+                },
             },
-        }, stateDir);
+            stateDir
+        );
         const latest = nativeHostRequest(hostPath, { type: "latest-redacted-response", protocolVersion: 1 }, stateDir);
-        const rejected = nativeHostRequest(hostPath, {
-            type: "cache-redacted-response",
-            protocolVersion: 1,
-            response: {
-                ok: true,
+        const rejected = nativeHostRequest(
+            hostPath,
+            {
+                type: "cache-redacted-response",
                 protocolVersion: 1,
-                vaultState: "unlocked",
-                reason: null,
-                bundleFields: [{ selector: "#email", value: "sentinel@example.test" }],
+                response: {
+                    ok: true,
+                    protocolVersion: 1,
+                    vaultState: "unlocked",
+                    reason: null,
+                    bundleFields: [{ selector: "#email", value: "sentinel@example.test" }],
+                },
             },
-        }, stateDir);
+            stateDir
+        );
 
         expect(cached.ok).to.equal(true);
         expect(latest.ok).to.equal(true);
@@ -87,20 +95,23 @@ suite("Autofill broker protocol", () => {
     test("native host rejects nested raw values from stale cached responses", () => {
         const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-stale-`);
         const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
-        writeFileSync(resolve(stateDir, "latest-redacted-response.json"), JSON.stringify({
-            cachedAt: "2026-06-17T00:00:00.000Z",
-            response: {
-                ok: true,
-                protocolVersion: 1,
-                vaultState: "unlocked",
-                reason: null,
-                cached: {
-                    response: {
-                        bundleFields: [{ selector: "#email", value: "sentinel@example.test" }],
+        writeFileSync(
+            resolve(stateDir, "latest-redacted-response.json"),
+            JSON.stringify({
+                cachedAt: "2026-06-17T00:00:00.000Z",
+                response: {
+                    ok: true,
+                    protocolVersion: 1,
+                    vaultState: "unlocked",
+                    reason: null,
+                    cached: {
+                        response: {
+                            bundleFields: [{ selector: "#email", value: "sentinel@example.test" }],
+                        },
                     },
                 },
-            },
-        }));
+            })
+        );
 
         const latest = nativeHostRequest(hostPath, { type: "latest-redacted-response", protocolVersion: 1 }, stateDir);
 
@@ -111,16 +122,19 @@ suite("Autofill broker protocol", () => {
     test("native host rejects stale fields value aliases", () => {
         const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-fields-`);
         const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
-        writeFileSync(resolve(stateDir, "latest-redacted-response.json"), JSON.stringify({
-            cachedAt: "2026-06-17T00:00:00.000Z",
-            response: {
-                ok: true,
-                protocolVersion: 1,
-                vaultState: "unlocked",
-                reason: null,
-                fields: [{ selector: "#email", value: "sentinel@example.test" }],
-            },
-        }));
+        writeFileSync(
+            resolve(stateDir, "latest-redacted-response.json"),
+            JSON.stringify({
+                cachedAt: "2026-06-17T00:00:00.000Z",
+                response: {
+                    ok: true,
+                    protocolVersion: 1,
+                    vaultState: "unlocked",
+                    reason: null,
+                    fields: [{ selector: "#email", value: "sentinel@example.test" }],
+                },
+            })
+        );
 
         const latest = nativeHostRequest(hostPath, { type: "latest-redacted-response", protocolVersion: 1 }, stateDir);
 
@@ -131,32 +145,40 @@ suite("Autofill broker protocol", () => {
     test("native host rejects nested privateKey and secret payloads in cached responses", () => {
         const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-private-key-`);
         const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
-        const privateKey = nativeHostRequest(hostPath, {
-            type: "cache-redacted-response",
-            protocolVersion: 1,
-            response: {
-                ok: true,
+        const privateKey = nativeHostRequest(
+            hostPath,
+            {
+                type: "cache-redacted-response",
                 protocolVersion: 1,
-                passkey: {
-                    registration: {
-                        privateKey: "raw-private-key",
+                response: {
+                    ok: true,
+                    protocolVersion: 1,
+                    passkey: {
+                        registration: {
+                            privateKey: "raw-private-key",
+                        },
                     },
                 },
             },
-        }, stateDir);
-        const secret = nativeHostRequest(hostPath, {
-            type: "cache-redacted-response",
-            protocolVersion: 1,
-            response: {
-                ok: true,
+            stateDir
+        );
+        const secret = nativeHostRequest(
+            hostPath,
+            {
+                type: "cache-redacted-response",
                 protocolVersion: 1,
-                passkey: {
-                    assertion: {
-                        secretToken: "raw-secret",
+                response: {
+                    ok: true,
+                    protocolVersion: 1,
+                    passkey: {
+                        assertion: {
+                            secretToken: "raw-secret",
+                        },
                     },
                 },
             },
-        }, stateDir);
+            stateDir
+        );
 
         expect(privateKey.ok).to.equal(false);
         expect(secret.ok).to.equal(false);
@@ -165,24 +187,32 @@ suite("Autofill broker protocol", () => {
     test("native host rejects non-string value payloads", () => {
         const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-object-value-`);
         const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
-        const objectValue = nativeHostRequest(hostPath, {
-            type: "cache-redacted-response",
-            protocolVersion: 1,
-            response: {
-                ok: true,
+        const objectValue = nativeHostRequest(
+            hostPath,
+            {
+                type: "cache-redacted-response",
                 protocolVersion: 1,
-                fields: [{ selector: "#email", value: { raw: "sentinel" } }],
+                response: {
+                    ok: true,
+                    protocolVersion: 1,
+                    fields: [{ selector: "#email", value: { raw: "sentinel" } }],
+                },
             },
-        }, stateDir);
-        const numericValue = nativeHostRequest(hostPath, {
-            type: "cache-redacted-response",
-            protocolVersion: 1,
-            response: {
-                ok: true,
+            stateDir
+        );
+        const numericValue = nativeHostRequest(
+            hostPath,
+            {
+                type: "cache-redacted-response",
                 protocolVersion: 1,
-                fields: [{ selector: "#email", value: 123 }],
+                response: {
+                    ok: true,
+                    protocolVersion: 1,
+                    fields: [{ selector: "#email", value: 123 }],
+                },
             },
-        }, stateDir);
+            stateDir
+        );
 
         expect(objectValue.ok).to.equal(false);
         expect(numericValue.ok).to.equal(false);
@@ -191,21 +221,25 @@ suite("Autofill broker protocol", () => {
     test("native host rejects passkey secrets in queued printable paths", () => {
         const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-passkey-request-`);
         const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
-        const queued = nativeHostRequest(hostPath, {
-            type: "broker-request",
-            protocolVersion: 1,
-            request: {
-                type: "request-assertion",
+        const queued = nativeHostRequest(
+            hostPath,
+            {
+                type: "broker-request",
                 protocolVersion: 1,
-                requestId: "req-passkey-unsafe",
-                passkey: {
-                    credentialId: "cred-1",
-                    rpId: "example-rp.test",
-                    topOrigin: "https://accounts.example-rp.test",
-                    privateKey: "should-not-print",
+                request: {
+                    type: "request-assertion",
+                    protocolVersion: 1,
+                    requestId: "req-passkey-unsafe",
+                    passkey: {
+                        credentialId: "cred-1",
+                        rpId: "example-rp.test",
+                        topOrigin: "https://accounts.example-rp.test",
+                        privateKey: "should-not-print",
+                    },
                 },
             },
-        }, stateDir);
+            stateDir
+        );
 
         expect(queued.ok).to.equal(false);
         expect(queued.reason).to.contain("sensitive payload");
@@ -214,19 +248,23 @@ suite("Autofill broker protocol", () => {
     test("native host caches redacted approval metadata", () => {
         const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-approval-`);
         const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
-        const cached = nativeHostRequest(hostPath, {
-            type: "cache-redacted-response",
-            protocolVersion: 1,
-            response: {
-                ok: true,
+        const cached = nativeHostRequest(
+            hostPath,
+            {
+                type: "cache-redacted-response",
                 protocolVersion: 1,
-                vaultState: "unlocked",
-                reason: null,
-                planId: "plan-1",
-                approvalId: "approval-1",
-                audit: { operation: "approve", valuePolicy: "redacted audit only; no raw autofill values" },
+                response: {
+                    ok: true,
+                    protocolVersion: 1,
+                    vaultState: "unlocked",
+                    reason: null,
+                    planId: "plan-1",
+                    approvalId: "approval-1",
+                    audit: { operation: "approve", valuePolicy: "redacted audit only; no raw autofill values" },
+                },
             },
-        }, stateDir);
+            stateDir
+        );
         const latest = nativeHostRequest(hostPath, { type: "latest-redacted-response", protocolVersion: 1 }, stateDir);
 
         expect(cached.ok).to.equal(true);
@@ -237,37 +275,54 @@ suite("Autofill broker protocol", () => {
     test("native host queues broker requests and returns matching redacted responses", () => {
         const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-queue-`);
         const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
-        const queued = nativeHostRequest(hostPath, {
-            type: "broker-request",
-            protocolVersion: 1,
-            request: {
-                type: "plan-fill",
+        const queued = nativeHostRequest(
+            hostPath,
+            {
+                type: "broker-request",
                 protocolVersion: 1,
-                requestId: "req-native-1",
-                binding: { sessionId: "session-1", origin: "https://checkout.example.test", frameId: "main", fieldHashes: ["hash-email"] },
-                fields: [{ selector: "#email", role: "contact.email", fieldHash: "hash-email" }],
+                request: {
+                    type: "plan-fill",
+                    protocolVersion: 1,
+                    requestId: "req-native-1",
+                    binding: {
+                        sessionId: "session-1",
+                        origin: "https://checkout.example.test",
+                        frameId: "main",
+                        fieldHashes: ["hash-email"],
+                    },
+                    fields: [{ selector: "#email", role: "contact.email", fieldHash: "hash-email" }],
+                },
             },
-        }, stateDir);
+            stateDir
+        );
         const claimed = nativeHostRequest(hostPath, { type: "claim-broker-request", protocolVersion: 1 }, stateDir);
         const emptyClaim = nativeHostRequest(hostPath, { type: "claim-broker-request", protocolVersion: 1 }, stateDir);
-        nativeHostRequest(hostPath, {
-            type: "cache-redacted-response",
-            protocolVersion: 1,
-            response: {
-                ok: true,
+        nativeHostRequest(
+            hostPath,
+            {
+                type: "cache-redacted-response",
+                protocolVersion: 1,
+                response: {
+                    ok: true,
+                    protocolVersion: 1,
+                    requestId: "req-native-1",
+                    vaultState: "unlocked",
+                    reason: null,
+                    fields: [{ selector: "#email", role: "contact.email", valuePreview: "stored" }],
+                    audit: { operation: "plan-fill", valuePolicy: "redacted audit only; no raw autofill values" },
+                },
+            },
+            stateDir
+        );
+        const response = nativeHostRequest(
+            hostPath,
+            {
+                type: "broker-response",
                 protocolVersion: 1,
                 requestId: "req-native-1",
-                vaultState: "unlocked",
-                reason: null,
-                fields: [{ selector: "#email", role: "contact.email", valuePreview: "stored" }],
-                audit: { operation: "plan-fill", valuePolicy: "redacted audit only; no raw autofill values" },
             },
-        }, stateDir);
-        const response = nativeHostRequest(hostPath, {
-            type: "broker-response",
-            protocolVersion: 1,
-            requestId: "req-native-1",
-        }, stateDir);
+            stateDir
+        );
 
         expect(queued.ok).to.equal(true);
         expect(queued.pending).to.equal(true);

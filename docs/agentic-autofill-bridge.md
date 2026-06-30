@@ -1,27 +1,27 @@
 # Agentic Autofill Bridge
 
-Padloc is the encrypted item and approval authority for personal autofill.
-Magic Browser is the browser/session authority. The bridge between them must be
+Padloc is the encrypted item and approval authority for personal autofill. Magic
+Browser is the browser/session authority. The bridge between them must be
 explicit, redacted, origin-bound, and approval-gated.
 
 ## Ownership
 
-- Padloc owns encrypted records, unlock, sync, sharing, item templates, and user
-  approval UI.
-- Magic Browser owns live DOM inspection, role classification witnesses, browser
-  fill execution, redacted proof, and guarded final submit.
-- Hush owns runtime/vendor/operator secrets only. It is not the personal
-  autofill record store.
+-   Padloc owns encrypted records, unlock, sync, sharing, item templates, and
+    user approval UI.
+-   Magic Browser owns live DOM inspection, role classification witnesses,
+    browser fill execution, redacted proof, and guarded final submit.
+-   Hush owns runtime/vendor/operator secrets only. It is not the personal
+    autofill record store.
 
 ## Current Padloc Roles
 
 Core item metadata lives in `packages/core/src/item.ts`:
 
-- `AutofillItemKind.PersonProfile`
-- `AutofillItemKind.PostalAddress`
-- `AutofillItemKind.PaymentCardPolicy`
-- `AutofillItemKind.GiftRecipient`
-- `AutofillItemKind.MerchantProfile`
+-   `AutofillItemKind.PersonProfile`
+-   `AutofillItemKind.PostalAddress`
+-   `AutofillItemKind.PaymentCardPolicy`
+-   `AutofillItemKind.GiftRecipient`
+-   `AutofillItemKind.MerchantProfile`
 
 Field roles live in `AutofillFieldRole` and cover login, identity, address,
 payment, merchant origin, and `payment.card.cvv_transient`.
@@ -36,10 +36,10 @@ The browser extension classifier lives in
 `packages/extension/src/autofill-classifier.ts` and is pure enough for unit
 tests. It classifies:
 
-- login: username, password, TOTP
-- identity: full name, first name, last name, email, phone
-- address: line 1, line 2, city, region, postal code, country
-- payment: cardholder, PAN, expiry, expiry month, expiry year, transient CVV
+-   login: username, password, TOTP
+-   identity: full name, first name, last name, email, phone
+-   address: line 1, line 2, city, region, postal code, country
+-   payment: cardholder, PAN, expiry, expiry month, expiry year, transient CVV
 
 The content script uses the same classifier for live DOM fills. Legacy
 username/password/TOTP mappings remain supported.
@@ -71,16 +71,16 @@ No raw names, addresses, PAN, expiry, or CVV.
 
 ## Current Native Bridge Proof
 
-- Protocol types: `packages/extension/src/autofill-broker-protocol.ts`
-- Broker planner/bundler: `packages/extension/src/autofill-broker.ts`
-- Native host: `packages/extension/native-host/padloc-autofill-host.mjs`
-- Extension permission: `nativeMessaging`
-- Background message: `agenticAutofillBroker`
-- Popup approval prompt: `getAgenticAutofillApprovalPrompt` ->
-  `approveAgenticAutofill`
-- CDP service-worker entrypoint: `globalThis.padlocAgenticAutofillBroker`
-- Service-worker prelude: fail-closed locked/redacted broker response before
-  full Padloc app background initialization
+-   Protocol types: `packages/extension/src/autofill-broker-protocol.ts`
+-   Broker planner/bundler: `packages/extension/src/autofill-broker.ts`
+-   Native host: `packages/extension/native-host/padloc-autofill-host.mjs`
+-   Extension permission: `nativeMessaging`
+-   Background message: `agenticAutofillBroker`
+-   Popup approval prompt: `getAgenticAutofillApprovalPrompt` ->
+    `approveAgenticAutofill`
+-   CDP service-worker entrypoint: `globalThis.padlocAgenticAutofillBroker`
+-   Service-worker prelude: fail-closed locked/redacted broker response before
+    full Padloc app background initialization
 
 The host supports `status`, `latest-redacted-response`, `broker-request`,
 `claim-broker-request`, and `broker-response`. Magic Browser enqueues redacted
@@ -91,14 +91,15 @@ owns the unlocked broker path: `plan-fill` matches requested field roles to
 unlocked Padloc item fields, stores a pending plan, popup approval converts that
 plan into a short-lived approval, and `mint-fill-bundle` creates a short-lived
 bundle. Raw bundle values stay in extension service-worker memory only and are
-consumed by `apply-fill-bundle` through the content script. UI/status/audit/native
-responses stay redacted. The host refuses any cached response or queued request
-with any non-empty nested `value`, `secret`, or `privateKey` property.
+consumed by `apply-fill-bundle` through the content script.
+UI/status/audit/native responses stay redacted. The host refuses any cached
+response or queued request with any non-empty nested `value`, `secret`, or
+`privateKey` property.
 
 For fake-data dogfood, unlock Padloc and seed fixture items from extension UI:
 
 ```js
-chrome.runtime.sendMessage({ type: "seedAgenticAutofillFixtures" })
+chrome.runtime.sendMessage({ type: "seedAgenticAutofillFixtures" });
 ```
 
 The response returns item names/counts only. It must not print field values.

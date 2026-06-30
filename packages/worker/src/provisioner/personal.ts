@@ -18,7 +18,7 @@ export class PersonalProvisioner implements Provisioner {
 
     async getProvisioning(
         params: { email: string; accountId?: AccountID; account?: AccountID; orgs?: OrgInfo[] },
-        _session?: Session,
+        _session?: Session
     ): Promise<Provisioning> {
         debugLog("getProvisioning called", params);
 
@@ -66,7 +66,7 @@ export class PersonalProvisioner implements Provisioner {
     async orgOwnerChanged(
         _org: OrgInfo,
         _prevOwner: { email: string; id?: AccountID },
-        _newOwner: { email: string; id?: AccountID },
+        _newOwner: { email: string; id?: AccountID }
     ): Promise<void> {
         debugLog("orgOwnerChanged", _org, _prevOwner, _newOwner);
     }

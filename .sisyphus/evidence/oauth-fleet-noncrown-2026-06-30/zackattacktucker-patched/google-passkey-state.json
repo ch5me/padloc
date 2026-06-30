@@ -1,11 +1,11 @@
 {
-  "status": "blocked_google_reauth",
-  "state": {
-    "url": "https://accounts.google.com/v3/signin/identifier?continue=[redacted]&dsh=[redacted]&followup=[redacted]&osid=1&passive=1209600&flowName=[redacted]&flowEntry=[redacted]&ifkv=[redacted]",
-    "title": "Sign in - Google Accounts",
-    "createHooked": true,
-    "getHooked": true,
-    "needsGoogleReauth": true,
-    "text": "Loading\nSign in\nwith your Google Account. This account will be available to other Google apps in the browser.\nEmail or phone\nForgot email?\nNot your computer? Use Guest mode to sign in privately. Learn more about using Guest mode\nNext\nCreate account\nEnglish (United States)\nHelp\nPrivacy\nTerms"
-  }
+    "status": "blocked_google_reauth",
+    "state": {
+        "url": "https://accounts.google.com/v3/signin/identifier?continue=[redacted]&dsh=[redacted]&followup=[redacted]&osid=1&passive=1209600&flowName=[redacted]&flowEntry=[redacted]&ifkv=[redacted]",
+        "title": "Sign in - Google Accounts",
+        "createHooked": true,
+        "getHooked": true,
+        "needsGoogleReauth": true,
+        "text": "Loading\nSign in\nwith your Google Account. This account will be available to other Google apps in the browser.\nEmail or phone\nForgot email?\nNot your computer? Use Guest mode to sign in privately. Learn more about using Guest mode\nNext\nCreate account\nEnglish (United States)\nHelp\nPrivacy\nTerms"
+    }
 }

@@ -22,10 +22,10 @@ time-limited signed R2 URL (large file direct-upload path).
 att/<vault_id>/<attachment_id>
 ```
 
-- `att/` is the R2 bucket prefix, separating attachments from any future bucket
-  usage.
-- `vault_id` provides partition isolation (no cross-vault enumeration).
-- `attachment_id` is the Padloc-generated unique identifier.
+-   `att/` is the R2 bucket prefix, separating attachments from any future
+    bucket usage.
+-   `vault_id` provides partition isolation (no cross-vault enumeration).
+-   `attachment_id` is the Padloc-generated unique identifier.
 
 **Constraint**: Characters must be URL-safe. Vault IDs and attachment IDs are
 UUIDs / base64url — both safe.
@@ -48,8 +48,8 @@ Table: `attachments`
 
 Indexes:
 
-- `idx_attachments_vault_id` on `vault_id`
-- `idx_attachments_owner_account_id` on `owner_account_id`
+-   `idx_attachments_vault_id` on `vault_id`
+-   `idx_attachments_owner_account_id` on `owner_account_id`
 
 ---
 
@@ -252,13 +252,13 @@ for clients that need it.
 
 **Rationale**:
 
-- Existing Padloc clients expect `POST /attachments` / `GET /attachments/:id` /
-  `DELETE /attachments/:id` — no client changes required for the base flow.
-- Signed-URL path is an opt-in performance optimization for large files, not a
-  breaking change.
-- Worker memory limit (25 MB) makes direct proxying safe for small files.
-- If client library is updated, it can detect file size and route large files
-  through the signed-URL path automatically.
+-   Existing Padloc clients expect `POST /attachments` / `GET /attachments/:id`
+    / `DELETE /attachments/:id` — no client changes required for the base flow.
+-   Signed-URL path is an opt-in performance optimization for large files, not a
+    breaking change.
+-   Worker memory limit (25 MB) makes direct proxying safe for small files.
+-   If client library is updated, it can detect file size and route large files
+    through the signed-URL path automatically.
 
 ---
 
@@ -266,27 +266,28 @@ for clients that need it.
 
 ### Positive
 
-- Clear partial-failure contract eliminates silent data loss.
-- D1-first-then-R2 ordering keeps metadata as the source of truth.
-- Idempotent R2 operations ensure delete retries are safe.
-- Orphan cron provides eventual consistency without urgent manual intervention.
-- Backward-compatible API preserves existing client behavior.
+-   Clear partial-failure contract eliminates silent data loss.
+-   D1-first-then-R2 ordering keeps metadata as the source of truth.
+-   Idempotent R2 operations ensure delete retries are safe.
+-   Orphan cron provides eventual consistency without urgent manual
+    intervention.
+-   Backward-compatible API preserves existing client behavior.
 
 ### Negative
 
-- R2 failures after D1 INSERT require compensating writes — adds latency on the
-  error path.
-- Two-phase cleanup (D1 vs R2) means a brief window where the metadata DB and
-  object store are out of sync after a failed delete.
-- Signed-URL path requires client library updates to activate — not automatic.
+-   R2 failures after D1 INSERT require compensating writes — adds latency on
+    the error path.
+-   Two-phase cleanup (D1 vs R2) means a brief window where the metadata DB and
+    object store are out of sync after a failed delete.
+-   Signed-URL path requires client library updates to activate — not automatic.
 
 ---
 
 ## References
 
-- `.sisyphus/plans/padloc-cloudflare-native-backend.md` lines 1071–1129
-- `packages/core/src/attachment.ts` — `AttachmentInfo`, `AttachmentStorage`
-  interface
-- `packages/server/src/attachments/s3.ts` — existing S3 semantics (key pattern
-  `vault/id`)
-- `packages/server/src/attachments/fs.ts` — existing local fs semantics
+-   `.sisyphus/plans/padloc-cloudflare-native-backend.md` lines 1071–1129
+-   `packages/core/src/attachment.ts` — `AttachmentInfo`, `AttachmentStorage`
+    interface
+-   `packages/server/src/attachments/s3.ts` — existing S3 semantics (key pattern
+    `vault/id`)
+-   `packages/server/src/attachments/fs.ts` — existing local fs semantics

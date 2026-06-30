@@ -1,11 +1,11 @@
 {
-  "status": "unknown_login_state",
-  "state": {
-    "url": "https://accounts.google.com/v3/signin/challenge/selection?TL=[redacted]&checkConnection=youtube%3A172&checkedDomains=youtube&continue=[redacted]&dsh=[redacted]&flowEntry=[redacted]&flowName=[redacted]&ifkv=[redacted]&lid=[redacted]&pstMsg=1",
-    "title": "Hi [redacted-name]",
-    "createHooked": true,
-    "getHooked": true,
-    "needsGoogleReauth": true,
-    "text": "Loading\nHi [redacted-name]\n[redacted-google-account]\nYour key requires a password to sign in\nThe key you’re using is a 2-Step Verification only security key\nChoose how you want to sign in:\nEnter your password\nTry another way\nEnglish (United States)\nHelp\nPrivacy\nTerms\nHi [redacted-name]"
-  }
+    "status": "unknown_login_state",
+    "state": {
+        "url": "https://accounts.google.com/v3/signin/challenge/selection?TL=[redacted]&checkConnection=youtube%3A172&checkedDomains=youtube&continue=[redacted]&dsh=[redacted]&flowEntry=[redacted]&flowName=[redacted]&ifkv=[redacted]&lid=[redacted]&pstMsg=1",
+        "title": "Hi [redacted-name]",
+        "createHooked": true,
+        "getHooked": true,
+        "needsGoogleReauth": true,
+        "text": "Loading\nHi [redacted-name]\n[redacted-google-account]\nYour key requires a password to sign in\nThe key you’re using is a 2-Step Verification only security key\nChoose how you want to sign in:\nEnter your password\nTry another way\nEnglish (United States)\nHelp\nPrivacy\nTerms\nHi [redacted-name]"
+    }
 }

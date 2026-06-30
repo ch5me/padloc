@@ -28,8 +28,8 @@ To remove a column (SQLite doesn't support `DROP COLUMN` in older versions):
 
 ### Local vs Remote
 
-- `--local`: Applies to Miniflare's local SQLite, stored in `.wrangler/state/`
-- `--remote`: Applies to your Cloudflare D1 instance (requires auth)
+-   `--local`: Applies to Miniflare's local SQLite, stored in `.wrangler/state/`
+-   `--remote`: Applies to your Cloudflare D1 instance (requires auth)
 
 Always test migrations locally before applying remotely.
 
@@ -65,6 +65,6 @@ wrangler d1 migrations apply --remote DB --env=production
 
 ## Naming Convention
 
-- `NNNN_description.sql` where `NNNN` is a zero-padded sequence number
-- Each migration is applied exactly once; Wrangler tracks applied migrations in
-  the `_migrations` table
+-   `NNNN_description.sql` where `NNNN` is a zero-padded sequence number
+-   Each migration is applied exactly once; Wrangler tracks applied migrations
+    in the `_migrations` table

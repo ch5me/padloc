@@ -1,11 +1,11 @@
 {
-  "clicked": {
-    "ok": true,
-    "text": "Continue"
-  },
-  "href": "https://accounts.google.com/v3/signin/challenge/pk/error?TL=%5Bredacted%5D&authuser=%5Bredacted%5D&cid=%5Bredacted%5D&continue=https%3A%2F%2Fmyaccount.google.com%2Fsigninoptions%2Fpasskeys&dsh=%5Bredacted%5D&flowName=GlifWebSignIn&followup=https%3A%2F%2Fmyaccount.google.com%2Fsigninoptions%2Fpasskeys&rart=%5Bredacted%5D&rpbg=1",
-  "title": "Something went wrong",
-  "createHooked": true,
-  "getHooked": true,
-  "text": "Loading\nUse your passkey to confirm it’s really you\n[redacted-google-account]\nYour device will ask for your fingerprint, face, or screen lock\nContinue\nTry another way\nEnglish (United States)\nHelp\nPrivacy\nTerms\nSomething went wrong"
+    "clicked": {
+        "ok": true,
+        "text": "Continue"
+    },
+    "href": "https://accounts.google.com/v3/signin/challenge/pk/error?TL=%5Bredacted%5D&authuser=%5Bredacted%5D&cid=%5Bredacted%5D&continue=https%3A%2F%2Fmyaccount.google.com%2Fsigninoptions%2Fpasskeys&dsh=%5Bredacted%5D&flowName=GlifWebSignIn&followup=https%3A%2F%2Fmyaccount.google.com%2Fsigninoptions%2Fpasskeys&rart=%5Bredacted%5D&rpbg=1",
+    "title": "Something went wrong",
+    "createHooked": true,
+    "getHooked": true,
+    "text": "Loading\nUse your passkey to confirm it’s really you\n[redacted-google-account]\nYour device will ask for your fingerprint, face, or screen lock\nContinue\nTry another way\nEnglish (United States)\nHelp\nPrivacy\nTerms\nSomething went wrong"
 }

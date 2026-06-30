@@ -67,9 +67,7 @@ const KIND_TO_TABLE: Record<string, string> = {
     emailverification: "email_verifications",
 };
 
-const TABLE_TO_KIND: Record<string, string> = Object.fromEntries(
-    Object.entries(KIND_TO_TABLE).map(([k, v]) => [v, k])
-);
+const TABLE_TO_KIND: Record<string, string> = Object.fromEntries(Object.entries(KIND_TO_TABLE).map(([k, v]) => [v, k]));
 
 // Tables that use composite PK (org_id, account_id)
 const COMPOSITE_PK_TABLES = new Set(["org_members"]);
@@ -106,7 +104,11 @@ function parseArgs(argv: string[]): {
 // Wrangler D1 execute helper
 // ──────────────────────────────────────────────────────────────
 
-async function d1Execute(sql: string, env: string, options: { dryRun?: boolean; local?: boolean } = {}): Promise<string> {
+async function d1Execute(
+    sql: string,
+    env: string,
+    options: { dryRun?: boolean; local?: boolean } = {}
+): Promise<string> {
     const { dryRun: isDryRun = false, local = true } = options;
     const target = env || "dev";
     const flag = local ? "--local" : "--remote";
@@ -118,7 +120,9 @@ async function d1Execute(sql: string, env: string, options: { dryRun?: boolean; 
     const { execSync } = await import("child_process");
     try {
         const result = execSync(
-            `npx wrangler d1 execute padloc-${target} ${flag} --command=${JSON.stringify(sql)} --persist-to .wrangler/state 2>&1`,
+            `npx wrangler d1 execute padloc-${target} ${flag} --command=${JSON.stringify(
+                sql
+            )} --persist-to .wrangler/state 2>&1`,
             { encoding: "utf8", cwd: WORKER_DIR }
         );
         return result;
@@ -308,7 +312,9 @@ async function recordExists(table: string, id: string, env: string): Promise<boo
     const sql = `SELECT id FROM ${table} WHERE id = '${safeId}' LIMIT 1`;
     try {
         const raw = execSync(
-            `npx wrangler d1 execute padloc-${env} --local --command=${JSON.stringify(sql)} --persist-to .wrangler/state --json 2>&1`,
+            `npx wrangler d1 execute padloc-${env} --local --command=${JSON.stringify(
+                sql
+            )} --persist-to .wrangler/state --json 2>&1`,
             { encoding: "utf8", cwd: WORKER_DIR }
         );
         const parsed = JSON.parse(raw);
@@ -371,9 +377,7 @@ async function cmdImport(opts: {
         }
     }
 
-    logInfo(
-        `Import complete — imported: ${stats.imported}, skipped: ${stats.skipped}, errors: ${stats.errors}`
-    );
+    logInfo(`Import complete — imported: ${stats.imported}, skipped: ${stats.skipped}, errors: ${stats.errors}`);
 
     return stats;
 }
@@ -400,7 +404,9 @@ async function cmdExport(opts: { env: string; out: string; table?: string }): Pr
         const { execSync } = await import("child_process");
         try {
             const raw = execSync(
-                `npx wrangler d1 execute padloc-${env} --local --command=${JSON.stringify(sql)} --persist-to .wrangler/state 2>&1`,
+                `npx wrangler d1 execute padloc-${env} --local --command=${JSON.stringify(
+                    sql
+                )} --persist-to .wrangler/state 2>&1`,
                 { encoding: "utf8", cwd: ROOT }
             );
 

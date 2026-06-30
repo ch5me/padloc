@@ -117,7 +117,7 @@ export class WorkerCryptoProvider implements CryptoProvider {
     generateKey(params: HMACKeyParams): Promise<HMACKey>;
     generateKey(params: RSAKeyParams): Promise<{ privateKey: RSAPrivateKey; publicKey: RSAPublicKey }>;
     async generateKey(
-        params: AESKeyParams | HMACKeyParams | RSAKeyParams,
+        params: AESKeyParams | HMACKeyParams | RSAKeyParams
     ): Promise<AESKey | HMACKey | { privateKey: RSAPrivateKey; publicKey: RSAPublicKey }> {
         switch (params.algorithm) {
             case "AES":
@@ -153,7 +153,7 @@ export class WorkerCryptoProvider implements CryptoProvider {
                 hash: hashAlgorithm(params.hash),
             },
             baseKey,
-            params.keySize,
+            params.keySize
         );
 
         return new Uint8Array(key);
@@ -164,7 +164,7 @@ export class WorkerCryptoProvider implements CryptoProvider {
     async encrypt(
         key: AESKey | RSAPublicKey,
         data: Uint8Array,
-        params: AESEncryptionParams | RSAEncryptionParams,
+        params: AESEncryptionParams | RSAEncryptionParams
     ): Promise<Uint8Array> {
         switch (params.algorithm) {
             case "AES-GCM":
@@ -183,7 +183,7 @@ export class WorkerCryptoProvider implements CryptoProvider {
     async decrypt(
         key: AESKey | RSAPrivateKey,
         data: Uint8Array,
-        params: AESEncryptionParams | RSAEncryptionParams,
+        params: AESEncryptionParams | RSAEncryptionParams
     ): Promise<Uint8Array> {
         switch (params.algorithm) {
             case "AES-GCM":
@@ -202,7 +202,7 @@ export class WorkerCryptoProvider implements CryptoProvider {
     async sign(
         key: HMACKey | RSAPrivateKey,
         data: Uint8Array,
-        params: HMACParams | RSASigningParams,
+        params: HMACParams | RSASigningParams
     ): Promise<Uint8Array> {
         switch (params.algorithm) {
             case "HMAC":
@@ -220,7 +220,7 @@ export class WorkerCryptoProvider implements CryptoProvider {
         key: HMACKey | RSAPublicKey,
         signature: Uint8Array,
         data: Uint8Array,
-        params: HMACParams | RSASigningParams,
+        params: HMACParams | RSASigningParams
     ): Promise<boolean> {
         switch (params.algorithm) {
             case "HMAC":
@@ -273,14 +273,14 @@ export class WorkerCryptoProvider implements CryptoProvider {
     private async _encryptRSA(
         publicKey: RSAPublicKey,
         data: Uint8Array,
-        params: RSAEncryptionParams,
+        params: RSAEncryptionParams
     ): Promise<Uint8Array> {
         const cryptoKey = await subtle().importKey(
             "spki",
             bufferSource(publicKey),
             rsaOaepKeyAlgorithm(params),
             false,
-            ["encrypt"],
+            ["encrypt"]
         );
 
         try {
@@ -296,14 +296,14 @@ export class WorkerCryptoProvider implements CryptoProvider {
     private async _decryptRSA(
         privateKey: RSAPrivateKey,
         data: Uint8Array,
-        params: RSAEncryptionParams,
+        params: RSAEncryptionParams
     ): Promise<Uint8Array> {
         const cryptoKey = await subtle().importKey(
             "pkcs8",
             bufferSource(privateKey),
             rsaOaepKeyAlgorithm(params),
             false,
-            ["decrypt"],
+            ["decrypt"]
         );
 
         try {
@@ -329,7 +329,7 @@ export class WorkerCryptoProvider implements CryptoProvider {
         key: HMACKey,
         signature: Uint8Array,
         data: Uint8Array,
-        params: HMACParams,
+        params: HMACParams
     ): Promise<boolean> {
         const expected = await this._signHMAC(key, data, params);
         return this.timingSafeEqual(expected, signature);
@@ -347,7 +347,7 @@ export class WorkerCryptoProvider implements CryptoProvider {
         key: RSAPublicKey,
         signature: Uint8Array,
         data: Uint8Array,
-        params: RSASigningParams,
+        params: RSASigningParams
     ): Promise<boolean> {
         const cryptoKey = await subtle().importKey("spki", bufferSource(key), rsaPssKeyAlgorithm(params), false, [
             "verify",

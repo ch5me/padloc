@@ -135,11 +135,7 @@ async function initBackground() {
     // Keep this listener synchronous so it cannot consume immediate bridge
     // messages by resolving an async undefined response first.
     browser.runtime.onMessage.addListener((msg: Message, sender: Runtime.MessageSender) => {
-        if (
-            msg.type === "ping" ||
-            msg.type === "agenticWebAuthnCreate" ||
-            msg.type === "agenticWebAuthnGet"
-        ) {
+        if (msg.type === "ping" || msg.type === "agenticWebAuthnCreate" || msg.type === "agenticWebAuthnGet") {
             return;
         }
         const senderUrl = sender.url || "";
@@ -198,11 +194,7 @@ function enqueueBadgeAndContextMenuUpdate() {
     return badgeAndContextMenuUpdateChain;
 }
 
-async function handleExtensionMessage(
-    msg: Message,
-    sender: Runtime.MessageSender,
-    update: () => void
-) {
+async function handleExtensionMessage(msg: Message, sender: Runtime.MessageSender, update: () => void) {
     const application = await getApp();
 
     switch (msg.type) {
@@ -249,34 +241,48 @@ async function handleExtensionMessage(
 function registerImmediateMessageBridge() {
     if (immediateMessageBridgeRegistered) return;
     immediateMessageBridgeRegistered = true;
-    const chromeRuntime = (chrome as typeof chrome & {
-        runtime: {
-            onMessage: {
-                addListener(
-                    listener: (msg: Message, sender: Runtime.MessageSender, sendResponse: (response?: unknown) => void) => boolean | void
-                ): void;
+    const chromeRuntime = (
+        chrome as typeof chrome & {
+            runtime: {
+                onMessage: {
+                    addListener(
+                        listener: (
+                            msg: Message,
+                            sender: Runtime.MessageSender,
+                            sendResponse: (response?: unknown) => void
+                        ) => boolean | void
+                    ): void;
+                };
             };
-        };
-    }).runtime;
-    chromeRuntime.onMessage.addListener((msg: Message, sender: Runtime.MessageSender, sendResponse: (response?: unknown) => void) => {
-        if (!msg || typeof msg !== "object") return false;
-        if (msg.type === "ping") {
-            void getApp().then((application) => processPendingNativeBrokerRequest(application));
-            sendResponse({ type: "pong" });
+        }
+    ).runtime;
+    chromeRuntime.onMessage.addListener(
+        (msg: Message, sender: Runtime.MessageSender, sendResponse: (response?: unknown) => void) => {
+            if (!msg || typeof msg !== "object") return false;
+            if (msg.type === "ping") {
+                void getApp().then((application) => processPendingNativeBrokerRequest(application));
+                sendResponse({ type: "pong" });
+                return false;
+            }
+            if (msg.type === "agenticWebAuthnCreate" || msg.type === "agenticWebAuthnGet") {
+                void handleImmediateWebAuthnMessage(msg, sender)
+                    .then(sendResponse)
+                    .catch((error) =>
+                        sendResponse(
+                            webAuthnMessage(
+                                denyWebAuthn(
+                                    "UnknownError",
+                                    error instanceof Error ? error.message : "Padloc passkey broker failed",
+                                    "broker_failed"
+                                )
+                            )
+                        )
+                    );
+                return true;
+            }
             return false;
         }
-        if (msg.type === "agenticWebAuthnCreate" || msg.type === "agenticWebAuthnGet") {
-            void handleImmediateWebAuthnMessage(msg, sender)
-                .then(sendResponse)
-                .catch((error) => sendResponse(webAuthnMessage(denyWebAuthn(
-                    "UnknownError",
-                    error instanceof Error ? error.message : "Padloc passkey broker failed",
-                    "broker_failed"
-                ))));
-            return true;
-        }
-        return false;
-    });
+    );
 }
 
 async function handleImmediateWebAuthnMessage(
@@ -285,11 +291,9 @@ async function handleImmediateWebAuthnMessage(
 ) {
     const webAuthnApp = await getAppWithin(WEBAUTHN_APP_READY_TIMEOUT_MS);
     if (!webAuthnApp) {
-        return webAuthnMessage(denyWebAuthn(
-            "NotAllowedError",
-            "Padloc background app not initialized",
-            "background_not_ready"
-        ));
+        return webAuthnMessage(
+            denyWebAuthn("NotAllowedError", "Padloc background app not initialized", "background_not_ready")
+        );
     }
     return msg.type === "agenticWebAuthnCreate"
         ? handleAgenticWebAuthnCreate(msg.request, sender, webAuthnApp)
@@ -350,9 +354,7 @@ async function fillItemMultiField(item: MatchedVaultItem) {
     // Require at least username or password to trigger multi-field fill
     if (!username && !password) {
         // Fall back to single-field: fill first available password or username
-        const fallbackField = fields.find(
-            (f: Field) => f.type === FieldType.Password || f.type === FieldType.Username
-        );
+        const fallbackField = fields.find((f: Field) => f.type === FieldType.Password || f.type === FieldType.Username);
         if (fallbackField) {
             const value = await fallbackField.transform();
             await messageTab({ type: "fillActive", value });
@@ -382,7 +384,9 @@ async function updateBadgeAndContextMenu() {
         const openPopupAvailable = typeof actionApi.openPopup === "function";
         await browser.contextMenus.create({
             id: "openPopup",
-            title: `${count2 > 1 ? `${count2} items` : "1 item"} found${!openPopupAvailable ? " (unlock to view)" : ""}`,
+            title: `${count2 > 1 ? `${count2} items` : "1 item"} found${
+                !openPopupAvailable ? " (unlock to view)" : ""
+            }`,
             enabled: openPopupAvailable,
             contexts: ["editable"],
         });
@@ -518,9 +522,7 @@ async function handleFormSubmitDetected(data: CredentialData, application: App):
 
     // Check for existing item for this URL
     const existingItems = application.getItemsForUrl(data.url);
-    const existingLogin = existingItems.find(({ item }) =>
-        item.fields.some((f) => f.type === FieldType.Password)
-    );
+    const existingLogin = existingItems.find(({ item }) => item.fields.some((f) => f.type === FieldType.Password));
 
     const promptId = await uuid();
     const prompt: SavePrompt = {
@@ -545,11 +547,7 @@ function handleGetSavePrompt(): { type: "getSavePromptResponse"; prompt: SavePro
     return { type: "getSavePromptResponse", prompt: latest || null };
 }
 
-async function handleSaveCredential(
-    promptId: string,
-    vaultId: string | undefined,
-    application: App
-): Promise<null> {
+async function handleSaveCredential(promptId: string, vaultId: string | undefined, application: App): Promise<null> {
     const prompt = pendingPrompts.get(promptId);
     if (!prompt) return null;
 
@@ -557,9 +555,7 @@ async function handleSaveCredential(
 
     if (application.state.locked || !application.state.loggedIn) return null;
 
-    const vault = vaultId
-        ? application.getVault(vaultId!)
-        : application.mainVault;
+    const vault = vaultId ? application.getVault(vaultId!) : application.mainVault;
 
     if (!vault) return null;
 
@@ -580,11 +576,7 @@ async function handleSaveCredential(
     return null;
 }
 
-async function handleUpdateCredential(
-    promptId: string,
-    _vaultId: string | undefined,
-    application: App
-): Promise<null> {
+async function handleUpdateCredential(promptId: string, _vaultId: string | undefined, application: App): Promise<null> {
     const prompt = pendingPrompts.get(promptId);
     if (!prompt || !prompt.existingItem) return null;
 
@@ -618,7 +610,10 @@ function handleDismissPrompt(promptId: string): null {
     return null;
 }
 
-function handleGetAgenticAutofillApprovalPrompt(sender: Runtime.MessageSender): { type: "getAgenticAutofillApprovalPromptResponse"; prompt: AgenticAutofillApprovalPrompt | null } {
+function handleGetAgenticAutofillApprovalPrompt(sender: Runtime.MessageSender): {
+    type: "getAgenticAutofillApprovalPromptResponse";
+    prompt: AgenticAutofillApprovalPrompt | null;
+} {
     const latest = Array.from(pendingAutofillPlans.values()).pop();
     if (!latest) return { type: "getAgenticAutofillApprovalPromptResponse", prompt: null };
     const senderUrl = requireExtensionUiSender(sender);
@@ -633,9 +628,10 @@ function handleGetAgenticAutofillApprovalPrompt(sender: Runtime.MessageSender): 
             fieldCount: latest.fields.length,
             transactionOnlyCount: latest.fields.filter((field) => field.transactionOnly).length,
             paymentFieldCount: latest.fields.filter((field) => field.role.startsWith("payment.")).length,
-            finalSubmitWarning: latest.request.fields?.some((field) =>
-                field.finalSubmit === true || (field.role || "").startsWith("purchase.final_submit")
-            ) ?? false,
+            finalSubmitWarning:
+                latest.request.fields?.some(
+                    (field) => field.finalSubmit === true || (field.role || "").startsWith("purchase.final_submit")
+                ) ?? false,
             fields: latest.fields.map((field) => ({
                 role: field.role,
                 itemName: field.itemName,
@@ -656,14 +652,17 @@ function handleApproveAgenticAutofill(planId: string, promptNonce: string, sende
         throw new Error("Autofill approval requires active approval UI nonce");
     }
     pendingAutofillPromptNonces.delete(planId);
-    const { response, approval } = approveBrokerPlanResponse({
-        type: "approve",
-        protocolVersion: 1,
-        requestId: `popup-${planId}`,
-        planId,
-        approved: true,
-        binding: plan.request.binding,
-    }, plan);
+    const { response, approval } = approveBrokerPlanResponse(
+        {
+            type: "approve",
+            protocolVersion: 1,
+            requestId: `popup-${planId}`,
+            planId,
+            approved: true,
+            binding: plan.request.binding,
+        },
+        plan
+    );
     pendingAutofillApprovals.set(approval.approvalId, approval);
     void publishRedactedBrokerResponse(response);
     return { type: "agenticAutofillBrokerResponse", response };
@@ -688,8 +687,12 @@ async function handleAgenticWebAuthnCreate(
     if (application.state.locked || !application.state.loggedIn) {
         return webAuthnMessage(denyWebAuthn("NotAllowedError", "Padloc vault locked", "vault_locked"));
     }
-    if (request.excludeCredentialIds?.some((credentialId) => findPasskeyItemByCredentialId(application, credentialId))) {
-        return webAuthnMessage(denyWebAuthn("InvalidStateError", "Passkey already exists in Padloc", "credential_excluded"));
+    if (
+        request.excludeCredentialIds?.some((credentialId) => findPasskeyItemByCredentialId(application, credentialId))
+    ) {
+        return webAuthnMessage(
+            denyWebAuthn("InvalidStateError", "Passkey already exists in Padloc", "credential_excluded")
+        );
     }
 
     const vault = application.mainVault;
@@ -713,7 +716,9 @@ async function handleAgenticWebAuthnCreate(
                 topOrigin: request.topOrigin || request.origin,
                 userHandle: request.userHandle,
                 algorithm: request.algorithm,
-                clientDataHash: bytesToBase64(new Uint8Array(await crypto.subtle.digest("SHA-256", base64ToBytesLoose(request.clientDataJSON)))),
+                clientDataHash: bytesToBase64(
+                    new Uint8Array(await crypto.subtle.digest("SHA-256", base64ToBytesLoose(request.clientDataJSON)))
+                ),
                 userVerification: request.userVerification,
                 vendor: request.rpId,
                 policy: new PasskeyCredentialPolicy({
@@ -743,7 +748,9 @@ async function handleAgenticWebAuthnCreate(
         void publishRedactedBrokerResponse(result.response);
         const registration = result.response.passkey?.registration;
         if (!registration) {
-            return webAuthnMessage(denyWebAuthn("UnknownError", "Padloc passkey registration missing", "registration_missing"));
+            return webAuthnMessage(
+                denyWebAuthn("UnknownError", "Padloc passkey registration missing", "registration_missing")
+            );
         }
         return webAuthnMessage({
             ok: true,
@@ -765,11 +772,13 @@ async function handleAgenticWebAuthnCreate(
             valuePolicy: "redacted WebAuthn registration only; private key stays in Padloc signer store",
         });
     } catch (error) {
-        return webAuthnMessage(denyWebAuthn(
-            "UnknownError",
-            error instanceof Error ? error.message : "Padloc passkey registration failed",
-            "registration_failed"
-        ));
+        return webAuthnMessage(
+            denyWebAuthn(
+                "UnknownError",
+                error instanceof Error ? error.message : "Padloc passkey registration failed",
+                "registration_failed"
+            )
+        );
     }
 }
 
@@ -791,29 +800,32 @@ async function handleAgenticWebAuthnGet(
 
     try {
         const nonce = await uuid();
-        const result = await requestPasskeyAssertion({
-            type: "request-assertion",
-            protocolVersion: 1,
-            requestId: request.requestId,
-            binding: {
-                sessionId: "padloc-extension-webauthn",
-                origin: request.origin,
-                topOrigin: request.topOrigin || request.origin,
-                rpId: request.rpId,
-                vendor: request.rpId,
-                nonce,
+        const result = await requestPasskeyAssertion(
+            {
+                type: "request-assertion",
+                protocolVersion: 1,
+                requestId: request.requestId,
+                binding: {
+                    sessionId: "padloc-extension-webauthn",
+                    origin: request.origin,
+                    topOrigin: request.topOrigin || request.origin,
+                    rpId: request.rpId,
+                    vendor: request.rpId,
+                    nonce,
+                },
+                passkey: {
+                    credentialId: item.passkeyCredential.credentialId,
+                    rpId: request.rpId,
+                    topOrigin: request.topOrigin || request.origin,
+                    clientDataHash: request.clientDataHash,
+                    challenge: request.challenge,
+                    userVerification: request.userVerification,
+                    nonce,
+                    vendor: request.rpId,
+                },
             },
-            passkey: {
-                credentialId: item.passkeyCredential.credentialId,
-                rpId: request.rpId,
-                topOrigin: request.topOrigin || request.origin,
-                clientDataHash: request.clientDataHash,
-                challenge: request.challenge,
-                userVerification: request.userVerification,
-                nonce,
-                vendor: request.rpId,
-            },
-        }, getAllVaultItems(application));
+            getAllVaultItems(application)
+        );
         if (result.updatedItem?.id) {
             await application.updateItem(result.updatedItem, {
                 itemKind: result.updatedItem.itemKind,
@@ -823,11 +835,13 @@ async function handleAgenticWebAuthnGet(
         void publishRedactedBrokerResponse(result.response);
         const assertion = result.response.passkey?.assertion;
         if (!result.response.ok || !assertion) {
-            return webAuthnMessage(denyWebAuthn(
-                "NotAllowedError",
-                result.response.reason || "Padloc passkey assertion denied",
-                result.response.passkey?.reasonCode || "assertion_denied"
-            ));
+            return webAuthnMessage(
+                denyWebAuthn(
+                    "NotAllowedError",
+                    result.response.reason || "Padloc passkey assertion denied",
+                    result.response.passkey?.reasonCode || "assertion_denied"
+                )
+            );
         }
         return webAuthnMessage({
             ok: true,
@@ -847,11 +861,13 @@ async function handleAgenticWebAuthnGet(
             valuePolicy: "redacted WebAuthn assertion only; private key stays in Padloc signer store",
         });
     } catch (error) {
-        return webAuthnMessage(denyWebAuthn(
-            "UnknownError",
-            error instanceof Error ? error.message : "Padloc passkey assertion failed",
-            "assertion_failed"
-        ));
+        return webAuthnMessage(
+            denyWebAuthn(
+                "UnknownError",
+                error instanceof Error ? error.message : "Padloc passkey assertion failed",
+                "assertion_failed"
+            )
+        );
     }
 }
 
@@ -886,10 +902,18 @@ function validatePageWebAuthnRequest(
     }
     const topOrigin = request.topOrigin || request.origin;
     if (request.crossOrigin && !request.topOrigin) {
-        return denyWebAuthn("SecurityError", "Padloc WebAuthn cross-origin request missing top origin", "top_origin_missing");
+        return denyWebAuthn(
+            "SecurityError",
+            "Padloc WebAuthn cross-origin request missing top origin",
+            "top_origin_missing"
+        );
     }
     if (request.crossOrigin) {
-        return denyWebAuthn("NotSupportedError", "Padloc WebAuthn cross-origin frames are not supported", "cross_origin_not_supported");
+        return denyWebAuthn(
+            "NotSupportedError",
+            "Padloc WebAuthn cross-origin frames are not supported",
+            "cross_origin_not_supported"
+        );
     }
     if (sender.tab?.url && request.topOrigin) {
         try {
@@ -898,7 +922,11 @@ function validatePageWebAuthnRequest(
                 return denyWebAuthn("SecurityError", "Padloc WebAuthn top origin mismatch", "top_origin_mismatch");
             }
         } catch {
-            return denyWebAuthn("SecurityError", "Padloc WebAuthn sender top origin invalid", "sender_top_origin_invalid");
+            return denyWebAuthn(
+                "SecurityError",
+                "Padloc WebAuthn sender top origin invalid",
+                "sender_top_origin_invalid"
+            );
         }
     }
     if (!rpIdMatchesOrigin(request.rpId, topOrigin)) {
@@ -973,35 +1001,34 @@ function selectPasskeyItem(
     const matches = getAllVaultItems(application)
         .filter(isPasskeyCredentialItem)
         .filter((item) => item.passkeyCredential.rpId === request.rpId)
-        .filter((item) => !allowedIds.length || allowedIds.includes(toBrowserBase64Url(item.passkeyCredential.credentialId)));
+        .filter(
+            (item) => !allowedIds.length || allowedIds.includes(toBrowserBase64Url(item.passkeyCredential.credentialId))
+        );
     if (matches.length !== 1) return null;
     return matches[0];
 }
 
 function defaultAllowedTopOrigins(rpId: string, origin: string, topOrigin?: string): string[] {
-    return Array.from(new Set([
-        topOrigin || origin,
-        origin,
-        `https://${rpId}`,
-    ].filter(Boolean)));
+    return Array.from(new Set([topOrigin || origin, origin, `https://${rpId}`].filter(Boolean)));
 }
 
 function findPasskeyItemByCredentialId(application: App, credentialId: string): VaultItem | null {
     const normalizedCredentialId = toBrowserBase64Url(credentialId);
-    return getAllVaultItems(application)
-        .filter(isPasskeyCredentialItem)
-        .find((item) => toBrowserBase64Url(item.passkeyCredential.credentialId) === normalizedCredentialId) || null;
+    return (
+        getAllVaultItems(application)
+            .filter(isPasskeyCredentialItem)
+            .find((item) => toBrowserBase64Url(item.passkeyCredential.credentialId) === normalizedCredentialId) || null
+    );
 }
 
-function webAuthnMessage(response: AgenticWebAuthnResponse): { type: "agenticWebAuthnResponse"; response: AgenticWebAuthnResponse } {
+function webAuthnMessage(response: AgenticWebAuthnResponse): {
+    type: "agenticWebAuthnResponse";
+    response: AgenticWebAuthnResponse;
+} {
     return { type: "agenticWebAuthnResponse", response };
 }
 
-function denyWebAuthn(
-    name: AgenticWebAuthnErrorName,
-    message: string,
-    reason: string
-): AgenticWebAuthnResponse {
+function denyWebAuthn(name: AgenticWebAuthnErrorName, message: string, reason: string): AgenticWebAuthnResponse {
     return {
         ok: false,
         error: { name, message, reason },
@@ -1050,57 +1077,145 @@ function buildAgenticAutofillFixtureItems(): Array<{ name: string; icon: string;
             name: "Agentic Autofill Fixture - Person",
             icon: "user",
             fields: [
-                new Field({ name: "Full Name", value: "Pat Fixture", type: FieldType.Text, autofillRole: AutofillFieldRole.PersonFullName }),
-                new Field({ name: "First Name", value: "Pat", type: FieldType.Text, autofillRole: AutofillFieldRole.PersonFirstName }),
-                new Field({ name: "Last Name", value: "Fixture", type: FieldType.Text, autofillRole: AutofillFieldRole.PersonLastName }),
-                new Field({ name: "Email", value: "fixture@example.test", type: FieldType.Email, autofillRole: AutofillFieldRole.ContactEmail }),
-                new Field({ name: "Phone", value: "5550100000", type: FieldType.Phone, autofillRole: AutofillFieldRole.ContactPhone }),
+                new Field({
+                    name: "Full Name",
+                    value: "Pat Fixture",
+                    type: FieldType.Text,
+                    autofillRole: AutofillFieldRole.PersonFullName,
+                }),
+                new Field({
+                    name: "First Name",
+                    value: "Pat",
+                    type: FieldType.Text,
+                    autofillRole: AutofillFieldRole.PersonFirstName,
+                }),
+                new Field({
+                    name: "Last Name",
+                    value: "Fixture",
+                    type: FieldType.Text,
+                    autofillRole: AutofillFieldRole.PersonLastName,
+                }),
+                new Field({
+                    name: "Email",
+                    value: "fixture@example.test",
+                    type: FieldType.Email,
+                    autofillRole: AutofillFieldRole.ContactEmail,
+                }),
+                new Field({
+                    name: "Phone",
+                    value: "5550100000",
+                    type: FieldType.Phone,
+                    autofillRole: AutofillFieldRole.ContactPhone,
+                }),
             ],
         },
         {
             name: "Agentic Autofill Fixture - Address",
             icon: "passport",
             fields: [
-                new Field({ name: "Address Line 1", value: "100 Fixture Way", type: FieldType.Text, autofillRole: AutofillFieldRole.AddressLine1 }),
-                new Field({ name: "Address Line 2", value: "Unit 10", type: FieldType.Text, autofillRole: AutofillFieldRole.AddressLine2 }),
-                new Field({ name: "City", value: "Fixture City", type: FieldType.Text, autofillRole: AutofillFieldRole.AddressCity }),
-                new Field({ name: "State", value: "CA", type: FieldType.Text, autofillRole: AutofillFieldRole.AddressRegion }),
-                new Field({ name: "Postal Code", value: "90001", type: FieldType.Text, autofillRole: AutofillFieldRole.AddressPostalCode }),
-                new Field({ name: "Country", value: "US", type: FieldType.Text, autofillRole: AutofillFieldRole.AddressCountry }),
+                new Field({
+                    name: "Address Line 1",
+                    value: "100 Fixture Way",
+                    type: FieldType.Text,
+                    autofillRole: AutofillFieldRole.AddressLine1,
+                }),
+                new Field({
+                    name: "Address Line 2",
+                    value: "Unit 10",
+                    type: FieldType.Text,
+                    autofillRole: AutofillFieldRole.AddressLine2,
+                }),
+                new Field({
+                    name: "City",
+                    value: "Fixture City",
+                    type: FieldType.Text,
+                    autofillRole: AutofillFieldRole.AddressCity,
+                }),
+                new Field({
+                    name: "State",
+                    value: "CA",
+                    type: FieldType.Text,
+                    autofillRole: AutofillFieldRole.AddressRegion,
+                }),
+                new Field({
+                    name: "Postal Code",
+                    value: "90001",
+                    type: FieldType.Text,
+                    autofillRole: AutofillFieldRole.AddressPostalCode,
+                }),
+                new Field({
+                    name: "Country",
+                    value: "US",
+                    type: FieldType.Text,
+                    autofillRole: AutofillFieldRole.AddressCountry,
+                }),
             ],
         },
         {
             name: "Agentic Autofill Fixture - Payment Card",
             icon: "credit",
             fields: [
-                new Field({ name: "Card Number", value: "4111111111111111", type: FieldType.Credit, autofillRole: AutofillFieldRole.PaymentCardPan }),
-                new Field({ name: "Card Owner", value: "Pat Fixture", type: FieldType.Text, autofillRole: AutofillFieldRole.PaymentCardholderName }),
-                new Field({ name: "Valid Until", value: "2031-09", type: FieldType.Month, autofillRole: AutofillFieldRole.PaymentCardExpiry }),
-                new Field({ name: "CVC", value: "123", type: FieldType.Pin, autofillRole: AutofillFieldRole.PaymentCardCvvTransient, transactionOnly: true }),
+                new Field({
+                    name: "Card Number",
+                    value: "4111111111111111",
+                    type: FieldType.Credit,
+                    autofillRole: AutofillFieldRole.PaymentCardPan,
+                }),
+                new Field({
+                    name: "Card Owner",
+                    value: "Pat Fixture",
+                    type: FieldType.Text,
+                    autofillRole: AutofillFieldRole.PaymentCardholderName,
+                }),
+                new Field({
+                    name: "Valid Until",
+                    value: "2031-09",
+                    type: FieldType.Month,
+                    autofillRole: AutofillFieldRole.PaymentCardExpiry,
+                }),
+                new Field({
+                    name: "CVC",
+                    value: "123",
+                    type: FieldType.Pin,
+                    autofillRole: AutofillFieldRole.PaymentCardCvvTransient,
+                    transactionOnly: true,
+                }),
             ],
         },
         {
             name: "Agentic Autofill Fixture - Gift Recipient",
             icon: "user",
             fields: [
-                new Field({ name: "Recipient Name", value: "Gift Fixture", type: FieldType.Text, autofillRole: AutofillFieldRole.PersonFullName }),
-                new Field({ name: "Recipient Email", value: "gift.fixture@example.test", type: FieldType.Email, autofillRole: AutofillFieldRole.ContactEmail }),
+                new Field({
+                    name: "Recipient Name",
+                    value: "Gift Fixture",
+                    type: FieldType.Text,
+                    autofillRole: AutofillFieldRole.PersonFullName,
+                }),
+                new Field({
+                    name: "Recipient Email",
+                    value: "gift.fixture@example.test",
+                    type: FieldType.Email,
+                    autofillRole: AutofillFieldRole.ContactEmail,
+                }),
             ],
         },
         {
             name: "Agentic Autofill Fixture - Merchant",
             icon: "web",
             fields: [
-                new Field({ name: "Merchant Origin", value: "https://checkout.example.test", type: FieldType.Url, autofillRole: AutofillFieldRole.MerchantOrigin }),
+                new Field({
+                    name: "Merchant Origin",
+                    value: "https://checkout.example.test",
+                    type: FieldType.Url,
+                    autofillRole: AutofillFieldRole.MerchantOrigin,
+                }),
             ],
         },
     ];
 }
 
-async function handleAgenticAutofillBroker(
-    request: AutofillBrokerRequest,
-    application: App
-) {
+async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, application: App) {
     if (application.state.locked || !application.state.loggedIn) {
         return {
             type: "agenticAutofillBrokerResponse",

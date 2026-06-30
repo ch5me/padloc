@@ -414,7 +414,9 @@ export class ExtensionApp extends App {
                 (field) => `
                     <div class="save-prompt-username">
                         <span class="save-prompt-label">${this._escapeHtml(field.role)}</span>
-                        <span class="save-prompt-value">${this._escapeHtml(field.itemName)} / ${this._escapeHtml(field.fieldName)} (${this._escapeHtml(field.valuePreview)})</span>
+                        <span class="save-prompt-value">${this._escapeHtml(field.itemName)} / ${this._escapeHtml(
+                    field.fieldName
+                )} (${this._escapeHtml(field.valuePreview)})</span>
                     </div>
                 `
             )

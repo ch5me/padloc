@@ -1,21 +1,22 @@
 # @padloc/extension <!-- oc:id=sec_aa -->
 
-The Padloc browser extension — a Chrome MV3 unpacked extension with full auth parity,
-multi-field autofill, save/update credential prompts, and biometric re-unlock.
+The Padloc browser extension — a Chrome MV3 unpacked extension with full auth
+parity, multi-field autofill, save/update credential prompts, and biometric
+re-unlock.
 
 ## Parity Feature Set <!-- oc:id=sec_ab -->
 
-| Feature | Status |
-|---------|--------|
-| Email + TOTP auth | Complete |
-| WebAuthn / Passkey auth | Complete |
-| OAuth (Google, GitHub, etc.) | Complete |
-| Biometric re-unlock (MV3 session key) | Complete |
-| Multi-field login form autofill | Complete |
-| Save / update credential prompts | Complete |
+| Feature                                                       | Status   |
+| ------------------------------------------------------------- | -------- |
+| Email + TOTP auth                                             | Complete |
+| WebAuthn / Passkey auth                                       | Complete |
+| OAuth (Google, GitHub, etc.)                                  | Complete |
+| Biometric re-unlock (MV3 session key)                         | Complete |
+| Multi-field login form autofill                               | Complete |
+| Save / update credential prompts                              | Complete |
 | Content script login/identity/address/payment field detection | Complete |
-| Popup cold-start state restoration | Complete |
-| Playwright runtime test harness | Complete |
+| Popup cold-start state restoration                            | Complete |
+| Playwright runtime test harness                               | Complete |
 
 ## Setup <!-- oc:id=sec_ac -->
 
@@ -50,10 +51,10 @@ The resulting build is in `packages/extension/dist/`.
 
 All build options are provided as environment variables:
 
-| Variable Name   | Description                                   | Default                  |
-| --------------- | --------------------------------------------- | ------------------------ |
-| `PL_SERVER_URL` | URL to the Worker backend                     | `http://127.0.0.1:8787` |
-| `PL_BUILD_ENV`  | Build environment label (e.g. `staging`)      | unset                    |
+| Variable Name   | Description                              | Default                 |
+| --------------- | ---------------------------------------- | ----------------------- |
+| `PL_SERVER_URL` | URL to the Worker backend                | `http://127.0.0.1:8787` |
+| `PL_BUILD_ENV`  | Build environment label (e.g. `staging`) | unset                   |
 
 `PL_SERVER_URL` is baked into the extension at build time via webpack
 `DefinePlugin`. The extension does not read this value at runtime.
@@ -67,8 +68,8 @@ Google Chrome:
 1. Click **Load unpacked** <!-- oc:id=item_ac -->
 1. Select `packages/extension/dist` <!-- oc:id=item_ad -->
 
-Firefox is not yet in CI — see [packages/extension/NOTES.md](NOTES.md) for
-known gaps.
+Firefox is not yet in CI — see [packages/extension/NOTES.md](NOTES.md) for known
+gaps.
 
 ## Testing <!-- oc:id=sec_ag -->
 
@@ -80,13 +81,13 @@ npm test
 ```
 
 Tests live in `test/*.ts` and cover: field classification, cold-start state
-machines, OAuth stubs, biometric gating, save/update message types, and
-autofill orchestration.
+machines, OAuth stubs, biometric gating, save/update message types, and autofill
+orchestration.
 
 ### Runtime Smoke Tests (Playwright) <!-- oc:id=sec_ai -->
 
-These tests load the actual built extension in a headless Chromium, verify
-popup load, background message routing, content script attachment, and worker
+These tests load the actual built extension in a headless Chromium, verify popup
+load, background message routing, content script attachment, and worker
 liveness.
 
 ```sh
@@ -112,8 +113,8 @@ The harness is headless by default so it does not steal focus. Use
 
 ### Agentic Google Passkey Proof <!-- oc:id=sec_agentic_google_passkey -->
 
-Use the existing owned Chrome for Testing lane on CDP port `9812`; do not launch another
-visible browser:
+Use the existing owned Chrome for Testing lane on CDP port `9812`; do not launch
+another visible browser:
 
 ```sh
 npm --prefix packages/extension run agentic:google-passkey -- --mode state --port 9812
@@ -132,13 +133,13 @@ The helper refuses non-disposable Google accounts unless
 `--allow-non-disposable` is explicitly set after disposable proof succeeds. Its
 routine output redacts account identifiers and URL challenge tokens.
 
-For Crown or other real accounts, use a dedicated Chrome for Testing profile and a
-separate CDP port. Chris must complete the first Google ownership checkpoint in the
-browser. Do not request or store Crown passwords by default.
+For Crown or other real accounts, use a dedicated Chrome for Testing profile and
+a separate CDP port. Chris must complete the first Google ownership checkpoint
+in the browser. Do not request or store Crown passwords by default.
 
-For a non-Google public relying-party proof through the actual extension hook, use
-the deterministic local RP first, then WebAuthn.io from an owned Chrome for Testing
-lane with Padloc unlocked:
+For a non-Google public relying-party proof through the actual extension hook,
+use the deterministic local RP first, then WebAuthn.io from an owned Chrome for
+Testing lane with Padloc unlocked:
 
 ```sh
 npm --prefix packages/extension run agentic:extension-cdp -- --mode local-rp-webauthn-proof --port 9831 --extension-id phgggllfaobigoepghbbeojablefkkfa
@@ -147,16 +148,15 @@ npm --prefix packages/extension run agentic:extension-cdp -- --mode webauthn-me-
 ```
 
 Local RP pass means server-side registration and authentication checks pass,
-including challenge, origin, RP ID hash, AAGUID, flags, transports, and assertion
-signature. WebAuthn.io pass means `status=webauthn-io-proof`, `ok=true`,
-fresh register/login succeeds, and WebAuthn.io shows `You're logged in!`.
-WebAuthn.me is a secondary public-RP attempt; record the JSON blocker if its
-tutorial controls fail to attach.
-The WebAuthn.io helper deletes only `webauthn.io` test passkey items from the
-current Padloc test vault before a fresh proof so a reused discoverable-credential
-lane cannot assert with an older WebAuthn.io credential. Pass
-`--preserve-rp-passkeys=true` only when intentionally testing the existing-profile
-path.
+including challenge, origin, RP ID hash, AAGUID, flags, transports, and
+assertion signature. WebAuthn.io pass means `status=webauthn-io-proof`,
+`ok=true`, fresh register/login succeeds, and WebAuthn.io shows
+`You're logged in!`. WebAuthn.me is a secondary public-RP attempt; record the
+JSON blocker if its tutorial controls fail to attach. The WebAuthn.io helper
+deletes only `webauthn.io` test passkey items from the current Padloc test vault
+before a fresh proof so a reused discoverable-credential lane cannot assert with
+an older WebAuthn.io credential. Pass `--preserve-rp-passkeys=true` only when
+intentionally testing the existing-profile path.
 
 **First run**: Install the Chromium browser for Playwright:
 
@@ -172,10 +172,10 @@ running tests.
 
 Both test lanes run in CI:
 
-- `run-tests.yml` — runs unit tests on every PR and main push
-- `build-web-extension.yml` — runs the Playwright harness after building on
-  feature/fix branches and main push; archive the built extension as a
-  `.crx` artifact
+-   `run-tests.yml` — runs unit tests on every PR and main push
+-   `build-web-extension.yml` — runs the Playwright harness after building on
+    feature/fix branches and main push; archive the built extension as a `.crx`
+    artifact
 
 ## Development <!-- oc:id=sec_ak -->
 
@@ -192,27 +192,28 @@ Then build with your local API URL:
 PL_SERVER_URL=http://127.0.0.1:8787 npm run web-extension:build
 ```
 
-Load the `dist/` folder as an unpacked extension in Chrome. Reload the
-extension in `chrome://extensions` after each build.
+Load the `dist/` folder as an unpacked extension in Chrome. Reload the extension
+in `chrome://extensions` after each build.
 
 For hot-reload development, rebuild manually or use a file watcher.
 
 ## Architecture Notes <!-- oc:id=sec_al -->
 
-- **MV3 session key**: Raw master key is stored in `browser.storage.session`
-  (volatile, survives worker restarts). The worker and popup both restore from
-  session storage after cold start.
-- **No master-key relay**: The popup does not send the raw master key to the
-  background worker. Both independently restore from session storage.
-- **Content script field detection**: Field roles are determined by the content
-  script scanning the live DOM, not from item data. Handles shadow DOM, aria
-  labels, login, identity, address, payment, and transient CVV roles.
-- **Agentic autofill bridge**: Padloc owns encrypted items and approval; Magic
-  Browser owns browser execution and redacted proof. See
-  [docs/agentic-autofill-bridge.md](../../docs/agentic-autofill-bridge.md).
-- **`PL_SERVER_URL` is build-time only**: The extension connects to the API URL
-  that was active when it was built. Change the env var and rebuild to point
-  to a different environment.
+-   **MV3 session key**: Raw master key is stored in `browser.storage.session`
+    (volatile, survives worker restarts). The worker and popup both restore from
+    session storage after cold start.
+-   **No master-key relay**: The popup does not send the raw master key to the
+    background worker. Both independently restore from session storage.
+-   **Content script field detection**: Field roles are determined by the
+    content script scanning the live DOM, not from item data. Handles shadow
+    DOM, aria labels, login, identity, address, payment, and transient CVV
+    roles.
+-   **Agentic autofill bridge**: Padloc owns encrypted items and approval; Magic
+    Browser owns browser execution and redacted proof. See
+    [docs/agentic-autofill-bridge.md](../../docs/agentic-autofill-bridge.md).
+-   **`PL_SERVER_URL` is build-time only**: The extension connects to the API
+    URL that was active when it was built. Change the env var and rebuild to
+    point to a different environment.
 
 ## Contributing <!-- oc:id=sec_am -->
 

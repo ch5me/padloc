@@ -23,7 +23,11 @@ async function main() {
         passkeyCredential: enrolled.passkeyCredential,
     });
 
-    const allowRequest = assertionRequest(storedItem.passkeyCredential.credentialId, "demo-nonce-allow", "demo-flow-allow");
+    const allowRequest = assertionRequest(
+        storedItem.passkeyCredential.credentialId,
+        "demo-nonce-allow",
+        "demo-flow-allow"
+    );
     const allowResult = await requestPasskeyAssertion(allowRequest, [storedItem], new Date("2026-06-29T18:05:00.000Z"));
     const verified = await verifyAssertionSignature(
         allowResult.updatedItem.passkeyCredential,
@@ -38,7 +42,11 @@ async function main() {
     );
     delete denyRequest.passkey.flowId;
     delete denyRequest.binding.flowId;
-    const denyResult = await requestPasskeyAssertion(denyRequest, [allowResult.updatedItem], new Date("2026-06-29T18:06:00.000Z"));
+    const denyResult = await requestPasskeyAssertion(
+        denyRequest,
+        [allowResult.updatedItem],
+        new Date("2026-06-29T18:06:00.000Z")
+    );
 
     const proof = {
         enrolled: enrolled.response.ok,

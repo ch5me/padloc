@@ -1,6 +1,6 @@
 /**
  * Rate limiter tests for Task 26.
- * 
+ *
  * Tests cover:
  * - Token bucket algorithm correctness
  * - KV unavailable → no-op behavior

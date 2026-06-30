@@ -42,80 +42,105 @@ mochaSuite("Passkey broker", () => {
     });
 
     for (const algorithm of ALGORITHMS) {
-        mochaTest(`${algorithm.label} generated enroll stores opaque signer handle and returns WebAuthn registration material`, async () => {
-            const request = await enrollmentRequest({
-                algorithm: algorithm.value,
-                passkey: {
-                    credentialId: undefined,
-                    privateKeyPkcs8: undefined,
-                },
-            });
-            const result = await enrollPasskeyCredential(request, new Date("2026-06-29T18:00:00.000Z"));
-            const signerHandleField = result.fields[result.passkeyCredential.privateKeyFieldIndex];
+        mochaTest(
+            `${algorithm.label} generated enroll stores opaque signer handle and returns WebAuthn registration material`,
+            async () => {
+                const request = await enrollmentRequest({
+                    algorithm: algorithm.value,
+                    passkey: {
+                        credentialId: undefined,
+                        privateKeyPkcs8: undefined,
+                    },
+                });
+                const result = await enrollPasskeyCredential(request, new Date("2026-06-29T18:00:00.000Z"));
+                const signerHandleField = result.fields[result.passkeyCredential.privateKeyFieldIndex];
 
-            expect(signerHandleField.name).to.equal("Signer Handle");
-            expect(signerHandleField.type).to.equal(FieldType.Password);
-            expect(signerHandleField.value).to.match(/^padloc-passkey-signer:/);
-            expect(result.passkeyCredential.credentialId).to.be.a("string").and.not.equal("");
-            expect(JSON.stringify(result.response)).not.to.contain(signerHandleField.value);
-            expect(JSON.stringify(result.fields)).not.to.contain("BEGIN PRIVATE KEY");
-            expect(JSON.stringify(result.fields)).not.to.contain("Private Key");
-            expect(result.response.passkey.registration.attestationObject).to.be.a("string").and.not.equal("");
-            expect(result.response.passkey.registration.publicKeySpki).to.be.a("string").and.not.equal("");
+                expect(signerHandleField.name).to.equal("Signer Handle");
+                expect(signerHandleField.type).to.equal(FieldType.Password);
+                expect(signerHandleField.value).to.match(/^padloc-passkey-signer:/);
+                expect(result.passkeyCredential.credentialId).to.be.a("string").and.not.equal("");
+                expect(JSON.stringify(result.response)).not.to.contain(signerHandleField.value);
+                expect(JSON.stringify(result.fields)).not.to.contain("BEGIN PRIVATE KEY");
+                expect(JSON.stringify(result.fields)).not.to.contain("Private Key");
+                expect(result.response.passkey.registration.attestationObject).to.be.a("string").and.not.equal("");
+                expect(result.response.passkey.registration.publicKeySpki).to.be.a("string").and.not.equal("");
 
-            const item = asStoredItem(result);
-            const requestAssertion = assertionRequest(item.passkeyCredential.credentialId, `nonce-generated-${algorithm.value}`, "flow-generated");
-            const assertion = await requestPasskeyAssertion(requestAssertion, [item], new Date("2026-06-29T18:05:00.000Z"));
-            const verified = await verifyAssertionSignature(
-                assertion.updatedItem.passkeyCredential,
-                assertion.response.passkey.assertion,
-                requestAssertion.passkey
-            );
+                const item = asStoredItem(result);
+                const requestAssertion = assertionRequest(
+                    item.passkeyCredential.credentialId,
+                    `nonce-generated-${algorithm.value}`,
+                    "flow-generated"
+                );
+                const assertion = await requestPasskeyAssertion(
+                    requestAssertion,
+                    [item],
+                    new Date("2026-06-29T18:05:00.000Z")
+                );
+                const verified = await verifyAssertionSignature(
+                    assertion.updatedItem.passkeyCredential,
+                    assertion.response.passkey.assertion,
+                    requestAssertion.passkey
+                );
 
-            expect(assertion.response.ok).to.equal(true);
-            expect(verified).to.equal(true);
-        });
+                expect(assertion.response.ok).to.equal(true);
+                expect(verified).to.equal(true);
+            }
+        );
 
-        mochaTest(`${algorithm.label} enroll-import stores opaque signer handle and never stores raw key bytes`, async () => {
-            const request = await enrollmentRequest({ algorithm: algorithm.value });
-            const result = await enrollPasskeyCredential(request, new Date("2026-06-29T18:00:00.000Z"));
-            const signerHandleField = result.fields[result.passkeyCredential.privateKeyFieldIndex];
+        mochaTest(
+            `${algorithm.label} enroll-import stores opaque signer handle and never stores raw key bytes`,
+            async () => {
+                const request = await enrollmentRequest({ algorithm: algorithm.value });
+                const result = await enrollPasskeyCredential(request, new Date("2026-06-29T18:00:00.000Z"));
+                const signerHandleField = result.fields[result.passkeyCredential.privateKeyFieldIndex];
 
-            expect(signerHandleField.name).to.equal("Signer Handle");
-            expect(signerHandleField.type).to.equal(FieldType.Password);
-            expect(signerHandleField.value).to.match(/^padloc-passkey-signer:/);
-            expect(signerHandleField.value).not.to.equal(request.passkey.privateKeyPkcs8);
-            expect(result.passkeyCredential.algorithm).to.equal(algorithm.value);
-            expect(result.passkeyCredential.privateKeyFieldIndex).to.equal(0);
-            expect(JSON.stringify(result)).not.to.contain(request.passkey.privateKeyPkcs8);
-            expect(JSON.stringify(result.response)).not.to.contain(signerHandleField.value);
-            expect(JSON.stringify(result.response)).not.to.contain("privateKey");
-            expect(result.response.passkey.registration.attestationObject).to.be.a("string").and.not.equal("");
-            expect(result.response.passkey.registration.algorithm).to.equal(algorithm.value);
-        });
+                expect(signerHandleField.name).to.equal("Signer Handle");
+                expect(signerHandleField.type).to.equal(FieldType.Password);
+                expect(signerHandleField.value).to.match(/^padloc-passkey-signer:/);
+                expect(signerHandleField.value).not.to.equal(request.passkey.privateKeyPkcs8);
+                expect(result.passkeyCredential.algorithm).to.equal(algorithm.value);
+                expect(result.passkeyCredential.privateKeyFieldIndex).to.equal(0);
+                expect(JSON.stringify(result)).not.to.contain(request.passkey.privateKeyPkcs8);
+                expect(JSON.stringify(result.response)).not.to.contain(signerHandleField.value);
+                expect(JSON.stringify(result.response)).not.to.contain("privateKey");
+                expect(result.response.passkey.registration.attestationObject).to.be.a("string").and.not.equal("");
+                expect(result.response.passkey.registration.algorithm).to.equal(algorithm.value);
+            }
+        );
 
-        mochaTest(`${algorithm.label} enroll-import -> assert -> signature verifies against stored public key`, async () => {
-            const request = await enrollmentRequest({ algorithm: algorithm.value });
-            const enrolled = await enrollPasskeyCredential(request, new Date("2026-06-29T18:00:00.000Z"));
-            const item = asStoredItem(enrolled);
-            const requestAssertion = assertionRequest(item.passkeyCredential.credentialId, "nonce-allow", "flow-allow");
-            const result = await requestPasskeyAssertion(requestAssertion, [item], new Date("2026-06-29T18:05:00.000Z"));
+        mochaTest(
+            `${algorithm.label} enroll-import -> assert -> signature verifies against stored public key`,
+            async () => {
+                const request = await enrollmentRequest({ algorithm: algorithm.value });
+                const enrolled = await enrollPasskeyCredential(request, new Date("2026-06-29T18:00:00.000Z"));
+                const item = asStoredItem(enrolled);
+                const requestAssertion = assertionRequest(
+                    item.passkeyCredential.credentialId,
+                    "nonce-allow",
+                    "flow-allow"
+                );
+                const result = await requestPasskeyAssertion(
+                    requestAssertion,
+                    [item],
+                    new Date("2026-06-29T18:05:00.000Z")
+                );
 
-            expect(result.response.ok).to.equal(true);
-            expect(result.updatedItem.passkeyCredential.signCount).to.equal(1);
-            expect(result.updatedItem.passkeyCredential.algorithm).to.equal(algorithm.value);
-            expect(result.response.passkey.decision).to.equal("allow");
-            expect(JSON.stringify(result.response)).not.to.contain(item.fields[0].value);
-            expect(item.fields[0].value).to.match(/^padloc-passkey-signer:/);
+                expect(result.response.ok).to.equal(true);
+                expect(result.updatedItem.passkeyCredential.signCount).to.equal(1);
+                expect(result.updatedItem.passkeyCredential.algorithm).to.equal(algorithm.value);
+                expect(result.response.passkey.decision).to.equal("allow");
+                expect(JSON.stringify(result.response)).not.to.contain(item.fields[0].value);
+                expect(item.fields[0].value).to.match(/^padloc-passkey-signer:/);
 
-            const verified = await verifyAssertionSignature(
-                result.updatedItem.passkeyCredential,
-                result.response.passkey.assertion,
-                requestAssertion.passkey
-            );
+                const verified = await verifyAssertionSignature(
+                    result.updatedItem.passkeyCredential,
+                    result.response.passkey.assertion,
+                    requestAssertion.passkey
+                );
 
-            expect(verified).to.equal(true);
-        });
+                expect(verified).to.equal(true);
+            }
+        );
     }
 
     mochaTest("legacy private-key vault field fails loud instead of signing", async () => {
@@ -206,7 +231,11 @@ mochaSuite("Passkey broker", () => {
     mochaTest("allows HTTPS sibling origins under the passkey RP ID", async () => {
         const enrolled = await enrollPasskeyCredential(await enrollmentRequest(), new Date("2026-06-29T18:00:00.000Z"));
         const item = asStoredItem(enrolled);
-        const request = assertionRequest(item.passkeyCredential.credentialId, "nonce-related-origin", "flow-related-origin");
+        const request = assertionRequest(
+            item.passkeyCredential.credentialId,
+            "nonce-related-origin",
+            "flow-related-origin"
+        );
         request.passkey.topOrigin = "https://login.example-rp.test";
         request.binding.origin = "https://login.example-rp.test";
         request.binding.topOrigin = "https://login.example-rp.test";
@@ -322,7 +351,9 @@ mochaSuite("Passkey broker", () => {
         );
 
         const noneObject = decodeCbor(base64ToBytes(none.response.passkey.registration.attestationObject));
-        const googleStyleObject = decodeCbor(base64ToBytes(googleStyle.response.passkey.registration.attestationObject));
+        const googleStyleObject = decodeCbor(
+            base64ToBytes(googleStyle.response.passkey.registration.attestationObject)
+        );
 
         expect(noneObject.fmt).to.equal("none");
         expect(noneObject.attStmt).to.deep.equal({});
@@ -355,7 +386,8 @@ function installMemoryIndexedDb() {
                     databases.set(name, state);
                 }
                 request.result = makeIdbDatabase(state);
-                if (isNew && typeof request.onupgradeneeded === "function") request.onupgradeneeded({ target: request });
+                if (isNew && typeof request.onupgradeneeded === "function")
+                    request.onupgradeneeded({ target: request });
                 queueMicrotask(() => request.onsuccess && request.onsuccess({ target: request }));
             });
             return request;
@@ -447,7 +479,12 @@ function asStoredItem(enrolled: { itemName: string; fields: unknown[]; passkeyCr
 }
 
 async function enrollmentRequest(
-    overrides: { algorithm?: number; fixtureSeed?: string; policy?: Record<string, unknown>; passkey?: Record<string, unknown> } = {}
+    overrides: {
+        algorithm?: number;
+        fixtureSeed?: string;
+        policy?: Record<string, unknown>;
+        passkey?: Record<string, unknown>;
+    } = {}
 ) {
     const fixture = await makeImportedCredentialFixture(overrides.algorithm || -7, overrides.fixtureSeed || "default");
     const policy = new PasskeyCredentialPolicy({

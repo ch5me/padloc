@@ -190,11 +190,7 @@ suite("ExtensionApp popup cold-start restoration", () => {
         });
 
         test("matching items comparison detects new items", async () => {
-            const currentItems = [
-                { item: { id: "item-1" } },
-                { item: { id: "item-2" } },
-                { item: { id: "item-3" } },
-            ];
+            const currentItems = [{ item: { id: "item-1" } }, { item: { id: "item-2" } }, { item: { id: "item-3" } }];
             const lastMatchingItems = ["item-1", "item-2"];
 
             const hasNewItems =
@@ -216,10 +212,7 @@ suite("ExtensionApp popup cold-start restoration", () => {
         });
 
         test("matching items comparison returns false when items unchanged", async () => {
-            const currentItems = [
-                { item: { id: "item-1" } },
-                { item: { id: "item-2" } },
-            ];
+            const currentItems = [{ item: { id: "item-1" } }, { item: { id: "item-2" } }];
             const lastMatchingItems = ["item-1", "item-2"];
 
             const hasNewItems =
@@ -314,7 +307,8 @@ suite("ExtensionApp routing decision logic", () => {
             );
 
         const shouldGoToItems =
-            matchingItems.length && (hasNewMatchingItems || (routerState.path === "items" && !routerState.params.search));
+            matchingItems.length &&
+            (hasNewMatchingItems || (routerState.path === "items" && !routerState.params.search));
 
         expect(shouldGoToItems).to.be.true;
     });
@@ -330,7 +324,8 @@ suite("ExtensionApp routing decision logic", () => {
             );
 
         const shouldGoToItems =
-            matchingItems.length && (hasNewMatchingItems || (routerState.path === "items" && !routerState.params.search));
+            matchingItems.length &&
+            (hasNewMatchingItems || (routerState.path === "items" && !routerState.params.search));
 
         expect(shouldGoToItems).to.be.false;
     });

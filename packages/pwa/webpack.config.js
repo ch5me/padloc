@@ -14,7 +14,7 @@ function removeTrailingSlash(url) {
 
 const out = process.env.PL_PWA_DIR || resolve(__dirname, "dist");
 const serverUrl = removeTrailingSlash(
-    process.env.PL_SERVER_URL || `http://127.0.0.1:${process.env.PL_WORKER_PORT || 8787}`,
+    process.env.PL_SERVER_URL || `http://127.0.0.1:${process.env.PL_WORKER_PORT || 8787}`
 );
 const pwaUrl = removeTrailingSlash(process.env.PL_PWA_URL || `http://localhost:${process.env.PL_PWA_PORT || 8080}`);
 const rootDir = resolve(__dirname, "../..");
@@ -118,7 +118,7 @@ module.exports = {
 
                                 data.html = data.html.replace(
                                     `[REPLACE_${cspRule.replace("-src", "").toUpperCase()}]`,
-                                    `${files.map((file) => `${pwaUrl}/${file}`).join(" ")}`,
+                                    `${files.map((file) => `${pwaUrl}/${file}`).join(" ")}`
                                 );
                             }
 
@@ -127,7 +127,7 @@ module.exports = {
                             data.html = data.html.replace("[REPLACE_CONNECT]", connectReplacement);
 
                             callback(null, data);
-                        },
+                        }
                     );
 
                     return true;
@@ -238,7 +238,7 @@ module.exports = {
 
                         htmlFileContents = htmlFileContents.replace(
                             `[REPLACE_${cspRule.replace("-src", "").toUpperCase()}]`,
-                            `${files.map((file) => `${pwaUrl}/${file}`).join(" ")}`,
+                            `${files.map((file) => `${pwaUrl}/${file}`).join(" ")}`
                         );
                     }
 

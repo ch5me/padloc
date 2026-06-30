@@ -1,11 +1,11 @@
 {
-  "sessionID": "ses_1b6bfc644ffek6Tgdv1Pztic64",
-  "updatedAt": "2026-05-21T06:37:48.368Z",
-  "sources": {
-    "stop": {
-      "state": "stopped",
-      "reason": "continuation stopped",
-      "updatedAt": "2026-05-21T06:37:48.368Z"
+    "sessionID": "ses_1b6bfc644ffek6Tgdv1Pztic64",
+    "updatedAt": "2026-05-21T06:37:48.368Z",
+    "sources": {
+        "stop": {
+            "state": "stopped",
+            "reason": "continuation stopped",
+            "updatedAt": "2026-05-21T06:37:48.368Z"
+        }
     }
-  }
 }

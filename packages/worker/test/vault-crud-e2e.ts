@@ -97,7 +97,7 @@ async function callApi(method: string, params: unknown[], sessionKey?: Uint8Arra
 
 async function createAccountAndLogin(
     email: string,
-    password: string,
+    password: string
 ): Promise<{ accountId: string; mainVaultId: string; sessionKey: Uint8Array }> {
     const account = new Account();
     account.email = email;

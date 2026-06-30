@@ -5,7 +5,9 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
 const PROTOCOL_VERSION = 1;
-const STATE_DIR = process.env.PADLOC_AGENTIC_AUTOFILL_STATE_DIR || join(homedir(), ".local", "share", "ch5-autofill", "padloc-bridge");
+const STATE_DIR =
+    process.env.PADLOC_AGENTIC_AUTOFILL_STATE_DIR ||
+    join(homedir(), ".local", "share", "ch5-autofill", "padloc-bridge");
 const LATEST_RESPONSE_PATH = join(STATE_DIR, "latest-redacted-response.json");
 const PENDING_REQUEST_PATH = join(STATE_DIR, "pending-broker-request.json");
 const AUDIT_LOG_PATH = join(STATE_DIR, "broker-audit.jsonl");
@@ -81,9 +83,10 @@ function enqueueBrokerRequest(request) {
     if (unsafe) {
         return statusResponse(false, "refused broker request containing sensitive payload");
     }
-    const requestId = typeof brokerRequest.requestId === "string" && brokerRequest.requestId
-        ? brokerRequest.requestId
-        : `native-${Date.now()}`;
+    const requestId =
+        typeof brokerRequest.requestId === "string" && brokerRequest.requestId
+            ? brokerRequest.requestId
+            : `native-${Date.now()}`;
     const queued = {
         requestId,
         queuedAt: new Date().toISOString(),
@@ -141,10 +144,18 @@ function cacheRedactedResponse(request) {
         return statusResponse(false, "refused non-redacted sensitive payload");
     }
     mkdirSync(dirname(LATEST_RESPONSE_PATH), { recursive: true, mode: 0o700 });
-    writeFileSync(LATEST_RESPONSE_PATH, `${JSON.stringify({
-        cachedAt: new Date().toISOString(),
-        response,
-    }, null, 2)}\n`, { mode: 0o600 });
+    writeFileSync(
+        LATEST_RESPONSE_PATH,
+        `${JSON.stringify(
+            {
+                cachedAt: new Date().toISOString(),
+                response,
+            },
+            null,
+            2
+        )}\n`,
+        { mode: 0o600 }
+    );
     appendAuditRecord(response);
     return statusResponse(true, null, { cached: true });
 }

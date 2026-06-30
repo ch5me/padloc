@@ -35,11 +35,7 @@ mochaSuite("Autofill broker", () => {
 
         expect(response.ok).to.equal(true);
         expect(response.vaultState).to.equal("unlocked");
-        expect(roles).to.deep.equal([
-            "contact.email",
-            "payment.card.pan",
-            "payment.card.cvv_transient",
-        ]);
+        expect(roles).to.deep.equal(["contact.email", "payment.card.pan", "payment.card.cvv_transient"]);
         expect(response.fields[1].valuePreview).to.equal("card:1111");
         expect(response.fields[2].transactionOnly).to.equal(true);
         expect(JSON.stringify(response)).not.to.contain("sentinel@example.test");
@@ -48,14 +44,23 @@ mochaSuite("Autofill broker", () => {
     });
 
     mochaTest("approves and mints a short-lived bundle, then redacts returned values", async () => {
-        const { pendingPlan } = buildUnlockedBrokerPlanResponse(request, items(), Date.parse("2026-06-17T12:00:00.000Z"));
+        const { pendingPlan } = buildUnlockedBrokerPlanResponse(
+            request,
+            items(),
+            Date.parse("2026-06-17T12:00:00.000Z")
+        );
         const { approval, response: approvalResponse } = approveBrokerPlanResponse(
             { type: "approve", protocolVersion: 1, planId: pendingPlan.planId, approved: true, ttlSeconds: 60 },
             pendingPlan,
             Date.parse("2026-06-17T12:00:01.000Z")
         );
         const bundleResponse = await mintBrokerBundleResponse(
-            { type: "mint-fill-bundle", protocolVersion: 1, planId: pendingPlan.planId, approvalId: approval.approvalId },
+            {
+                type: "mint-fill-bundle",
+                protocolVersion: 1,
+                planId: pendingPlan.planId,
+                approvalId: approval.approvalId,
+            },
             pendingPlan,
             approval,
             items(),
@@ -72,7 +77,11 @@ mochaSuite("Autofill broker", () => {
     });
 
     mochaTest("rejects minting after approval expiry", async () => {
-        const { pendingPlan } = buildUnlockedBrokerPlanResponse(request, items(), Date.parse("2026-06-17T12:00:00.000Z"));
+        const { pendingPlan } = buildUnlockedBrokerPlanResponse(
+            request,
+            items(),
+            Date.parse("2026-06-17T12:00:00.000Z")
+        );
         const { approval } = approveBrokerPlanResponse(
             { type: "approve", protocolVersion: 1, planId: pendingPlan.planId, approved: true, ttlSeconds: 1 },
             pendingPlan,
@@ -81,7 +90,12 @@ mochaSuite("Autofill broker", () => {
 
         try {
             await mintBrokerBundleResponse(
-                { type: "mint-fill-bundle", protocolVersion: 1, planId: pendingPlan.planId, approvalId: approval.approvalId },
+                {
+                    type: "mint-fill-bundle",
+                    protocolVersion: 1,
+                    planId: pendingPlan.planId,
+                    approvalId: approval.approvalId,
+                },
                 pendingPlan,
                 approval,
                 items(),
@@ -94,14 +108,23 @@ mochaSuite("Autofill broker", () => {
     });
 
     mochaTest("acknowledges apply and revoke without returning raw bundle values", async () => {
-        const { pendingPlan } = buildUnlockedBrokerPlanResponse(request, items(), Date.parse("2026-06-17T12:00:00.000Z"));
+        const { pendingPlan } = buildUnlockedBrokerPlanResponse(
+            request,
+            items(),
+            Date.parse("2026-06-17T12:00:00.000Z")
+        );
         const { approval } = approveBrokerPlanResponse(
             { type: "approve", protocolVersion: 1, planId: pendingPlan.planId, approved: true, ttlSeconds: 60 },
             pendingPlan,
             Date.parse("2026-06-17T12:00:01.000Z")
         );
         const bundleResponse = await mintBrokerBundleResponse(
-            { type: "mint-fill-bundle", protocolVersion: 1, planId: pendingPlan.planId, approvalId: approval.approvalId },
+            {
+                type: "mint-fill-bundle",
+                protocolVersion: 1,
+                planId: pendingPlan.planId,
+                approvalId: approval.approvalId,
+            },
             pendingPlan,
             approval,
             items(),
@@ -127,25 +150,41 @@ mochaSuite("Autofill broker", () => {
     });
 
     mochaTest("rejects applying after bundle expiry", async () => {
-        const { pendingPlan } = buildUnlockedBrokerPlanResponse(request, items(), Date.parse("2026-06-17T12:00:00.000Z"));
+        const { pendingPlan } = buildUnlockedBrokerPlanResponse(
+            request,
+            items(),
+            Date.parse("2026-06-17T12:00:00.000Z")
+        );
         const { approval } = approveBrokerPlanResponse(
             { type: "approve", protocolVersion: 1, planId: pendingPlan.planId, approved: true, ttlSeconds: 1 },
             pendingPlan,
             Date.parse("2026-06-17T12:00:00.000Z")
         );
         const bundleResponse = await mintBrokerBundleResponse(
-            { type: "mint-fill-bundle", protocolVersion: 1, planId: pendingPlan.planId, approvalId: approval.approvalId },
+            {
+                type: "mint-fill-bundle",
+                protocolVersion: 1,
+                planId: pendingPlan.planId,
+                approvalId: approval.approvalId,
+            },
             pendingPlan,
             approval,
             items(),
             Date.parse("2026-06-17T12:00:00.000Z")
         );
 
-        expect(() => applyBrokerBundleResponse(
-            { type: "apply-fill-bundle", protocolVersion: 1, planId: pendingPlan.planId, bundleId: bundleResponse.bundleId },
-            bundleResponse,
-            Date.parse("2026-06-17T12:00:02.000Z")
-        )).to.throw("expired");
+        expect(() =>
+            applyBrokerBundleResponse(
+                {
+                    type: "apply-fill-bundle",
+                    protocolVersion: 1,
+                    planId: pendingPlan.planId,
+                    bundleId: bundleResponse.bundleId,
+                },
+                bundleResponse,
+                Date.parse("2026-06-17T12:00:02.000Z")
+            )
+        ).to.throw("expired");
     });
 });
 
@@ -153,9 +192,7 @@ function items() {
     const person = {
         id: "person",
         name: "Person",
-        fields: [
-            makeField({ name: "Email", value: "sentinel@example.test", autofillRole: "contact.email" }),
-        ],
+        fields: [makeField({ name: "Email", value: "sentinel@example.test", autofillRole: "contact.email" })],
     };
     const card = {
         id: "card",

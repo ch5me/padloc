@@ -222,17 +222,22 @@ export async function requestPasskeyAssertion(
     const rateLimitBefore = measureRateLimit(credential, now);
     const denial = evaluateAssertionPolicy(request, assertionRequest, credential, rateLimitBefore, now);
     if (denial) {
-        appendAudit(credential, makeAuditEntry({
-            operation: "request-assertion",
-            decision: "deny",
-            reason: denial,
-            request,
+        appendAudit(
             credential,
-            rateLimit: rateLimitBefore,
-            now,
-        }));
+            makeAuditEntry({
+                operation: "request-assertion",
+                decision: "deny",
+                reason: denial,
+                request,
+                credential,
+                rateLimit: rateLimitBefore,
+                now,
+            })
+        );
         return {
-            updatedItem: new VaultItem({ ...item, passkeyCredential: credential }) as VaultItem & { passkeyCredential: PasskeyCredential },
+            updatedItem: new VaultItem({ ...item, passkeyCredential: credential }) as VaultItem & {
+                passkeyCredential: PasskeyCredential;
+            },
             response: denyResponse(request, credential, denial, rateLimitBefore),
         };
     }
@@ -256,15 +261,18 @@ export async function requestPasskeyAssertion(
 
     credential.signCount = nextSignCount;
     const rateLimitAfter = measureRateLimit(credential, now, true);
-    appendAudit(credential, makeAuditEntry({
-        operation: "request-assertion",
-        decision: "allow",
-        reason: "allowed",
-        request,
+    appendAudit(
         credential,
-        rateLimit: rateLimitAfter,
-        now,
-    }));
+        makeAuditEntry({
+            operation: "request-assertion",
+            decision: "allow",
+            reason: "allowed",
+            request,
+            credential,
+            rateLimit: rateLimitAfter,
+            now,
+        })
+    );
 
     const assertion: PasskeyAssertionPayload = {
         credentialId: credential.credentialId,
@@ -275,7 +283,9 @@ export async function requestPasskeyAssertion(
     };
 
     return {
-        updatedItem: new VaultItem({ ...item, passkeyCredential: credential }) as VaultItem & { passkeyCredential: PasskeyCredential },
+        updatedItem: new VaultItem({ ...item, passkeyCredential: credential }) as VaultItem & {
+            passkeyCredential: PasskeyCredential;
+        },
         response: {
             ok: true,
             protocolVersion: AUTOFILL_BROKER_PROTOCOL_VERSION,
@@ -329,10 +339,20 @@ export async function verifyAssertionSignature(
 ): Promise<boolean> {
     const cryptoApi = await getWebCrypto();
     const algorithm = normalizePasskeyAlgorithm(credential.algorithm);
-    const importedPublicKey = await importPublicKeyForAlgorithm(cryptoApi, algorithm, base64ToBytes(credential.publicKeySpki));
+    const importedPublicKey = await importPublicKeyForAlgorithm(
+        cryptoApi,
+        algorithm,
+        base64ToBytes(credential.publicKeySpki)
+    );
     const clientDataHash = await resolveClientDataHash(request, cryptoApi);
     const signedPayload = concatBytes(base64ToBytes(assertion.authenticatorData), clientDataHash);
-    return verifyAssertionPayload(cryptoApi, algorithm, importedPublicKey, base64ToBytes(assertion.signature), signedPayload);
+    return verifyAssertionPayload(
+        cryptoApi,
+        algorithm,
+        importedPublicKey,
+        base64ToBytes(assertion.signature),
+        signedPayload
+    );
 }
 
 function requirePasskeyEnrollmentRequest(request: AutofillBrokerRequest): PasskeyEnrollmentRequest {
@@ -373,7 +393,10 @@ async function resolveEnrollmentKeyMaterial(
     }
     const publicKeyJwk = normalizePublicKeyJwk(await cryptoApi.subtle.exportKey("jwk", keyPair.publicKey));
     const publicKeySpki = bytesToBase64(new Uint8Array(await cryptoApi.subtle.exportKey("spki", keyPair.publicKey)));
-    const credentialId = bytesToBase64(await randomBytes(cryptoApi, 32)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+    const credentialId = bytesToBase64(await randomBytes(cryptoApi, 32))
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/g, "");
     return {
         credentialId,
         signerHandle: await makePasskeySignerHandle(cryptoApi),
@@ -385,11 +408,7 @@ async function resolveEnrollmentKeyMaterial(
 
 async function generateKeyPairForAlgorithm(cryptoApi: Crypto, algorithm: number): Promise<CryptoKeyPair> {
     if (algorithm === PASSKEY_ALGORITHM_ES256) {
-        return cryptoApi.subtle.generateKey(
-            { name: "ECDSA", namedCurve: "P-256" },
-            false,
-            ["sign", "verify"]
-        );
+        return cryptoApi.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, false, ["sign", "verify"]);
     }
     if (algorithm === PASSKEY_ALGORITHM_ED25519) {
         return cryptoApi.subtle.generateKey({ name: "Ed25519" }, false, ["sign", "verify"]) as Promise<CryptoKeyPair>;
@@ -428,7 +447,10 @@ function evaluateAssertionPolicy(
     if (!credential.policy.allowedRpIds.includes(assertion.rpId)) return "rp_id_not_allowed";
     if (!isAllowedTopOrigin(credential, assertion.topOrigin)) return "top_origin_not_allowed";
     const requestedVendorFlow = assertion.vendor || binding?.vendor || "";
-    if (credential.policy.allowedVendorFlows.length && !credential.policy.allowedVendorFlows.includes(requestedVendorFlow)) {
+    if (
+        credential.policy.allowedVendorFlows.length &&
+        !credential.policy.allowedVendorFlows.includes(requestedVendorFlow)
+    ) {
         return "vendor_flow_not_allowed";
     }
     if (credential.policy.approval === "push_required" && !assertion.approvalId) return "approval_required";
@@ -448,7 +470,9 @@ function isAllowedTopOrigin(credential: PasskeyCredential, topOrigin: string): b
         return false;
     }
     if (parsed.protocol !== "https:") return false;
-    return credential.policy.allowedRpIds.some((rpId) => parsed.hostname === rpId || parsed.hostname.endsWith(`.${rpId}`));
+    return credential.policy.allowedRpIds.some(
+        (rpId) => parsed.hostname === rpId || parsed.hostname.endsWith(`.${rpId}`)
+    );
 }
 
 function denyWithoutItem(
@@ -653,10 +677,7 @@ function matchesTimeWindow(window: PasskeyTimeWindowPolicy, now: Date): boolean 
     return minuteOfDay >= window.startMinute || minuteOfDay <= window.endMinute;
 }
 
-async function resolveClientDataHash(
-    request: PasskeyAssertionRequest,
-    cryptoApi: Crypto
-): Promise<Uint8Array> {
+async function resolveClientDataHash(request: PasskeyAssertionRequest, cryptoApi: Crypto): Promise<Uint8Array> {
     if (request.clientDataHash) {
         return base64ToBytes(request.clientDataHash);
     }
@@ -678,9 +699,9 @@ async function buildAttestedCredentialData(
     const rpIdHash = await sha256(stringToBytes(rpId));
     const flags = new Uint8Array([
         AUTHENTICATOR_FLAG_USER_PRESENT |
-        PASSKEY_BACKUP_FLAGS |
-        AUTHENTICATOR_FLAG_ATTESTED_CREDENTIAL_DATA |
-        (userVerified ? AUTHENTICATOR_FLAG_USER_VERIFIED : 0),
+            PASSKEY_BACKUP_FLAGS |
+            AUTHENTICATOR_FLAG_ATTESTED_CREDENTIAL_DATA |
+            (userVerified ? AUTHENTICATOR_FLAG_USER_VERIFIED : 0),
     ]);
     const signCount = new Uint8Array([0x00, 0x00, 0x00, 0x00]);
     const aaguid = uuidToBytes(PADLOC_AGENTIC_VAULT_AAGUID);
@@ -704,9 +725,7 @@ async function buildAssertionAuthenticatorData(
 ): Promise<Uint8Array> {
     const rpIdHash = await sha256(stringToBytes(rpId));
     const flags = new Uint8Array([
-        AUTHENTICATOR_FLAG_USER_PRESENT |
-        PASSKEY_BACKUP_FLAGS |
-        (userVerified ? AUTHENTICATOR_FLAG_USER_VERIFIED : 0),
+        AUTHENTICATOR_FLAG_USER_PRESENT | PASSKEY_BACKUP_FLAGS | (userVerified ? AUTHENTICATOR_FLAG_USER_VERIFIED : 0),
     ]);
     const count = new Uint8Array([
         (signCount >>> 24) & 0xff,
@@ -739,10 +758,15 @@ async function encodeAttestationObject(
         );
         return encodeCborMap([
             ["fmt", "packed"],
-            ["attStmt", cborEncoded(encodeCborMap([
-                ["alg", selfAttestation.algorithm],
-                ["sig", signature],
-            ]))],
+            [
+                "attStmt",
+                cborEncoded(
+                    encodeCborMap([
+                        ["alg", selfAttestation.algorithm],
+                        ["sig", signature],
+                    ])
+                ),
+            ],
             ["authData", authData],
         ]);
     }
@@ -859,13 +883,9 @@ async function importPublicKeyForAlgorithm(
     publicKeySpki: Uint8Array
 ): Promise<CryptoKey> {
     if (algorithm === PASSKEY_ALGORITHM_ES256) {
-        return cryptoApi.subtle.importKey(
-            "spki",
-            publicKeySpki,
-            { name: "ECDSA", namedCurve: "P-256" },
-            false,
-            ["verify"]
-        );
+        return cryptoApi.subtle.importKey("spki", publicKeySpki, { name: "ECDSA", namedCurve: "P-256" }, false, [
+            "verify",
+        ]);
     }
     if (algorithm === PASSKEY_ALGORITHM_ED25519) {
         return cryptoApi.subtle.importKey("spki", publicKeySpki, { name: "Ed25519" }, false, ["verify"]);
@@ -879,13 +899,9 @@ async function importPublicKeyFromJwk(
     publicKeyJwk: JsonWebKey
 ): Promise<CryptoKey> {
     if (algorithm === PASSKEY_ALGORITHM_ES256) {
-        return cryptoApi.subtle.importKey(
-            "jwk",
-            publicKeyJwk,
-            { name: "ECDSA", namedCurve: "P-256" },
-            true,
-            ["verify"]
-        );
+        return cryptoApi.subtle.importKey("jwk", publicKeyJwk, { name: "ECDSA", namedCurve: "P-256" }, true, [
+            "verify",
+        ]);
     }
     if (algorithm === PASSKEY_ALGORITHM_ED25519) {
         return cryptoApi.subtle.importKey("jwk", publicKeyJwk, { name: "Ed25519" }, true, ["verify"]);
@@ -1040,7 +1056,8 @@ async function storePasskeySignerKey(handle: string, privateKey: CryptoKey): Pro
     const db = await openPasskeySignerDb(indexedDb);
     try {
         await idbRequestToPromise(
-            db.transaction(PASSKEY_SIGNER_STORE_NAME, "readwrite")
+            db
+                .transaction(PASSKEY_SIGNER_STORE_NAME, "readwrite")
                 .objectStore(PASSKEY_SIGNER_STORE_NAME)
                 .put({ handle, privateKey, createdAt: new Date().toISOString() })
         );
@@ -1061,9 +1078,7 @@ async function loadPasskeySignerKey(handle: string): Promise<CryptoKey | null> {
     const db = await openPasskeySignerDb(indexedDb);
     try {
         const record = await idbRequestToPromise<{ privateKey?: CryptoKey } | undefined>(
-            db.transaction(PASSKEY_SIGNER_STORE_NAME, "readonly")
-                .objectStore(PASSKEY_SIGNER_STORE_NAME)
-                .get(handle)
+            db.transaction(PASSKEY_SIGNER_STORE_NAME, "readonly").objectStore(PASSKEY_SIGNER_STORE_NAME).get(handle)
         );
         if (!record?.privateKey) return null;
         memoryPasskeySignerKeys.set(handle, record.privateKey);

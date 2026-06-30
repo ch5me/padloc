@@ -573,7 +573,13 @@ export function guessFieldType({
 export interface ItemTemplate {
     name?: string;
     autofillKind?: AutofillItemKind;
-    fields: { name: string; value?: string; type: FieldType; autofillRole?: AutofillFieldRole; transactionOnly?: boolean }[];
+    fields: {
+        name: string;
+        value?: string;
+        type: FieldType;
+        autofillRole?: AutofillFieldRole;
+        transactionOnly?: boolean;
+    }[];
     icon: string;
     iconSrc?: string;
     toString(): string;

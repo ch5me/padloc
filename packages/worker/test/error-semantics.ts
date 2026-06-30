@@ -83,7 +83,7 @@ async function runErrorTests(): Promise<ErrorSemanticsReport> {
         assertEqual(sanitized.status, 409, "HTTP 409 for duplicate");
         assertTrue(
             !sanitized.message.includes("SQLITE") && !sanitized.message.includes("constraint failed:"),
-            "No internal details leaked",
+            "No internal details leaked"
         );
         results.push({ name: "SQLite UNIQUE → DUPLICATE_OPERATION", ok: true, detail: "passed" });
     } catch (e) {
@@ -103,7 +103,7 @@ async function runErrorTests(): Promise<ErrorSemanticsReport> {
     // --- 4. sanitizeError: Unknown Error → SERVER_ERROR (no leak) ---
     try {
         const unknownErr = new Error(
-            "TypeError: Cannot read property 'foo' of undefined\n  at /worker/src/handler.ts:42",
+            "TypeError: Cannot read property 'foo' of undefined\n  at /worker/src/handler.ts:42"
         );
         const sanitized = sanitizeError(unknownErr);
         assertEqual(sanitized.code, ErrorCode.SERVER_ERROR, "Mapped to SERVER_ERROR");
@@ -133,7 +133,7 @@ async function runErrorTests(): Promise<ErrorSemanticsReport> {
         const msg = sanitized.message;
         assertTrue(
             msg !== "something broke" && (msg === "Unknown error" || msg === "An internal error occurred"),
-            "Safe message",
+            "Safe message"
         );
         results.push({ name: "Plain string error → SERVER_ERROR", ok: true, detail: "passed" });
     } catch (e) {
@@ -344,7 +344,7 @@ async function runErrorTests(): Promise<ErrorSemanticsReport> {
         assertEqual(
             (resp as { code: string; message: string; stack?: unknown }).stack,
             undefined,
-            "No stack in toResponse",
+            "No stack in toResponse"
         );
         results.push({ name: "Err.toResponse() excludes stack", ok: true, detail: "passed" });
     } catch (e) {
@@ -381,7 +381,7 @@ async function postToReceiver(rawBody: string): Promise<{ resp: Response; status
 
 async function postWithHandler(
     params: Record<string, unknown>,
-    handler: (req: PlRequest) => Promise<PlResponse>,
+    handler: (req: PlRequest) => Promise<PlResponse>
 ): Promise<{ resp: Response; status: number; body: Record<string, unknown> }> {
     const config = new WorkerReceiverConfig();
     const receiver = new WorkerReceiver(config);

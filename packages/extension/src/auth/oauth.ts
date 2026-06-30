@@ -30,7 +30,11 @@ export class OauthClient implements AuthClient {
      * @param params.authUrl - The full OAuth authorization URL including redirect
      * @returns The authorization code and state extracted from the callback URL
      */
-    async _getAuthorizationCode({ authUrl }: { authUrl: string }): Promise<{ code: string | null; state: string | null }> {
+    async _getAuthorizationCode({
+        authUrl,
+    }: {
+        authUrl: string;
+    }): Promise<{ code: string | null; state: string | null }> {
         // chrome.identity.launchWebAuthFlow returns the final redirect URL after the OAuth callback.
         // The redirect URL is typically https://<extension-id>.chromiumapp.org/provider_callback_path
         // with code and state as URL search params.

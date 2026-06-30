@@ -10,10 +10,7 @@ export type UnlockPersistenceApp = {
     unlockWithMasterKey(key: Uint8Array): Promise<void>;
 };
 
-export function installUnlockPersistenceHooks(
-    app: UnlockPersistenceApp,
-    persistUnlockedState: () => Promise<void>
-) {
+export function installUnlockPersistenceHooks(app: UnlockPersistenceApp, persistUnlockedState: () => Promise<void>) {
     const originalLogin = app.login.bind(app);
     app.login = async (opts) => {
         await originalLogin(opts);

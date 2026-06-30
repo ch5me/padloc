@@ -29,7 +29,7 @@ for (const { id } of [account, ...account.orgs]) {
     }
     this._requestQueue.set(
         id,
-        new Promise((resolve) => resolveFuncs.push(resolve)),
+        new Promise((resolve) => resolveFuncs.push(resolve))
     );
 }
 await Promise.all(promises);
@@ -82,9 +82,9 @@ KV is **explicitly forbidden** from the consistency owner column. The single
 source of truth (SSOT) for all authoritative state is D1. KV is only permitted
 for:
 
-- **Hint-only**: rate-limit counters, ephemeral cache entries
-- **Performance optimization**: reducing cold-start cache misses
-- **Non-critical observability**: request counting, session presence hints
+-   **Hint-only**: rate-limit counters, ephemeral cache entries
+-   **Performance optimization**: reducing cold-start cache misses
+-   **Non-critical observability**: request counting, session presence hints
 
 **Never use KV as the authoritative store for:** auth records, session records,
 vault state, org membership, account data, or attachment metadata.
@@ -227,17 +227,17 @@ vault state, org membership, account data, or attachment metadata.
 
 ### Why one DO class
 
-- **Bounded scope**: One class means one deployment unit, one billing surface,
-  simpler testing
-- **No per-flow DOs**: `SessionLockDO`, `OrgLockDO`, `VaultLockDO` are
-  anti-patterns — they multiply DO instances, increase cold starts, and make
-  ordering harder
-- **Keyed by identity**: The DO stub is created with
-  `env.ACCOUNT_LOCK_DO.new(env.ACCOUNT_LOCK_DO.idFromName(id))`, giving one
-  instance per unique `AccountID` or `OrgID`
-- **Internal stateless lock**: The DO maintains an in-memory `Promise<void>`
-  chain (same pattern as the current Node `_requestQueue`), but now shared
-  across all Workers that route to this DO
+-   **Bounded scope**: One class means one deployment unit, one billing surface,
+    simpler testing
+-   **No per-flow DOs**: `SessionLockDO`, `OrgLockDO`, `VaultLockDO` are
+    anti-patterns — they multiply DO instances, increase cold starts, and make
+    ordering harder
+-   **Keyed by identity**: The DO stub is created with
+    `env.ACCOUNT_LOCK_DO.new(env.ACCOUNT_LOCK_DO.idFromName(id))`, giving one
+    instance per unique `AccountID` or `OrgID`
+-   **Internal stateless lock**: The DO maintains an in-memory `Promise<void>`
+    chain (same pattern as the current Node `_requestQueue`), but now shared
+    across all Workers that route to this DO
 
 ## KV Anti-Pattern: What NOT to Do
 
@@ -254,6 +254,6 @@ ALLOWED:    KV put("presence:" + id, ts)          ← session presence hint
 
 ## Related ADRs
 
-- **ADR-001**: Cloudflare-native backend migration
-- **ADR-006**: D1 as primary storage
-- **ADR-007**: R2 for attachment storage
+-   **ADR-001**: Cloudflare-native backend migration
+-   **ADR-006**: D1 as primary storage
+-   **ADR-007**: R2 for attachment storage

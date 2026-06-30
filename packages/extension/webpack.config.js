@@ -117,7 +117,7 @@ module.exports = {
                             description: web_extension?.description || `${name} Browser Extension`,
                         },
                         null,
-                        4,
+                        4
                     );
 
                     compilation.assets["manifest.json"] = {

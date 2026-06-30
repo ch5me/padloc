@@ -26,7 +26,6 @@ on:
             - "packages/electron/**"
             - "assets/**"
 
-
 jobs:
     linux:
         if: ${{ !forgejo.event.inputs.targets || forgejo.event.inputs.targets == 'All' || forgejo.event.inputs.targets == 'Linux' }}

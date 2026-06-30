@@ -1,316 +1,316 @@
 {
-  "version": "1.0.0",
-  "description": "Greenfield Padloc D1 fixture — minimal test accounts and vaults for migration tooling validation",
-  "created_at": "2026-01-01T00:00:00.000Z",
-  "records": [
-    {
-      "kind": "account",
-      "data": {
-        "id": "acct_test_alice_001",
-        "email": "alice@example.test",
-        "name": "Alice Test",
-        "publicKey": "RSA-PUBLIC-FIXTURE-BASE64==",
-        "created": "2026-01-01T00:00:00.000Z",
-        "updated": "2026-01-01T00:00:00.000Z",
-        "mainVault": {
-          "id": "vault_test_alice_main",
-          "name": "Personal Vault",
-          "revision": "rev-001"
+    "version": "1.0.0",
+    "description": "Greenfield Padloc D1 fixture — minimal test accounts and vaults for migration tooling validation",
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "records": [
+        {
+            "kind": "account",
+            "data": {
+                "id": "acct_test_alice_001",
+                "email": "alice@example.test",
+                "name": "Alice Test",
+                "publicKey": "RSA-PUBLIC-FIXTURE-BASE64==",
+                "created": "2026-01-01T00:00:00.000Z",
+                "updated": "2026-01-01T00:00:00.000Z",
+                "mainVault": {
+                    "id": "vault_test_alice_main",
+                    "name": "Personal Vault",
+                    "revision": "rev-001"
+                },
+                "orgs": [],
+                "revision": "acct-rev-001",
+                "settings": {
+                    "securityReport": {
+                        "weakPasswords": true,
+                        "reusedPasswords": true,
+                        "compromisedPaswords": true,
+                        "expiredItems": true
+                    },
+                    "notifications": {
+                        "failedLoginAttempts": true,
+                        "newLogins": true
+                    }
+                },
+                "encryptedData": "PBES2-FIXTURE-ENCRYPTED-BASE64==",
+                "keyParams": {
+                    "algorithm": "PBES2",
+                    "iterations": 1000000,
+                    "keySize": 256,
+                    "iv": "FIXTURE-IV-BASE64",
+                    "salt": "FIXTURE-SALT-BASE64"
+                }
+            }
         },
-        "orgs": [],
-        "revision": "acct-rev-001",
-        "settings": {
-          "securityReport": {
-            "weakPasswords": true,
-            "reusedPasswords": true,
-            "compromisedPaswords": true,
-            "expiredItems": true
-          },
-          "notifications": {
-            "failedLoginAttempts": true,
-            "newLogins": true
-          }
+        {
+            "kind": "auth",
+            "data": {
+                "id": "auth_test_alice_001",
+                "account": "acct_test_alice_001",
+                "email": "alice@example.test",
+                "accountStatus": "active",
+                "keyParams": {
+                    "algorithm": "PBES2",
+                    "iterations": 1000000,
+                    "keySize": 256,
+                    "iv": "FIXTURE-IV-BASE64",
+                    "salt": "FIXTURE-SALT-BASE64"
+                },
+                "trustedDevices": [],
+                "authenticators": [],
+                "authRequests": [],
+                "keyStoreEntries": [],
+                "sessions": [],
+                "srpSessions": [],
+                "mfaOrder": ["email"],
+                "invites": [],
+                "disableMFA": false
+            }
         },
-        "encryptedData": "PBES2-FIXTURE-ENCRYPTED-BASE64==",
-        "keyParams": {
-          "algorithm": "PBES2",
-          "iterations": 1000000,
-          "keySize": 256,
-          "iv": "FIXTURE-IV-BASE64",
-          "salt": "FIXTURE-SALT-BASE64"
+        {
+            "kind": "vault",
+            "data": {
+                "id": "vault_test_alice_main",
+                "name": "Personal Vault",
+                "owner": "acct_test_alice_001",
+                "org": null,
+                "created": "2026-01-01T00:00:00.000Z",
+                "updated": "2026-01-01T00:00:00.000Z",
+                "revision": "vault-rev-001",
+                "items": [],
+                "accessors": [],
+                "encryptedData": "SHARED-CONTAINER-FIXTURE-BASE64==",
+                "keyParams": {
+                    "algorithm": "RSA-OAEP",
+                    "keySize": 2048,
+                    "iv": "FIXTURE-IV-BASE64"
+                }
+            }
+        },
+        {
+            "kind": "account",
+            "data": {
+                "id": "acct_test_bob_001",
+                "email": "bob@example.test",
+                "name": "Bob Test",
+                "publicKey": "RSA-PUBLIC-FIXTURE-BASE64==",
+                "created": "2026-01-01T00:00:00.000Z",
+                "updated": "2026-01-01T00:00:00.000Z",
+                "mainVault": {
+                    "id": "vault_test_bob_main",
+                    "name": "Personal Vault",
+                    "revision": "rev-001"
+                },
+                "orgs": [],
+                "revision": "acct-rev-001",
+                "settings": {
+                    "securityReport": {
+                        "weakPasswords": true,
+                        "reusedPasswords": true,
+                        "compromisedPaswords": true,
+                        "expiredItems": true
+                    },
+                    "notifications": {
+                        "failedLoginAttempts": true,
+                        "newLogins": true
+                    }
+                },
+                "encryptedData": "PBES2-FIXTURE-ENCRYPTED-BASE64==",
+                "keyParams": {
+                    "algorithm": "PBES2",
+                    "iterations": 1000000,
+                    "keySize": 256,
+                    "iv": "FIXTURE-IV-BASE64",
+                    "salt": "FIXTURE-SALT-BASE64"
+                }
+            }
+        },
+        {
+            "kind": "auth",
+            "data": {
+                "id": "auth_test_bob_001",
+                "account": "acct_test_bob_001",
+                "email": "bob@example.test",
+                "accountStatus": "active",
+                "keyParams": {
+                    "algorithm": "PBES2",
+                    "iterations": 1000000,
+                    "keySize": 256,
+                    "iv": "FIXTURE-IV-BASE64",
+                    "salt": "FIXTURE-SALT-BASE64"
+                },
+                "trustedDevices": [],
+                "authenticators": [],
+                "authRequests": [],
+                "keyStoreEntries": [],
+                "sessions": [],
+                "srpSessions": [],
+                "mfaOrder": ["email"],
+                "invites": [],
+                "disableMFA": false
+            }
+        },
+        {
+            "kind": "vault",
+            "data": {
+                "id": "vault_test_bob_main",
+                "name": "Personal Vault",
+                "owner": "acct_test_bob_001",
+                "org": null,
+                "created": "2026-01-01T00:00:00.000Z",
+                "updated": "2026-01-01T00:00:00.000Z",
+                "revision": "vault-rev-001",
+                "items": [],
+                "accessors": [],
+                "encryptedData": "SHARED-CONTAINER-FIXTURE-BASE64==",
+                "keyParams": {
+                    "algorithm": "RSA-OAEP",
+                    "keySize": 2048,
+                    "iv": "FIXTURE-IV-BASE64"
+                }
+            }
+        },
+        {
+            "kind": "org",
+            "data": {
+                "id": "org_test_team_001",
+                "name": "Test Team Org",
+                "owner": {
+                    "accountId": "acct_test_alice_001",
+                    "email": "alice@example.test"
+                },
+                "created": "2026-01-01T00:00:00.000Z",
+                "updated": "2026-01-01T00:00:00.000Z",
+                "publicKey": "RSA-PUBLIC-FIXTURE-BASE64==",
+                "minMemberUpdated": "2026-01-01T00:00:00.000Z",
+                "signingParams": {
+                    "algorithm": "RSA-PSS",
+                    "hash": "SHA-256",
+                    "saltLength": 20
+                },
+                "members": [
+                    {
+                        "accountId": "acct_test_alice_001",
+                        "name": "Alice Test",
+                        "email": "alice@example.test",
+                        "publicKey": "RSA-PUBLIC-FIXTURE-BASE64==",
+                        "role": 0,
+                        "status": "active",
+                        "updated": "2026-01-01T00:00:00.000Z",
+                        "vaults": [],
+                        "signature": "ORG-MEMBER-SIG-BASE64=="
+                    },
+                    {
+                        "accountId": "acct_test_bob_001",
+                        "name": "Bob Test",
+                        "email": "bob@example.test",
+                        "publicKey": "RSA-PUBLIC-FIXTURE-BASE64==",
+                        "role": 2,
+                        "status": "active",
+                        "updated": "2026-01-01T00:00:00.000Z",
+                        "vaults": [],
+                        "signature": "ORG-MEMBER-SIG-BASE64=="
+                    }
+                ],
+                "groups": [],
+                "vaults": [],
+                "invites": [],
+                "revision": "org-rev-001",
+                "directory": {
+                    "syncProvider": "none",
+                    "syncGroups": true,
+                    "syncMembers": true
+                },
+                "encryptedData": "ORG-SECRETS-FIXTURE-BASE64==",
+                "keyParams": {
+                    "algorithm": "RSA-OAEP",
+                    "keySize": 2048,
+                    "iv": "FIXTURE-IV-BASE64"
+                }
+            }
+        },
+        {
+            "kind": "orgmember",
+            "data": {
+                "id": "orgmem_alice_owner_001",
+                "orgId": "org_test_team_001",
+                "accountId": "acct_test_alice_001",
+                "role": 0,
+                "status": "active"
+            }
+        },
+        {
+            "kind": "orgmember",
+            "data": {
+                "id": "orgmem_bob_member_001",
+                "orgId": "org_test_team_001",
+                "accountId": "acct_test_bob_001",
+                "role": 2,
+                "status": "active"
+            }
+        },
+        {
+            "kind": "vault",
+            "data": {
+                "id": "vault_test_team_shared",
+                "name": "Team Shared Vault",
+                "owner": "acct_test_alice_001",
+                "org": {
+                    "id": "org_test_team_001",
+                    "name": "Test Team Org",
+                    "revision": "org-rev-001"
+                },
+                "created": "2026-01-01T00:00:00.000Z",
+                "updated": "2026-01-01T00:00:00.000Z",
+                "revision": "shared-vault-rev-001",
+                "items": [],
+                "accessors": [
+                    {
+                        "id": "acct_test_alice_001",
+                        "encryptedKey": "RSA-WRAPPED-KEY-ALICE-BASE64==",
+                        "publicKey": "RSA-PUBLIC-FIXTURE-BASE64=="
+                    },
+                    {
+                        "id": "acct_test_bob_001",
+                        "encryptedKey": "RSA-WRAPPED-KEY-BOB-BASE64==",
+                        "publicKey": "RSA-PUBLIC-FIXTURE-BASE64=="
+                    }
+                ],
+                "encryptedData": "SHARED-CONTAINER-FIXTURE-BASE64==",
+                "keyParams": {
+                    "algorithm": "RSA-OAEP",
+                    "keySize": 2048,
+                    "iv": "FIXTURE-IV-BASE64"
+                }
+            }
+        },
+        {
+            "kind": "session",
+            "data": {
+                "id": "sess_test_alice_001",
+                "account": "acct_test_alice_001",
+                "created": "2026-01-01T00:00:00.000Z",
+                "updated": "2026-01-01T00:00:00.000Z",
+                "lastUsed": "2026-01-01T00:00:00.000Z",
+                "expires": "2027-01-01T00:00:00.000Z",
+                "key": "HMAC-SESSION-KEY-BASE64==",
+                "device": {
+                    "platform": "web",
+                    "browser": "Chrome",
+                    "version": "120.0"
+                },
+                "asAdmin": false
+            }
+        },
+        {
+            "kind": "emailverification",
+            "data": {
+                "id": "ev_test_charlie_001",
+                "email": "charlie@example.test",
+                "code_hash": "SHA256-HASH-OF-CODE==",
+                "purpose": "register",
+                "expires": "2026-12-31T23:59:59.000Z",
+                "consumed_at": null
+            }
         }
-      }
-    },
-    {
-      "kind": "auth",
-      "data": {
-        "id": "auth_test_alice_001",
-        "account": "acct_test_alice_001",
-        "email": "alice@example.test",
-        "accountStatus": "active",
-        "keyParams": {
-          "algorithm": "PBES2",
-          "iterations": 1000000,
-          "keySize": 256,
-          "iv": "FIXTURE-IV-BASE64",
-          "salt": "FIXTURE-SALT-BASE64"
-        },
-        "trustedDevices": [],
-        "authenticators": [],
-        "authRequests": [],
-        "keyStoreEntries": [],
-        "sessions": [],
-        "srpSessions": [],
-        "mfaOrder": ["email"],
-        "invites": [],
-        "disableMFA": false
-      }
-    },
-    {
-      "kind": "vault",
-      "data": {
-        "id": "vault_test_alice_main",
-        "name": "Personal Vault",
-        "owner": "acct_test_alice_001",
-        "org": null,
-        "created": "2026-01-01T00:00:00.000Z",
-        "updated": "2026-01-01T00:00:00.000Z",
-        "revision": "vault-rev-001",
-        "items": [],
-        "accessors": [],
-        "encryptedData": "SHARED-CONTAINER-FIXTURE-BASE64==",
-        "keyParams": {
-          "algorithm": "RSA-OAEP",
-          "keySize": 2048,
-          "iv": "FIXTURE-IV-BASE64"
-        }
-      }
-    },
-    {
-      "kind": "account",
-      "data": {
-        "id": "acct_test_bob_001",
-        "email": "bob@example.test",
-        "name": "Bob Test",
-        "publicKey": "RSA-PUBLIC-FIXTURE-BASE64==",
-        "created": "2026-01-01T00:00:00.000Z",
-        "updated": "2026-01-01T00:00:00.000Z",
-        "mainVault": {
-          "id": "vault_test_bob_main",
-          "name": "Personal Vault",
-          "revision": "rev-001"
-        },
-        "orgs": [],
-        "revision": "acct-rev-001",
-        "settings": {
-          "securityReport": {
-            "weakPasswords": true,
-            "reusedPasswords": true,
-            "compromisedPaswords": true,
-            "expiredItems": true
-          },
-          "notifications": {
-            "failedLoginAttempts": true,
-            "newLogins": true
-          }
-        },
-        "encryptedData": "PBES2-FIXTURE-ENCRYPTED-BASE64==",
-        "keyParams": {
-          "algorithm": "PBES2",
-          "iterations": 1000000,
-          "keySize": 256,
-          "iv": "FIXTURE-IV-BASE64",
-          "salt": "FIXTURE-SALT-BASE64"
-        }
-      }
-    },
-    {
-      "kind": "auth",
-      "data": {
-        "id": "auth_test_bob_001",
-        "account": "acct_test_bob_001",
-        "email": "bob@example.test",
-        "accountStatus": "active",
-        "keyParams": {
-          "algorithm": "PBES2",
-          "iterations": 1000000,
-          "keySize": 256,
-          "iv": "FIXTURE-IV-BASE64",
-          "salt": "FIXTURE-SALT-BASE64"
-        },
-        "trustedDevices": [],
-        "authenticators": [],
-        "authRequests": [],
-        "keyStoreEntries": [],
-        "sessions": [],
-        "srpSessions": [],
-        "mfaOrder": ["email"],
-        "invites": [],
-        "disableMFA": false
-      }
-    },
-    {
-      "kind": "vault",
-      "data": {
-        "id": "vault_test_bob_main",
-        "name": "Personal Vault",
-        "owner": "acct_test_bob_001",
-        "org": null,
-        "created": "2026-01-01T00:00:00.000Z",
-        "updated": "2026-01-01T00:00:00.000Z",
-        "revision": "vault-rev-001",
-        "items": [],
-        "accessors": [],
-        "encryptedData": "SHARED-CONTAINER-FIXTURE-BASE64==",
-        "keyParams": {
-          "algorithm": "RSA-OAEP",
-          "keySize": 2048,
-          "iv": "FIXTURE-IV-BASE64"
-        }
-      }
-    },
-    {
-      "kind": "org",
-      "data": {
-        "id": "org_test_team_001",
-        "name": "Test Team Org",
-        "owner": {
-          "accountId": "acct_test_alice_001",
-          "email": "alice@example.test"
-        },
-        "created": "2026-01-01T00:00:00.000Z",
-        "updated": "2026-01-01T00:00:00.000Z",
-        "publicKey": "RSA-PUBLIC-FIXTURE-BASE64==",
-        "minMemberUpdated": "2026-01-01T00:00:00.000Z",
-        "signingParams": {
-          "algorithm": "RSA-PSS",
-          "hash": "SHA-256",
-          "saltLength": 20
-        },
-        "members": [
-          {
-            "accountId": "acct_test_alice_001",
-            "name": "Alice Test",
-            "email": "alice@example.test",
-            "publicKey": "RSA-PUBLIC-FIXTURE-BASE64==",
-            "role": 0,
-            "status": "active",
-            "updated": "2026-01-01T00:00:00.000Z",
-            "vaults": [],
-            "signature": "ORG-MEMBER-SIG-BASE64=="
-          },
-          {
-            "accountId": "acct_test_bob_001",
-            "name": "Bob Test",
-            "email": "bob@example.test",
-            "publicKey": "RSA-PUBLIC-FIXTURE-BASE64==",
-            "role": 2,
-            "status": "active",
-            "updated": "2026-01-01T00:00:00.000Z",
-            "vaults": [],
-            "signature": "ORG-MEMBER-SIG-BASE64=="
-          }
-        ],
-        "groups": [],
-        "vaults": [],
-        "invites": [],
-        "revision": "org-rev-001",
-        "directory": {
-          "syncProvider": "none",
-          "syncGroups": true,
-          "syncMembers": true
-        },
-        "encryptedData": "ORG-SECRETS-FIXTURE-BASE64==",
-        "keyParams": {
-          "algorithm": "RSA-OAEP",
-          "keySize": 2048,
-          "iv": "FIXTURE-IV-BASE64"
-        }
-      }
-    },
-    {
-      "kind": "orgmember",
-      "data": {
-        "id": "orgmem_alice_owner_001",
-        "orgId": "org_test_team_001",
-        "accountId": "acct_test_alice_001",
-        "role": 0,
-        "status": "active"
-      }
-    },
-    {
-      "kind": "orgmember",
-      "data": {
-        "id": "orgmem_bob_member_001",
-        "orgId": "org_test_team_001",
-        "accountId": "acct_test_bob_001",
-        "role": 2,
-        "status": "active"
-      }
-    },
-    {
-      "kind": "vault",
-      "data": {
-        "id": "vault_test_team_shared",
-        "name": "Team Shared Vault",
-        "owner": "acct_test_alice_001",
-        "org": {
-          "id": "org_test_team_001",
-          "name": "Test Team Org",
-          "revision": "org-rev-001"
-        },
-        "created": "2026-01-01T00:00:00.000Z",
-        "updated": "2026-01-01T00:00:00.000Z",
-        "revision": "shared-vault-rev-001",
-        "items": [],
-        "accessors": [
-          {
-            "id": "acct_test_alice_001",
-            "encryptedKey": "RSA-WRAPPED-KEY-ALICE-BASE64==",
-            "publicKey": "RSA-PUBLIC-FIXTURE-BASE64=="
-          },
-          {
-            "id": "acct_test_bob_001",
-            "encryptedKey": "RSA-WRAPPED-KEY-BOB-BASE64==",
-            "publicKey": "RSA-PUBLIC-FIXTURE-BASE64=="
-          }
-        ],
-        "encryptedData": "SHARED-CONTAINER-FIXTURE-BASE64==",
-        "keyParams": {
-          "algorithm": "RSA-OAEP",
-          "keySize": 2048,
-          "iv": "FIXTURE-IV-BASE64"
-        }
-      }
-    },
-    {
-      "kind": "session",
-      "data": {
-        "id": "sess_test_alice_001",
-        "account": "acct_test_alice_001",
-        "created": "2026-01-01T00:00:00.000Z",
-        "updated": "2026-01-01T00:00:00.000Z",
-        "lastUsed": "2026-01-01T00:00:00.000Z",
-        "expires": "2027-01-01T00:00:00.000Z",
-        "key": "HMAC-SESSION-KEY-BASE64==",
-        "device": {
-          "platform": "web",
-          "browser": "Chrome",
-          "version": "120.0"
-        },
-        "asAdmin": false
-      }
-    },
-    {
-      "kind": "emailverification",
-      "data": {
-        "id": "ev_test_charlie_001",
-        "email": "charlie@example.test",
-        "code_hash": "SHA256-HASH-OF-CODE==",
-        "purpose": "register",
-        "expires": "2026-12-31T23:59:59.000Z",
-        "consumed_at": null
-      }
-    }
-  ]
+    ]
 }

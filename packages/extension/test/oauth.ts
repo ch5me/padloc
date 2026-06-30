@@ -59,7 +59,9 @@ suite("OauthClient", () => {
             const authUrl =
                 "https://provider.com/oauth/authorize?redirect_uri=https%3A%2F%2Fext-id.chromiumapp.org%2Fcallback&state=test-state";
 
-            sandbox.stub(browser.identity, "launchWebAuthFlow").resolves("https://ext-id.chromiumapp.org/callback?code=auth-code-123&state=test-state");
+            sandbox
+                .stub(browser.identity, "launchWebAuthFlow")
+                .resolves("https://ext-id.chromiumapp.org/callback?code=auth-code-123&state=test-state");
 
             const result = await client.prepareAuthentication({ authUrl });
 
@@ -71,7 +73,8 @@ suite("OauthClient", () => {
         });
 
         test("rejects when user cancels the OAuth flow", async () => {
-            const authUrl = "https://provider.com/oauth/authorize?redirect_uri=https%3A%2F%2Fext-id.chromiumapp.org%2Fcallback";
+            const authUrl =
+                "https://provider.com/oauth/authorize?redirect_uri=https%3A%2F%2Fext-id.chromiumapp.org%2Fcallback";
 
             sandbox.stub(browser.identity, "launchWebAuthFlow").rejects(new Error("User cancelled"));
 
@@ -88,9 +91,12 @@ suite("OauthClient", () => {
         });
 
         test("rejects when redirect URL contains error parameter", async () => {
-            const authUrl = "https://provider.com/oauth/authorize?redirect_uri=https%3A%2F%2Fext-id.chromiumapp.org%2Fcallback";
+            const authUrl =
+                "https://provider.com/oauth/authorize?redirect_uri=https%3A%2F%2Fext-id.chromiumapp.org%2Fcallback";
 
-            sandbox.stub(browser.identity, "launchWebAuthFlow").resolves("https://ext-id.chromiumapp.org/callback?error=access_denied");
+            sandbox
+                .stub(browser.identity, "launchWebAuthFlow")
+                .resolves("https://ext-id.chromiumapp.org/callback?error=access_denied");
 
             let error: any;
             try {
@@ -105,7 +111,8 @@ suite("OauthClient", () => {
         });
 
         test("rejects when no redirect URL is returned", async () => {
-            const authUrl = "https://provider.com/oauth/authorize?redirect_uri=https%3A%2F%2Fext-id.chromiumapp.org%2Fcallback";
+            const authUrl =
+                "https://provider.com/oauth/authorize?redirect_uri=https%3A%2F%2Fext-id.chromiumapp.org%2Fcallback";
 
             sandbox.stub(browser.identity, "launchWebAuthFlow").resolves(undefined);
 
@@ -122,9 +129,12 @@ suite("OauthClient", () => {
         });
 
         test("rejects when callback URL has no code parameter", async () => {
-            const authUrl = "https://provider.com/oauth/authorize?redirect_uri=https%3A%2F%2Fext-id.chromiumapp.org%2Fcallback";
+            const authUrl =
+                "https://provider.com/oauth/authorize?redirect_uri=https%3A%2F%2Fext-id.chromiumapp.org%2Fcallback";
 
-            sandbox.stub(browser.identity, "launchWebAuthFlow").resolves("https://ext-id.chromiumapp.org/callback?state=test-state");
+            sandbox
+                .stub(browser.identity, "launchWebAuthFlow")
+                .resolves("https://ext-id.chromiumapp.org/callback?state=test-state");
 
             let error: any;
             try {
@@ -144,7 +154,9 @@ suite("OauthClient", () => {
             const authUrl =
                 "https://provider.com/oauth/authorize?redirect_uri=https%3A%2F%2Fext-id.chromiumapp.org%2Fcallback&state=reg-state";
 
-            sandbox.stub(browser.identity, "launchWebAuthFlow").resolves("https://ext-id.chromiumapp.org/callback?code=reg-code-456&state=reg-state");
+            sandbox
+                .stub(browser.identity, "launchWebAuthFlow")
+                .resolves("https://ext-id.chromiumapp.org/callback?code=reg-code-456&state=reg-state");
 
             const result = await client.prepareRegistration({ authUrl });
 

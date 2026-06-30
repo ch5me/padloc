@@ -19,9 +19,7 @@ export function shouldAttemptBiometricReunlock(opts: {
 }
 
 function getErrorCode(error: unknown) {
-    return typeof error === "object" && error && "code" in error
-        ? (error as { code?: ErrorCode }).code
-        : undefined;
+    return typeof error === "object" && error && "code" in error ? (error as { code?: ErrorCode }).code : undefined;
 }
 
 export async function unlockWithBiometric(

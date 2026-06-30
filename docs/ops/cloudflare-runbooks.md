@@ -37,7 +37,8 @@ WORKER_DIR="packages/worker"
 
 ## 1. Deploy Preview
 
-Deploy the `preview` environment to validate changes before production promotion.
+Deploy the `preview` environment to validate changes before production
+promotion.
 
 ### 1.1 Validate Configuration (dry-run)
 
@@ -51,6 +52,7 @@ wrangler deploy --dry-run --env=preview
 ```
 
 **Verification:**
+
 ```sh
 # Confirm config is valid (no missing bindings, no syntax errors)
 echo $?  # 0 = valid config
@@ -68,6 +70,7 @@ wrangler deploy --env=preview
 ```
 
 **Verification:**
+
 ```sh
 # Confirm deployment via Workers API
 curl -s "https://padloc-worker-preview.<YOUR_SUBDOMAIN>.workers.dev/healthcheck" | jq .
@@ -107,7 +110,8 @@ npm run proof:worker
 
 ## 2. Promote to Production
 
-Promote the preview worker to production. This deploys to the `production` environment.
+Promote the preview worker to production. This deploys to the `production`
+environment.
 
 ### 2.1 Pre-flight Checks
 
@@ -150,6 +154,7 @@ wrangler deploy --env=production
 ```
 
 **Verification:**
+
 ```sh
 # Health check
 curl -s "https://padloc-worker.<YOUR_SUBDOMAIN>.workers.dev/healthcheck" | jq .
@@ -180,7 +185,8 @@ npm run proof:worker
 
 ## 3. Rollback Worker Version
 
-Cloudflare Workers retain deployment history. Use `wrangler versions rollback` to revert.
+Cloudflare Workers retain deployment history. Use `wrangler versions rollback`
+to revert.
 
 ### 3.1 List Available Versions
 
@@ -211,6 +217,7 @@ wrangler versions rollback VERSION_HASH --env=production
 ```
 
 **Verification:**
+
 ```sh
 # Confirm the active version changed
 wrangler deployments list --env=production 2>/dev/null | head -5
@@ -250,7 +257,8 @@ curl -s "https://padloc-worker.<YOUR_SUBDOMAIN>.workers.dev/healthcheck"
 
 ## 4. Apply D1 Migrations
 
-Apply pending migrations to a D1 database. Migrations are forward-only -- rollback requires a new forward migration.
+Apply pending migrations to a D1 database. Migrations are forward-only --
+rollback requires a new forward migration.
 
 ### 4.1 Create a New Migration
 
@@ -277,6 +285,7 @@ head -1 migrations/${NEW_MIGRATION_NUMBER}_description.sql
 ```
 
 **Verification:**
+
 ```sh
 # Validate SQL syntax
 npx drizzle-kit check
@@ -296,6 +305,7 @@ wrangler d1 migrations apply padloc-preview --env=preview
 ```
 
 **Verification:**
+
 ```sh
 # Confirm tables/indexes exist
 wrangler d1 execute padloc-preview --env=preview --command=".tables" --remote
@@ -318,6 +328,7 @@ wrangler d1 migrations apply padloc-prod --env=production
 ```
 
 **Verification:**
+
 ```sh
 # Confirm production database has the new schema
 wrangler d1 execute padloc-prod --env=production --command="SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;" --remote
@@ -361,6 +372,7 @@ wrangler d1 export padloc-prod --env=production --output="${BACKUP_DIR}/d1_padlo
 ```
 
 **Verification:**
+
 ```sh
 # Confirm file exists and is non-empty
 ls -lh "${BACKUP_DIR}/d1_padloc-prod_${TIMESTAMP}.sql"
@@ -386,7 +398,8 @@ wrangler d1 execute padloc-dev --env=dev --command="SELECT count(*) FROM account
 
 ### 5.3 Backup R2 Bucket
 
-R2 uses S3-compatible API. Use `r2 object put` for upload and paginate for listing.
+R2 uses S3-compatible API. Use `r2 object put` for upload and paginate for
+listing.
 
 ```sh
 cd "$WORKER_DIR"
@@ -430,6 +443,7 @@ aws s3 sync "s3://padloc-attachments-prod/" "${BACKUP_DIR}/r2_prod_objects/" --e
 ```
 
 **Verification:**
+
 ```sh
 # Confirm objects were listed
 wc -l "${BACKUP_DIR}/r2_prod_objects_${TIMESTAMP}.txt"
@@ -452,17 +466,18 @@ wrangler d1 execute padloc-backup-test --env=preview --command="SELECT count(*) 
 
 ### 5.5 Retention Schedule
 
-| Backup Type | Frequency | Retention | Storage |
-|-------------|-----------|-----------|---------|
-| D1 SQL dump | Weekly + before migrations | 12 months | R2 bucket |
-| R2 attachments | Monthly | 6 months | Cold storage |
-| Configuration snapshot | On each deploy | 30 days | Git commit |
+| Backup Type            | Frequency                  | Retention | Storage      |
+| ---------------------- | -------------------------- | --------- | ------------ |
+| D1 SQL dump            | Weekly + before migrations | 12 months | R2 bucket    |
+| R2 attachments         | Monthly                    | 6 months  | Cold storage |
+| Configuration snapshot | On each deploy             | 30 days   | Git commit   |
 
 ---
 
 ## 6. Rotate Secrets
 
-Rotate `RESEND_API_KEY`, Cloudflare API token, and other secrets without downtime.
+Rotate `RESEND_API_KEY`, Cloudflare API token, and other secrets without
+downtime.
 
 ### 6.1 List Current Secrets
 
@@ -500,6 +515,7 @@ curl -s "https://padloc-worker-preview.<YOUR_SUBDOMAIN>.workers.dev/healthcheck"
 ```
 
 **Apply to production:**
+
 ```sh
 # After preview validation, apply to production
 printf "re_new_key_value_here" | wrangler secret put RESEND_API_KEY --env=production
@@ -530,6 +546,7 @@ wrangler deploy --env=preview --api-token="re_new_token_here"
 ```
 
 **Verification:**
+
 ```sh
 # Confirm new token is active
 export CLOUDFLARE_API_TOKEN="re_new_token_here"
@@ -571,34 +588,34 @@ curl -s -H "Origin: https://preview.padloc.app" \
 
 ### 6.6 Secret Rotation Checklist
 
-- [ ] Generate new secret from provider dashboard
-- [ ] Apply to `preview` environment first
-- [ ] Verify `preview` health check passes
-- [ ] Apply to `production` environment
-- [ ] Verify `production` health check passes
-- [ ] Confirm old secret is revoked (if applicable)
-- [ ] Update CI secrets if stored there
-- [ ] Document rotation in ops log
+-   [ ] Generate new secret from provider dashboard
+-   [ ] Apply to `preview` environment first
+-   [ ] Verify `preview` health check passes
+-   [ ] Apply to `production` environment
+-   [ ] Verify `production` health check passes
+-   [ ] Confirm old secret is revoked (if applicable)
+-   [ ] Update CI secrets if stored there
+-   [ ] Document rotation in ops log
 
 ---
 
 ## Appendix: Environment Quick Reference
 
-| Environment | Worker Name | D1 Database | R2 Bucket | KV Namespaces |
-|-------------|-------------|--------------|-----------|---------------|
-| `dev` | `padloc-worker-dev` | `padloc-dev` | `padloc-attachments-dev` | `PADLOC_EMAIL_DEV`, `PADLOC_HINTS_DEV` |
-| `preview` | `padloc-worker-preview` | `padloc-preview` | `padloc-attachments-preview` | `PADLOC_EMAIL_PREVIEW`, `PADLOC_HINTS_PREVIEW` |
-| `production` | `padloc-worker` | `padloc-prod` | `padloc-attachments-prod` | `PADLOC_EMAIL_PRODUCTION`, `PADLOC_HINTS_PRODUCTION` |
+| Environment  | Worker Name             | D1 Database      | R2 Bucket                    | KV Namespaces                                        |
+| ------------ | ----------------------- | ---------------- | ---------------------------- | ---------------------------------------------------- |
+| `dev`        | `padloc-worker-dev`     | `padloc-dev`     | `padloc-attachments-dev`     | `PADLOC_EMAIL_DEV`, `PADLOC_HINTS_DEV`               |
+| `preview`    | `padloc-worker-preview` | `padloc-preview` | `padloc-attachments-preview` | `PADLOC_EMAIL_PREVIEW`, `PADLOC_HINTS_PREVIEW`       |
+| `production` | `padloc-worker`         | `padloc-prod`    | `padloc-attachments-prod`    | `PADLOC_EMAIL_PRODUCTION`, `PADLOC_HINTS_PRODUCTION` |
 
 ## Appendix: Secrets Per Environment
 
-| Secret | Purpose | Required |
-|--------|---------|---------|
-| `RESEND_API_KEY` | Resend transactional email API key | Yes |
-| `EMAIL_FROM_ADDRESS` | From address for outgoing emails | Yes |
-| `WEBAUTHN_RP_ID` | WebAuthn Relying Party ID (domain) | Yes |
-| `WEBAUTHN_RP_NAME` | WebAuthn Relying Party display name | Yes |
-| `ALLOW_ORIGIN` | CORS allowed origin | Yes (dev defaults to `*`) |
+| Secret               | Purpose                             | Required                  |
+| -------------------- | ----------------------------------- | ------------------------- |
+| `RESEND_API_KEY`     | Resend transactional email API key  | Yes                       |
+| `EMAIL_FROM_ADDRESS` | From address for outgoing emails    | Yes                       |
+| `WEBAUTHN_RP_ID`     | WebAuthn Relying Party ID (domain)  | Yes                       |
+| `WEBAUTHN_RP_NAME`   | WebAuthn Relying Party display name | Yes                       |
+| `ALLOW_ORIGIN`       | CORS allowed origin                 | Yes (dev defaults to `*`) |
 
 ## Appendix: Common Commands Cheatsheet
 
@@ -638,5 +655,5 @@ curl -s "https://padloc-worker.<YOUR_SUBDOMAIN>.workers.dev/healthcheck" | jq .
 
 ---
 
-*Runbooks generated for Padloc Cloudflare Worker backend.*
-*All commands verified against wrangler 4.x / Workers v1 API.*
+_Runbooks generated for Padloc Cloudflare Worker backend._ _All commands
+verified against wrangler 4.x / Workers v1 API._

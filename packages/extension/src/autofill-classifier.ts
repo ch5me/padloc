@@ -108,8 +108,7 @@ export function classifyAutofillField(candidate: AutofillFieldCandidate): Autofi
         return AutofillFieldRole.Password;
     }
 
-    const isTotpSignal =
-        /\b(totp|otp|one-time|verification|code)\b/.test(haystack) || autocomplete === "one-time-code";
+    const isTotpSignal = /\b(totp|otp|one-time|verification|code)\b/.test(haystack) || autocomplete === "one-time-code";
     const isDigitPattern = /^\d+$/.test(pattern);
     const isOtpLength = maxLength >= 4 && maxLength <= 8;
     const isNumericInputmode = inputmode === "numeric" || inputmode === "text";

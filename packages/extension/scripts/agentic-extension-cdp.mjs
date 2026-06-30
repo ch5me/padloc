@@ -179,7 +179,9 @@ async function attachExtensionPage() {
             (target) => target.type === "page" && (target.url || "").startsWith(`chrome-extension://${extensionId}/`)
         );
         if (!page) {
-            const created = await cdp.send("Target.createTarget", { url: `chrome-extension://${extensionId}/popup.html` });
+            const created = await cdp.send("Target.createTarget", {
+                url: `chrome-extension://${extensionId}/popup.html`,
+            });
             page = { targetId: created.targetId };
         }
         try {
@@ -375,18 +377,26 @@ async function webAuthnProof() {
 
 async function webAuthnIoProof() {
     const username = `padloc-agentic-${Date.now()}-${Math.floor(Math.random() * 1000000)}@example.com`;
-    const cleanup = args.get("preserve-rp-passkeys") === "true"
-        ? { ok: true, rpId: "webauthn.io", skipped: true, deletedCount: 0 }
-        : await deletePasskeysForRpId("webauthn.io", "padloc-agentic-");
+    const cleanup =
+        args.get("preserve-rp-passkeys") === "true"
+            ? { ok: true, rpId: "webauthn.io", skipped: true, deletedCount: 0 }
+            : await deletePasskeysForRpId("webauthn.io", "padloc-agentic-");
     if (!cleanup.ok) return { status: "webauthn-io-proof", ok: false, cleanup };
     const created = await cdp.send("Target.createTarget", { url: "about:blank" });
     const pageSession = await attach(created.targetId);
     await cdp.send("Page.enable", {}, pageSession);
     await clearCookiesForDomain(pageSession, "webauthn.io");
-    await cdp.send("Storage.clearDataForOrigin", {
-        origin: "https://webauthn.io",
-        storageTypes: "appcache,cache_storage,cookies,file_systems,indexeddb,local_storage,service_workers,websql",
-    }, pageSession).catch(() => undefined);
+    await cdp
+        .send(
+            "Storage.clearDataForOrigin",
+            {
+                origin: "https://webauthn.io",
+                storageTypes:
+                    "appcache,cache_storage,cookies,file_systems,indexeddb,local_storage,service_workers,websql",
+            },
+            pageSession
+        )
+        .catch(() => undefined);
     await cdp.send("Page.navigate", { url: "https://webauthn.io/" }, pageSession);
     await sleep(3500);
     let pageState;
@@ -399,14 +409,14 @@ async function webAuthnIoProof() {
                 /"internal"/.test(controls.text || "");
             pageState = existingPadlocCredential
                 ? {
-                    ...controls,
-                    ok: true,
-                    stage: "profile-existing",
-                    registerSuccess: false,
-                    loginSuccess: true,
-                    existingCredential: true,
-                    successIndicator: controls.successIndicator,
-                }
+                      ...controls,
+                      ok: true,
+                      stage: "profile-existing",
+                      registerSuccess: false,
+                      loginSuccess: true,
+                      existingCredential: true,
+                      successIndicator: controls.successIndicator,
+                  }
                 : { ...controls, ok: false, stage: "controls", error: "timed out waiting for webauthn.io controls" };
         } else {
             await driveWebAuthnIoAction(pageSession, username, "register");
@@ -554,14 +564,26 @@ async function webAuthnMeProof() {
     const pageSession = await attach(created.targetId);
     await cdp.send("Page.enable", {}, pageSession);
     await clearCookiesForDomain(pageSession, "webauthn.me");
-    await cdp.send("Storage.clearDataForOrigin", {
-        origin: "https://www.webauthn.me",
-        storageTypes: "all",
-    }, pageSession).catch(() => undefined);
-    await cdp.send("Storage.clearDataForOrigin", {
-        origin: "https://webauthn.me",
-        storageTypes: "all",
-    }, pageSession).catch(() => undefined);
+    await cdp
+        .send(
+            "Storage.clearDataForOrigin",
+            {
+                origin: "https://www.webauthn.me",
+                storageTypes: "all",
+            },
+            pageSession
+        )
+        .catch(() => undefined);
+    await cdp
+        .send(
+            "Storage.clearDataForOrigin",
+            {
+                origin: "https://webauthn.me",
+                storageTypes: "all",
+            },
+            pageSession
+        )
+        .catch(() => undefined);
     await cdp.send("Page.navigate", { url: "https://www.webauthn.me/" }, pageSession);
     await sleep(3500);
     let pageState;
@@ -691,14 +713,17 @@ async function localRpWebAuthnProof() {
     const created = await cdp.send("Target.createTarget", { url: "about:blank" });
     const pageSession = await attach(created.targetId);
     await cdp.send("Page.enable", {}, pageSession);
-    await cdp.send(
-        "Storage.clearDataForOrigin",
-        {
-            origin: rp.origin,
-            storageTypes: "appcache,cache_storage,cookies,file_systems,indexeddb,local_storage,service_workers,websql",
-        },
-        pageSession
-    ).catch(() => undefined);
+    await cdp
+        .send(
+            "Storage.clearDataForOrigin",
+            {
+                origin: rp.origin,
+                storageTypes:
+                    "appcache,cache_storage,cookies,file_systems,indexeddb,local_storage,service_workers,websql",
+            },
+            pageSession
+        )
+        .catch(() => undefined);
     await cdp.send("Page.navigate", { url: rp.origin }, pageSession);
     await sleep(1200);
     let pageState;
@@ -903,14 +928,16 @@ async function clearCookiesForDomain(sessionId, domainSuffix) {
         return domain === domainSuffix || domain.endsWith(`.${domainSuffix}`);
     });
     for (const cookie of targetCookies) {
-        await cdp.send(
-            "Network.deleteCookies",
-            {
-                name: cookie.name,
-                url: `https://${domainSuffix}/`,
-            },
-            sessionId
-        ).catch(() => undefined);
+        await cdp
+            .send(
+                "Network.deleteCookies",
+                {
+                    name: cookie.name,
+                    url: `https://${domainSuffix}/`,
+                },
+                sessionId
+            )
+            .catch(() => undefined);
     }
 }
 
@@ -928,7 +955,9 @@ async function deletePasskeysForRpId(rpId, generatedNameFragment) {
                 .filter((item) => item?.passkeyCredential?.rpId === ${JSON.stringify(rpId)})
                 .filter((item) => String(item?.name || "").includes(${JSON.stringify(generatedNameFragment)}));
             if (items.length) await app.deleteItems(items);
-            return { ok: true, rpId: ${JSON.stringify(rpId)}, generatedNameFragment: ${JSON.stringify(generatedNameFragment)}, deletedCount: items.length };
+            return { ok: true, rpId: ${JSON.stringify(rpId)}, generatedNameFragment: ${JSON.stringify(
+            generatedNameFragment
+        )}, deletedCount: items.length };
         })()`,
         `delete ${rpId} passkeys`,
         30000
@@ -1297,14 +1326,19 @@ async function attachWorker({ reloadOnUnresponsive = false } = {}) {
     for (let attempt = 0; attempt < 10; attempt += 1) {
         const targets = await cdp.send("Target.getTargets");
         const worker = targets.targetInfos.find(
-            (target) => target.type === "service_worker" && (target.url || "").startsWith(`chrome-extension://${extensionId}/`)
+            (target) =>
+                target.type === "service_worker" && (target.url || "").startsWith(`chrome-extension://${extensionId}/`)
         );
         if (worker) {
             try {
                 return await attach(worker.targetId, "extension service worker");
             } catch (error) {
                 lastError = error instanceof Error ? error.message : String(error);
-                if (reloadOnUnresponsive && !reloaded && /Runtime\.enable timed out|Runtime\.evaluate timed out/.test(lastError)) {
+                if (
+                    reloadOnUnresponsive &&
+                    !reloaded &&
+                    /Runtime\.enable timed out|Runtime\.evaluate timed out/.test(lastError)
+                ) {
                     reloaded = true;
                     await reloadExtension();
                     await sleep(1000);
@@ -1346,7 +1380,8 @@ async function evaluate(sessionId, expression, label = "Runtime.evaluate", timeo
         throw new Error(`${label}: ${message}`);
     }
     if (result.exceptionDetails) {
-        const details = result.exceptionDetails.exception?.description || result.exceptionDetails.text || "evaluation failed";
+        const details =
+            result.exceptionDetails.exception?.description || result.exceptionDetails.text || "evaluation failed";
         throw new Error(`${label}: ${details}`);
     }
     return result.result.value;

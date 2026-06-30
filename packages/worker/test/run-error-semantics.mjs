@@ -14,7 +14,7 @@ const child = spawn(
     {
         cwd: packageRoot,
         stdio: ["ignore", "pipe", "pipe"],
-    },
+    }
 );
 
 let output = "";

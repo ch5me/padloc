@@ -130,7 +130,7 @@ export function securityHeaders(config?: SecurityHeadersConfig): Record<string, 
 export function responseHeaders(
     corsConfig: CorsConfig,
     securityConfig?: SecurityHeadersConfig,
-    extraHeaders?: Record<string, string>,
+    extraHeaders?: Record<string, string>
 ): Record<string, string> {
     return {
         ...corsHeaders(corsConfig),

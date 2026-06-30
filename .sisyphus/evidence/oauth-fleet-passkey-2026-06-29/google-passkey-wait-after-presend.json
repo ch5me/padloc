@@ -1,7 +1,7 @@
 {
-  "href": "https://accounts.google.com/v3/signin/challenge/pk/presend?TL=%5Bredacted%5D&authuser=%5Bredacted%5D&cid=%5Bredacted%5D&continue=https%3A%2F%2Fmyaccount.google.com%2Fsigninoptions%2Fpasskeys&dsh=%5Bredacted%5D&flowName=GlifWebSignIn&followup=https%3A%2F%2Fmyaccount.google.com%2Fsigninoptions%2Fpasskeys&rart=%5Bredacted%5D&rpbg=1",
-  "title": "Use your passkey to confirm it’s really you",
-  "createHooked": true,
-  "getHooked": true,
-  "text": "Loading\nUse your passkey to confirm it’s really you\n[redacted-google-account]\nVerifying it’s you...\nComplete sign-in using your passkey\nYour device will ask for your fingerprint, face, or screen lock\nContinue\nTry another way\nEnglish (United States)\nHelp\nPrivacy\nTerms\nUse your passkey to confirm it’s really you"
+    "href": "https://accounts.google.com/v3/signin/challenge/pk/presend?TL=%5Bredacted%5D&authuser=%5Bredacted%5D&cid=%5Bredacted%5D&continue=https%3A%2F%2Fmyaccount.google.com%2Fsigninoptions%2Fpasskeys&dsh=%5Bredacted%5D&flowName=GlifWebSignIn&followup=https%3A%2F%2Fmyaccount.google.com%2Fsigninoptions%2Fpasskeys&rart=%5Bredacted%5D&rpbg=1",
+    "title": "Use your passkey to confirm it’s really you",
+    "createHooked": true,
+    "getHooked": true,
+    "text": "Loading\nUse your passkey to confirm it’s really you\n[redacted-google-account]\nVerifying it’s you...\nComplete sign-in using your passkey\nYour device will ask for your fingerprint, face, or screen lock\nContinue\nTry another way\nEnglish (United States)\nHelp\nPrivacy\nTerms\nUse your passkey to confirm it’s really you"
 }

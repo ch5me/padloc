@@ -140,7 +140,7 @@ export function structuredLog(
         accountId?: string;
         sessionId?: string;
         ipAddress?: string;
-    },
+    }
 ): { type: string; data: Record<string, unknown>; context?: typeof context; timestamp: string } {
     return {
         type,

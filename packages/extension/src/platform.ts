@@ -9,7 +9,13 @@ export class ExtensionPlatform extends WebPlatform {
 
     get supportedAuthTypes() {
         return super.supportedAuthTypes.filter((type) =>
-            [AuthType.Email, AuthType.Totp, AuthType.WebAuthnPlatform, AuthType.WebAuthnPortable, AuthType.Oauth].includes(type)
+            [
+                AuthType.Email,
+                AuthType.Totp,
+                AuthType.WebAuthnPlatform,
+                AuthType.WebAuthnPortable,
+                AuthType.Oauth,
+            ].includes(type)
         );
     }
 

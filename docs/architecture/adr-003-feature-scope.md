@@ -91,5 +91,5 @@ From `packages/server/src/config.ts`:
 
 ## References
 
-- `.sisyphus/plans/padloc-cloudflare-native-backend.md` lines 312-328
-- `packages/server/src/config.ts`
+-   `.sisyphus/plans/padloc-cloudflare-native-backend.md` lines 312-328
+-   `packages/server/src/config.ts`

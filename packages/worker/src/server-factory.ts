@@ -51,7 +51,7 @@ export function createServer(env: Env): Server {
         attachmentStorage,
         new PersonalProvisioner(storage),
         changeLogger,
-        requestLogger,
+        requestLogger
     );
 }
 

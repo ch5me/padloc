@@ -32,10 +32,10 @@ for.
 
 **Known gaps**:
 
-- Depends on T1 inventory script
-  (`scripts/proof-lanes/inventory-api-methods.sh`).
-- Dispositions file (`.sisyphus/outputs/api-method-dispositions.json`) must be
-  maintained as implementation progresses.
+-   Depends on T1 inventory script
+    (`scripts/proof-lanes/inventory-api-methods.sh`).
+-   Dispositions file (`.sisyphus/outputs/api-method-dispositions.json`) must be
+    maintained as implementation progresses.
 
 ### proof:crypto
 
@@ -51,10 +51,10 @@ HMAC-SHA256).
 
 **Known gaps**:
 
-- Argon2id may not be available in Workers runtime — may need WebAssembly
-  polyfill or alternative KDF.
-- Core crypto tests currently target Node.js runtime; Worker-specific crypto
-  parity tests need T2 implementation.
+-   Argon2id may not be available in Workers runtime — may need WebAssembly
+    polyfill or alternative KDF.
+-   Core crypto tests currently target Node.js runtime; Worker-specific crypto
+    parity tests need T2 implementation.
 
 ### proof:worker
 
@@ -68,16 +68,16 @@ endpoint returning 200.
 
 **Required env/bindings**:
 
-- `CLOUDFLARE_API_TOKEN` — Account-scoped token with Workers Write permission
-- `CLOUDFLARE_ACCOUNT_ID` — Pinned in wrangler.jsonc or set as env var
+-   `CLOUDFLARE_API_TOKEN` — Account-scoped token with Workers Write permission
+-   `CLOUDFLARE_ACCOUNT_ID` — Pinned in wrangler.jsonc or set as env var
 
 **Known gaps**:
 
-- Full health endpoint requires T6 Worker implementation (Server, Controller,
-  transport).
-- D1/R2/Resend dependency checks require T7-T9 binding configurations.
-- Uses `--dry-run` for initial validation; final proof requires actual
-  `wrangler deploy` to a staging project.
+-   Full health endpoint requires T6 Worker implementation (Server, Controller,
+    transport).
+-   D1/R2/Resend dependency checks require T7-T9 binding configurations.
+-   Uses `--dry-run` for initial validation; final proof requires actual
+    `wrangler deploy` to a staging project.
 
 ### proof:client
 
@@ -91,15 +91,15 @@ the deployed Worker backend.
 
 **Required env**:
 
-- `PL_SERVER_URL` — Deployed Worker URL (optional; omitting skips connectivity
-  check with exit 2)
-- `NODE_ENV=production` — Ensures production build paths
+-   `PL_SERVER_URL` — Deployed Worker URL (optional; omitting skips connectivity
+    check with exit 2)
+-   `NODE_ENV=production` — Ensures production build paths
 
 **Known gaps**:
 
-- Requires Worker to be deployed first (blocks on `proof:worker`).
-- PWA client rebuild requires `PL_SERVER_URL` baked in at build time.
-- Full E2E with authentication requires T12+ implementation.
+-   Requires Worker to be deployed first (blocks on `proof:worker`).
+-   PWA client rebuild requires `PL_SERVER_URL` baked in at build time.
+-   Full E2E with authentication requires T12+ implementation.
 
 ### proof:migration
 
@@ -112,16 +112,16 @@ compatible with Cloudflare D1 (SQLite).
 
 **Required env/bindings**:
 
-- `CLOUDFLARE_API_TOKEN` — For wrangler D1 operations
-- `MIGRATIONS_DIR` — Optional, defaults to `packages/worker/migrations`
+-   `CLOUDFLARE_API_TOKEN` — For wrangler D1 operations
+-   `MIGRATIONS_DIR` — Optional, defaults to `packages/worker/migrations`
 
 **Known gaps**:
 
-- Depends on T8 migration implementation for SQL fixture files.
-- `PRAGMA foreign_keys=OFF` is incompatible with D1; migrations must use
-  `PRAGMA defer_foreign_keys=on`.
-- No automatic rollback support; manual backup/export required before production
-  apply.
+-   Depends on T8 migration implementation for SQL fixture files.
+-   `PRAGMA foreign_keys=OFF` is incompatible with D1; migrations must use
+    `PRAGMA defer_foreign_keys=on`.
+-   No automatic rollback support; manual backup/export required before
+    production apply.
 
 ## Pre-Deploy Gate
 

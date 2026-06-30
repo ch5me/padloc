@@ -1,14 +1,14 @@
 {
-  "hooked": {
-    "create": true,
-    "get": true
-  },
-  "result": {
-    "ok": false,
-    "name": "NotAllowedError",
-    "message": "No matching Padloc passkey"
-  },
-  "elapsedMs": 1,
-  "url": "https://accounts.google.com/v3/signin/challenge/pk/error?[redacted]",
-  "title": "Something went wrong"
+    "hooked": {
+        "create": true,
+        "get": true
+    },
+    "result": {
+        "ok": false,
+        "name": "NotAllowedError",
+        "message": "No matching Padloc passkey"
+    },
+    "elapsedMs": 1,
+    "url": "https://accounts.google.com/v3/signin/challenge/pk/error?[redacted]",
+    "title": "Something went wrong"
 }

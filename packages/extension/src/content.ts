@@ -150,13 +150,11 @@ class ExtensionContent {
         if (!request) return;
         let response: AgenticWebAuthnResponse;
         try {
-            const message = request.kind === "create"
-                ? { type: "agenticWebAuthnCreate" as const, request }
-                : { type: "agenticWebAuthnGet" as const, request };
-            const result = await withTimeout(
-                browser.runtime.sendMessage(message),
-                WEBAUTHN_BACKGROUND_TIMEOUT_MS
-            );
+            const message =
+                request.kind === "create"
+                    ? { type: "agenticWebAuthnCreate" as const, request }
+                    : { type: "agenticWebAuthnGet" as const, request };
+            const result = await withTimeout(browser.runtime.sendMessage(message), WEBAUTHN_BACKGROUND_TIMEOUT_MS);
             response = result?.response || {
                 ok: false,
                 error: {
@@ -176,20 +174,22 @@ class ExtensionContent {
                 valuePolicy: "redacted WebAuthn response only; no private key material",
             };
         }
-        window.postMessage({
-            source: contentSource,
-            type: WEBAUTHN_RESPONSE_EVENT,
-            response: {
-                requestId: request.requestId,
-                ...response,
+        window.postMessage(
+            {
+                source: contentSource,
+                type: WEBAUTHN_RESPONSE_EVENT,
+                response: {
+                    requestId: request.requestId,
+                    ...response,
+                },
             },
-        }, request.origin);
+            request.origin
+        );
     }
 
-    private _normalizeWebAuthnRequest(detail: unknown):
-        | (AgenticWebAuthnCreateRequest & { kind: "create" })
-        | (AgenticWebAuthnGetRequest & { kind: "get" })
-        | null {
+    private _normalizeWebAuthnRequest(
+        detail: unknown
+    ): (AgenticWebAuthnCreateRequest & { kind: "create" }) | (AgenticWebAuthnGetRequest & { kind: "get" }) | null {
         if (!detail || typeof detail !== "object") return null;
         const record = detail as Record<string, unknown>;
         if (record.kind !== "create" && record.kind !== "get") return null;

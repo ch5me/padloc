@@ -103,7 +103,7 @@ async function acquireLock(id: string, lockNamespace: DurableObjectNamespace): P
 export async function withAccountLocks<T>(
     ids: string[],
     lockNamespace: DurableObjectNamespace,
-    fn: () => Promise<T>,
+    fn: () => Promise<T>
 ): Promise<T> {
     if (ids.length === 0) {
         return fn();

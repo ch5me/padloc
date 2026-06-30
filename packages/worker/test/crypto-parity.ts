@@ -169,42 +169,42 @@ async function totpToken(
     provider: CryptoProvider,
     secret: Uint8Array,
     time: number,
-    opts: { interval: number; digits: number; hash: "SHA-1" | "SHA-256" },
+    opts: { interval: number; digits: number; hash: "SHA-1" | "SHA-256" }
 ): Promise<string> {
     const counter = Math.floor(time / opts.interval / 1000);
     const hmac = await provider.sign(
         secret,
         numToBytes(counter),
-        new HMACParams({ hash: opts.hash, keySize: secret.length * 8 }),
+        new HMACParams({ hash: opts.hash, keySize: secret.length * 8 })
     );
     return hotpToken(hmac, opts.digits);
 }
 
 const srpN4096 = BigInt(
     "0x" +
-        "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3DC2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F83655D23DCA3AD961C62F356208552BB9ED529077096966D670C354E4ABC9804F1746C08CA18217C32905E462E36CE3BE39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9DE2BCBF6955817183995497CEA956AE515D2261898FA051015728E5A8AAAC42DAD33170D04507A33A85521ABDF1CBA64ECFB850458DBEF0A8AEA71575D060C7DB3970F85A6E1E4C7ABF5AE8CDB0933D71E8C94E04A25619DCEE3D2261AD2EE6BF12FFA06D98A0864D87602733EC86A64521F2B18177B200CBBE117577A615D6C770988C0BAD946E208E24FA074E5AB3143DB5BFCE0FD108E4B82D120A92108011A723C12A787E6D788719A10BDBA5B2699C327186AF4E23C1A946834B6150BDA2583E9CA2AD44CE8DBBBC2DB04DE8EF92E8EFC141FBECAA6287C59474E6BC05D99B2964FA090C3A2233BA186515BE7ED1F612970CEE2D7AFB81BDD762170481CD0069127D5B05AA993B4EA988D8FDDC186FFB7DC90A6C08F4DF435C934063199FFFFFFFFFFFFFFFF",
+        "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3DC2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F83655D23DCA3AD961C62F356208552BB9ED529077096966D670C354E4ABC9804F1746C08CA18217C32905E462E36CE3BE39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9DE2BCBF6955817183995497CEA956AE515D2261898FA051015728E5A8AAAC42DAD33170D04507A33A85521ABDF1CBA64ECFB850458DBEF0A8AEA71575D060C7DB3970F85A6E1E4C7ABF5AE8CDB0933D71E8C94E04A25619DCEE3D2261AD2EE6BF12FFA06D98A0864D87602733EC86A64521F2B18177B200CBBE117577A615D6C770988C0BAD946E208E24FA074E5AB3143DB5BFCE0FD108E4B82D120A92108011A723C12A787E6D788719A10BDBA5B2699C327186AF4E23C1A946834B6150BDA2583E9CA2AD44CE8DBBBC2DB04DE8EF92E8EFC141FBECAA6287C59474E6BC05D99B2964FA090C3A2233BA186515BE7ED1F612970CEE2D7AFB81BDD762170481CD0069127D5B05AA993B4EA988D8FDDC186FFB7DC90A6C08F4DF435C934063199FFFFFFFFFFFFFFFF"
 );
 
 const rsaFixture = {
     privateKey: base64ToBytes(
-        "MIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDj62aokh6EDbYLbqHaMJvsf1GBx6P_ht7RvVyuBmL3L4uDhmFKWlnNvhZxvtUXM0R3zvuGtsS7l-fNRj_ljTztaT0oA9Z7QOvv6LZqDssd6QCPNMF_p56ZHEVjSUyC8qFjpk2zC_tSebWT_QSbeRQq9QnGcOhjOjp50SGH1ONdzjto5L7Y9uVFno14Q1IO29U-Xrai_H3B-ApUMdGAdVU-bgBKZnbArIUmcjWSkPSfPDvE4m8gLEvYbyFzegS0x1EhkaCj-X1LrJSiav8SKFNtTs7PX3cXuIw9uGPzNTOGFwoK2WFC6sRnwRUaZGwrxbZSjDEOwx13GdCy_aLo5_3LAgMBAAECggEBALSiCAZpZ834n-KHl7a495qDfTGB67PETCumDCHP5fdJsyRWCB1JZgrtMBSNzYxJkWXyoN2vVFPonEnP9ywSt8rgsRtZj063sUW-BXQgrVHTLCJTCVgGnGd0RHnfyceuS8ISN1pDkLdYxlO3H0OovhcdhNXE_ihGKboJyK1CR8A7BzKBsQrbv-TGK3i911i44cVP52FAVoBfM-12MT0mfSb3iaSlgsscWhWP98CON8wYvE8a8JSoYVn9uKmwbW8F4fSrpW4hEOfWbcEC2XA9fbXs1tNqhX_uOiEHLxFAfjqkH72ogVPJ4MQjtQCCnCoqRAzQjgx73CbG_9ttLq4NFkECgYEA-luzC5l6Fc3DpEBiLHFowuZDRD3RTaW-nFp_WTvZX6_65xWLpVTmH2R7ymzTME0mIkv6P657kZirdhJJoMvO7fEtyL-WfaNzmxQu5NYn9iW1xTAYpEFa3Vd7zbwznkCpbvk43RAQxLYLntw8CTM5kf9nQIavhAAjTCCxj-87nnMCgYEA6Q5BHp0NIXrwsec3_ccqWamUzzAyG_AxNPnTH9RaYCYJB0jZmTXWvEIFfnw9wVoblAqk9WKfkMbRKUNf3lLS4nTzehRDJNXTprxENoesTznI4eAX1o0qULll7cRsqHpZ-j6OcVRzLpsnCOHfnXEh6ABRgE7u0-gmuleZrpH-NUkCgYBIbd8OrAg15qGDE11TnjvApv0u8PNsk1bhxQyytC3fEPp1gDY2TqmEy31EwtcWUjuGEJUFd2UoahKwxfmnG09yZyPnwAW5s1_urZgjfBFzlNVRhuiaHI49GuImUxxb3DkocdGRouQ3BLO38d8sijVNl6Y3dL-yYJfVnl_AVGXbIQKBgQClcKwDimN23-obsFLMAWVr7vknN0RrFtAnli0sjDd3x6hjFnD51QFR9OAnkRTZvBiVuBSv6UnyoWB7lUtp7IutnG32vImJjY1I8J7PwvIr745N4iGp-d4PHf1gky67Tteu0FeX1eZKMHO-V3HBNz1lj0xL9DyQC13qrCL5jMPTmQKBgQCnC98PEayu27weEf1wG_u-RBnq6ON7JVMfm8dhYb3k1pbgzmEaW1qNo1bFGPgbOP7VWWLKlLJXDuiSshJtfy6hmTl2zVMM0qkpepVhp5O3Vq-ABFANleJ4LbVDGdiz5ikGL5IKx3Ra5BbtTj4vX4NOTAKTGvgNjjvYcDYoI62DZg",
+        "MIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDj62aokh6EDbYLbqHaMJvsf1GBx6P_ht7RvVyuBmL3L4uDhmFKWlnNvhZxvtUXM0R3zvuGtsS7l-fNRj_ljTztaT0oA9Z7QOvv6LZqDssd6QCPNMF_p56ZHEVjSUyC8qFjpk2zC_tSebWT_QSbeRQq9QnGcOhjOjp50SGH1ONdzjto5L7Y9uVFno14Q1IO29U-Xrai_H3B-ApUMdGAdVU-bgBKZnbArIUmcjWSkPSfPDvE4m8gLEvYbyFzegS0x1EhkaCj-X1LrJSiav8SKFNtTs7PX3cXuIw9uGPzNTOGFwoK2WFC6sRnwRUaZGwrxbZSjDEOwx13GdCy_aLo5_3LAgMBAAECggEBALSiCAZpZ834n-KHl7a495qDfTGB67PETCumDCHP5fdJsyRWCB1JZgrtMBSNzYxJkWXyoN2vVFPonEnP9ywSt8rgsRtZj063sUW-BXQgrVHTLCJTCVgGnGd0RHnfyceuS8ISN1pDkLdYxlO3H0OovhcdhNXE_ihGKboJyK1CR8A7BzKBsQrbv-TGK3i911i44cVP52FAVoBfM-12MT0mfSb3iaSlgsscWhWP98CON8wYvE8a8JSoYVn9uKmwbW8F4fSrpW4hEOfWbcEC2XA9fbXs1tNqhX_uOiEHLxFAfjqkH72ogVPJ4MQjtQCCnCoqRAzQjgx73CbG_9ttLq4NFkECgYEA-luzC5l6Fc3DpEBiLHFowuZDRD3RTaW-nFp_WTvZX6_65xWLpVTmH2R7ymzTME0mIkv6P657kZirdhJJoMvO7fEtyL-WfaNzmxQu5NYn9iW1xTAYpEFa3Vd7zbwznkCpbvk43RAQxLYLntw8CTM5kf9nQIavhAAjTCCxj-87nnMCgYEA6Q5BHp0NIXrwsec3_ccqWamUzzAyG_AxNPnTH9RaYCYJB0jZmTXWvEIFfnw9wVoblAqk9WKfkMbRKUNf3lLS4nTzehRDJNXTprxENoesTznI4eAX1o0qULll7cRsqHpZ-j6OcVRzLpsnCOHfnXEh6ABRgE7u0-gmuleZrpH-NUkCgYBIbd8OrAg15qGDE11TnjvApv0u8PNsk1bhxQyytC3fEPp1gDY2TqmEy31EwtcWUjuGEJUFd2UoahKwxfmnG09yZyPnwAW5s1_urZgjfBFzlNVRhuiaHI49GuImUxxb3DkocdGRouQ3BLO38d8sijVNl6Y3dL-yYJfVnl_AVGXbIQKBgQClcKwDimN23-obsFLMAWVr7vknN0RrFtAnli0sjDd3x6hjFnD51QFR9OAnkRTZvBiVuBSv6UnyoWB7lUtp7IutnG32vImJjY1I8J7PwvIr745N4iGp-d4PHf1gky67Tteu0FeX1eZKMHO-V3HBNz1lj0xL9DyQC13qrCL5jMPTmQKBgQCnC98PEayu27weEf1wG_u-RBnq6ON7JVMfm8dhYb3k1pbgzmEaW1qNo1bFGPgbOP7VWWLKlLJXDuiSshJtfy6hmTl2zVMM0qkpepVhp5O3Vq-ABFANleJ4LbVDGdiz5ikGL5IKx3Ra5BbtTj4vX4NOTAKTGvgNjjvYcDYoI62DZg"
     ),
     publicKey: base64ToBytes(
-        "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4-tmqJIehA22C26h2jCb7H9Rgcej_4be0b1crgZi9y-Lg4ZhSlpZzb4Wcb7VFzNEd877hrbEu5fnzUY_5Y087Wk9KAPWe0Dr7-i2ag7LHekAjzTBf6eemRxFY0lMgvKhY6ZNswv7Unm1k_0Em3kUKvUJxnDoYzo6edEhh9TjXc47aOS-2PblRZ6NeENSDtvVPl62ovx9wfgKVDHRgHVVPm4ASmZ2wKyFJnI1kpD0nzw7xOJvICxL2G8hc3oEtMdRIZGgo_l9S6yUomr_EihTbU7Oz193F7iMPbhj8zUzhhcKCtlhQurEZ8EVGmRsK8W2UowxDsMddxnQsv2i6Of9ywIDAQAB",
+        "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4-tmqJIehA22C26h2jCb7H9Rgcej_4be0b1crgZi9y-Lg4ZhSlpZzb4Wcb7VFzNEd877hrbEu5fnzUY_5Y087Wk9KAPWe0Dr7-i2ag7LHekAjzTBf6eemRxFY0lMgvKhY6ZNswv7Unm1k_0Em3kUKvUJxnDoYzo6edEhh9TjXc47aOS-2PblRZ6NeENSDtvVPl62ovx9wfgKVDHRgHVVPm4ASmZ2wKyFJnI1kpD0nzw7xOJvICxL2G8hc3oEtMdRIZGgo_l9S6yUomr_EihTbU7Oz193F7iMPbhj8zUzhhcKCtlhQurEZ8EVGmRsK8W2UowxDsMddxnQsv2i6Of9ywIDAQAB"
     ),
     sigData: base64ToBytes("Fm3BL9O9py8ImFOsQ9MLPuPDWORdNeV6xks48loc4EU"),
     signature: base64ToBytes(
-        "sh6hSSYUER2MISzKD9fUW1KGBILaP8THFX7BKR8RO4oFMpfZTioy8O3yQ726rO69zaGKP5kxY_iP1R_-5t4_3QuWEItZFvy8Ja1bFF8S80OIyap3Nx0nKWAwiU6aPz0yy2HrYNxd6zJufojcM1_dVKlq954sLq45yhNuQPVBAKsfrPHYoqWiuyP820wD1ysghg6h6EtB6SZzNsAL9tg5uuyQo-bO6VqqsccE-aaVFxD4w_xA9pGmjQe3HUTaNdi7cfPnMTygHN2qoTzSuFVbUAOQ1KGWRWdLnz3Wj9yJb_-FyBAzGbKxNANqnQyCIVrlD4zGCe_f6JsS-kvTxSu9fw",
+        "sh6hSSYUER2MISzKD9fUW1KGBILaP8THFX7BKR8RO4oFMpfZTioy8O3yQ726rO69zaGKP5kxY_iP1R_-5t4_3QuWEItZFvy8Ja1bFF8S80OIyap3Nx0nKWAwiU6aPz0yy2HrYNxd6zJufojcM1_dVKlq954sLq45yhNuQPVBAKsfrPHYoqWiuyP820wD1ysghg6h6EtB6SZzNsAL9tg5uuyQo-bO6VqqsccE-aaVFxD4w_xA9pGmjQe3HUTaNdi7cfPnMTygHN2qoTzSuFVbUAOQ1KGWRWdLnz3Wj9yJb_-FyBAzGbKxNANqnQyCIVrlD4zGCe_f6JsS-kvTxSu9fw"
     ),
     plain: stringToBytes("Hello World!"),
     encrypted: base64ToBytes(
-        "eAJDfWUdgL4Wl0UDsA0WsmHE29MNAnTvSjus3N0BP6foD0fFZBlrfmRbF-KjY_2zYhgaqn7E4pEKMB20tPDC-JYcAJO8PMWOR6PdLBsBCUTbdYy062iwFWgWfzSFV2LDy-G2t9HL2CbDoDAdsh1fNGIm81nY9sXbB0kKM4uNXKTdVl49Cwf30jiRRpABV_tSPmQjkHDVWOphVEY5ex0hhveRC6vfO1YZ21-CuoTa1gRq-ab21V-Pl5rfQ0RHsDgtvvSJ8_3ihzCkOTjd2Anj0GiKEsCeV0NaEgT-e5WyDj2zYNIsVOoMmB65UUkXX002Ycc2cGuoYw2uudZQSaAlqg",
+        "eAJDfWUdgL4Wl0UDsA0WsmHE29MNAnTvSjus3N0BP6foD0fFZBlrfmRbF-KjY_2zYhgaqn7E4pEKMB20tPDC-JYcAJO8PMWOR6PdLBsBCUTbdYy062iwFWgWfzSFV2LDy-G2t9HL2CbDoDAdsh1fNGIm81nY9sXbB0kKM4uNXKTdVl49Cwf30jiRRpABV_tSPmQjkHDVWOphVEY5ex0hhveRC6vfO1YZ21-CuoTa1gRq-ab21V-Pl5rfQ0RHsDgtvvSJ8_3ihzCkOTjd2Anj0GiKEsCeV0NaEgT-e5WyDj2zYNIsVOoMmB65UUkXX002Ycc2cGuoYw2uudZQSaAlqg"
     ),
 };
 
 async function runCompleteAuthRequestCryptoBudget(
     provider: CryptoProvider,
-    thresholdMs: number,
+    thresholdMs: number
 ): Promise<CryptoBudgetResult> {
     const started = performance.now();
     const x = bytesToBigint(
@@ -213,8 +213,8 @@ async function runCompleteAuthRequestCryptoBudget(
             new PBKDF2Params({
                 salt: stringToBytes("padloc-worker-complete-auth-budget"),
                 iterations: 1_000_000,
-            }),
-        ),
+            })
+        )
     );
 
     const g = 5n;
@@ -233,12 +233,12 @@ async function runCompleteAuthRequestCryptoBudget(
         rsaFixture.publicKey,
         rsaFixture.signature,
         rsaFixture.sigData,
-        new RSASigningParams(),
+        new RSASigningParams()
     );
 
     assertTrue(
         await provider.timingSafeEqual(bigintToBytes(clientK), bigintToBytes(serverK)),
-        "completeAuthRequest SRP K must match",
+        "completeAuthRequest SRP K must match"
     );
     assertTrue(rsaVerified, "completeAuthRequest RSA-PSS verification must pass");
 
@@ -262,11 +262,11 @@ const vectors: CryptoParityVector[] = [
             assertTrue(typeof globalThis.crypto?.subtle?.digest === "function", "crypto.subtle.digest must exist");
             assertTrue(
                 typeof globalThis.crypto?.subtle?.importKey === "function",
-                "crypto.subtle.importKey must exist",
+                "crypto.subtle.importKey must exist"
             );
             assertTrue(
                 typeof globalThis.crypto?.subtle?.deriveBits === "function",
-                "crypto.subtle.deriveBits must exist",
+                "crypto.subtle.deriveBits must exist"
             );
             assertTrue(typeof globalThis.crypto?.subtle?.encrypt === "function", "crypto.subtle.encrypt must exist");
             assertTrue(typeof globalThis.crypto?.subtle?.sign === "function", "crypto.subtle.sign must exist");
@@ -301,36 +301,36 @@ const vectors: CryptoParityVector[] = [
             assertHex(
                 bigintToBytes(clientK),
                 "759487c2ec7420d1aa52f6d7c273b29c10c130cbd8859b08ea34751632702485",
-                "client K",
+                "client K"
             );
             assertHex(
                 bigintToBytes(serverK),
                 "759487c2ec7420d1aa52f6d7c273b29c10c130cbd8859b08ea34751632702485",
-                "server K",
+                "server K"
             );
             assertHex(clientM1Bytes, "6f18a4ef21763db8a597ce3a86cccd64dc8e1545a0666242a3df174a55a2f8f0", "client M1");
             assertHex(serverM1Bytes, "6f18a4ef21763db8a597ce3a86cccd64dc8e1545a0666242a3df174a55a2f8f0", "server M1");
             assertHex(
                 bigintToBytes(clientM2),
                 "e6d748d9381afd54421f308598464d212f11811fdca236bef5b169b3afd8f99a",
-                "client M2",
+                "client M2"
             );
             assertHex(
                 bigintToBytes(serverM2),
                 "e6d748d9381afd54421f308598464d212f11811fdca236bef5b169b3afd8f99a",
-                "server M2",
+                "server M2"
             );
             assertTrue(
                 await provider.timingSafeEqual(clientM1Bytes, serverM1Bytes),
-                "M1 must verify with timingSafeEqual",
+                "M1 must verify with timingSafeEqual"
             );
             assertFalse(
                 clientM1Bytes === serverM1Bytes,
-                "packages/core/src/srp.ts documents `server.M1 !== M1`; byte arrays need constant-time byte comparison, not `===` identity comparison",
+                "packages/core/src/srp.ts documents `server.M1 !== M1`; byte arrays need constant-time byte comparison, not `===` identity comparison"
             );
             assertFalse(
                 await provider.timingSafeEqual(clientM1Bytes, tamper(serverM1Bytes)),
-                "tampered M1 must not verify",
+                "tampered M1 must not verify"
             );
         },
     },
@@ -351,7 +351,7 @@ const vectors: CryptoParityVector[] = [
             assertTrue(await provider.verify(key, signature, messageBytes, params), "request HMAC must verify");
             assertFalse(
                 await provider.verify(key, tamper(signature), messageBytes, params),
-                "tampered request HMAC must fail",
+                "tampered request HMAC must fail"
             );
         },
     },
@@ -376,12 +376,12 @@ const vectors: CryptoParityVector[] = [
             assertHex(
                 encrypted,
                 "3a01f50c9d046862fc4756953c3c7daf15c1a5a0a283de85af41096e63e1509e3a1a17",
-                "AES-GCM ciphertext||tag",
+                "AES-GCM ciphertext||tag"
             );
             assertEqual(
                 bytesToString(await provider.decrypt(key, encrypted, encryptionParams)),
                 "Padloc PBES2 parity",
-                "AES-GCM decrypt",
+                "AES-GCM decrypt"
             );
         },
     },
@@ -392,20 +392,20 @@ const vectors: CryptoParityVector[] = [
             const decrypted = await provider.decrypt(
                 rsaFixture.privateKey,
                 rsaFixture.encrypted,
-                new RSAEncryptionParams(),
+                new RSAEncryptionParams()
             );
             assertEqual(bytesToString(decrypted), "Hello World!", "RSA-OAEP decrypt fixture");
 
             const signingParams = new RSASigningParams();
             assertTrue(
                 await provider.verify(rsaFixture.publicKey, rsaFixture.signature, rsaFixture.sigData, signingParams),
-                "RSA-PSS fixture signature must verify",
+                "RSA-PSS fixture signature must verify"
             );
 
             const freshSignature = await provider.sign(rsaFixture.privateKey, rsaFixture.sigData, signingParams);
             assertTrue(
                 await provider.verify(rsaFixture.publicKey, freshSignature, rsaFixture.sigData, signingParams),
-                "fresh RSA-PSS signature must verify",
+                "fresh RSA-PSS signature must verify"
             );
         },
     },
@@ -419,12 +419,12 @@ const vectors: CryptoParityVector[] = [
             assertEqual(
                 await totpToken(provider, sha1Secret, 59000, { interval: 30, digits: 8, hash: "SHA-1" }),
                 "94287082",
-                "TOTP SHA-1",
+                "TOTP SHA-1"
             );
             assertEqual(
                 await totpToken(provider, sha256Secret, 59000, { interval: 30, digits: 8, hash: "SHA-256" }),
                 "46119246",
-                "TOTP SHA-256",
+                "TOTP SHA-256"
             );
         },
     },
@@ -456,7 +456,7 @@ const vectors: CryptoParityVector[] = [
             };
 
             const clientData = JSON.parse(
-                bytesToString(base64ToBytes(verifierInput.credential.response.clientDataJSON)),
+                bytesToString(base64ToBytes(verifierInput.credential.response.clientDataJSON))
             );
             assertEqual(clientData.type, "webauthn.get", "WebAuthn clientDataJSON type");
             assertEqual(clientData.challenge, verifierInput.expectedChallenge, "WebAuthn challenge");
@@ -478,7 +478,7 @@ function formatError(error: unknown) {
 
 export async function runCryptoParity(
     provider: CryptoProvider,
-    { includeBenchmark = false, enforceBudget = false, budgetThresholdMs = 200 }: CryptoParityOptions = {},
+    { includeBenchmark = false, enforceBudget = false, budgetThresholdMs = 200 }: CryptoParityOptions = {}
 ): Promise<CryptoParityReport> {
     const results: CryptoParityResult[] = [];
     let benchmark: CryptoBudgetResult | undefined;

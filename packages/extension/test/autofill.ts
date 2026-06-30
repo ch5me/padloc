@@ -5,7 +5,13 @@ import { FieldType } from "../../core/src/item";
 suite("Autofill orchestration", () => {
     suite("Field role classification", () => {
         // Inline classification logic extracted for testing
-        function classifyField(input: { type: string; name?: string; id?: string; getAttribute: (name: string) => string | null; placeholder?: string }): string | null {
+        function classifyField(input: {
+            type: string;
+            name?: string;
+            id?: string;
+            getAttribute: (name: string) => string | null;
+            placeholder?: string;
+        }): string | null {
             const type = input.type.toLowerCase();
             const name = (input.name || "").toLowerCase();
             const id = (input.id || "").toLowerCase();
@@ -85,7 +91,12 @@ suite("Autofill orchestration", () => {
         });
 
         test("input with autocomplete='one-time-code' is classified as totp", () => {
-            const input = { type: "text", name: "", id: "", getAttribute: (n: string) => (n === "autocomplete" ? "one-time-code" : null) };
+            const input = {
+                type: "text",
+                name: "",
+                id: "",
+                getAttribute: (n: string) => (n === "autocomplete" ? "one-time-code" : null),
+            };
             expect(classifyField(input)).to.equal("totp");
         });
 

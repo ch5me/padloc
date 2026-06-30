@@ -1,36 +1,36 @@
 {
-  "projectId": "padloc",
-  "generatedAt": "2026-06-30T01:12:22.657Z",
-  "sinceRef": null,
-  "changedFiles": [
-    "packages/extension/test-harness/smoke.spec.ts",
-    "packages/extension/test-harness/webauthn-intercept.spec.ts"
-  ],
-  "affectedNodes": [],
-  "summary": {
-    "changedFiles": 2,
-    "affectedNodes": 0,
-    "testFiles": 2,
-    "routeScreenshots": 0,
-    "storyScreenshots": 0,
-    "workflowProofs": 0,
-    "workflowVisionReviews": 0,
-    "requiredProofs": 0,
-    "launchGateTasks": 0,
-    "fallbackTasks": 0
-  },
-  "tasks": [
-    {
-      "kind": "test-files",
-      "target": "tests",
-      "files": [
+    "projectId": "padloc",
+    "generatedAt": "2026-06-30T01:12:22.657Z",
+    "sinceRef": null,
+    "changedFiles": [
         "packages/extension/test-harness/smoke.spec.ts",
         "packages/extension/test-harness/webauthn-intercept.spec.ts"
-      ],
-      "commandHints": [
-        "pnpm test -- 'packages/extension/test-harness/smoke.spec.ts' 'packages/extension/test-harness/webauthn-intercept.spec.ts'"
-      ],
-      "reason": "changed graph nodes are covered by these test files"
-    }
-  ]
+    ],
+    "affectedNodes": [],
+    "summary": {
+        "changedFiles": 2,
+        "affectedNodes": 0,
+        "testFiles": 2,
+        "routeScreenshots": 0,
+        "storyScreenshots": 0,
+        "workflowProofs": 0,
+        "workflowVisionReviews": 0,
+        "requiredProofs": 0,
+        "launchGateTasks": 0,
+        "fallbackTasks": 0
+    },
+    "tasks": [
+        {
+            "kind": "test-files",
+            "target": "tests",
+            "files": [
+                "packages/extension/test-harness/smoke.spec.ts",
+                "packages/extension/test-harness/webauthn-intercept.spec.ts"
+            ],
+            "commandHints": [
+                "pnpm test -- 'packages/extension/test-harness/smoke.spec.ts' 'packages/extension/test-harness/webauthn-intercept.spec.ts'"
+            ],
+            "reason": "changed graph nodes are covered by these test files"
+        }
+    ]
 }

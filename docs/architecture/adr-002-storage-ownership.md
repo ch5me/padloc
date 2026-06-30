@@ -66,21 +66,21 @@ replaced:
 
 ### Positive
 
-- Clear ownership eliminates stale-cache security bugs.
-- D1 batched writes provide transactional guarantees that individual writes
-  cannot.
-- DO locks replace the fragile in-memory `_requestQueue` that breaks on server
-  restart or multi-instance deploys.
+-   Clear ownership eliminates stale-cache security bugs.
+-   D1 batched writes provide transactional guarantees that individual writes
+    cannot.
+-   DO locks replace the fragile in-memory `_requestQueue` that breaks on server
+    restart or multi-instance deploys.
 
 ### Negative
 
-- D1 write throughput limits mean heavy vault operations must be batched.
-- KV rate-limit hints can drift from the truth surface, causing false positives
-  under high load.
-- DO introduces per-DO serialization, so a single account making thousands of
-  concurrent requests sees them queued.
+-   D1 write throughput limits mean heavy vault operations must be batched.
+-   KV rate-limit hints can drift from the truth surface, causing false
+    positives under high load.
+-   DO introduces per-DO serialization, so a single account making thousands of
+    concurrent requests sees them queued.
 
 ## References
 
-- `packages/server/src/config.ts`
-- `.sisyphus/plans/padloc-cloudflare-native-backend.md` lines 334-348
+-   `packages/server/src/config.ts`
+-   `.sisyphus/plans/padloc-cloudflare-native-backend.md` lines 334-348

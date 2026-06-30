@@ -16,3 +16,4 @@ cypress/fixtures/**/*
 packages/locale/res/**/*
 packages/admin/dist/**/*
 purekeep/assets/email/**/*
+.sisyphus/notepads/chrome-extension-parity/learnings.md

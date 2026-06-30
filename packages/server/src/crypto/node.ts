@@ -76,7 +76,7 @@ export class NodeCryptoProvider implements CryptoProvider {
                             modulusLength: params.modulusLength,
                             publicExponent: Buffer.from(params.publicExponent).readUIntBE(
                                 0,
-                                params.publicExponent.length,
+                                params.publicExponent.length
                             ),
                             publicKeyEncoding: {
                                 type: "spki",
@@ -96,8 +96,8 @@ export class NodeCryptoProvider implements CryptoProvider {
                                     publicKey: new Uint8Array(publicKey),
                                 });
                             }
-                        },
-                    ),
+                        }
+                    )
                 );
         }
     }
@@ -116,8 +116,8 @@ export class NodeCryptoProvider implements CryptoProvider {
                     } else {
                         resolve(new Uint8Array(key));
                     }
-                },
-            ),
+                }
+            )
         );
     }
 
@@ -126,7 +126,7 @@ export class NodeCryptoProvider implements CryptoProvider {
     async encrypt(
         key: AESKey | RSAPublicKey,
         data: Uint8Array,
-        params: AESEncryptionParams | RSAEncryptionParams,
+        params: AESEncryptionParams | RSAEncryptionParams
     ): Promise<Uint8Array> {
         switch (params.algorithm) {
             case "AES-GCM":
@@ -144,7 +144,7 @@ export class NodeCryptoProvider implements CryptoProvider {
     async decrypt(
         key: AESKey | RSAPublicKey,
         data: Uint8Array,
-        params: AESEncryptionParams | RSAEncryptionParams,
+        params: AESEncryptionParams | RSAEncryptionParams
     ): Promise<Uint8Array> {
         switch (params.algorithm) {
             case "AES-GCM":
@@ -166,7 +166,7 @@ export class NodeCryptoProvider implements CryptoProvider {
     async sign(
         key: HMACKey | RSAPrivateKey,
         data: Uint8Array,
-        params: HMACParams | RSASigningParams,
+        params: HMACParams | RSASigningParams
     ): Promise<Uint8Array> {
         switch (params.algorithm) {
             case "HMAC":
@@ -183,13 +183,13 @@ export class NodeCryptoProvider implements CryptoProvider {
         key: RSAPrivateKey,
         signature: Uint8Array,
         data: Uint8Array,
-        params: RSASigningParams,
+        params: RSASigningParams
     ): Promise<boolean>;
     async verify(
         key: HMACKey | RSAPrivateKey,
         signature: Uint8Array,
         data: Uint8Array,
-        params: HMACParams | RSASigningParams,
+        params: HMACParams | RSASigningParams
     ): Promise<boolean> {
         switch (params.algorithm) {
             case "HMAC":
@@ -248,7 +248,7 @@ export class NodeCryptoProvider implements CryptoProvider {
                     type: "spki",
                     oaepHash: hashToNode(params.hash),
                 } as any,
-                key,
+                key
             );
             return new Uint8Array(buf);
         } catch (e) {
@@ -265,7 +265,7 @@ export class NodeCryptoProvider implements CryptoProvider {
                     type: "pkcs8",
                     oaepHash: hashToNode(params.hash),
                 } as any,
-                key,
+                key
             );
             return new Uint8Array(buf);
         } catch (e) {
@@ -287,7 +287,7 @@ export class NodeCryptoProvider implements CryptoProvider {
         key: HMACKey,
         signature: Uint8Array,
         data: Uint8Array,
-        params: HMACParams,
+        params: HMACParams
     ): Promise<boolean> {
         const sig = await this._signHMAC(key, data, params);
         return this.timingSafeEqual(sig, signature);
@@ -318,7 +318,7 @@ export class NodeCryptoProvider implements CryptoProvider {
                 saltLength: params.saltLength,
                 padding: constants.RSA_PKCS1_PSS_PADDING,
             },
-            signature,
+            signature
         );
     }
 }

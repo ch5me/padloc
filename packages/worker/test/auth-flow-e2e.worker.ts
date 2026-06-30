@@ -111,7 +111,7 @@ async function createClient(device?: DeviceInfo): Promise<Client> {
  */
 async function createAccountAndLogin(
     email: string,
-    password: string,
+    password: string
 ): Promise<{ accountId: string; mainVaultId: string; sessionKey: Uint8Array; client: Client }> {
     const client = await createClient();
 
@@ -154,7 +154,7 @@ async function createAccountAndLogin(
             A: loginSrp.A!,
             M: loginSrp.M1!,
             addTrustedDevice: true,
-        }),
+        })
     );
 
     // Apply session key (mirrors App.login line 739)
@@ -265,7 +265,7 @@ async function runTests(): Promise<TestResult[]> {
                     A: wrongSrp.A!,
                     M: wrongSrp.M1!,
                     addTrustedDevice: false,
-                }),
+                })
             );
         } catch (err: unknown) {
             if (err instanceof Err && err.code === ErrorCode.INVALID_CREDENTIALS) {
@@ -340,7 +340,9 @@ async function runTests(): Promise<TestResult[]> {
         }
         if (!sessionRejected)
             throw new Error(
-                `Revoked session was not rejected. Error: ${lastError instanceof Err ? lastError.code : String(lastError)}`,
+                `Revoked session was not rejected. Error: ${
+                    lastError instanceof Err ? lastError.code : String(lastError)
+                }`
             );
     });
 
@@ -387,7 +389,7 @@ async function runTests(): Promise<TestResult[]> {
             new StartRegisterAuthenticatorParams({
                 type: AuthType.Totp,
                 purposes: [AuthPurpose.Login],
-            }),
+            })
         );
 
         // Delete the registering authenticator so we can test auth request path clean
@@ -398,7 +400,7 @@ async function runTests(): Promise<TestResult[]> {
             new StartRegisterAuthenticatorParams({
                 type: AuthType.Totp,
                 purposes: [AuthPurpose.Login],
-            }),
+            })
         );
         const secretBytes = base32ToBytes(reg2.data.secret);
         const code = await totp(secretBytes, Date.now(), { interval: 30, digits: 6, hash: "SHA-1" });
@@ -406,7 +408,7 @@ async function runTests(): Promise<TestResult[]> {
             new CompleteRegisterMFAuthenticatorParams({
                 id: reg2.id,
                 data: { code },
-            }),
+            })
         );
 
         // Now start an auth request — verifies TOTP path is reachable
@@ -415,7 +417,7 @@ async function runTests(): Promise<TestResult[]> {
                 email,
                 type: AuthType.Totp,
                 purpose: AuthPurpose.Login,
-            }),
+            })
         );
 
         if (authResponse.type !== AuthType.Totp) throw new Error("Auth request returned wrong type");
@@ -441,7 +443,7 @@ async function runTests(): Promise<TestResult[]> {
             new CompleteRegisterMFAuthenticatorParams({
                 id: regResponse.id,
                 data: { code },
-            }),
+            })
         );
 
         // Start auth request
@@ -450,7 +452,7 @@ async function runTests(): Promise<TestResult[]> {
                 email,
                 type: AuthType.Totp,
                 purpose: AuthPurpose.Login,
-            }),
+            })
         );
 
         // Try to complete with WRONG code
@@ -461,7 +463,7 @@ async function runTests(): Promise<TestResult[]> {
                     email,
                     id: authResponse.id,
                     data: { code: "000000" },
-                }),
+                })
             );
         } catch (err: unknown) {
             if (err instanceof Err && err.code === ErrorCode.AUTHENTICATION_FAILED) {
@@ -481,7 +483,7 @@ async function runTests(): Promise<TestResult[]> {
             new StartRegisterAuthenticatorParams({
                 type: AuthType.Totp,
                 purposes: [AuthPurpose.Login],
-            }),
+            })
         );
         const secretBytes = base32ToBytes(regResponse.data.secret);
 
@@ -492,7 +494,7 @@ async function runTests(): Promise<TestResult[]> {
             new CompleteRegisterMFAuthenticatorParams({
                 id: regResponse.id,
                 data: { code },
-            }),
+            })
         );
 
         // Start auth request at the same counter window
@@ -501,7 +503,7 @@ async function runTests(): Promise<TestResult[]> {
                 email,
                 type: AuthType.Totp,
                 purpose: AuthPurpose.Login,
-            }),
+            })
         );
 
         // Attempting to verify at the same counter should fail (not yet advanced)
@@ -512,7 +514,7 @@ async function runTests(): Promise<TestResult[]> {
                     email,
                     id: authResponse.id,
                     data: { code },
-                }),
+                })
             );
         } catch (err: unknown) {
             if (err instanceof Err && err.code === ErrorCode.AUTHENTICATION_FAILED) {
@@ -549,7 +551,7 @@ export default {
                         results,
                     },
                     null,
-                    2,
+                    2
                 );
                 return new Response(body, {
                     status: failed === 0 ? 200 : 400,
@@ -575,7 +577,7 @@ export default {
                     return createServer(env).handle(req);
                 },
                 env,
-                ctx,
+                ctx
             );
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : "server_error";

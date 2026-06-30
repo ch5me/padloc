@@ -14,10 +14,10 @@ Padloc currently sends transactional email via `SMTPSender`
 HTML/TXT template files from disk at runtime via `readFileSync`. This approach
 is incompatible with Cloudflare Workers:
 
-- Workers run at the edge with no filesystem access.
-- Workers cannot use `nodemailer` (Node.js-only, not Web Standard Fetch).
-- Email templates must be bundled as TypeScript string constants at compile
-  time.
+-   Workers run at the edge with no filesystem access.
+-   Workers cannot use `nodemailer` (Node.js-only, not Web Standard Fetch).
+-   Email templates must be bundled as TypeScript string constants at compile
+    time.
 
 This ADR defines the email subsystem for the Cloudflare Workers backend using
 the [Resend API](https://resend.com/docs/api-reference/emails/send-email) via
@@ -86,12 +86,12 @@ export const templateStrings: Record<
 
 **Build script** (`scripts/build-email-templates.mjs`):
 
-- Reads all `assets/email/*.{html,txt}` files at build time (Node.js build step,
-  NOT runtime)
-- Emits `packages/worker/src/email/templates.ts`
-- Runs as part of `pnpm build` before Worker bundling
-- Template variables use `{{varname}}` syntax (matches both Resend and current
-  Padloc template format)
+-   Reads all `assets/email/*.{html,txt}` files at build time (Node.js build
+    step, NOT runtime)
+-   Emits `packages/worker/src/email/templates.ts`
+-   Runs as part of `pnpm build` before Worker bundling
+-   Template variables use `{{varname}}` syntax (matches both Resend and current
+    Padloc template format)
 
 **Why**: This eliminates all runtime `fs` access in the Worker. The Worker
 bundle contains only string constants — no `readFileSync`, no `fs` bindings.
@@ -124,13 +124,13 @@ export class ResendSender implements Messenger {
 
     async send<T extends MessageData>(
         email: string,
-        msg: Message<T>,
+        msg: Message<T>
     ): Promise<void> {
         const templateId = this.config.templateIds[msg.template];
         const { html, text } = interpolateTemplate(
             msg.template,
             msg.title,
-            msg.data,
+            msg.data
         );
 
         const payload: ResendPayload = {
@@ -141,7 +141,9 @@ export class ResendSender implements Messenger {
             text,
             headers: {
                 // Idempotency key prevents duplicate sends on retries
-                "Idempotency-Key": `${msg.template}:${this._idempotencyValue(msg)}`,
+                "Idempotency-Key": `${msg.template}:${this._idempotencyValue(
+                    msg
+                )}`,
             },
         };
 
@@ -185,9 +187,9 @@ Resend supports `Idempotency-Key` header (up to 255 characters). We use:
 
 Examples:
 
-- `email-auth:req_abc123` — uses request ID
-- `join-org-invite:https://app.padloc.app/invite/xyz` — uses invite URL
-- `failed-login-attempt:New York, NY` — uses location (may repeat; acceptable)
+-   `email-auth:req_abc123` — uses request ID
+-   `join-org-invite:https://app.padloc.app/invite/xyz` — uses invite URL
+-   `failed-login-attempt:New York, NY` — uses location (may repeat; acceptable)
 
 This ensures retry-safe sends without duplicate delivery.
 
@@ -197,11 +199,12 @@ This ensures retry-safe sends without duplicate delivery.
 
 When `EMAIL_BACKEND=mock` (or unset in local/dev):
 
-- Emails are logged to console (`console.log`).
-- No network calls to Resend.
-- In tests: `StubMessenger` from `@padloc/core/src/messenger` is used directly.
-- In Worker dev: a `MockResendSender` class returns `{ id: "mock_id_xxx" }`
-  without making HTTP requests.
+-   Emails are logged to console (`console.log`).
+-   No network calls to Resend.
+-   In tests: `StubMessenger` from `@padloc/core/src/messenger` is used
+    directly.
+-   In Worker dev: a `MockResendSender` class returns `{ id: "mock_id_xxx" }`
+    without making HTTP requests.
 
 **Safe test recipient**: When `EMAIL_MOCK_RECIPIENT` is set, all emails are
 redirected to this address. This allows safe testing in staging without risk of
@@ -214,12 +217,12 @@ export class MockResendSender implements Messenger {
 
     async send<T extends MessageData>(
         email: string,
-        msg: Message<T>,
+        msg: Message<T>
     ): Promise<void> {
         const recipient = this.testRecipient ?? email;
         console.log(`[MOCK EMAIL] to=${recipient} subject=${msg.title}`);
         console.log(
-            `  template=${msg.template} data=${JSON.stringify(msg.data)}`,
+            `  template=${msg.template} data=${JSON.stringify(msg.data)}`
         );
     }
 }
@@ -264,16 +267,16 @@ client-side before sending (matching the existing
 export function interpolateTemplate(
     template: string,
     title: string,
-    data: MessageData,
+    data: MessageData
 ): { html: string; txt: string } {
     const { html, txt } = templateStrings[template as TemplateName];
     const vars = { title, ...data };
 
     const htmlResult = html.replace(/\{\{\s*(\w+)\s*\}\}/gi, (_, key) =>
-        dompurify.sanitize(String(vars[key] ?? "")),
+        dompurify.sanitize(String(vars[key] ?? ""))
     );
     const txtResult = txt.replace(/\{\{\s*(\w+)\s*\}\}/gi, (_, key) =>
-        String(vars[key] ?? ""),
+        String(vars[key] ?? "")
     );
 
     return { html: htmlResult, txt: txtResult };
@@ -287,11 +290,11 @@ export function interpolateTemplate(
 
 ### 8. Error Handling & Retries
 
-- **Transient failures** (5xx, network timeout): Worker retries up to 3 times
-  with exponential backoff using `ctx.waitUntil()`.
-- **Permanent failures** (4xx except 429): Log error, do not retry.
-- **Rate limits** (429): Honor `Retry-After` header if present, else backoff
-  60s.
+-   **Transient failures** (5xx, network timeout): Worker retries up to 3 times
+    with exponential backoff using `ctx.waitUntil()`.
+-   **Permanent failures** (4xx except 429): Log error, do not retry.
+-   **Rate limits** (429): Honor `Retry-After` header if present, else backoff
+    60s.
 
 ---
 
@@ -316,32 +319,32 @@ is still needed.
 
 ### Positive
 
-- No filesystem access in Workers — fully edge-compatible.
-- Idempotency prevents duplicate emails on retry.
-- Mock mode enables safe local/staging testing.
-- Single API key (`RESEND_API_KEY`) instead of SMTP credentials.
-- Resend handles delivery, reputation, and retry logic.
+-   No filesystem access in Workers — fully edge-compatible.
+-   Idempotency prevents duplicate emails on retry.
+-   Mock mode enables safe local/staging testing.
+-   Single API key (`RESEND_API_KEY`) instead of SMTP credentials.
+-   Resend handles delivery, reputation, and retry logic.
 
 ### Negative
 
-- Resend is a third-party SaaS — adds external dependency.
-- Template management requires uploading templates to Resend dashboard (or using
-  Resend API).
-- Migration of existing `assets/email/` HTML files to Resend templates requires
-  a one-time setup.
+-   Resend is a third-party SaaS — adds external dependency.
+-   Template management requires uploading templates to Resend dashboard (or
+    using Resend API).
+-   Migration of existing `assets/email/` HTML files to Resend templates
+    requires a one-time setup.
 
 ### Neutral
 
-- `PlainMessage` is a generic fallback — all other message types cover specific
-  flows.
+-   `PlainMessage` is a generic fallback — all other message types cover
+    specific flows.
 
 ---
 
 ## References
 
-- [Resend API Docs](https://resend.com/docs/api-reference/emails/send-email)
-- [Resend Idempotency](https://resend.com/docs/api-reference/emails/send-email#idempotency)
-- `packages/core/src/messenger.ts` — Message class hierarchy
-- `packages/server/src/email/smtp.ts` — Existing SMTP implementation (to be
-  replaced)
-- `assets/email/` — Source-of-truth for email content (HTML + TXT)
+-   [Resend API Docs](https://resend.com/docs/api-reference/emails/send-email)
+-   [Resend Idempotency](https://resend.com/docs/api-reference/emails/send-email#idempotency)
+-   `packages/core/src/messenger.ts` — Message class hierarchy
+-   `packages/server/src/email/smtp.ts` — Existing SMTP implementation (to be
+    replaced)
+-   `assets/email/` — Source-of-truth for email content (HTML + TXT)

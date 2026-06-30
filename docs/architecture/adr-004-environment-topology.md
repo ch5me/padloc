@@ -100,20 +100,20 @@ changes.
 
 ### Staging
 
-- Every push to `main` should auto-deploy the staging environment.
-- Provider-native preview deployments can still exist, but they are not the
-  stable pre-prod target.
-- Staging runs the same auth/email/runtime contract as production with
-  stage-scoped secrets.
+-   Every push to `main` should auto-deploy the staging environment.
+-   Provider-native preview deployments can still exist, but they are not the
+    stable pre-prod target.
+-   Staging runs the same auth/email/runtime contract as production with
+    stage-scoped secrets.
 
 ### Production
 
-- Production deploys from `main` only, triggered by a tagged release or an
-  explicit promotion action.
-- Production does not rebuild from source. It promotes a recorded release
-  candidate artifact.
-- Rollback re-promotes a previously recorded candidate, never builds a new
-  binary.
+-   Production deploys from `main` only, triggered by a tagged release or an
+    explicit promotion action.
+-   Production does not rebuild from source. It promotes a recorded release
+    candidate artifact.
+-   Rollback re-promotes a previously recorded candidate, never builds a new
+    binary.
 
 ## Local Development
 
@@ -141,21 +141,21 @@ parallel subdomain families for app and API surfaces.
 
 ## Split-Brain Prevention
 
-- The worker reads its environment from `env` bindings only. No environment
-  variable tricks or runtime detection.
-- Migration scripts target the correct D1 database by Wrangler environment flag:
-  `wrangler d1 execute --env=staging|production`.
-- Secrets are scoped per environment using `wrangler secret put --env=<name>`.
+-   The worker reads its environment from `env` bindings only. No environment
+    variable tricks or runtime detection.
+-   Migration scripts target the correct D1 database by Wrangler environment
+    flag: `wrangler d1 execute --env=staging|production`.
+-   Secrets are scoped per environment using `wrangler secret put --env=<name>`.
 
 ## Legacy Compatibility Note
 
-- `preview` remains as a legacy compatibility environment in some repo history
-  and Cloudflare resources.
-- New CH5 work should treat `staging` as the canonical stable pre-production
-  environment.
+-   `preview` remains as a legacy compatibility environment in some repo history
+    and Cloudflare resources.
+-   New CH5 work should treat `staging` as the canonical stable pre-production
+    environment.
 
 ## References
 
-- `.sisyphus/plans/padloc-cloudflare-native-backend.md`
-- `environment-topology-and-staging-promotion` skill
-- `cloudflare-workers-expert` skill
+-   `.sisyphus/plans/padloc-cloudflare-native-backend.md`
+-   `environment-topology-and-staging-promotion` skill
+-   `cloudflare-workers-expert` skill

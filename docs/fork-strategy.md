@@ -141,22 +141,23 @@ The following changes break compatibility with the upstream Node.js server:
 
 ### If Multi-Tenant Becomes Desired
 
-- Stripe billing can be added via `packages/worker/src/provisioning/stripe.ts`
-  using Resend for receipt emails
-- SCIM provisioning would require a new Worker route
-- OAuth/SAML would need Cloudflare Access integration
+-   Stripe billing can be added via `packages/worker/src/provisioning/stripe.ts`
+    using Resend for receipt emails
+-   SCIM provisioning would require a new Worker route
+-   OAuth/SAML would need Cloudflare Access integration
 
 ### If Upstream Adds New Features
 
-- New API handlers in `packages/core/src/api.ts` will be automatically detected
-  by the contract inventory script (`scripts/inventory-api.ts`)
-- Each new handler needs a disposition: `implemented`, `deferred`, or `dropped`
-- Run `npm run proof:contract` to detect drift
+-   New API handlers in `packages/core/src/api.ts` will be automatically
+    detected by the contract inventory script (`scripts/inventory-api.ts`)
+-   Each new handler needs a disposition: `implemented`, `deferred`, or
+    `dropped`
+-   Run `npm run proof:contract` to detect drift
 
 ## Evidence
 
-- API inventory: `.sisyphus/contract/api-inventory.json` (39 handlers, 0
-  unknown)
-- Feature scope matrix: `docs/architecture/adr-*` files
-- All deferred features have explicit rationale above
-- No "maybe later" entries without owner/status
+-   API inventory: `.sisyphus/contract/api-inventory.json` (39 handlers, 0
+    unknown)
+-   Feature scope matrix: `docs/architecture/adr-*` files
+-   All deferred features have explicit rationale above
+-   No "maybe later" entries without owner/status

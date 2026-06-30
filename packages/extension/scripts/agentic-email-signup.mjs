@@ -109,7 +109,10 @@ function redactSensitive(value) {
     if (Array.isArray(value)) return value.map(redactSensitive);
     const out = {};
     for (const [key, entry] of Object.entries(value)) {
-        out[key] = /code|otp|password|input|token/i.test(key) && key !== "passwordReady" ? "[redacted]" : redactSensitive(entry);
+        out[key] =
+            /code|otp|password|input|token/i.test(key) && key !== "passwordReady"
+                ? "[redacted]"
+                : redactSensitive(entry);
     }
     return out;
 }
@@ -359,7 +362,9 @@ async function complete() {
     }
     if (signupReady.state?.loggedIn && signupReady.state?.locked && !signupReady.state?.page) {
         throw new Error(
-            `extension is locked on existing Padloc account ${signupReady.state.accountEmail || "(unknown)"}; reset extension storage before signup`
+            `extension is locked on existing Padloc account ${
+                signupReady.state.accountEmail || "(unknown)"
+            }; reset extension storage before signup`
         );
     }
     if (signupReady.state?.page === "login") {

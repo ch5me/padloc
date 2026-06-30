@@ -59,21 +59,15 @@ suite("Autofill classifier", () => {
         expect(classifyAutofillField(field({ autocomplete: "postal-code" }))).to.equal(
             AutofillFieldRole.AddressPostalCode
         );
-        expect(classifyAutofillField(field({ autocomplete: "country" }))).to.equal(
-            AutofillFieldRole.AddressCountry
-        );
+        expect(classifyAutofillField(field({ autocomplete: "country" }))).to.equal(AutofillFieldRole.AddressCountry);
     });
 
     test("classifies payment roles and keeps CVV transaction-only role distinct", () => {
         expect(classifyAutofillField(field({ autocomplete: "cc-name" }))).to.equal(
             AutofillFieldRole.PaymentCardholderName
         );
-        expect(classifyAutofillField(field({ autocomplete: "cc-number" }))).to.equal(
-            AutofillFieldRole.PaymentCardPan
-        );
-        expect(classifyAutofillField(field({ autocomplete: "cc-exp" }))).to.equal(
-            AutofillFieldRole.PaymentCardExpiry
-        );
+        expect(classifyAutofillField(field({ autocomplete: "cc-number" }))).to.equal(AutofillFieldRole.PaymentCardPan);
+        expect(classifyAutofillField(field({ autocomplete: "cc-exp" }))).to.equal(AutofillFieldRole.PaymentCardExpiry);
         expect(classifyAutofillField(field({ autocomplete: "cc-exp-month" }))).to.equal(
             AutofillFieldRole.PaymentCardExpiryMonth
         );
@@ -86,9 +80,7 @@ suite("Autofill classifier", () => {
     });
 
     test("uses label text when autocomplete is absent", () => {
-        expect(classifyAutofillField(field({ labelText: "Street Address" }))).to.equal(
-            AutofillFieldRole.AddressLine1
-        );
+        expect(classifyAutofillField(field({ labelText: "Street Address" }))).to.equal(AutofillFieldRole.AddressLine1);
         expect(classifyAutofillField(field({ labelText: "Security Code" }))).to.equal(
             AutofillFieldRole.PaymentCardCvvTransient
         );

@@ -80,33 +80,33 @@ For Forgejo Actions deployments:
 
 New developers can work locally without any secrets for basic functionality:
 
-- `wrangler dev` runs with local Miniflare emulation. Non-existent secrets
-  return `undefined`, which the worker handles with stub/fallback behavior.
-- For email delivery, developers who want to test Resend integration set
-  `RESEND_API_KEY` via `wrangler secret put` locally.
-- For team secret sharing, use 1Password and Hush. Do not paste secrets into
-  Slack, email, or shared documents.
+-   `wrangler dev` runs with local Miniflare emulation. Non-existent secrets
+    return `undefined`, which the worker handles with stub/fallback behavior.
+-   For email delivery, developers who want to test Resend integration set
+    `RESEND_API_KEY` via `wrangler secret put` locally.
+-   For team secret sharing, use 1Password and Hush. Do not paste secrets into
+    Slack, email, or shared documents.
 
 ## Consequences
 
 ### Positive
 
-- Cloudflare secrets are encrypted at rest and only decrypted at worker
-  execution time.
-- No secret files in the repository, even in `.gitignore`d paths (eliminates
-  leakage risk).
-- Environment scoping prevents staging secrets from leaking into production.
+-   Cloudflare secrets are encrypted at rest and only decrypted at worker
+    execution time.
+-   No secret files in the repository, even in `.gitignore`d paths (eliminates
+    leakage risk).
+-   Environment scoping prevents staging secrets from leaking into production.
 
 ### Negative
 
-- Wrangler secret management requires Cloudflare dashboard access or CI token
-  permissions.
-- No built-in secret rotation audit trail. Rotation must be done manually.
-- Local developers without Cloudflare access cannot test integrations that
-  require live secrets (e.g., Resend).
+-   Wrangler secret management requires Cloudflare dashboard access or CI token
+    permissions.
+-   No built-in secret rotation audit trail. Rotation must be done manually.
+-   Local developers without Cloudflare access cannot test integrations that
+    require live secrets (e.g., Resend).
 
 ## References
 
-- `.sisyphus/plans/padloc-cloudflare-native-backend.md` lines 347
-- `packages/server/src/config.ts`
-- `hush-projection-contract` skill (optional Hush integration)
+-   `.sisyphus/plans/padloc-cloudflare-native-backend.md` lines 347
+-   `packages/server/src/config.ts`
+-   `hush-projection-contract` skill (optional Hush integration)

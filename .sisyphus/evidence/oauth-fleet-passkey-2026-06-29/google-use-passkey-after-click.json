@@ -1,21 +1,21 @@
 {
-  "before": "https://accounts.google.com/v3/signin/challenge/selection?[redacted]",
-  "clicked": true,
-  "screenshot": "[screenshot-not-committed]",
-  "state": {
-    "url": "https://accounts.google.com/v3/signin/challenge/pk/presend?[redacted]",
-    "title": "Use your passkey to confirm it’s really you",
-    "text": "Loading Use your passkey to confirm it’s really you [redacted-google-account] Your device will ask for your fingerprint, face, or screen lock Continue Try another way English (United States) Help Privacy Terms Use your passkey to confirm it’s really you",
-    "hasPasskeyText": true,
-    "activeElement": {
-      "tag": "BODY",
-      "text": "Loading\nUse your passkey to confirm it’s really you\n[redacted-google-account]\nYour device will ask "
-    }
-  },
-  "console": [
-    {
-      "type": "warning",
-      "text": "Blocked aria-hidden on an element because its descendant retained focus. The focus must not be hidden from assistive technology users. Avoid using aria-hidden on a focused element or its ancestor. Consider using the inert attribute instead, which will also prevent focus. For more details, see the ar"
-    }
-  ]
+    "before": "https://accounts.google.com/v3/signin/challenge/selection?[redacted]",
+    "clicked": true,
+    "screenshot": "[screenshot-not-committed]",
+    "state": {
+        "url": "https://accounts.google.com/v3/signin/challenge/pk/presend?[redacted]",
+        "title": "Use your passkey to confirm it’s really you",
+        "text": "Loading Use your passkey to confirm it’s really you [redacted-google-account] Your device will ask for your fingerprint, face, or screen lock Continue Try another way English (United States) Help Privacy Terms Use your passkey to confirm it’s really you",
+        "hasPasskeyText": true,
+        "activeElement": {
+            "tag": "BODY",
+            "text": "Loading\nUse your passkey to confirm it’s really you\n[redacted-google-account]\nYour device will ask "
+        }
+    },
+    "console": [
+        {
+            "type": "warning",
+            "text": "Blocked aria-hidden on an element because its descendant retained focus. The focus must not be hidden from assistive technology users. Avoid using aria-hidden on a focused element or its ancestor. Consider using the inert attribute instead, which will also prevent focus. For more details, see the ar"
+        }
+    ]
 }

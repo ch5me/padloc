@@ -104,7 +104,7 @@ module.exports = {
 
                                 data.html = data.html.replace(
                                     `[REPLACE_${cspRule.replace("-src", "").toUpperCase()}]`,
-                                    `${files.map((file) => `${adminUrl}/${file}`).join(" ")}`,
+                                    `${files.map((file) => `${adminUrl}/${file}`).join(" ")}`
                                 );
                             }
 
@@ -115,7 +115,7 @@ module.exports = {
                             data.html = data.html.replace("[REPLACE_CONNECT]", connectReplacement);
 
                             callback(null, data);
-                        },
+                        }
                     );
 
                     return true;
@@ -227,7 +227,7 @@ module.exports = {
 
                         htmlFileContents = htmlFileContents.replace(
                             `[REPLACE_${cspRule.replace("-src", "").toUpperCase()}]`,
-                            `${files.map((file) => `${adminUrl}/${file}`).join(" ")}`,
+                            `${files.map((file) => `${adminUrl}/${file}`).join(" ")}`
                         );
                     }
 
@@ -238,7 +238,7 @@ module.exports = {
                     if (adminUrlPath !== "/") {
                         htmlFileContents = htmlFileContents.replaceAll(
                             `"/favicon.png"`,
-                            `"${adminUrlPath}favicon.png"`,
+                            `"${adminUrlPath}favicon.png"`
                         );
                     }
 

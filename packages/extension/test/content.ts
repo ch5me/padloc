@@ -54,7 +54,11 @@ suite("Content script field detection and fill", () => {
         const autocomplete = (input.getAttribute("autocomplete") || "").toLowerCase();
         const placeholder = (input.placeholder || "").toLowerCase();
         const labelText = getLabelText(input);
-        const dataAttr = ((input.dataset["fieldType"] as string) || (input.dataset["field"] as string) || "").toLowerCase();
+        const dataAttr = (
+            (input.dataset["fieldType"] as string) ||
+            (input.dataset["field"] as string) ||
+            ""
+        ).toLowerCase();
         const maxLength = input.maxLength;
         const pattern = input.getAttribute("pattern") || "";
         const inputmode = input.getAttribute("inputmode") || "";
@@ -123,20 +127,22 @@ suite("Content script field detection and fill", () => {
         return null;
     }
 
-    function makeInput(overrides: Partial<{
-        type: string;
-        name: string;
-        id: string;
-        autocomplete: string;
-        placeholder: string;
-        label: string;
-        ariaLabel: string;
-        ariaLabelledBy: string;
-        maxLength: number;
-        pattern: string;
-        inputmode: string;
-        dataFieldType: string;
-    }> = {}): any {
+    function makeInput(
+        overrides: Partial<{
+            type: string;
+            name: string;
+            id: string;
+            autocomplete: string;
+            placeholder: string;
+            label: string;
+            ariaLabel: string;
+            ariaLabelledBy: string;
+            maxLength: number;
+            pattern: string;
+            inputmode: string;
+            dataFieldType: string;
+        }> = {}
+    ): any {
         const attrs: Record<string, string | null> = {
             autocomplete: overrides.autocomplete ?? null,
             pattern: overrides.pattern ?? null,
@@ -157,7 +163,10 @@ suite("Content script field detection and fill", () => {
                 field: "",
             },
             getAttribute,
-            ownerDocument: { getElementById: (id: string) => id === overrides.ariaLabelledBy ? { textContent: overrides.label ?? "" } : null },
+            ownerDocument: {
+                getElementById: (id: string) =>
+                    id === overrides.ariaLabelledBy ? { textContent: overrides.label ?? "" } : null,
+            },
         };
     }
 
@@ -333,7 +342,9 @@ suite("Content script field detection and fill", () => {
         });
 
         test("aria-labelledby with label containing 'code' is classified as totp", () => {
-            expect(classifyField(makeInput({ ariaLabelledBy: "lbl-code", label: "Verification Code" }))).to.equal("totp");
+            expect(classifyField(makeInput({ ariaLabelledBy: "lbl-code", label: "Verification Code" }))).to.equal(
+                "totp"
+            );
         });
 
         test("aria-labelledby with label containing 'user' is classified as username", () => {
@@ -374,7 +385,9 @@ suite("Content script field detection and fill", () => {
             const selectionStart = input.selectionStart ?? value.length;
             const selectionEnd = input.selectionEnd ?? value.length;
 
-            input.dispatchEvent(new InputEvent("beforeinput", { bubbles: true, cancelable: true, data: value, inputType: "insertText" }));
+            input.dispatchEvent(
+                new InputEvent("beforeinput", { bubbles: true, cancelable: true, data: value, inputType: "insertText" })
+            );
             input.value = value;
             input.setSelectionRange(selectionStart, selectionEnd);
             input.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter", keyCode: 13, which: 13 }));
@@ -383,14 +396,7 @@ suite("Content script field detection and fill", () => {
             input.dispatchEvent(new Event("change", { bubbles: true }));
             input.dispatchEvent(new KeyboardEvent("keypress", { bubbles: true, key: "Enter", keyCode: 13, which: 13 }));
 
-            expect(events).to.deep.equal([
-                "beforeinput",
-                "keydown",
-                "keyup",
-                "input",
-                "change",
-                "keypress",
-            ]);
+            expect(events).to.deep.equal(["beforeinput", "keydown", "keyup", "input", "change", "keypress"]);
         });
 
         test("fill preserves selection range after value assignment", () => {
@@ -414,7 +420,9 @@ suite("Content script field detection and fill", () => {
             } as any as HTMLInputElement;
 
             const value = "hello";
-            input.dispatchEvent(new InputEvent("beforeinput", { bubbles: true, cancelable: true, data: value, inputType: "insertText" }));
+            input.dispatchEvent(
+                new InputEvent("beforeinput", { bubbles: true, cancelable: true, data: value, inputType: "insertText" })
+            );
             input.value = value;
             input.setSelectionRange(input.selectionStart ?? value.length, input.selectionEnd ?? value.length);
 
@@ -459,7 +467,14 @@ suite("Content script field detection and fill", () => {
     suite("Shadow DOM field collection", () => {
         test("collects fields from nested shadow roots", () => {
             // Simulate: document -> shadow-root -> element with shadow-root -> input
-            const innerInput = { type: "password", name: "test", id: "pw", getAttribute: () => null, maxLength: 0, dataset: {} } as any;
+            const innerInput = {
+                type: "password",
+                name: "test",
+                id: "pw",
+                getAttribute: () => null,
+                maxLength: 0,
+                dataset: {},
+            } as any;
             const innerShadowRoot = {
                 querySelectorAll: () => [innerInput],
             };
@@ -537,7 +552,7 @@ suite("Content script field detection and fill", () => {
                 const order: Record<string, number> = { username: 0, password: 1, totp: 2 };
                 return order[a.type] - order[b.type];
             });
-            expect(sorted.map(f => f.type)).to.deep.equal(["username", "password"]);
+            expect(sorted.map((f) => f.type)).to.deep.equal(["username", "password"]);
         });
 
         test("TOTP falls back to password field when no dedicated TOTP field exists", () => {

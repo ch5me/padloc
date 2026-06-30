@@ -62,7 +62,7 @@ async function createClient(device?: DeviceInfo): Promise<Client> {
  */
 async function createAccountAndLogin(
     email: string,
-    password: string,
+    password: string
 ): Promise<{ accountId: string; mainVaultId: string; sessionKey: Uint8Array; client: Client }> {
     const client = await createClient();
 
@@ -98,7 +98,7 @@ async function createAccountAndLogin(
             A: loginSrp.A!,
             M: loginSrp.M1!,
             addTrustedDevice: true,
-        }),
+        })
     );
 
     session.key = loginSrp.K!;
@@ -276,7 +276,7 @@ export default {
                         results,
                     },
                     null,
-                    2,
+                    2
                 );
                 return new Response(body, {
                     status: failed === 0 ? 200 : 400,
@@ -303,7 +303,7 @@ export default {
                     return server.handle(req);
                 },
                 env,
-                ctx,
+                ctx
             );
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : "server_error";

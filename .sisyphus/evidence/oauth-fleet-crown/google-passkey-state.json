@@ -1,11 +1,11 @@
 {
-  "status": "ready",
-  "state": {
-    "url": "https://myaccount.google.com/signinoptions/passkeys?pli=[redacted]&rapt=[redacted]",
-    "title": "Passkeys and security keys",
-    "createHooked": true,
-    "getHooked": true,
-    "needsGoogleReauth": false,
-    "text": "Skip to main content\nAccount\nHelp\nBack to previous page\nPasskeys and security keys"
-  }
+    "status": "ready",
+    "state": {
+        "url": "https://myaccount.google.com/signinoptions/passkeys?pli=[redacted]&rapt=[redacted]",
+        "title": "Passkeys and security keys",
+        "createHooked": true,
+        "getHooked": true,
+        "needsGoogleReauth": false,
+        "text": "Skip to main content\nAccount\nHelp\nBack to previous page\nPasskeys and security keys"
+    }
 }

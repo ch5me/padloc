@@ -34,8 +34,8 @@ async function main() {
         const filtered = Array.isArray(existingAllowIntents)
             ? existingAllowIntents.filter((e) => e._attributes?.scheme !== scheme)
             : existingAllowIntents._attributes?.scheme === scheme
-              ? []
-              : existingAllowIntents;
+            ? []
+            : existingAllowIntents;
         if (filtered.length > 0) {
             configObj.widget["allow-intent"] = filtered;
         } else {

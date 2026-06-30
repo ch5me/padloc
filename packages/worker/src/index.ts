@@ -92,7 +92,7 @@ export default {
                 return server.handle(req);
             },
             env,
-            ctx,
+            ctx
         );
     },
 };

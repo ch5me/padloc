@@ -1,11 +1,11 @@
 {
-  "status": "failed_google_login",
-  "state": {
-    "url": "https://accounts.google.com/v3/signin/challenge/pk/error?TL=[redacted]&checkConnection=youtube%3A83&checkedDomains=youtube&cid=[redacted]&continue=[redacted]&dsh=[redacted]&flowEntry=[redacted]&flowName=[redacted]&ifkv=[redacted]&pstMsg=1",
-    "title": "Something went wrong",
-    "createHooked": true,
-    "getHooked": true,
-    "needsGoogleReauth": true,
-    "text": "Loading\nSomething went wrong\n[redacted-google-account]\nMake sure Bluetooth is on, and your devices are close to each other. Learn more\nTry again\nTry another way\nEnglish (United States)\nHelp\nPrivacy\nTerms\nSomething went wrong"
-  }
+    "status": "failed_google_login",
+    "state": {
+        "url": "https://accounts.google.com/v3/signin/challenge/pk/error?TL=[redacted]&checkConnection=youtube%3A83&checkedDomains=youtube&cid=[redacted]&continue=[redacted]&dsh=[redacted]&flowEntry=[redacted]&flowName=[redacted]&ifkv=[redacted]&pstMsg=1",
+        "title": "Something went wrong",
+        "createHooked": true,
+        "getHooked": true,
+        "needsGoogleReauth": true,
+        "text": "Loading\nSomething went wrong\n[redacted-google-account]\nMake sure Bluetooth is on, and your devices are close to each other. Learn more\nTry again\nTry another way\nEnglish (United States)\nHelp\nPrivacy\nTerms\nSomething went wrong"
+    }
 }

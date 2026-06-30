@@ -27,7 +27,8 @@ const test = base.extend<{ extensionId: string }>({
         fs.rmSync(userDataDir, { recursive: true, force: true });
     },
     extensionId: async ({ context }, use) => {
-        const worker = context.serviceWorkers()[0] || await context.waitForEvent("serviceworker", { timeout: 15_000 });
+        const worker =
+            context.serviceWorkers()[0] || (await context.waitForEvent("serviceworker", { timeout: 15_000 }));
         const extensionId = parseExtensionId(worker.url());
         expect(extensionId).toBeTruthy();
         await use(extensionId);
@@ -40,7 +41,8 @@ function parseExtensionId(workerUrl: string): string {
 }
 
 async function getExtensionId(page: any): Promise<string> {
-    const worker = page.context().serviceWorkers()[0] || await page.context().waitForEvent("serviceworker", { timeout: 15_000 });
+    const worker =
+        page.context().serviceWorkers()[0] || (await page.context().waitForEvent("serviceworker", { timeout: 15_000 }));
     return parseExtensionId(worker.url());
 }
 
@@ -55,7 +57,7 @@ async function sendActiveTabMessage(
     context: BrowserContext,
     message: unknown
 ): Promise<{ resp: unknown; lastError: string }> {
-    const worker = context.serviceWorkers()[0] || await context.waitForEvent("serviceworker", { timeout: 15_000 });
+    const worker = context.serviceWorkers()[0] || (await context.waitForEvent("serviceworker", { timeout: 15_000 }));
     return worker.evaluate(async (msg: unknown) => {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         const tabId = tab && typeof tab.id === "number" ? tab.id : null;
@@ -86,9 +88,7 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
         await page.goto(`chrome-extension://${extId}/popup.html`);
         await page.waitForLoadState("networkidle");
 
-        const critical = errors.filter(
-            (e) => !e.includes("favicon") && !e.includes("net::ERR_BLOCKED_BY_CLIENT")
-        );
+        const critical = errors.filter((e) => !e.includes("favicon") && !e.includes("net::ERR_BLOCKED_BY_CLIENT"));
         expect(critical, `Console errors: ${JSON.stringify(critical)}`).toHaveLength(0);
 
         const criticalWarnings = warnings.filter(
@@ -139,7 +139,8 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
     });
 
     test("background worker bundle is service-worker safe", async ({ context }) => {
-        const worker = context.serviceWorkers()[0] || await context.waitForEvent("serviceworker", { timeout: 15_000 });
+        const worker =
+            context.serviceWorkers()[0] || (await context.waitForEvent("serviceworker", { timeout: 15_000 }));
         const state = await worker.evaluate(async () => {
             const backgroundSource = await fetch(chrome.runtime.getURL("background.js")).then((res) => res.text());
             const backgroundMap = await fetch(chrome.runtime.getURL("background.js.map")).then((res) => res.text());
@@ -159,7 +160,9 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
                     backgroundMap.includes("app/src/lib/ajax.ts") ||
                     backgroundMap.includes("app/src/globals.ts") ||
                     backgroundMap.includes("app/src/lib/route.ts"),
-                storesPasskeyPrivateKeyField: /name:\s*["']Private Key["']|["']Private Key["']\s*,\s*type:/.test(backgroundSource),
+                storesPasskeyPrivateKeyField: /name:\s*["']Private Key["']|["']Private Key["']\s*,\s*type:/.test(
+                    backgroundSource
+                ),
                 hasContextMenuDedupe: backgroundSource.includes("dedupeMatchedItems"),
                 hasContextMenuIdempotence: backgroundSource.includes("createContextMenuOnce"),
             };
@@ -186,7 +189,9 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
         await page.goto("https://example.com");
         await page.waitForTimeout(1500);
 
-        const worker = page.context().serviceWorkers()[0] || await page.context().waitForEvent("serviceworker", { timeout: 15_000 });
+        const worker =
+            page.context().serviceWorkers()[0] ||
+            (await page.context().waitForEvent("serviceworker", { timeout: 15_000 }));
         const badge = await worker.evaluate(async () => {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
             const tabId = tab && typeof tab.id === "number" ? tab.id : undefined;
@@ -260,9 +265,7 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
     test("manifest exposes content_scripts for all_urls", async () => {
         const manifestPath = path.join(EXT_DIST, "manifest.json");
         const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
-        const cs = (manifest.content_scripts || []).find((s: any) =>
-            s.matches && s.matches.includes("<all_urls>")
-        );
+        const cs = (manifest.content_scripts || []).find((s: any) => s.matches && s.matches.includes("<all_urls>"));
         expect(cs, "content script must be registered for <all_urls>").toBeTruthy();
     });
 
@@ -298,7 +301,7 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
 
         const result = await sendActiveTabMessage(page.context(), {
             type: "fillFields",
-            mappings: { username: "alice", password: "secret123" }
+            mappings: { username: "alice", password: "secret123" },
         });
         expect(result.lastError).toBe("");
         expect(result.resp).toBe(true);

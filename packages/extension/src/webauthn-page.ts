@@ -62,12 +62,12 @@ const BRIDGE_PAGE_SOURCE = `padloc-webauthn-page:${BRIDGE_CHANNEL}`;
 const BRIDGE_CONTENT_SOURCE = `padloc-webauthn-content:${BRIDGE_CHANNEL}`;
 
 const credentialContainer = navigator.credentials;
-const originalCreate = typeof credentialContainer?.create === "function"
-    ? credentialContainer.create.bind(credentialContainer)
-    : undefined;
-const originalGet = typeof credentialContainer?.get === "function"
-    ? credentialContainer.get.bind(credentialContainer)
-    : undefined;
+const originalCreate =
+    typeof credentialContainer?.create === "function"
+        ? credentialContainer.create.bind(credentialContainer)
+        : undefined;
+const originalGet =
+    typeof credentialContainer?.get === "function" ? credentialContainer.get.bind(credentialContainer) : undefined;
 const pendingRequests = new Map<string, (response: PadlocWebAuthnResponse) => void>();
 const padlocWindow = window as Window & { __padlocWebAuthnPageInstalledChannel?: string };
 
@@ -78,7 +78,9 @@ if (
     typeof originalGet === "function"
 ) {
     padlocWindow.__padlocWebAuthnPageInstalledChannel = BRIDGE_CHANNEL;
-    navigator.credentials.create = async function create(options?: CredentialCreationOptions): Promise<Credential | null> {
+    navigator.credentials.create = async function create(
+        options?: CredentialCreationOptions
+    ): Promise<Credential | null> {
         const publicKey = options?.publicKey;
         if (!publicKey) {
             return originalCreate(options);
@@ -122,7 +124,10 @@ function buildCreateRequest(publicKey: PublicKeyCredentialCreationOptions): Padl
     const rpId = publicKey.rp.id || location.hostname;
     const algorithm = chooseSupportedAlgorithm(publicKey.pubKeyCredParams);
     if (!algorithm) {
-        throw new DOMException("Padloc does not support any requested WebAuthn public-key algorithm", "NotSupportedError");
+        throw new DOMException(
+            "Padloc does not support any requested WebAuthn public-key algorithm",
+            "NotSupportedError"
+        );
     }
     const originContext = getOriginContext();
     const clientDataJSON = buildClientDataJson("webauthn.create", publicKey.challenge, originContext);
@@ -174,11 +179,14 @@ async function buildGetRequest(publicKey: PublicKeyCredentialRequestOptions): Pr
 function dispatchPadlocWebAuthn(request: PadlocWebAuthnRequest): Promise<PadlocWebAuthnResponse> {
     return new Promise((resolve) => {
         pendingRequests.set(request.requestId, resolve);
-        window.postMessage({
-            source: BRIDGE_PAGE_SOURCE,
-            type: BRIDGE_REQUEST_EVENT,
-            request,
-        }, location.origin);
+        window.postMessage(
+            {
+                source: BRIDGE_PAGE_SOURCE,
+                type: BRIDGE_REQUEST_EVENT,
+                request,
+            },
+            location.origin
+        );
         window.setTimeout(() => {
             if (!pendingRequests.delete(request.requestId)) return;
             resolve({
@@ -198,38 +206,42 @@ function toPublicKeyCredential(
     responseKind: "attestation" | "assertion"
 ) {
     const rawId = base64UrlToBytes(credential.rawId);
-    const jsonResponse = responseKind === "attestation"
-        ? {
-              clientDataJSON: credential.response.clientDataJSON,
-              attestationObject: credential.response.attestationObject || "",
-              authenticatorData: credential.response.authenticatorData || "",
-              publicKey: credential.response.publicKey || "",
-              publicKeyAlgorithm: credential.response.publicKeyAlgorithm || -7,
-              transports: credential.response.transports || ["internal"],
-          }
-        : {
-              clientDataJSON: credential.response.clientDataJSON,
-              authenticatorData: credential.response.authenticatorData || "",
-              signature: credential.response.signature || "",
-              userHandle: credential.response.userHandle || null,
-          };
-    const responsePayload = responseKind === "attestation"
-        ? {
-              clientDataJSON: base64UrlToArrayBuffer(credential.response.clientDataJSON),
-              attestationObject: base64UrlToArrayBuffer(credential.response.attestationObject || ""),
-              getTransports: () => credential.response.transports || ["internal"],
-              getAuthenticatorData: () => base64UrlToArrayBuffer(credential.response.authenticatorData || ""),
-              getPublicKey: () => base64UrlToArrayBuffer(credential.response.publicKey || ""),
-              getPublicKeyAlgorithm: () => credential.response.publicKeyAlgorithm || -7,
-              toJSON: () => jsonResponse,
-          }
-        : {
-              clientDataJSON: base64UrlToArrayBuffer(credential.response.clientDataJSON),
-              authenticatorData: base64UrlToArrayBuffer(credential.response.authenticatorData || ""),
-              signature: base64UrlToArrayBuffer(credential.response.signature || ""),
-              userHandle: credential.response.userHandle ? base64UrlToArrayBuffer(credential.response.userHandle) : null,
-              toJSON: () => jsonResponse,
-          };
+    const jsonResponse =
+        responseKind === "attestation"
+            ? {
+                  clientDataJSON: credential.response.clientDataJSON,
+                  attestationObject: credential.response.attestationObject || "",
+                  authenticatorData: credential.response.authenticatorData || "",
+                  publicKey: credential.response.publicKey || "",
+                  publicKeyAlgorithm: credential.response.publicKeyAlgorithm || -7,
+                  transports: credential.response.transports || ["internal"],
+              }
+            : {
+                  clientDataJSON: credential.response.clientDataJSON,
+                  authenticatorData: credential.response.authenticatorData || "",
+                  signature: credential.response.signature || "",
+                  userHandle: credential.response.userHandle || null,
+              };
+    const responsePayload =
+        responseKind === "attestation"
+            ? {
+                  clientDataJSON: base64UrlToArrayBuffer(credential.response.clientDataJSON),
+                  attestationObject: base64UrlToArrayBuffer(credential.response.attestationObject || ""),
+                  getTransports: () => credential.response.transports || ["internal"],
+                  getAuthenticatorData: () => base64UrlToArrayBuffer(credential.response.authenticatorData || ""),
+                  getPublicKey: () => base64UrlToArrayBuffer(credential.response.publicKey || ""),
+                  getPublicKeyAlgorithm: () => credential.response.publicKeyAlgorithm || -7,
+                  toJSON: () => jsonResponse,
+              }
+            : {
+                  clientDataJSON: base64UrlToArrayBuffer(credential.response.clientDataJSON),
+                  authenticatorData: base64UrlToArrayBuffer(credential.response.authenticatorData || ""),
+                  signature: base64UrlToArrayBuffer(credential.response.signature || ""),
+                  userHandle: credential.response.userHandle
+                      ? base64UrlToArrayBuffer(credential.response.userHandle)
+                      : null,
+                  toJSON: () => jsonResponse,
+              };
     const publicKeyCredential = {
         id: credential.id,
         rawId: rawId.buffer.slice(rawId.byteOffset, rawId.byteOffset + rawId.byteLength),
@@ -324,9 +336,10 @@ function brandLikeNativeCredential(
             AuthenticatorAttestationResponse?: { prototype: object };
             AuthenticatorAssertionResponse?: { prototype: object };
         };
-        const responsePrototype = responseKind === "attestation"
-            ? webAuthnGlobal.AuthenticatorAttestationResponse?.prototype
-            : webAuthnGlobal.AuthenticatorAssertionResponse?.prototype;
+        const responsePrototype =
+            responseKind === "attestation"
+                ? webAuthnGlobal.AuthenticatorAttestationResponse?.prototype
+                : webAuthnGlobal.AuthenticatorAssertionResponse?.prototype;
         if (responsePrototype) {
             Object.setPrototypeOf(response, responsePrototype);
         }
@@ -366,7 +379,10 @@ function base64UrlToArrayBuffer(value: string): ArrayBuffer {
 }
 
 function base64UrlToBytes(value: string): Uint8Array {
-    const padded = value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+    const padded = value
+        .replace(/-/g, "+")
+        .replace(/_/g, "/")
+        .padEnd(Math.ceil(value.length / 4) * 4, "=");
     const binary = atob(padded);
     const bytes = new Uint8Array(binary.length);
     for (let index = 0; index < binary.length; index += 1) {

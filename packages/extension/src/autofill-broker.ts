@@ -179,9 +179,7 @@ function collectMatchingFields(request: AutofillBrokerRequest, items: BrokerItem
 async function resolveBundleValues(pendingPlan: PendingBrokerPlan, items: BrokerItemSource[]) {
     const values = [];
     for (const planned of pendingPlan.fields) {
-        const source = items
-            .find(({ item }) => item.id === planned.itemId)
-            ?.item.fields[planned.fieldIndex];
+        const source = items.find(({ item }) => item.id === planned.itemId)?.item.fields[planned.fieldIndex];
         if (!source) throw new Error(`Autofill field source missing: ${planned.itemId}/${planned.fieldIndex}`);
         values.push({
             selector: planned.selector,
@@ -194,7 +192,10 @@ async function resolveBundleValues(pendingPlan: PendingBrokerPlan, items: Broker
     return values;
 }
 
-function findFirstFieldForRole(items: BrokerItemSource[], role: string): { item: VaultItem; field: Field; index: number } | null {
+function findFirstFieldForRole(
+    items: BrokerItemSource[],
+    role: string
+): { item: VaultItem; field: Field; index: number } | null {
     for (const { item } of items) {
         const index = item.fields.findIndex((field) => normalizeRole(field.autofillRole || "") === role);
         if (index >= 0) {
@@ -210,7 +211,11 @@ function requireBinding(request: AutofillBrokerRequest) {
     return request.binding;
 }
 
-function audit(operation: AutofillBrokerResponse["audit"]["operation"], request: AutofillBrokerRequest, fieldCount: number) {
+function audit(
+    operation: AutofillBrokerResponse["audit"]["operation"],
+    request: AutofillBrokerRequest,
+    fieldCount: number
+) {
     return {
         operation,
         sessionId: request.binding ? request.binding.sessionId : null,

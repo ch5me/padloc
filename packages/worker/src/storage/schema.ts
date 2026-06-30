@@ -45,7 +45,7 @@ export const accounts = sqliteTable(
     },
     (table) => ({
         emailUnique: uniqueIndex("accounts_email_unique").on(table.email),
-    }),
+    })
 );
 
 /**
@@ -65,7 +65,7 @@ export const auth = sqliteTable(
     (table) => ({
         accountIdx: index("auth_account_id_idx").on(table.account_id),
         emailIdx: index("auth_email_idx").on(table.email),
-    }),
+    })
 );
 
 /**
@@ -93,7 +93,7 @@ export const sessions = sqliteTable(
     (table) => ({
         accountIdx: index("sessions_account_id_idx").on(table.account_id),
         expiresIdx: index("sessions_expires_at_idx").on(table.expires_at),
-    }),
+    })
 );
 
 /**
@@ -118,7 +118,7 @@ export const vaults = sqliteTable(
     (table) => ({
         ownerIdx: index("vaults_owner_account_id_idx").on(table.owner_account_id),
         orgIdx: index("vaults_org_id_idx").on(table.org_id),
-    }),
+    })
 );
 
 /**
@@ -137,7 +137,7 @@ export const orgs = sqliteTable(
     },
     (table) => ({
         ownerIdx: index("orgs_owner_account_id_idx").on(table.owner_account_id),
-    }),
+    })
 );
 
 /**
@@ -157,7 +157,7 @@ export const orgMembers = sqliteTable(
     (table) => ({
         pk: primaryKey({ columns: [table.org_id, table.account_id] }),
         accountIdx: index("org_members_account_id_idx").on(table.account_id),
-    }),
+    })
 );
 
 /**
@@ -178,7 +178,7 @@ export const invites = sqliteTable(
     (table) => ({
         orgIdx: index("invites_org_id_idx").on(table.org_id),
         emailIdx: index("invites_email_idx").on(table.email),
-    }),
+    })
 );
 
 /**
@@ -194,7 +194,7 @@ export const keyStoreEntries = sqliteTable(
     },
     (table) => ({
         accountIdx: index("key_store_entries_account_id_idx").on(table.account_id),
-    }),
+    })
 );
 
 /**
@@ -217,7 +217,7 @@ export const attachments = sqliteTable(
     },
     (table) => ({
         vaultIdx: index("attachments_vault_id_idx").on(table.vault_id),
-    }),
+    })
 );
 
 // ──────────────────────────────────────────────────────────────
@@ -243,7 +243,7 @@ export const emailVerifications = sqliteTable(
     (table) => ({
         emailIdx: index("email_verifications_email_idx").on(table.email),
         purposeIdx: index("email_verifications_purpose_idx").on(table.purpose),
-    }),
+    })
 );
 
 /**

@@ -59,11 +59,11 @@ npx lerna bootstrap --scope '@padloc/pwa' --scope '@padloc/app' --scope '@padloc
 
 This created the symlink chain:
 
-- `packages/pwa/node_modules/@padloc/app` → `../../../app`
-- `packages/pwa/node_modules/@padloc/core` → `../../../core`
-- `packages/app/node_modules/@padloc/core` → `../../../core`
-- `packages/app/node_modules/@padloc/locale` → `../../../locale`
-- `packages/core/node_modules/@padloc/locale` → `../../../locale`
+-   `packages/pwa/node_modules/@padloc/app` → `../../../app`
+-   `packages/pwa/node_modules/@padloc/core` → `../../../core`
+-   `packages/app/node_modules/@padloc/core` → `../../../core`
+-   `packages/app/node_modules/@padloc/locale` → `../../../locale`
+-   `packages/core/node_modules/@padloc/locale` → `../../../locale`
 
 Also installed `packages/app/node_modules` deps: `lit`, `workbox-*`, `date-fns`,
 `lit-element`, etc.
@@ -97,9 +97,9 @@ cascades into all downstream packages failing to resolve `@padloc/*` imports.
 
 ## Gotchas for T24
 
-- Server bootstrap still fails (native `leveldown` build requires Python
-  distutils + Node 16.x compatible toolchain) — but this doesn't affect the PWA
-  build path.
-- Use `--scope` flags to avoid server/bootstrap failures during PWA-only work.
-- `NODE_OPTIONS=--openssl-legacy-provider` is required (webpack 5.52.0 +
-  webpack-pwa-manifest uses legacy crypto APIs).
+-   Server bootstrap still fails (native `leveldown` build requires Python
+    distutils + Node 16.x compatible toolchain) — but this doesn't affect the
+    PWA build path.
+-   Use `--scope` flags to avoid server/bootstrap failures during PWA-only work.
+-   `NODE_OPTIONS=--openssl-legacy-provider` is required (webpack 5.52.0 +
+    webpack-pwa-manifest uses legacy crypto APIs).

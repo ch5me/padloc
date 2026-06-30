@@ -1,49 +1,47 @@
 {
-  "generatedAt": "2026-06-30T17:05:44.714Z",
-  "productName": "Padloc Agentic Vault / Elf Vault temporary identity",
-  "expectedAaguid": "7a46cc38-26d9-47fe-9f3b-b52837c6020d",
-  "registration": {
-    "rpId": "google.com",
-    "algorithm": -7,
-    "aaguid": "7a46cc38-26d9-47fe-9f3b-b52837c6020d",
-    "authenticatorAttachment": "platform",
-    "transports": [
-      "internal"
-    ],
-    "clientExtensionResults": {
-      "credProps": {
-        "rk": true
-      }
-    },
-    "authData": {
-      "byteLength": 164,
-      "flagsHex": "0x5d",
-      "flags": {
-        "UP": true,
-        "UV": true,
-        "BE": true,
-        "BS": true,
-        "AT": true
-      },
-      "signCount": 0,
-      "aaguid": "7a46cc38-26d9-47fe-9f3b-b52837c6020d"
-    },
-    "attestationObject": {
-      "fmt": "none",
-      "attStmtIsMap": true,
-      "authData": {
-        "byteLength": 164,
-        "flagsHex": "0x5d",
-        "flags": {
-          "UP": true,
-          "UV": true,
-          "BE": true,
-          "BS": true,
-          "AT": true
+    "generatedAt": "2026-06-30T17:05:44.714Z",
+    "productName": "Padloc Agentic Vault / Elf Vault temporary identity",
+    "expectedAaguid": "7a46cc38-26d9-47fe-9f3b-b52837c6020d",
+    "registration": {
+        "rpId": "google.com",
+        "algorithm": -7,
+        "aaguid": "7a46cc38-26d9-47fe-9f3b-b52837c6020d",
+        "authenticatorAttachment": "platform",
+        "transports": ["internal"],
+        "clientExtensionResults": {
+            "credProps": {
+                "rk": true
+            }
         },
-        "signCount": 0,
-        "aaguid": "7a46cc38-26d9-47fe-9f3b-b52837c6020d"
-      }
+        "authData": {
+            "byteLength": 164,
+            "flagsHex": "0x5d",
+            "flags": {
+                "UP": true,
+                "UV": true,
+                "BE": true,
+                "BS": true,
+                "AT": true
+            },
+            "signCount": 0,
+            "aaguid": "7a46cc38-26d9-47fe-9f3b-b52837c6020d"
+        },
+        "attestationObject": {
+            "fmt": "none",
+            "attStmtIsMap": true,
+            "authData": {
+                "byteLength": 164,
+                "flagsHex": "0x5d",
+                "flags": {
+                    "UP": true,
+                    "UV": true,
+                    "BE": true,
+                    "BS": true,
+                    "AT": true
+                },
+                "signCount": 0,
+                "aaguid": "7a46cc38-26d9-47fe-9f3b-b52837c6020d"
+            }
+        }
     }
-  }
 }

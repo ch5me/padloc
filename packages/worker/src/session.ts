@@ -22,7 +22,7 @@ export async function readSessionFromD1(db: D1Database, sessionId: SessionID): P
             `SELECT id as sessionId, account_id as accountId, key_blob as keyBlob,
                     expires_at as expiresAt, revoked_at as revokedAt,
                     last_used_at as lastUsedAt, device_json as deviceJson
-             FROM sessions WHERE id = ?`,
+             FROM sessions WHERE id = ?`
         )
         .bind(sessionId)
         .first<SessionRecord>();
@@ -99,7 +99,7 @@ export async function incrementRateWindow(
     kv: KVNamespace,
     ip: string,
     route: string,
-    ttlSeconds: number,
+    ttlSeconds: number
 ): Promise<number> {
     const key = `rate:${ip}:${route}`;
     const current = (await kv.get(key, "json")) as { count: number; windowStart: string } | null;

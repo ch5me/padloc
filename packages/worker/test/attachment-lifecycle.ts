@@ -52,7 +52,7 @@ function createMockDB(): MockDB {
                                     string,
                                     number,
                                     string,
-                                    string,
+                                    string
                                 ];
                                 db.attachments.set(id, {
                                     id,

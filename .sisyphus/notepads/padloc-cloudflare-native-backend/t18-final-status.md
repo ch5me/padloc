@@ -2,11 +2,11 @@
 
 ### All 5 Auth Flow Tests PASSING
 
-- ✅ Full signup → login → session works
-- ✅ Duplicate email signup rejected (ACCOUNT_EXISTS)
-- ✅ Wrong password rejected during login (INVALID_CREDENTIALS)
-- ✅ Non-existent account login rejected (AUTHENTICATION_REQUIRED)
-- ✅ Revoked session rejected (NOT_FOUND — session deleted from D1)
+-   ✅ Full signup → login → session works
+-   ✅ Duplicate email signup rejected (ACCOUNT_EXISTS)
+-   ✅ Wrong password rejected during login (INVALID_CREDENTIALS)
+-   ✅ Non-existent account login rejected (AUTHENTICATION_REQUIRED)
+-   ✅ Revoked session rejected (NOT_FOUND — session deleted from D1)
 
 ### Remaining Plan Items — ALL BLOCKED
 
@@ -34,8 +34,8 @@ To unblock these items, the user needs to:
 
 ### What's Done
 
-- Worker backend auth flow fully functional with real SRP protocol
-- D1 storage adapter working for accounts, auth, sessions, vaults
-- Session signature verification working (HMAC with WebCrypto)
-- E2E test suite proving all auth scenarios
-- Evidence file updated at .sisyphus/evidence/task-18-account-login.txt
+-   Worker backend auth flow fully functional with real SRP protocol
+-   D1 storage adapter working for accounts, auth, sessions, vaults
+-   Session signature verification working (HMAC with WebCrypto)
+-   E2E test suite proving all auth scenarios
+-   Evidence file updated at .sisyphus/evidence/task-18-account-login.txt

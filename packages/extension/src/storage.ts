@@ -53,7 +53,10 @@ export async function getSessionMasterKey(opts: { accountId?: string; sessionId?
         return null;
     }
 
-    if ((opts.accountId && stored.accountId !== opts.accountId) || (opts.sessionId && stored.sessionId !== opts.sessionId)) {
+    if (
+        (opts.accountId && stored.accountId !== opts.accountId) ||
+        (opts.sessionId && stored.sessionId !== opts.sessionId)
+    ) {
         return null;
     }
 

@@ -26,14 +26,19 @@ const port = args.get("port") || "9800";
 const account = args.get("account") || "zackattacktucker@gmail.com";
 const allowNonDisposable = args.get("allow-non-disposable") === "true";
 const passwordEnv = args.get("password-env") || defaultPasswordEnv(account);
-const evidenceDir = args.get("evidence-dir") || path.resolve(process.cwd(), ".sisyphus/evidence/oauth-fleet-passkey-2026-06-29");
+const evidenceDir =
+    args.get("evidence-dir") || path.resolve(process.cwd(), ".sisyphus/evidence/oauth-fleet-passkey-2026-06-29");
 const screenshots = args.get("screenshots") === "1" || args.get("screenshots") === "true";
 const passkeysUrl = "https://myaccount.google.com/signinoptions/passkeys";
-const loginUrl = `https://accounts.google.com/ServiceLogin?continue=${encodeURIComponent("https://myaccount.google.com/")}`;
+const loginUrl = `https://accounts.google.com/ServiceLogin?continue=${encodeURIComponent(
+    "https://myaccount.google.com/"
+)}`;
 const logoutUrl = `https://accounts.google.com/Logout?continue=${encodeURIComponent(loginUrl)}`;
 
 if (!allowNonDisposable && account !== "zackattacktucker@gmail.com") {
-    throw new Error("refusing non-disposable Google account; pass --allow-non-disposable only after disposable proof succeeds");
+    throw new Error(
+        "refusing non-disposable Google account; pass --allow-non-disposable only after disposable proof succeeds"
+    );
 }
 
 class Cdp {
@@ -123,8 +128,13 @@ try {
 
 async function googlePage() {
     const targets = await cdp.send("Target.getTargets");
-    const page = targets.targetInfos.find((target) => target.type === "page" && /accounts\.google\.com|myaccount\.google\.com/.test(target.url || ""))
-        || targets.targetInfos.find((target) => target.type === "page" && !(target.url || "").startsWith("chrome-extension://"));
+    const page =
+        targets.targetInfos.find(
+            (target) => target.type === "page" && /accounts\.google\.com|myaccount\.google\.com/.test(target.url || "")
+        ) ||
+        targets.targetInfos.find(
+            (target) => target.type === "page" && !(target.url || "").startsWith("chrome-extension://")
+        );
     if (page) return page;
     const created = await cdp.send("Target.createTarget", { url: passkeysUrl });
     return { targetId: created.targetId };
@@ -153,7 +163,11 @@ async function currentUrl(sessionId) {
 
 async function clearGoogleSession() {
     const targets = await cdp.send("Target.getTargets");
-    const googleTargets = targets.targetInfos.filter((target) => target.type === "page" && /accounts\.google\.com|myaccount\.google\.com|accounts\.youtube\.com/.test(target.url || ""));
+    const googleTargets = targets.targetInfos.filter(
+        (target) =>
+            target.type === "page" &&
+            /accounts\.google\.com|myaccount\.google\.com|accounts\.youtube\.com/.test(target.url || "")
+    );
     for (const target of googleTargets) {
         await cdp.send("Target.closeTarget", { targetId: target.targetId }).catch(() => undefined);
     }
@@ -161,11 +175,22 @@ async function clearGoogleSession() {
     const clearSessionId = await attach(blank.targetId);
     await cdp.send("Network.enable", {}, clearSessionId).catch(() => undefined);
     await clearCookiesForDomainSuffixes(clearSessionId, ["google.com", "youtube.com"]);
-    for (const origin of ["https://accounts.google.com", "https://myaccount.google.com", "https://accounts.youtube.com"]) {
-        await cdp.send("Storage.clearDataForOrigin", {
-            origin,
-            storageTypes: "appcache,cache_storage,cookies,file_systems,indexeddb,local_storage,service_workers,websql",
-        }, clearSessionId).catch(() => undefined);
+    for (const origin of [
+        "https://accounts.google.com",
+        "https://myaccount.google.com",
+        "https://accounts.youtube.com",
+    ]) {
+        await cdp
+            .send(
+                "Storage.clearDataForOrigin",
+                {
+                    origin,
+                    storageTypes:
+                        "appcache,cache_storage,cookies,file_systems,indexeddb,local_storage,service_workers,websql",
+                },
+                clearSessionId
+            )
+            .catch(() => undefined);
     }
     await cdp.send("Target.detachFromTarget", { sessionId: clearSessionId }).catch(() => undefined);
     await cdp.send("Target.closeTarget", { targetId: blank.targetId }).catch(() => undefined);
@@ -186,23 +211,27 @@ async function clearCookiesForDomainSuffixes(sessionId, domainSuffixes) {
     for (const cookie of targetCookies) {
         const domain = String(cookie.domain || "").replace(/^\./, "");
         const suffix = domainSuffixes.find((item) => domain === item || domain.endsWith(`.${item}`)) || domain;
-        await cdp.send(
-            "Network.deleteCookies",
-            {
-                name: cookie.name,
-                url: `https://${suffix}/`,
-            },
-            sessionId
-        ).catch(() => undefined);
-        await cdp.send(
-            "Network.deleteCookies",
-            {
-                name: cookie.name,
-                domain: cookie.domain,
-                path: cookie.path,
-            },
-            sessionId
-        ).catch(() => undefined);
+        await cdp
+            .send(
+                "Network.deleteCookies",
+                {
+                    name: cookie.name,
+                    url: `https://${suffix}/`,
+                },
+                sessionId
+            )
+            .catch(() => undefined);
+        await cdp
+            .send(
+                "Network.deleteCookies",
+                {
+                    name: cookie.name,
+                    domain: cookie.domain,
+                    path: cookie.path,
+                },
+                sessionId
+            )
+            .catch(() => undefined);
     }
 }
 
@@ -233,7 +262,8 @@ async function enroll(sessionId) {
         return { status: "enrolled", state };
     }
     if (!state.createHooked || !state.getHooked) return { status: "failed_hooks_missing_after_enroll", state };
-    if (/something went wrong|couldn.t create|try again/i.test(state.text)) return { status: "failed_google_enroll", state };
+    if (/something went wrong|couldn.t create|try again/i.test(state.text))
+        return { status: "failed_google_enroll", state };
     return { status: "unknown_enroll_state", state };
 }
 
@@ -264,7 +294,10 @@ async function login(sessionId) {
     if (/your key requires a password to sign in|2-Step Verification only security key/i.test(state.text)) {
         return { status: "failed_google_2sv_only_security_key", state };
     }
-    if (/choose how you want to sign in|enter your password/i.test(state.text) && !/use your passkey|security key|fingerprint|face|screen lock/i.test(state.text)) {
+    if (
+        /choose how you want to sign in|enter your password/i.test(state.text) &&
+        !/use your passkey|security key|fingerprint|face|screen lock/i.test(state.text)
+    ) {
         return { status: "blocked_google_password_required_no_passkey_offer", state };
     }
     if (/something went wrong|weren.t able to sign you in/i.test(state.text)) {
@@ -349,10 +382,17 @@ async function waitForLoginCompletion(sessionId, timeoutMs) {
     let latest = await pageState(sessionId);
     while (Date.now() - started < timeoutMs) {
         if (new URL(latest.url).host === "myaccount.google.com" && (latest.title || latest.text)) return latest;
-        if (/security delay|you can.t use this passkey yet|try again later|your key requires a password to sign in|2-Step Verification only security key|something went wrong|weren.t able to sign you in/i.test(latest.text)) {
+        if (
+            /security delay|you can.t use this passkey yet|try again later|your key requires a password to sign in|2-Step Verification only security key|something went wrong|weren.t able to sign you in/i.test(
+                latest.text
+            )
+        ) {
             return latest;
         }
-        if (/choose how you want to sign in|enter your password/i.test(latest.text) && !/use your passkey|security key|fingerprint|face|screen lock/i.test(latest.text)) {
+        if (
+            /choose how you want to sign in|enter your password/i.test(latest.text) &&
+            !/use your passkey|security key|fingerprint|face|screen lock/i.test(latest.text)
+        ) {
             return latest;
         }
         await sleep(1000);
@@ -525,7 +565,12 @@ async function maybeScreenshot(sessionId, name) {
     await redactPageForScreenshot(sessionId);
     await enablePageForScreenshot(sessionId);
     try {
-        const captured = await cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true }, sessionId, 30000);
+        const captured = await cdp.send(
+            "Page.captureScreenshot",
+            { format: "png", captureBeyondViewport: true },
+            sessionId,
+            30000
+        );
         const file = path.join(evidenceDir, `${name}.png`);
         fs.writeFileSync(file, Buffer.from(captured.data, "base64"));
         return file;
@@ -606,9 +651,14 @@ function writeJsonEvidence(mode, redacted) {
 }
 
 async function evaluate(sessionId, expression, label) {
-    const result = await cdp.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true, timeout: 15000 }, sessionId);
+    const result = await cdp.send(
+        "Runtime.evaluate",
+        { expression, awaitPromise: true, returnByValue: true, timeout: 15000 },
+        sessionId
+    );
     if (result.exceptionDetails) {
-        const details = result.exceptionDetails.exception?.description || result.exceptionDetails.text || "evaluation failed";
+        const details =
+            result.exceptionDetails.exception?.description || result.exceptionDetails.text || "evaluation failed";
         throw new Error(`${label}: ${details}`);
     }
     return result.result.value;

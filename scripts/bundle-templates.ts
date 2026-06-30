@@ -44,7 +44,7 @@ const getTemplateFn = [
 tsLines.push(...getTemplateFn, "");
 
 tsLines.push("export function interpolate(template: string, vars: Record<string, string>): string {");
-tsLines.push('  return template.replace(/\{\{ ?(\\w+) ?\}\}/gi, (_, key) => vars[key] ?? "{{ " + key + " }}");');
+tsLines.push('  return template.replace(/{{ ?(\\w+) ?}}/gi, (_, key) => vars[key] ?? "{{ " + key + " }}");');
 tsLines.push("}", "");
 
 const templateNamesList = sortedEntries.map(([n]) => '"' + n + '"').join(", ");

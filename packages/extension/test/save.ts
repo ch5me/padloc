@@ -9,7 +9,9 @@ suite("Save/Update credential flow", () => {
         return inputs.filter((i) => i.type === "password");
     }
 
-    function findUsernameInput(inputs: Array<{ type: string; name?: string; id?: string; autocomplete?: string }>): string {
+    function findUsernameInput(
+        inputs: Array<{ type: string; name?: string; id?: string; autocomplete?: string }>
+    ): string {
         for (const input of inputs) {
             if (input.type === "email" || input.type === "text" || input.type === "tel") {
                 const name = (input.name || "").toLowerCase();
@@ -113,18 +115,13 @@ suite("Save/Update credential flow", () => {
 
     const DISMISSAL_DURATION_MS = 60 * 60 * 1000;
 
-    function isUrlSuppressed(
-        url: string,
-        dismissedUrls: Map<string, number>
-    ): boolean {
+    function isUrlSuppressed(url: string, dismissedUrls: Map<string, number>): boolean {
         const now = Date.now();
         const dismissedUntil = dismissedUrls.get(url);
         return dismissedUntil !== undefined && now < dismissedUntil;
     }
 
-    function cleanupExpiredDismissions(
-        dismissedUrls: Map<string, number>
-    ): void {
+    function cleanupExpiredDismissions(dismissedUrls: Map<string, number>): void {
         const now = Date.now();
         for (const [url, timestamp] of dismissedUrls.entries()) {
             if (now > timestamp) dismissedUrls.delete(url);
@@ -199,7 +196,10 @@ suite("Save/Update credential flow", () => {
 
     suite("Message type exhaustiveness", () => {
         test("formSubmitDetected message shape", () => {
-            const msg = { type: "formSubmitDetected", data: { username: "user", password: "pass", url: "https://x.com" } };
+            const msg = {
+                type: "formSubmitDetected",
+                data: { username: "user", password: "pass", url: "https://x.com" },
+            };
             expect(msg.type).to.equal("formSubmitDetected");
             expect(msg.data.username).to.equal("user");
             expect(msg.data.password).to.equal("pass");

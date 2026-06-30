@@ -1,28 +1,28 @@
 {
-  "capturedAt": "2026-06-29T23:50:37.869Z",
-  "chrome": {
-    "port": 9800,
-    "pid": 77811,
-    "app": "/Applications/Google Chrome.app",
-    "profile": "/Users/hassoncs/.browser-profiles/ai-browser-oauth-fleet-mint"
-  },
-  "extension": {
-    "id": "phgggllfaobigoepghbbeojablefkkfa",
-    "path": "/Users/hassoncs/worktrees/ch5/padloc/oauth-fleet-passkey/packages/extension/dist"
-  },
-  "tabs": {
+    "capturedAt": "2026-06-29T23:50:37.869Z",
+    "chrome": {
+        "port": 9800,
+        "pid": 77811,
+        "app": "/Applications/Google Chrome.app",
+        "profile": "/Users/hassoncs/.browser-profiles/ai-browser-oauth-fleet-mint"
+    },
     "extension": {
-      "title": "CH5 Auth",
-      "url": "chrome-extension://phgggllfaobigoepghbbeojablefkkfa/items?"
+        "id": "phgggllfaobigoepghbbeojablefkkfa",
+        "path": "/Users/hassoncs/worktrees/ch5/padloc/oauth-fleet-passkey/packages/extension/dist"
     },
-    "google": {
-      "title": "Something went wrong",
-      "url": "https://accounts.google.com/v3/signin/challenge/pk/error?[redacted]"
+    "tabs": {
+        "extension": {
+            "title": "CH5 Auth",
+            "url": "chrome-extension://phgggllfaobigoepghbbeojablefkkfa/items?"
+        },
+        "google": {
+            "title": "Something went wrong",
+            "url": "https://accounts.google.com/v3/signin/challenge/pk/error?[redacted]"
+        },
+        "example": {
+            "title": "Example Domain",
+            "url": "https://example.com/"
+        }
     },
-    "example": {
-      "title": "Example Domain",
-      "url": "https://example.com/"
-    }
-  },
-  "screenshots": []
+    "screenshots": []
 }

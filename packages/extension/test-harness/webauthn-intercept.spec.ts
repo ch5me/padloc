@@ -19,7 +19,8 @@ test("main-world WebAuthn create is intercepted before native browser handling",
         ],
     });
     try {
-        const worker = context.serviceWorkers()[0] || await context.waitForEvent("serviceworker", { timeout: 15_000 });
+        const worker =
+            context.serviceWorkers()[0] || (await context.waitForEvent("serviceworker", { timeout: 15_000 }));
         expect(worker.url()).toContain("chrome-extension://");
 
         const page = await context.newPage();
@@ -107,7 +108,8 @@ test("main-world WebAuthn hooks survive extension reload on Google-shaped pages"
         ],
     });
     try {
-        const worker = context.serviceWorkers()[0] || await context.waitForEvent("serviceworker", { timeout: 15_000 });
+        const worker =
+            context.serviceWorkers()[0] || (await context.waitForEvent("serviceworker", { timeout: 15_000 }));
         const extId = worker.url().match(/^chrome-extension:\/\/([^/]+)\//)?.[1];
         expect(extId).toBeTruthy();
 
@@ -122,8 +124,9 @@ test("main-world WebAuthn hooks survive extension reload on Google-shaped pages"
         expect((loaded as { id?: string }).id).toBeTruthy();
         const reloadedExtensionPage = await context.newPage();
         await reloadedExtensionPage.goto(`chrome-extension://${extId}/popup.html`);
-        const workerAfterReload = context.serviceWorkers().find((serviceWorker) => serviceWorker.url().includes(extId))
-            || await context.waitForEvent("serviceworker", { timeout: 15_000 });
+        const workerAfterReload =
+            context.serviceWorkers().find((serviceWorker) => serviceWorker.url().includes(extId)) ||
+            (await context.waitForEvent("serviceworker", { timeout: 15_000 }));
         expect(workerAfterReload.url()).toContain(extId);
         await googlePage.reload({ waitUntil: "domcontentloaded" });
         await expectHooks(googlePage);

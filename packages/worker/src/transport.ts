@@ -63,14 +63,14 @@ export class WorkerReceiver implements Receiver {
         request: globalThis.Request,
         handler: (req: Request) => Promise<CoreResponse>,
         _env: unknown,
-        _ctx: unknown,
+        _ctx: unknown
     ): Promise<Response> {
         return this._route(request, handler);
     }
 
     private async _route(
         request: globalThis.Request,
-        handler: (req: Request) => Promise<CoreResponse>,
+        handler: (req: Request) => Promise<CoreResponse>
     ): Promise<Response> {
         const url = new URL(request.url);
         const allowOrigin = this.config.allowOrigin;
@@ -103,7 +103,7 @@ export class WorkerReceiver implements Receiver {
 
     private async _handlePost(
         request: globalThis.Request,
-        handler: (req: Request) => Promise<CoreResponse>,
+        handler: (req: Request) => Promise<CoreResponse>
     ): Promise<Response> {
         const allowOrigin = this.config.allowOrigin;
         const identity =
@@ -125,7 +125,7 @@ export class WorkerReceiver implements Receiver {
                             "Content-Type": "application/json; charset=utf-8",
                             "Retry-After": String(Math.ceil((rateResult.retryAfterMs || 0) / 1000)),
                         }),
-                    },
+                    }
                 );
             }
         }
@@ -136,7 +136,7 @@ export class WorkerReceiver implements Receiver {
         if (byteLength > this.config.maxRequestSize) {
             const err = new Err(
                 ErrorCode.MAX_REQUEST_SIZE_EXCEEDED,
-                `Request body exceeds maximum size of ${this.config.maxRequestSize} bytes`,
+                `Request body exceeds maximum size of ${this.config.maxRequestSize} bytes`
             );
             return errorResponse(err, allowOrigin);
         }
@@ -157,7 +157,7 @@ export class WorkerReceiver implements Receiver {
         if (!validateRequestAge(rawRequest, this.config)) {
             return errorResponse(
                 new Err(ErrorCode.MAX_REQUEST_AGE_EXCEEDED, "Request timestamp outside acceptable window"),
-                allowOrigin,
+                allowOrigin
             );
         }
 

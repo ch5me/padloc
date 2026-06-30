@@ -1,3 +1,3 @@
 creation_rules:
-  - encrypted_regex: .*
-    age: age1d2p4atnnsa5vnyt0lvd0vz0ccdfm8ew2hvg5zkjus6l8qdg9lvgq5s7l6e
+    - encrypted_regex: .*
+      age: age1d2p4atnnsa5vnyt0lvd0vz0ccdfm8ew2hvg5zkjus6l8qdg9lvgq5s7l6e

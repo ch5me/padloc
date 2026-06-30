@@ -38,11 +38,7 @@ const config = require(path.join(extensionDir, "webpack.config.js"));
 config.context = extensionDir;
 config.resolveLoader = {
     ...(config.resolveLoader || {}),
-    modules: [
-        path.join(extensionDir, "node_modules"),
-        path.resolve(__dirname, "../node_modules"),
-        "node_modules",
-    ],
+    modules: [path.join(extensionDir, "node_modules"), path.resolve(__dirname, "../node_modules"), "node_modules"],
 };
 
 webpack(config, (err, stats) => {

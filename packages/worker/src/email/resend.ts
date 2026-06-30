@@ -9,10 +9,7 @@ import { Err, ErrorCode } from "@padloc/core/src/error";
 import { getTemplate, interpolate } from "./templates";
 
 export class ResendMessenger {
-    constructor(
-        private apiKey: string,
-        private fromAddress: string,
-    ) {}
+    constructor(private apiKey: string, private fromAddress: string) {}
 
     async send<T extends MessageData>(addr: string, msg: Message<T>): Promise<void> {
         const { html, txt } = this._render(msg);

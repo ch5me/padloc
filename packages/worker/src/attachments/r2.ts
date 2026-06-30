@@ -57,7 +57,7 @@ export class R2AttachmentStorage implements AttachmentStorage {
         await this.db
             .prepare(
                 `INSERT INTO attachments (id, vault_id, owner_account_id, r2_key, size_bytes, hash, created_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`
             )
             .bind(att.id, att.vault, "", key, att.size, hashHex, new Date().toISOString())
             .run();
@@ -81,7 +81,7 @@ export class R2AttachmentStorage implements AttachmentStorage {
                         await recordOrphan(this.db, key, "put_rollback_failed");
                         throw new Err(
                             ErrorCode.SERVER_ERROR,
-                            `R2 upload failed and D1 rollback failed after 3 attempts: ${r2Err}`,
+                            `R2 upload failed and D1 rollback failed after 3 attempts: ${r2Err}`
                         );
                     }
                 }
@@ -178,7 +178,7 @@ export class R2AttachmentStorage implements AttachmentStorage {
         vault: VaultID,
         id: AttachmentID,
         size: number,
-        contentType: string,
+        contentType: string
     ): Promise<{ uploadUrl: string; r2Key: string }> {
         if (size > MAX_ATTACHMENT_SIZE) {
             throw new Err(ErrorCode.BAD_REQUEST, `Attachment size ${size} exceeds maximum ${MAX_ATTACHMENT_SIZE}`);
@@ -202,7 +202,7 @@ export class R2AttachmentStorage implements AttachmentStorage {
         size: number,
         hash: string,
         ownerAccountId: string,
-        _contentType: string,
+        _contentType: string
     ): Promise<void> {
         if (size > MAX_ATTACHMENT_SIZE) {
             throw new Err(ErrorCode.BAD_REQUEST, `Attachment size ${size} exceeds maximum ${MAX_ATTACHMENT_SIZE}`);
@@ -214,7 +214,7 @@ export class R2AttachmentStorage implements AttachmentStorage {
             await this.db
                 .prepare(
                     `INSERT INTO attachments (id, vault_id, owner_account_id, r2_key, size_bytes, hash, created_at)
-                     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                     VALUES (?, ?, ?, ?, ?, ?, ?)`
                 )
                 .bind(id, vault, ownerAccountId, key, size, hash, new Date().toISOString())
                 .run();

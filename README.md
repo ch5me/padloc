@@ -145,9 +145,9 @@ To build the unpacked extension:
 npm run web-extension:build
 ```
 
-The resulting `dist/` folder can be loaded as an unpacked Chrome extension.
-See [packages/extension/README.md](packages/extension/README.md) for build options and
-full feature documentation.
+The resulting `dist/` folder can be loaded as an unpacked Chrome extension. See
+[packages/extension/README.md](packages/extension/README.md) for build options
+and full feature documentation.
 
 To build and run the extension Playwright test harness (runtime smoke tests):
 
@@ -219,14 +219,12 @@ npm run version [semver_version]
 
 Padloc has a lot of different components that all need to be
 built/released/published in different ways. To manage this complexity, we have
-compiled all deployment steps for all components in a single Forgejo workflow. To
-release a new version, simply:
+compiled all deployment steps for all components in a single Forgejo workflow.
+To release a new version, simply:
 
 1. [Update project version](#updating-the-version)
 2. Commit and push.
-3. Run the
-   [Publish Release](https://git.ch5.me/ch5/padloc/actions)
-   action.
+3. Run the [Publish Release](https://git.ch5.me/ch5/padloc/actions) action.
 
 ## Licensing
 
