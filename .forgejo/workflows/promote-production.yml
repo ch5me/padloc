@@ -14,7 +14,7 @@ jobs:
             - name: Install dependencies
               run: |
                   npm i -g npm@8.2.0
-                  npm ci
+                  env -u ESBUILD_BINARY_PATH npm ci
             - name: Check runtime contract
               run: npm run runtime-config:check
             - name: Apply production migrations

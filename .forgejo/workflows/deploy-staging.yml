@@ -30,7 +30,7 @@ jobs:
                   npm config set fetch-retry-mintimeout 20000
                   npm config set fetch-retry-maxtimeout 120000
                   npm config set fetch-timeout 600000
-                  npm ci
+                  env -u ESBUILD_BINARY_PATH npm ci
             - name: Check runtime contract
               run: npm run runtime-config:check
             - name: Apply staging migrations

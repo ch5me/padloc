@@ -59,7 +59,7 @@ jobs:
             - name: Install dependencies
               run: |
                   npm i -g npm@8.2.0
-                  npm ci
+                  env -u ESBUILD_BINARY_PATH npm ci
             - name: Create android-upload-key.keystore
               run: |
                   cd packages/cordova
@@ -93,7 +93,7 @@ jobs:
             - name: Install dependencies
               run: |
                   npm i -g npm@8.2.0
-                  npm ci
+                  env -u ESBUILD_BINARY_PATH npm ci
             - name: Build (iOS)
               env:
                   PL_SERVER_URL: ${{ secrets.PL_SERVER_URL }}
