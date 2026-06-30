@@ -22,6 +22,7 @@
     "scripts": {
         "build": "node ../../scripts/build-web-extension.cjs",
         "agentic:extension-cdp": "node scripts/agentic-extension-cdp.mjs",
+        "agentic:google-passkey": "node scripts/agentic-google-passkey-proof.mjs",
         "preflight:source": "node ../../scripts/preflight-web-extension-source.cjs",
         "preflight:dist": "node ../../scripts/preflight-web-extension-dist.cjs",
         "check:source": "npm run preflight:source && npx tsc -p tsconfig.json --noEmit --pretty false && npm run test:passkey-broker",

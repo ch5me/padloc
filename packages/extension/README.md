@@ -110,6 +110,27 @@ cd packages/extension && npx playwright test
 The harness is headless by default so it does not steal focus. Use
 `PADLOC_EXTENSION_HEADFUL=1 npm run test:extension` only for visual debugging.
 
+### Agentic Google Passkey Proof <!-- oc:id=sec_agentic_google_passkey -->
+
+Use the existing owned Chrome on CDP port `9800`; do not launch another visible
+browser:
+
+```sh
+npm --prefix packages/extension run agentic:google-passkey -- --mode state --port 9800
+```
+
+After the disposable Google account has passed password reauth, run enrollment
+and login proof from the same Chrome:
+
+```sh
+npm --prefix packages/extension run agentic:google-passkey -- --mode enroll --port 9800 --screenshots=1
+npm --prefix packages/extension run agentic:google-passkey -- --mode login --port 9800 --screenshots=1
+```
+
+The helper refuses non-disposable Google accounts unless
+`--allow-non-disposable` is explicitly set after disposable proof succeeds. Its
+routine output redacts account identifiers and URL challenge tokens.
+
 **First run**: Install the Chromium browser for Playwright:
 
 ```sh

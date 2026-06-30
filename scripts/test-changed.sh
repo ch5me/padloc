@@ -72,6 +72,7 @@ const plan = JSON.parse(fs.readFileSync(planPath, "utf8"));
 const testTasks = plan.tasks.filter((task) => task.kind === "test-files");
 const nonTestTasks = plan.tasks.filter((task) => task.kind !== "test-files");
 const commands = [];
+const handledFallbackTasks = new Set();
 
 function shellQuote(value) {
     return `'${String(value).replace(/'/g, `'\\''`)}'`;
@@ -86,16 +87,41 @@ function normalizeCommand(command) {
     return command;
 }
 
+function addCommand(command) {
+    if (!commands.includes(command)) commands.push(command);
+}
+
+function coverageCommandForFile(file) {
+    if (/^packages\/extension\/scripts\/[^/]+\.mjs$/.test(file)) {
+        return `node --check ${shellQuote(file)}`;
+    }
+    return null;
+}
+
 for (const task of testTasks) {
     for (const command of task.commandHints || []) {
         const normalized = normalizeCommand(command);
-        if (!commands.includes(normalized)) commands.push(normalized);
+        addCommand(normalized);
     }
 }
 
-if (plan.summary.fallbackTasks > 0 && !allowFallback) {
+for (const [index, task] of plan.tasks.entries()) {
+    if (task.kind !== "coverage-scan") continue;
+    const files = Array.isArray(task.files) ? task.files : [];
+    const coverageCommands = files.map(coverageCommandForFile);
+    if (coverageCommands.length === 0 || coverageCommands.some((command) => !command)) continue;
+    for (const command of coverageCommands) addCommand(command);
+    handledFallbackTasks.add(index);
+}
+
+const unhandledFallbackTasks = plan.tasks
+    .map((task, index) => ({ task, index }))
+    .filter(({ task }) => task.kind === "coverage-scan")
+    .filter(({ index }) => !handledFallbackTasks.has(index));
+
+if (unhandledFallbackTasks.length > 0 && !allowFallback) {
     process.stderr.write(
-        `[test:changed] planner produced ${plan.summary.fallbackTasks} fallback task(s); refine scope before broad checks.\n`
+        `[test:changed] planner produced ${unhandledFallbackTasks.length} fallback task(s); refine scope before broad checks.\n`
     );
     process.stderr.write(`[test:changed] plan file: ${planPath}\n`);
     process.exit(2);
