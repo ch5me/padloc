@@ -1,0 +1,11 @@
+{
+  "status": "ready",
+  "state": {
+    "url": "https://myaccount.google.com/signinoptions/passkeys?pli=[redacted]&rapt=[redacted]",
+    "title": "Passkeys and security keys",
+    "createHooked": true,
+    "getHooked": true,
+    "needsGoogleReauth": false,
+    "text": "Skip to main content\nAccount\nHelp\nBack to previous page\nPasskeys and security keys\nYou’re all set!\n\nYou can now use your fingerprint, face, or screen lock to sign in on this device\n\nTry it out\n\n\n\nWith passkeys, you can securely sign in to your Google Account using just your fingerprint, face, screen lock, or security key. Passkeys and security keys can also be used as a second step when signing in with your password. Be sure to keep your screen locks private and security keys safe, so only you can use them.\n\nPasskeys can be created on your devices or on security keys. Learn more\n\nCreate a passkey\nPasskeys\nCreate passkeys on your devices, or you can create a passkey on your security key. Learn more\nYOUR DEVICES\n1Password (Mar 9, 2026, 2:52:47 PM)\nCreated: March 9, 2:52 PM\nLast used: 23 minutes ago, Chrome on Mac in San Francisco, CA, USA\niCloud Keychain (Jun 29, 2026, 10:42:25 PM)\nCreated: Just now\nLast used: Not yet used\n\n\n\nTo keep your account safe, there’s a security delay before you can use a new passkey.\n\n\n\nPrivacyTermsHelpAbout"
+  }
+}

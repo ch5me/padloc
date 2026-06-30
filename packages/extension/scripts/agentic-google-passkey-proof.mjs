@@ -98,6 +98,8 @@ try {
         await ensurePasskeysPage(sessionId);
         const state = await pageState(sessionId);
         result = { status: state.needsGoogleReauth ? "blocked_google_reauth" : "ready", state };
+    } else if (mode === "clear-google-session") {
+        result = await clearGoogleSession();
     } else if (mode === "password-login") {
         result = await passwordLogin(sessionId);
     } else if (mode === "enroll") {
@@ -147,6 +149,33 @@ async function ensurePasskeysPage(sessionId) {
 
 async function currentUrl(sessionId) {
     return evaluate(sessionId, "location.href", "current page URL");
+}
+
+async function clearGoogleSession() {
+    const targets = await cdp.send("Target.getTargets");
+    const googleTargets = targets.targetInfos.filter((target) => target.type === "page" && /accounts\.google\.com|myaccount\.google\.com|accounts\.youtube\.com/.test(target.url || ""));
+    for (const target of googleTargets) {
+        await cdp.send("Target.closeTarget", { targetId: target.targetId }).catch(() => undefined);
+    }
+    const blank = await cdp.send("Target.createTarget", { url: "about:blank" });
+    const clearSessionId = await attach(blank.targetId);
+    await cdp.send("Network.enable", {}, clearSessionId).catch(() => undefined);
+    await cdp.send("Network.clearBrowserCookies", {}, clearSessionId);
+    await cdp.send("Network.clearBrowserCache", {}, clearSessionId);
+    for (const origin of ["https://accounts.google.com", "https://myaccount.google.com", "https://accounts.youtube.com"]) {
+        await cdp.send("Storage.clearDataForOrigin", {
+            origin,
+            storageTypes: "appcache,cache_storage,cookies,file_systems,indexeddb,local_storage,service_workers,websql",
+        }, clearSessionId).catch(() => undefined);
+    }
+    await cdp.send("Target.detachFromTarget", { sessionId: clearSessionId }).catch(() => undefined);
+    await cdp.send("Target.closeTarget", { targetId: blank.targetId }).catch(() => undefined);
+    const created = await cdp.send("Target.createTarget", { url: loginUrl });
+    return {
+        status: "google_session_cleared",
+        targetId: created.targetId,
+        closedGoogleTargets: googleTargets.length,
+    };
 }
 
 async function enroll(sessionId) {
@@ -207,7 +236,7 @@ async function login(sessionId) {
     if (/something went wrong|weren.t able to sign you in/i.test(state.text)) {
         return { status: "failed_google_login", state };
     }
-    if (/my account|welcome|security|personal info/i.test(state.text) && new URL(state.url).host === "myaccount.google.com") {
+    if (new URL(state.url).host === "myaccount.google.com") {
         return { status: "logged_in", state };
     }
     return { status: "unknown_login_state", state };
@@ -285,7 +314,7 @@ async function waitForLoginCompletion(sessionId, timeoutMs) {
     const started = Date.now();
     let latest = await pageState(sessionId);
     while (Date.now() - started < timeoutMs) {
-        if (new URL(latest.url).host === "myaccount.google.com") return latest;
+        if (new URL(latest.url).host === "myaccount.google.com" && (latest.title || latest.text)) return latest;
         if (/security delay|you can.t use this passkey yet|try again later|something went wrong|weren.t able to sign you in/i.test(latest.text)) {
             return latest;
         }
@@ -484,6 +513,9 @@ async function redactPageForScreenshot(sessionId) {
             const escapedAccount = account.replace(/[-/\\\\^$*+?.()|[\\]{}]/g, "\\\\$&");
             const replacements = [
                 [new RegExp(escapedAccount, "gi"), "[redacted-google-account]"],
+                [/\bChris\s+Hasson\b/gi, "[redacted-name]"],
+                [/\bHasson\b/gi, "[redacted-name]"],
+                [/\bChris\b/g, "[redacted-name]"],
                 [/\bZack\s+Tucker\b/gi, "[redacted-name]"],
                 [/\bTucker\b/gi, "[redacted-name]"],
                 ["Tucker", "[redacted-name]"],
@@ -565,6 +597,9 @@ function redactString(value) {
             (_match, prefix, key) => `${prefix}${key}[redacted]`
         )
         .replace(/Zack\s+Tucker/gi, "[redacted-name]")
+        .replace(/Chris\s+Hasson/gi, "[redacted-name]")
+        .replace(/\bHasson\b/gi, "[redacted-name]")
+        .replace(/\bChris\b/g, "[redacted-name]")
         .replace(/\bTucker\b/gi, "[redacted-name]")
         .replace(/Hi Zack/g, "Hi [redacted-name]")
         .replace(/\bZack\b/g, "[redacted-name]");

@@ -1,0 +1,11 @@
+{
+  "status": "logged_in",
+  "state": {
+    "url": "https://myaccount.google.com/",
+    "title": "Google Account",
+    "createHooked": true,
+    "getHooked": true,
+    "needsGoogleReauth": false,
+    "text": "Skip to main content\nAccount\nHelp\n[redacted-name]\n[redacted-google-account]\nGet a Google AI plan\nUnlock access to Google AI and extra storage\nDismiss\nExplore plans\nWallet & subscriptions\nPayment Methods, Transactions\nPersonal info\nName, email, phone, address\nSecurity & sign-in\nRecent security events, Password Manager, Security Checkup\nGoogle password\nLast changed 10:19 PM\nLinked apps\nYour linked apps and data sharing controls\nData & privacy\nHistory settings, apps and services, data deletion\nPeople & sharing\nContacts, blocked users, location sharing, profiles\nFamily\nMembers, sharing, parental controls\nAccount storage\n4 GB of 15 GB used\nSearch Google Account\nGet help\n\nOnly you can see your settings. You might also want to review your settings for Maps, Search, or whichever Google services you use most. Google keeps your data private, safe, and secure. Learn more\n\nPrivacyTermsHelpAbout"
+  }
+}
