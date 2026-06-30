@@ -69,6 +69,7 @@ jobs:
             #       path: packages/extension/dist/web-ext-artifacts/*.xpi
             #       if-no-files-found: error
             - name: Archive Unsigned Web Extension (Chrome/Edge/Firefox)
+              continue-on-error: true
               uses: actions/upload-artifact@v2
               with:
                   name: padloc-web-extension-${{ github.sha }}-unsigned.zip
@@ -92,6 +93,7 @@ jobs:
                   echo "signed=true" >> "$FORGEJO_OUTPUT"
             - name: Archive Signed Web Extension (Chrome/Edge)
               if: steps.sign_chrome.outputs.signed == 'true'
+              continue-on-error: true
               uses: actions/upload-artifact@v2
               with:
                   name: padloc-web-extension-${{ github.sha }}-signed.crx
