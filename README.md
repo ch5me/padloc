@@ -69,6 +69,20 @@ To learn how to get started working on Padloc, refer to the
 For a security design overview, check out the
 [security whitepaper](security.md).
 
+## HQ Observability
+
+CH5 Padloc Worker HQ instrumentation lives in `packages/worker/src/hq-instrumentation.ts`.
+Runtime contract uses Hush-backed Worker secrets `HQ_SENTRY_DSN` and
+`HQ_OTLP_ENDPOINT`, plus derived vars `HQ_ENVIRONMENT`, `HQ_RELEASE`, and
+`HQ_SERVICE_NAME`. Internal CH5 HQ hosts only: `logs.ch5.me` or
+`staging.logs.ch5.me`. `sentry.io` is rejected on startup.
+
+Telemetry surface:
+
+- Sentry-compatible envelopes for reportable Worker errors
+- OTLP JSON traces for request/lifecycle spans
+- Fail-loud mis-wire, visible-warn graceful degrade on HQ outage
+
 ## Development
 
 ### Setup

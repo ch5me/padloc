@@ -13,4 +13,10 @@ export interface Env {
     EMAIL_VERIFY_ON_SIGNUP?: string;
     RATE_LIMIT_MAX_REQUESTS?: string;
     RATE_LIMIT_WINDOW_MS?: string;
+    HQ_SENTRY_DSN?: string;
+    HQ_OTLP_ENDPOINT?: string;
+    HQ_ENVIRONMENT?: string;
+    HQ_RELEASE?: string;
+    HQ_SERVICE_NAME?: string;
+    HQ_ALLOW_LOCAL_ENDPOINTS?: string;
 }

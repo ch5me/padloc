@@ -5,6 +5,7 @@ import { IdempotencyStore, hashRequestBody } from "./idempotency";
 import { sanitizeError } from "./error";
 import { RateLimiter } from "./rate-limiter";
 import { responseHeaders } from "./observability/security-headers";
+import { captureHqException } from "./hq-instrumentation";
 
 const DEFAULT_MAX_REQUEST_SIZE = 25 * 1024 * 1024;
 const DEFAULT_MAX_REQUEST_AGE_MS = 5 * 60 * 1000;
@@ -179,9 +180,21 @@ export class WorkerReceiver implements Receiver {
             res = await handler(req);
         } catch (unknown) {
             if (unknown instanceof Err) {
+                if (unknown.report) {
+                    captureHqException(unknown.originalError || unknown, {
+                        "padloc.error.code": unknown.code,
+                        "padloc.error.report": true,
+                    });
+                }
                 return errorResponse(unknown, allowOrigin);
             }
             const sanitized = sanitizeError(unknown);
+            if (sanitized.report) {
+                captureHqException(sanitized.originalError || unknown, {
+                    "padloc.error.code": sanitized.code,
+                    "padloc.error.report": true,
+                });
+            }
             return errorResponse(sanitized, allowOrigin);
         }
 

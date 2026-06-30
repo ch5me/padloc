@@ -30,7 +30,9 @@
         "migrate:production": "wrangler d1 migrations apply DB --remote --env=production",
         "test:crypto-parity": "node test/run-crypto-parity-worker.mjs --local",
         "test:crypto-parity:remote": "node test/run-crypto-parity-worker.mjs --remote",
-        "dev:crypto-parity": "wrangler dev test/crypto-parity.worker.ts --local --ip 127.0.0.1 --port 18787"
+        "dev:crypto-parity": "wrangler dev test/crypto-parity.worker.ts --local --ip 127.0.0.1 --port 18787",
+        "test:hq-instrumentation": "node test/run-hq-instrumentation.mjs",
+        "test:hq-local-smoke": "node test/run-hq-local-smoke.mjs"
     },
     "repository": {
         "type": "git",

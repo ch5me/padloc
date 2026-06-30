@@ -6,37 +6,104 @@
                     "name": "ALLOW_ORIGIN",
                     "delivery": "derived",
                     "derivedFrom": "allowedOrigin",
-                    "requiredIn": ["local", "staging", "production"],
+                    "requiredIn": [
+                        "local",
+                        "staging",
+                        "production"
+                    ],
                     "description": "Exact browser origin allowed to call the Worker API."
+                },
+                {
+                    "name": "HQ_SENTRY_DSN",
+                    "delivery": "secret",
+                    "requiredIn": [
+                        "staging",
+                        "production"
+                    ],
+                    "description": "CH5 internal Sentry-compatible DSN. Must target logs.ch5.me or staging.logs.ch5.me; never sentry.io."
+                },
+                {
+                    "name": "HQ_OTLP_ENDPOINT",
+                    "delivery": "secret",
+                    "requiredIn": [
+                        "staging",
+                        "production"
+                    ],
+                    "description": "CH5 internal OTLP HTTP endpoint for traces. Must target logs.ch5.me or staging.logs.ch5.me."
+                },
+                {
+                    "name": "HQ_ENVIRONMENT",
+                    "delivery": "derived",
+                    "derivedFrom": "environment",
+                    "requiredIn": [
+                        "staging",
+                        "production"
+                    ],
+                    "description": "HQ deployment environment tag for Padloc Worker telemetry."
+                },
+                {
+                    "name": "HQ_RELEASE",
+                    "delivery": "derived",
+                    "derivedFrom": "release",
+                    "requiredIn": [
+                        "staging",
+                        "production"
+                    ],
+                    "description": "HQ release tag, normally padloc-worker@<version-or-sha>."
+                },
+                {
+                    "name": "HQ_SERVICE_NAME",
+                    "delivery": "derived",
+                    "derivedFrom": "serviceName",
+                    "requiredIn": [
+                        "staging",
+                        "production"
+                    ],
+                    "description": "HQ service.name resource attribute; default padloc-worker."
                 },
                 {
                     "name": "EMAIL_FROM_ADDRESS",
                     "delivery": "secret",
-                    "requiredIn": ["staging", "production"],
+                    "requiredIn": [
+                        "staging",
+                        "production"
+                    ],
                     "description": "Verified sender address for auth and transactional email."
                 },
                 {
                     "name": "RESEND_API_KEY",
                     "delivery": "secret",
-                    "requiredIn": ["staging", "production"],
+                    "requiredIn": [
+                        "staging",
+                        "production"
+                    ],
                     "description": "Transactional email API key used by the Worker email runtime."
                 },
                 {
                     "name": "WEBAUTHN_RP_ID",
                     "delivery": "secret",
-                    "requiredIn": ["staging", "production"],
+                    "requiredIn": [
+                        "staging",
+                        "production"
+                    ],
                     "description": "WebAuthn relying-party ID for the current app host."
                 },
                 {
                     "name": "WEBAUTHN_RP_NAME",
                     "delivery": "secret",
-                    "requiredIn": ["staging", "production"],
+                    "requiredIn": [
+                        "staging",
+                        "production"
+                    ],
                     "description": "WebAuthn relying-party display name."
                 },
                 {
                     "name": "SESSION_SECRET",
                     "delivery": "secret",
-                    "requiredIn": ["staging", "production"],
+                    "requiredIn": [
+                        "staging",
+                        "production"
+                    ],
                     "optional": true,
                     "description": "Future session-signing secret once session flows move to explicit runtime secrets."
                 }
@@ -48,21 +115,33 @@
                     "name": "PL_SERVER_URL",
                     "delivery": "derived",
                     "derivedFrom": "apiBaseUrl",
-                    "requiredIn": ["local", "staging", "production"],
+                    "requiredIn": [
+                        "local",
+                        "staging",
+                        "production"
+                    ],
                     "description": "Compile-time API base URL baked into the PWA bundle."
                 },
                 {
                     "name": "PL_PWA_URL",
                     "delivery": "derived",
                     "derivedFrom": "appUrl",
-                    "requiredIn": ["local", "staging", "production"],
+                    "requiredIn": [
+                        "local",
+                        "staging",
+                        "production"
+                    ],
                     "description": "Compile-time public app URL used by the PWA build."
                 },
                 {
                     "name": "PL_SUPPORT_EMAIL",
                     "delivery": "derived",
                     "derivedFrom": "emailFromAddress",
-                    "requiredIn": ["local", "staging", "production"],
+                    "requiredIn": [
+                        "local",
+                        "staging",
+                        "production"
+                    ],
                     "description": "Public support address shown in built web surfaces."
                 }
             ]
@@ -73,7 +152,11 @@
                     "name": "PL_SERVER_URL",
                     "delivery": "derived",
                     "derivedFrom": "apiBaseUrl",
-                    "requiredIn": ["local", "staging", "production"],
+                    "requiredIn": [
+                        "local",
+                        "staging",
+                        "production"
+                    ],
                     "description": "Compile-time API base URL baked into Cordova bundles."
                 }
             ]

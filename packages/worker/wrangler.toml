@@ -27,6 +27,8 @@ EMAIL_VERIFY_ON_SIGNUP = "false"
 EMAIL_BACKEND = "mock"
 ALLOW_ORIGIN = "*"
 CLIENT_URL = "http://localhost:3000"
+HQ_ENVIRONMENT = "development"
+HQ_SERVICE_NAME = "padloc-worker"
 
 [[env.dev.kv_namespaces]]
 binding = "EMAIL_KV"
@@ -57,6 +59,8 @@ name = "padloc-worker-preview"
 EMAIL_BACKEND = "mock"
 ALLOW_ORIGIN = "*"
 CLIENT_URL = "http://localhost:3000"
+HQ_ENVIRONMENT = "preview"
+HQ_SERVICE_NAME = "padloc-worker"
 
 [[env.preview.kv_namespaces]]
 binding = "EMAIL_KV"
@@ -87,6 +91,8 @@ routes = [{ pattern = "api-pad-staging.ch5.me/*", zone_name = "ch5.me" }]
 [env.staging.vars]
 ALLOW_ORIGIN = "https://pad-staging.ch5.me"
 CLIENT_URL = "https://pad-staging.ch5.me"
+HQ_ENVIRONMENT = "staging"
+HQ_SERVICE_NAME = "padloc-worker"
 
 [[env.staging.kv_namespaces]]
 binding = "EMAIL_KV"
@@ -117,6 +123,8 @@ routes = [{ pattern = "api-pad.ch5.me/*", zone_name = "ch5.me" }]
 [env.production.vars]
 ALLOW_ORIGIN = "https://pad.ch5.me"
 CLIENT_URL = "https://pad.ch5.me"
+HQ_ENVIRONMENT = "production"
+HQ_SERVICE_NAME = "padloc-worker"
 
 [[env.production.kv_namespaces]]
 binding = "EMAIL_KV"

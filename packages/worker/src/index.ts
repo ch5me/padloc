@@ -7,6 +7,11 @@ import { AccountLockDO } from "./locks/account-lock";
 import { Server } from "@padloc/core/src/server";
 import { responseHeaders } from "./observability/security-headers";
 import { RateLimiter } from "./rate-limiter";
+import {
+    captureHqException,
+    initializeHqInstrumentationFromEnv,
+    withHqSpan,
+} from "./hq-instrumentation";
 
 let cachedServer: Server | undefined;
 
@@ -60,6 +65,8 @@ export { AccountLockDO };
 
 export default {
     async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+        initializeHqInstrumentationFromEnv(env, ctx);
+
         const allowOrigin = env.ALLOW_ORIGIN || "*";
         const config = new WorkerReceiverConfig();
         config.allowOrigin = allowOrigin;
@@ -72,7 +79,9 @@ export default {
 
         const url = new URL(request.url);
         if (request.method === "GET" && url.pathname === config.healthCheckPath) {
-            const health = await healthcheck(env);
+            const health = await withHqSpan("padloc.worker.healthcheck", { attributes: requestAttributes(request) }, () =>
+                healthcheck(env)
+            );
             return new Response(JSON.stringify(health), {
                 status: 200,
                 headers: responseHeaders({ allowOrigin }, undefined, {
@@ -86,13 +95,40 @@ export default {
         }
         const server = cachedServer;
 
-        return receiver.handleFetch(
-            request,
-            async (req: PlRequest): Promise<PlResponse> => {
-                return server.handle(req);
-            },
-            env,
-            ctx
-        );
+        return withHqSpan("padloc.worker.fetch", { attributes: requestAttributes(request) }, async () => {
+            try {
+                return await receiver.handleFetch(
+                    request,
+                    async (req: PlRequest): Promise<PlResponse> => {
+                        return withHqSpan(
+                            "padloc.worker.core_request",
+                            {
+                                attributes: {
+                                    ...requestAttributes(request),
+                                    "padloc.request.kind": req.kind,
+                                    "padloc.request.device": req.device?.appName,
+                                },
+                            },
+                            () => server.handle(req)
+                        );
+                    },
+                    env,
+                    ctx
+                );
+            } catch (error) {
+                captureHqException(error, requestAttributes(request));
+                throw error;
+            }
+        });
     },
 };
+
+function requestAttributes(request: Request): Record<string, unknown> {
+    const url = new URL(request.url);
+    return {
+        "http.request.method": request.method,
+        "url.path": url.pathname,
+        "url.host": url.host,
+        "user_agent.original": request.headers.get("user-agent") || "",
+    };
+}
