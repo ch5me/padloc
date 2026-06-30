@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 import path from "path";
 
-const EXTENSION_DIST = path.resolve(__dirname, "..");
+const EXTENSION_DIST = path.resolve(__dirname, "../dist");
 
 export default defineConfig({
     testDir: __dirname,
@@ -22,6 +22,7 @@ export default defineConfig({
             use: {
                 browserName: "chromium",
                 launchOptions: {
+                    headless: false,
                     args: [
                         `--disable-extensions-except=${EXTENSION_DIST}`,
                         `--load-extension=${EXTENSION_DIST}`,
@@ -33,14 +34,5 @@ export default defineConfig({
             },
         },
     ],
-    globalSetup: async () => {
-        const fs = await import("fs");
-        const manifestPath = path.join(EXTENSION_DIST, "manifest.json");
-        if (!fs.existsSync(manifestPath)) {
-            throw new Error(
-                `Extension manifest not found at ${manifestPath}. ` +
-                    "Run 'npm run web-extension:build' before 'npm run test:extension'."
-            );
-        }
-    },
+    globalSetup: path.resolve(__dirname, "global-setup.ts"),
 });

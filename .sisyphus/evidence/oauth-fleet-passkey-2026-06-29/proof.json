@@ -1,0 +1,32 @@
+{
+  "capturedAt": "2026-06-29T23:50:37.869Z",
+  "chrome": {
+    "port": 9800,
+    "pid": 77811,
+    "app": "/Applications/Google Chrome.app",
+    "profile": "/Users/hassoncs/.browser-profiles/ai-browser-oauth-fleet-mint"
+  },
+  "extension": {
+    "id": "phgggllfaobigoepghbbeojablefkkfa",
+    "path": "/Users/hassoncs/worktrees/ch5/padloc/oauth-fleet-passkey/packages/extension/dist"
+  },
+  "tabs": {
+    "extension": {
+      "title": "CH5 Auth",
+      "url": "chrome-extension://phgggllfaobigoepghbbeojablefkkfa/items?"
+    },
+    "google": {
+      "title": "Something went wrong",
+      "url": "https://accounts.google.com/v3/signin/challenge/pk/error?TL=%5Bredacted%5D&authuser=0&cid=1&continue=https%3A%2F%2Fmyaccount.google.com%2Fsigninoptions%2Fpasskeys&dsh=%5Bredacted%5D&flowName=GlifWebSignIn&followup=https%3A%2F%2Fmyaccount.google.com%2Fsigninoptions%2Fpasskeys&rart=%5Bredacted%5D&rpbg=%5Bredacted%5D"
+    },
+    "example": {
+      "title": "Example Domain",
+      "url": "https://example.com/"
+    }
+  },
+  "screenshots": [
+    "/Users/hassoncs/worktrees/ch5/padloc/oauth-fleet-passkey/.sisyphus/evidence/oauth-fleet-passkey-2026-06-29/padloc-unlocked.png",
+    "/Users/hassoncs/worktrees/ch5/padloc/oauth-fleet-passkey/.sisyphus/evidence/oauth-fleet-passkey-2026-06-29/google-passkey-error-hooked.png",
+    "/Users/hassoncs/worktrees/ch5/padloc/oauth-fleet-passkey/.sisyphus/evidence/oauth-fleet-passkey-2026-06-29/example-page.png"
+  ]
+}

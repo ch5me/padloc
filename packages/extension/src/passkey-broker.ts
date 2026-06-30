@@ -71,16 +71,11 @@ export async function enrollPasskeyCredential(
 ): Promise<EnrollPasskeyResult> {
     const enrollment = requirePasskeyEnrollmentRequest(request);
     const algorithm = normalizePasskeyAlgorithm(enrollment.algorithm);
-    if (!enrollment.credentialId) {
-        throw new Error("Passkey enrollment requires credentialId");
-    }
-    if (!enrollment.privateKeyPkcs8) {
-        throw new Error("Passkey enrollment requires privateKeyPkcs8");
-    }
     const cryptoApi = await getWebCrypto();
-    const credentialIdBytes = base64ToBytes(enrollment.credentialId);
+    const keyMaterial = await resolveEnrollmentKeyMaterial(cryptoApi, algorithm, enrollment);
+    const credentialIdBytes = base64ToBytes(keyMaterial.credentialId);
     const userHandle = enrollment.userHandle || bytesToBase64(await randomBytes(cryptoApi, 16));
-    const privateKeyPkcs8Bytes = base64ToBytes(enrollment.privateKeyPkcs8);
+    const privateKeyPkcs8Bytes = base64ToBytes(keyMaterial.privateKeyPkcs8);
     const importedPrivateKey = await importPrivateKeyForAlgorithm(cryptoApi, algorithm, privateKeyPkcs8Bytes);
     const exportedPrivateKeyJwk = await cryptoApi.subtle.exportKey("jwk", importedPrivateKey);
     const publicKeyJwk = toPublicJwk(exportedPrivateKeyJwk, algorithm);
@@ -88,13 +83,18 @@ export async function enrollPasskeyCredential(
     const publicKeySpkiBytes = new Uint8Array(await cryptoApi.subtle.exportKey("spki", importedPublicKey));
     const cosePublicKey = encodeCosePublicKey(publicKeyJwk, algorithm);
     const signCount = normalizeSignCount(enrollment.signCount ?? 0);
-    const attestedAuthData = await buildAttestedCredentialData(enrollment.rpId, credentialIdBytes, cosePublicKey);
+    const attestedAuthData = await buildAttestedCredentialData(
+        enrollment.rpId,
+        credentialIdBytes,
+        cosePublicKey,
+        shouldSetUserVerification(enrollment.userVerification)
+    );
     const attestationObject = encodeAttestationObject(attestedAuthData);
     const createdAt = new Date(now);
 
     const passkeyCredential = new PasskeyCredential({
         algorithm,
-        credentialId: enrollment.credentialId,
+        credentialId: keyMaterial.credentialId,
         rpId: enrollment.rpId,
         privateKeyFieldIndex: 0,
         publicKeySpki: bytesToBase64(publicKeySpkiBytes),
@@ -136,7 +136,7 @@ export async function enrollPasskeyCredential(
 
     const itemName = enrollment.itemName || `Passkey ${enrollment.rpId}`;
     const fields = [
-        new Field({ name: "Private Key", type: FieldType.Password, value: enrollment.privateKeyPkcs8 }),
+        new Field({ name: "Private Key", type: FieldType.Password, value: keyMaterial.privateKeyPkcs8 }),
         new Field({ name: "RP ID", type: FieldType.Url, value: `https://${enrollment.rpId}` }),
         new Field({ name: "Credential ID", type: FieldType.Text, value: passkeyCredential.credentialId }),
         new Field({ name: "User Handle", type: FieldType.Text, value: passkeyCredential.userHandle }),
@@ -208,7 +208,11 @@ export async function requestPasskeyAssertion(
     const cryptoApi = await getWebCrypto();
     const clientDataHash = await resolveClientDataHash(assertionRequest, cryptoApi);
     const nextSignCount = credential.signCount + 1;
-    const authenticatorData = await buildAssertionAuthenticatorData(credential.rpId, nextSignCount);
+    const authenticatorData = await buildAssertionAuthenticatorData(
+        credential.rpId,
+        nextSignCount,
+        shouldSetUserVerification(assertionRequest.userVerification)
+    );
     const signedPayload = concatBytes(authenticatorData, clientDataHash);
     const privateKeyPkcs8 = readStoredPrivateKey(item, credential);
     const algorithm = normalizePasskeyAlgorithm(credential.algorithm);
@@ -301,10 +305,47 @@ function requirePasskeyEnrollmentRequest(request: AutofillBrokerRequest): Passke
         throw new Error("Passkey enrollment requires passkey payload");
     }
     const enrollment = request.passkey as PasskeyEnrollmentRequest;
-    if (!enrollment.rpId || !enrollment.policy || !enrollment.credentialId || !enrollment.privateKeyPkcs8) {
-        throw new Error("Passkey enrollment requires rpId, policy, credentialId, and privateKeyPkcs8");
+    if (!enrollment.rpId || !enrollment.policy) {
+        throw new Error("Passkey enrollment requires rpId and policy");
     }
     return enrollment;
+}
+
+async function resolveEnrollmentKeyMaterial(
+    cryptoApi: Crypto,
+    algorithm: number,
+    enrollment: PasskeyEnrollmentRequest
+): Promise<{ credentialId: string; privateKeyPkcs8: string }> {
+    if (enrollment.credentialId && enrollment.privateKeyPkcs8) {
+        return {
+            credentialId: enrollment.credentialId,
+            privateKeyPkcs8: enrollment.privateKeyPkcs8,
+        };
+    }
+    if (enrollment.credentialId || enrollment.privateKeyPkcs8) {
+        throw new Error("Passkey enrollment requires both credentialId and privateKeyPkcs8 when importing");
+    }
+    const keyPair = await generateKeyPairForAlgorithm(cryptoApi, algorithm);
+    if (!("privateKey" in keyPair) || !keyPair.privateKey) {
+        throw new Error("Passkey key generation failed");
+    }
+    const privateKeyPkcs8 = bytesToBase64(new Uint8Array(await cryptoApi.subtle.exportKey("pkcs8", keyPair.privateKey)));
+    const credentialId = bytesToBase64(await randomBytes(cryptoApi, 32)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+    return { credentialId, privateKeyPkcs8 };
+}
+
+async function generateKeyPairForAlgorithm(cryptoApi: Crypto, algorithm: number): Promise<CryptoKeyPair> {
+    if (algorithm === PASSKEY_ALGORITHM_ES256) {
+        return cryptoApi.subtle.generateKey(
+            { name: "ECDSA", namedCurve: "P-256" },
+            true,
+            ["sign", "verify"]
+        );
+    }
+    if (algorithm === PASSKEY_ALGORITHM_ED25519) {
+        return cryptoApi.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]) as Promise<CryptoKeyPair>;
+    }
+    throw new Error(`Unsupported passkey algorithm: ${algorithm}`);
 }
 
 function requirePasskeyAssertionRequest(request: AutofillBrokerRequest): PasskeyAssertionRequest {
@@ -570,19 +611,24 @@ async function resolveClientDataHash(
 async function buildAttestedCredentialData(
     rpId: string,
     credentialId: Uint8Array,
-    credentialPublicKey: Uint8Array
+    credentialPublicKey: Uint8Array,
+    userVerified = false
 ): Promise<Uint8Array> {
     const rpIdHash = await sha256(stringToBytes(rpId));
-    const flags = new Uint8Array([0x41]);
+    const flags = new Uint8Array([0x41 | (userVerified ? 0x04 : 0x00)]);
     const signCount = new Uint8Array([0x00, 0x00, 0x00, 0x00]);
     const aaguid = new Uint8Array(16);
     const credentialLength = new Uint8Array([(credentialId.length >> 8) & 0xff, credentialId.length & 0xff]);
     return concatBytes(rpIdHash, flags, signCount, aaguid, credentialLength, credentialId, credentialPublicKey);
 }
 
-async function buildAssertionAuthenticatorData(rpId: string, signCount: number): Promise<Uint8Array> {
+async function buildAssertionAuthenticatorData(
+    rpId: string,
+    signCount: number,
+    userVerified = false
+): Promise<Uint8Array> {
     const rpIdHash = await sha256(stringToBytes(rpId));
-    const flags = new Uint8Array([0x01]);
+    const flags = new Uint8Array([0x01 | (userVerified ? 0x04 : 0x00)]);
     const count = new Uint8Array([
         (signCount >>> 24) & 0xff,
         (signCount >>> 16) & 0xff,
@@ -590,6 +636,10 @@ async function buildAssertionAuthenticatorData(rpId: string, signCount: number):
         signCount & 0xff,
     ]);
     return concatBytes(rpIdHash, flags, count);
+}
+
+function shouldSetUserVerification(userVerification: UserVerificationRequirement | undefined): boolean {
+    return userVerification === "required" || userVerification === "preferred";
 }
 
 function encodeAttestationObject(authData: Uint8Array): Uint8Array {

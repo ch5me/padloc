@@ -38,6 +38,7 @@ export interface PasskeyEnrollmentRequest {
     privateKeyPkcs8?: string;
     signCount?: number;
     algorithm?: string | number;
+    userVerification?: UserVerificationRequirement;
     topOrigin?: string;
     vendor?: string;
     policy: PasskeyCredentialPolicy;
@@ -49,6 +50,7 @@ export interface PasskeyAssertionRequest {
     topOrigin: string;
     challenge?: string;
     clientDataHash?: string;
+    userVerification?: UserVerificationRequirement;
     flowId?: string;
     profileId?: string;
     accountId?: string;

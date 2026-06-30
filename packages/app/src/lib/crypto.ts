@@ -18,11 +18,12 @@ import {
 import { Err, ErrorCode } from "@padloc/core/src/error";
 import SJCLProvider from "@padloc/core/src/sjcl";
 
-const webCrypto = window.crypto && window.crypto.subtle;
+const webCryptoGlobal = globalThis.crypto;
+const webCrypto = webCryptoGlobal && webCryptoGlobal.subtle;
 
 export class WebCryptoProvider implements CryptoProvider {
     async randomBytes(n: number): Promise<Uint8Array> {
-        const bytes = window.crypto.getRandomValues(new Uint8Array(n));
+        const bytes = webCryptoGlobal.getRandomValues(new Uint8Array(n));
         return bytes;
     }
 
@@ -45,8 +46,8 @@ export class WebCryptoProvider implements CryptoProvider {
                     "decrypt",
                 ])) as CryptoKeyPair;
 
-                const privateKey = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey!);
-                const publicKey = await crypto.subtle.exportKey("spki", keyPair.publicKey!);
+                const privateKey = await webCrypto.exportKey("pkcs8", keyPair.privateKey!);
+                const publicKey = await webCrypto.exportKey("spki", keyPair.publicKey!);
 
                 return {
                     privateKey: new Uint8Array(privateKey),

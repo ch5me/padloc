@@ -1,7 +1,7 @@
 const path = require("path");
+const { spawnSync } = require("child_process");
 
 if (!(process.env.NODE_OPTIONS || "").split(/\s+/).includes("--openssl-legacy-provider")) {
-    const { spawnSync } = require("child_process");
     const env = {
         ...process.env,
         NODE_OPTIONS: [process.env.NODE_OPTIONS, "--openssl-legacy-provider"].filter(Boolean).join(" "),
@@ -20,6 +20,14 @@ const webpack = require(path.join(extensionDir, "node_modules/webpack"));
 
 const defaultServerUrl = targets.targets.local.apiBaseUrl;
 process.env.PL_SERVER_URL = process.env.PL_SERVER_URL || defaultServerUrl;
+
+const sourcePreflight = spawnSync(process.execPath, [path.resolve(__dirname, "preflight-web-extension-source.cjs")], {
+    stdio: "inherit",
+    env: process.env,
+});
+if (sourcePreflight.status !== 0) {
+    process.exit(sourcePreflight.status === null ? 1 : sourcePreflight.status);
+}
 
 const config = require(path.join(extensionDir, "webpack.config.js"));
 config.context = extensionDir;
@@ -54,5 +62,14 @@ webpack(config, (err, stats) => {
 
     if (stats.hasErrors()) {
         process.exitCode = 1;
+        return;
+    }
+
+    const preflight = spawnSync(process.execPath, [path.resolve(__dirname, "preflight-web-extension-dist.cjs")], {
+        stdio: "inherit",
+        env: process.env,
+    });
+    if (preflight.status !== 0) {
+        process.exitCode = preflight.status === null ? 1 : preflight.status;
     }
 });

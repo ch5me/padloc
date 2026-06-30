@@ -213,6 +213,7 @@ export class ExtensionApp extends App {
         if (!this.state.account || !this.state.account.masterKey) {
             return;
         }
+        void this._persistUnlockedState();
         this._wrapper.classList.toggle("active", true);
         void this._checkForSavePrompt();
         void this._checkForAgenticAutofillApproval();
@@ -528,4 +529,8 @@ export class ExtensionApp extends App {
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
     }
+}
+
+if (!customElements.get("pl-extension-app")) {
+    customElements.define("pl-extension-app", ExtensionApp);
 }

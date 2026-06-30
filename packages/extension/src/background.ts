@@ -1,12 +1,31 @@
 import { browser, Menus, Runtime } from "webextension-polyfill-ts";
 import { setPlatform } from "@padloc/core/src/platform";
 import { App } from "@padloc/core/src/app";
-import { AjaxSender } from "@padloc/app/src/lib/ajax";
-import { debounce, uuid } from "@padloc/core/src/util";
-import { AutofillFieldRole, FieldType, Field } from "@padloc/core/src/item";
-import { ExtensionPlatform } from "./platform";
-import { AgenticAutofillApprovalPrompt, FieldMappings, Message, messageTab, SavePrompt, CredentialData } from "./message";
+import { uuid } from "@padloc/core/src/util";
+import { base64ToBytes, bytesToBase64 } from "@padloc/core/src/encoding";
+import {
+    AutofillFieldRole,
+    FieldType,
+    Field,
+    PasskeyCredentialPolicy,
+    isPasskeyCredentialItem,
+    VaultItem,
+} from "@padloc/core/src/item";
+import { BackgroundExtensionPlatform } from "./background-platform";
+import {
+    AgenticAutofillApprovalPrompt,
+    AgenticWebAuthnCreateRequest,
+    AgenticWebAuthnErrorName,
+    AgenticWebAuthnGetRequest,
+    AgenticWebAuthnResponse,
+    FieldMappings,
+    Message,
+    messageTab,
+    SavePrompt,
+    CredentialData,
+} from "./message";
 import { clearSessionMasterKey, configureSessionStorage, getSessionMasterKey } from "./storage";
+import { BackgroundFetchSender } from "./background-fetch-sender";
 import { AutofillBrokerRequest, AutofillBrokerResponse, buildLockedBrokerResponse } from "./autofill-broker-protocol";
 import {
     applyBrokerBundleResponse,
@@ -20,16 +39,18 @@ import {
 } from "./autofill-broker";
 import { enrollPasskeyCredential, requestPasskeyAssertion } from "./passkey-broker";
 
-setPlatform(new ExtensionPlatform());
+setPlatform(new BackgroundExtensionPlatform());
 
-const API_BASE_URL = "https://api-pad.ch5.me";
+const API_BASE_URL = process.env.PL_SERVER_URL!;
 
 // MV3 service worker - state must be persisted to storage
 let app: App;
 let autoLockAlarmName = "pl_autoLock";
 let nativeBrokerAlarmName = "pl_agenticAutofillNativeBroker";
 let isInitialized = false;
+let immediateMessageBridgeRegistered = false;
 const actionApi = chrome.action;
+let badgeAndContextMenuUpdateChain = Promise.resolve();
 
 // Save/update credential prompt state
 // Maps promptId -> pending SavePrompt
@@ -43,10 +64,15 @@ const pendingAutofillPromptNonces = new Map<string, { nonce: string; senderUrl: 
 const dismissedUrls = new Map<string, number>();
 
 const DISMISSAL_DURATION_MS = 60 * 60 * 1000; // 1 hour
+const WEBAUTHN_APP_READY_TIMEOUT_MS = 5000;
+
+// MV3 wake events are dispatched to listeners registered during service-worker
+// evaluation. Register the fail-fast WebAuthn bridge before async app init.
+registerImmediateMessageBridge();
 
 async function getApp(): Promise<App> {
     if (!app) {
-        app = new App(new AjaxSender(API_BASE_URL));
+        app = new App(new BackgroundFetchSender(API_BASE_URL));
         await app.load();
         if (await restoreSessionUnlock(app)) {
             await startAutoLockTimer();
@@ -57,6 +83,20 @@ async function getApp(): Promise<App> {
         }
     }
     return app;
+}
+
+async function getAppWithin(timeoutMs: number): Promise<App | null> {
+    let timeoutId: number | undefined;
+    try {
+        return await Promise.race([
+            getApp(),
+            new Promise<null>((resolve) => {
+                timeoutId = setTimeout(() => resolve(null), timeoutMs) as unknown as number;
+            }),
+        ]);
+    } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+    }
 }
 
 async function restoreSessionUnlock(application: App) {
@@ -86,64 +126,29 @@ async function initBackground() {
     if (isInitialized) return;
     isInitialized = true;
 
-    await configureSessionStorage();
+    const update = debounceBackground(() => {
+        void enqueueBadgeAndContextMenuUpdate().catch((error) => console.error(error));
+    }, 500);
+    registerImmediateMessageBridge();
 
-    const _app = await getApp();
-    const update = debounce(() => updateBadgeAndContextMenu(), 500);
-    _app.subscribe(update);
-
-    // Message listener - handles communication from popup and other contexts
-    browser.runtime.onMessage.addListener(async (msg: Message, sender: Runtime.MessageSender) => {
-        if (sender.tab) {
-            // Ignore messages from content scripts (one-way communication)
+    // Message listener - handles communication from popup and other contexts.
+    // Keep this listener synchronous so it cannot consume immediate bridge
+    // messages by resolving an async undefined response first.
+    browser.runtime.onMessage.addListener((msg: Message, sender: Runtime.MessageSender) => {
+        if (
+            msg.type === "ping" ||
+            msg.type === "agenticWebAuthnCreate" ||
+            msg.type === "agenticWebAuthnGet"
+        ) {
             return;
         }
-
-        const application = await getApp();
-
-        switch (msg.type) {
-            case "ping":
-                // Used by popup to verify worker is alive after cold start
-                void processPendingNativeBrokerRequest(application);
-                return { type: "pong" };
-            case "loggedOut":
-            case "locked":
-                await clearSessionMasterKey();
-                await application.load();
-                await cancelAutoLock();
-                await update();
-                break;
-            case "unlocked":
-                await application.load();
-                await restoreSessionUnlock(application);
-                await startAutoLockTimer();
-                await update();
-                break;
-            case "state-changed":
-                await application.reload();
-                await update();
-                break;
-            case "formSubmitDetected":
-                return handleFormSubmitDetected(msg.data, application);
-            case "getSavePrompt":
-                return handleGetSavePrompt();
-            case "saveCredential":
-                return handleSaveCredential(msg.promptId, msg.vaultId, application);
-            case "updateCredential":
-                return handleUpdateCredential(msg.promptId, msg.vaultId, application);
-            case "dismissPrompt":
-                return handleDismissPrompt(msg.promptId);
-            case "getAgenticAutofillApprovalPrompt":
-                return handleGetAgenticAutofillApprovalPrompt(sender);
-            case "approveAgenticAutofill":
-                return handleApproveAgenticAutofill(msg.planId, msg.promptNonce, sender);
-            case "dismissAgenticAutofill":
-                return handleDismissAgenticAutofill(msg.planId);
-            case "seedAgenticAutofillFixtures":
-                return handleSeedAgenticAutofillFixtures(sender, application);
-            case "agenticAutofillBroker":
-                return handleAgenticAutofillBroker(msg.request, application);
+        const senderUrl = sender.url || "";
+        const isExtensionUiSender = senderUrl.startsWith(browser.runtime.getURL(""));
+        if (sender.tab && !isExtensionUiSender) {
+            // Ignore legacy content-script messages; WebAuthn has an explicit page bridge.
+            return;
         }
+        return handleExtensionMessage(msg, sender, update);
     });
 
     // Tab listeners for badge updates
@@ -170,9 +175,125 @@ async function initBackground() {
         // Commands are handled via popup for MV3
     });
 
-    await update();
+    await configureSessionStorage();
+    const _app = await getApp();
+    _app.subscribe(update);
+    await enqueueBadgeAndContextMenuUpdate();
     browser.alarms.create(nativeBrokerAlarmName, { periodInMinutes: 1 });
     void processPendingNativeBrokerRequest(_app);
+}
+
+function debounceBackground(fn: () => void, delay: number) {
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    return () => {
+        if (timeout) clearTimeout(timeout);
+        timeout = setTimeout(fn, delay);
+    };
+}
+
+function enqueueBadgeAndContextMenuUpdate() {
+    badgeAndContextMenuUpdateChain = badgeAndContextMenuUpdateChain
+        .catch(() => undefined)
+        .then(() => updateBadgeAndContextMenu());
+    return badgeAndContextMenuUpdateChain;
+}
+
+async function handleExtensionMessage(
+    msg: Message,
+    sender: Runtime.MessageSender,
+    update: () => void
+) {
+    const application = await getApp();
+
+    switch (msg.type) {
+        case "loggedOut":
+        case "locked":
+            await clearSessionMasterKey();
+            await application.load();
+            await cancelAutoLock();
+            await update();
+            break;
+        case "unlocked":
+            await application.load();
+            await restoreSessionUnlock(application);
+            await startAutoLockTimer();
+            await update();
+            break;
+        case "state-changed":
+            await application.reload();
+            await update();
+            break;
+        case "formSubmitDetected":
+            return handleFormSubmitDetected(msg.data, application);
+        case "getSavePrompt":
+            return handleGetSavePrompt();
+        case "saveCredential":
+            return handleSaveCredential(msg.promptId, msg.vaultId, application);
+        case "updateCredential":
+            return handleUpdateCredential(msg.promptId, msg.vaultId, application);
+        case "dismissPrompt":
+            return handleDismissPrompt(msg.promptId);
+        case "getAgenticAutofillApprovalPrompt":
+            return handleGetAgenticAutofillApprovalPrompt(sender);
+        case "approveAgenticAutofill":
+            return handleApproveAgenticAutofill(msg.planId, msg.promptNonce, sender);
+        case "dismissAgenticAutofill":
+            return handleDismissAgenticAutofill(msg.planId);
+        case "seedAgenticAutofillFixtures":
+            return handleSeedAgenticAutofillFixtures(sender, application);
+        case "agenticAutofillBroker":
+            return handleAgenticAutofillBroker(msg.request, application);
+    }
+}
+
+function registerImmediateMessageBridge() {
+    if (immediateMessageBridgeRegistered) return;
+    immediateMessageBridgeRegistered = true;
+    const chromeRuntime = (chrome as typeof chrome & {
+        runtime: {
+            onMessage: {
+                addListener(
+                    listener: (msg: Message, sender: Runtime.MessageSender, sendResponse: (response?: unknown) => void) => boolean | void
+                ): void;
+            };
+        };
+    }).runtime;
+    chromeRuntime.onMessage.addListener((msg: Message, sender: Runtime.MessageSender, sendResponse: (response?: unknown) => void) => {
+        if (!msg || typeof msg !== "object") return false;
+        if (msg.type === "ping") {
+            void getApp().then((application) => processPendingNativeBrokerRequest(application));
+            sendResponse({ type: "pong" });
+            return false;
+        }
+        if (msg.type === "agenticWebAuthnCreate" || msg.type === "agenticWebAuthnGet") {
+            void handleImmediateWebAuthnMessage(msg, sender)
+                .then(sendResponse)
+                .catch((error) => sendResponse(webAuthnMessage(denyWebAuthn(
+                    "UnknownError",
+                    error instanceof Error ? error.message : "Padloc passkey broker failed",
+                    "broker_failed"
+                ))));
+            return true;
+        }
+        return false;
+    });
+}
+
+async function handleImmediateWebAuthnMessage(
+    msg: Extract<Message, { type: "agenticWebAuthnCreate" | "agenticWebAuthnGet" }>,
+    sender: Runtime.MessageSender
+) {
+    const webAuthnApp = await getAppWithin(WEBAUTHN_APP_READY_TIMEOUT_MS);
+    if (!webAuthnApp) {
+        return webAuthnMessage(denyWebAuthn(
+            "NotAllowedError",
+            "Padloc background app not initialized",
+            "background_not_ready"
+        ));
+    }
+    return msg.type === "agenticWebAuthnCreate"
+        ? handleAgenticWebAuthnCreate(msg.request, sender, webAuthnApp)
+        : handleAgenticWebAuthnGet(msg.request, sender, webAuthnApp);
 }
 
 async function handleContextMenuClick(menuItemId: string) {
@@ -526,6 +647,182 @@ function handleDismissAgenticAutofill(planId: string): null {
     return null;
 }
 
+async function handleAgenticWebAuthnCreate(
+    request: AgenticWebAuthnCreateRequest,
+    sender: Runtime.MessageSender,
+    application: App
+): Promise<{ type: "agenticWebAuthnResponse"; response: AgenticWebAuthnResponse }> {
+    const validation = validatePageWebAuthnRequest(request, sender);
+    if (validation) return webAuthnMessage(validation);
+    if (application.state.locked || !application.state.loggedIn) {
+        return webAuthnMessage(denyWebAuthn("NotAllowedError", "Padloc vault locked", "vault_locked"));
+    }
+    if (request.excludeCredentialIds?.some((credentialId) => findPasskeyItemByCredentialId(application, credentialId))) {
+        return webAuthnMessage(denyWebAuthn("InvalidStateError", "Passkey already exists in Padloc", "credential_excluded"));
+    }
+
+    const vault = application.mainVault;
+    if (!vault) return webAuthnMessage(denyWebAuthn("NotAllowedError", "No writable Padloc vault", "vault_missing"));
+
+    try {
+        const result = await enrollPasskeyCredential({
+            type: "enroll-passkey",
+            protocolVersion: 1,
+            requestId: request.requestId,
+            binding: {
+                sessionId: "padloc-extension-webauthn",
+                origin: request.origin,
+                topOrigin: request.topOrigin || request.origin,
+                rpId: request.rpId,
+                vendor: request.rpId,
+            },
+            passkey: {
+                itemName: request.userName ? `${request.rpId} ${request.userName}` : `Passkey ${request.rpId}`,
+                rpId: request.rpId,
+                topOrigin: request.topOrigin || request.origin,
+                userHandle: request.userHandle,
+                algorithm: request.algorithm,
+                userVerification: request.userVerification,
+                vendor: request.rpId,
+                policy: new PasskeyCredentialPolicy({
+                    allowedRpIds: [request.rpId],
+                    allowedTopOrigins: [request.topOrigin || request.origin],
+                    allowedVendorFlows: [request.rpId],
+                    approval: "none",
+                    rateLimit: {},
+                    timeWindows: [],
+                    requireFlowBinding: false,
+                    emergencyLockout: false,
+                }),
+            },
+        });
+        const createdItem = await application.createItem({
+            name: result.itemName,
+            vault: { id: vault.id },
+            icon: result.icon,
+            fields: result.fields,
+            itemKind: result.itemKind,
+            passkeyCredential: result.passkeyCredential,
+        });
+        if (result.response.passkey) {
+            result.response.passkey.itemId = createdItem.id;
+            result.response.passkey.itemName = createdItem.name;
+        }
+        void publishRedactedBrokerResponse(result.response);
+        const registration = result.response.passkey?.registration;
+        if (!registration) {
+            return webAuthnMessage(denyWebAuthn("UnknownError", "Padloc passkey registration missing", "registration_missing"));
+        }
+        return webAuthnMessage({
+            ok: true,
+            credential: {
+                id: toBrowserBase64Url(registration.credentialId),
+                rawId: toBrowserBase64Url(registration.credentialId),
+                type: "public-key",
+                authenticatorAttachment: "cross-platform",
+                clientExtensionResults: {},
+                response: {
+                    clientDataJSON: request.clientDataJSON,
+                    attestationObject: toBrowserBase64Url(registration.attestationObject),
+                    authenticatorData: toBrowserBase64Url(registration.authenticatorData),
+                    publicKey: toBrowserBase64Url(registration.publicKeySpki),
+                    publicKeyAlgorithm: Number(registration.algorithm),
+                    transports: ["usb", "hybrid", "internal"],
+                },
+            },
+            valuePolicy: "redacted WebAuthn registration only; private key remains encrypted in Padloc",
+        });
+    } catch (error) {
+        return webAuthnMessage(denyWebAuthn(
+            "UnknownError",
+            error instanceof Error ? error.message : "Padloc passkey registration failed",
+            "registration_failed"
+        ));
+    }
+}
+
+async function handleAgenticWebAuthnGet(
+    request: AgenticWebAuthnGetRequest,
+    sender: Runtime.MessageSender,
+    application: App
+): Promise<{ type: "agenticWebAuthnResponse"; response: AgenticWebAuthnResponse }> {
+    const validation = validatePageWebAuthnRequest(request, sender);
+    if (validation) return webAuthnMessage(validation);
+    if (application.state.locked || !application.state.loggedIn) {
+        return webAuthnMessage(denyWebAuthn("NotAllowedError", "Padloc vault locked", "vault_locked"));
+    }
+
+    const item = selectPasskeyItem(application, request);
+    if (!item) {
+        return webAuthnMessage(denyWebAuthn("NotAllowedError", "No matching Padloc passkey", "credential_not_found"));
+    }
+
+    try {
+        const nonce = await uuid();
+        const result = await requestPasskeyAssertion({
+            type: "request-assertion",
+            protocolVersion: 1,
+            requestId: request.requestId,
+            binding: {
+                sessionId: "padloc-extension-webauthn",
+                origin: request.origin,
+                topOrigin: request.topOrigin || request.origin,
+                rpId: request.rpId,
+                vendor: request.rpId,
+                nonce,
+            },
+            passkey: {
+                credentialId: item.passkeyCredential.credentialId,
+                rpId: request.rpId,
+                topOrigin: request.topOrigin || request.origin,
+                clientDataHash: request.clientDataHash,
+                challenge: request.challenge,
+                userVerification: request.userVerification,
+                nonce,
+                vendor: request.rpId,
+            },
+        }, getAllVaultItems(application));
+        if (result.updatedItem?.id) {
+            await application.updateItem(result.updatedItem, {
+                itemKind: result.updatedItem.itemKind,
+                passkeyCredential: result.updatedItem.passkeyCredential,
+            });
+        }
+        void publishRedactedBrokerResponse(result.response);
+        const assertion = result.response.passkey?.assertion;
+        if (!result.response.ok || !assertion) {
+            return webAuthnMessage(denyWebAuthn(
+                "NotAllowedError",
+                result.response.reason || "Padloc passkey assertion denied",
+                result.response.passkey?.reasonCode || "assertion_denied"
+            ));
+        }
+        return webAuthnMessage({
+            ok: true,
+            credential: {
+                id: toBrowserBase64Url(assertion.credentialId),
+                rawId: toBrowserBase64Url(assertion.credentialId),
+                type: "public-key",
+                authenticatorAttachment: "cross-platform",
+                clientExtensionResults: {},
+                response: {
+                    clientDataJSON: request.clientDataJSON,
+                    authenticatorData: toBrowserBase64Url(assertion.authenticatorData),
+                    signature: toBrowserBase64Url(assertion.signature),
+                    userHandle: toBrowserBase64Url(assertion.userHandle),
+                },
+            },
+            valuePolicy: "redacted WebAuthn assertion only; private key remains encrypted in Padloc",
+        });
+    } catch (error) {
+        return webAuthnMessage(denyWebAuthn(
+            "UnknownError",
+            error instanceof Error ? error.message : "Padloc passkey assertion failed",
+            "assertion_failed"
+        ));
+    }
+}
+
 function randomApprovalPromptNonce(): string {
     const bytes = new Uint8Array(16);
     crypto.getRandomValues(bytes);
@@ -539,6 +836,147 @@ function requireExtensionUiSender(sender: Runtime.MessageSender): string {
         throw new Error("Autofill approval requires Padloc extension UI sender");
     }
     return senderUrl;
+}
+
+function validatePageWebAuthnRequest(
+    request: AgenticWebAuthnCreateRequest | AgenticWebAuthnGetRequest,
+    sender: Runtime.MessageSender
+): AgenticWebAuthnResponse | null {
+    const senderUrl = sender.url || sender.tab?.url || "";
+    let senderOrigin = "";
+    try {
+        senderOrigin = new URL(senderUrl).origin;
+    } catch {
+        return denyWebAuthn("SecurityError", "Padloc WebAuthn request missing sender origin", "sender_origin_missing");
+    }
+    if (senderOrigin !== request.origin) {
+        return denyWebAuthn("SecurityError", "Padloc WebAuthn origin mismatch", "origin_mismatch");
+    }
+    const topOrigin = request.topOrigin || request.origin;
+    if (request.crossOrigin && !request.topOrigin) {
+        return denyWebAuthn("SecurityError", "Padloc WebAuthn cross-origin request missing top origin", "top_origin_missing");
+    }
+    if (request.crossOrigin) {
+        return denyWebAuthn("NotSupportedError", "Padloc WebAuthn cross-origin frames are not supported", "cross_origin_not_supported");
+    }
+    if (sender.tab?.url && request.topOrigin) {
+        try {
+            const senderTopOrigin = new URL(sender.tab.url).origin;
+            if (senderTopOrigin !== request.topOrigin) {
+                return denyWebAuthn("SecurityError", "Padloc WebAuthn top origin mismatch", "top_origin_mismatch");
+            }
+        } catch {
+            return denyWebAuthn("SecurityError", "Padloc WebAuthn sender top origin invalid", "sender_top_origin_invalid");
+        }
+    }
+    if (!rpIdMatchesOrigin(request.rpId, topOrigin)) {
+        return denyWebAuthn("SecurityError", "Padloc WebAuthn rpId not allowed for origin", "rp_id_origin_mismatch");
+    }
+    return null;
+}
+
+function rpIdMatchesOrigin(rpId: string, origin: string): boolean {
+    try {
+        const hostname = normalizeWebAuthnDomain(new URL(origin).hostname);
+        const normalizedRpId = normalizeWebAuthnDomain(rpId);
+        if (!hostname || !normalizedRpId || isForbiddenRpId(normalizedRpId)) return false;
+        if (hostname === "localhost" && normalizedRpId === "localhost") return true;
+        return hostname === normalizedRpId || hostname.endsWith(`.${normalizedRpId}`);
+    } catch {
+        return false;
+    }
+}
+
+function normalizeWebAuthnDomain(value: string): string | null {
+    const normalized = value.trim().toLowerCase().replace(/\.$/, "");
+    if (!normalized || normalized.includes("/") || normalized.includes(":")) return null;
+    if (normalized.length > 253) return null;
+    const labels = normalized.split(".");
+    if (labels.some((label) => !label || label.length > 63 || !/^[a-z0-9-]+$/.test(label))) return null;
+    return normalized;
+}
+
+function isForbiddenRpId(rpId: string): boolean {
+    if (rpId === "localhost") return false;
+    if (!rpId.includes(".")) return true;
+    if (isIpAddress(rpId)) return true;
+    return PUBLIC_SUFFIX_RP_IDS.has(rpId);
+}
+
+function isIpAddress(value: string): boolean {
+    if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(value)) {
+        return value.split(".").every((part) => Number(part) <= 255);
+    }
+    return value.includes(":");
+}
+
+const PUBLIC_SUFFIX_RP_IDS = new Set([
+    "app",
+    "co.jp",
+    "co.uk",
+    "com",
+    "com.au",
+    "com.br",
+    "com.cn",
+    "com.mx",
+    "com.tr",
+    "co.nz",
+    "dev",
+    "edu",
+    "gov",
+    "io",
+    "net",
+    "ne.jp",
+    "org",
+    "org.uk",
+    "uk",
+    "us",
+]);
+
+function selectPasskeyItem(
+    application: App,
+    request: AgenticWebAuthnGetRequest
+): (VaultItem & { passkeyCredential: NonNullable<VaultItem["passkeyCredential"]> }) | null {
+    const allowedIds = request.allowCredentialIds || [];
+    const matches = getAllVaultItems(application)
+        .filter(isPasskeyCredentialItem)
+        .filter((item) => item.passkeyCredential.rpId === request.rpId)
+        .filter((item) => !allowedIds.length || allowedIds.includes(toBrowserBase64Url(item.passkeyCredential.credentialId)));
+    if (matches.length !== 1) return null;
+    return matches[0];
+}
+
+function findPasskeyItemByCredentialId(application: App, credentialId: string): VaultItem | null {
+    const normalizedCredentialId = toBrowserBase64Url(credentialId);
+    return getAllVaultItems(application)
+        .filter(isPasskeyCredentialItem)
+        .find((item) => toBrowserBase64Url(item.passkeyCredential.credentialId) === normalizedCredentialId) || null;
+}
+
+function webAuthnMessage(response: AgenticWebAuthnResponse): { type: "agenticWebAuthnResponse"; response: AgenticWebAuthnResponse } {
+    return { type: "agenticWebAuthnResponse", response };
+}
+
+function denyWebAuthn(
+    name: AgenticWebAuthnErrorName,
+    message: string,
+    reason: string
+): AgenticWebAuthnResponse {
+    return {
+        ok: false,
+        error: { name, message, reason },
+        valuePolicy: "redacted WebAuthn denial only; no private key material",
+    };
+}
+
+function toBrowserBase64Url(value: string): string {
+    return bytesToBase64(base64ToBytesLoose(value)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function base64ToBytesLoose(value: string): Uint8Array {
+    const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+    return base64ToBytes(padded);
 }
 
 async function handleSeedAgenticAutofillFixtures(sender: Runtime.MessageSender, application: App) {
@@ -859,11 +1297,18 @@ async function publishRedactedBrokerResponse(response: unknown): Promise<void> {
     }
 }
 
+function startBackgroundInitialization() {
+    void initBackground().catch((error) => {
+        isInitialized = false;
+        console.error(error);
+    });
+}
+
 // Initialize on install
-browser.runtime.onInstalled.addListener(initBackground);
+browser.runtime.onInstalled.addListener(startBackgroundInitialization);
 
 // Initialize on startup (service worker may be dormant)
-browser.runtime.onStartup.addListener(initBackground);
+browser.runtime.onStartup.addListener(startBackgroundInitialization);
 
 // Also try to initialize immediately in case already installed
-initBackground().catch(console.error);
+startBackgroundInitialization();

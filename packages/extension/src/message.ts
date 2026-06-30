@@ -68,6 +68,64 @@ export interface AgenticAutofillApprovalPrompt {
     }>;
 }
 
+export interface AgenticWebAuthnCreateRequest {
+    requestId: string;
+    rpId: string;
+    origin: string;
+    topOrigin?: string;
+    crossOrigin?: boolean;
+    challenge: string;
+    clientDataJSON: string;
+    userHandle?: string;
+    userName?: string;
+    userDisplayName?: string;
+    algorithm?: number;
+    userVerification?: UserVerificationRequirement;
+    excludeCredentialIds?: string[];
+}
+
+export interface AgenticWebAuthnGetRequest {
+    requestId: string;
+    rpId: string;
+    origin: string;
+    topOrigin?: string;
+    crossOrigin?: boolean;
+    challenge: string;
+    clientDataJSON: string;
+    clientDataHash: string;
+    userVerification?: UserVerificationRequirement;
+    allowCredentialIds?: string[];
+}
+
+export type AgenticWebAuthnErrorName =
+    | "InvalidStateError"
+    | "NotAllowedError"
+    | "NotSupportedError"
+    | "SecurityError"
+    | "UnknownError";
+
+export interface AgenticWebAuthnCredentialResponse {
+    id: string;
+    rawId: string;
+    type: "public-key";
+    authenticatorAttachment: "cross-platform";
+    clientExtensionResults: Record<string, never>;
+    response: {
+        clientDataJSON: string;
+        attestationObject?: string;
+        authenticatorData?: string;
+        publicKey?: string;
+        publicKeyAlgorithm?: number;
+        signature?: string;
+        userHandle?: string;
+        transports?: string[];
+    };
+}
+
+export type AgenticWebAuthnResponse =
+    | { ok: true; credential: AgenticWebAuthnCredentialResponse; valuePolicy: string }
+    | { ok: false; error: { name: AgenticWebAuthnErrorName; message: string; reason?: string }; valuePolicy: string };
+
 export type Message =
     | { type: "loggedIn" }
     | { type: "loggedOut" }
@@ -95,7 +153,10 @@ export type Message =
     | { type: "seedAgenticAutofillFixtures" }
     | { type: "seedAgenticAutofillFixturesResponse"; created: number; itemNames: string[]; valuePolicy: string }
     | { type: "agenticAutofillBroker"; request: AutofillBrokerRequest }
-    | { type: "agenticAutofillBrokerResponse"; response: AutofillBrokerResponse };
+    | { type: "agenticAutofillBrokerResponse"; response: AutofillBrokerResponse }
+    | { type: "agenticWebAuthnCreate"; request: AgenticWebAuthnCreateRequest }
+    | { type: "agenticWebAuthnGet"; request: AgenticWebAuthnGetRequest }
+    | { type: "agenticWebAuthnResponse"; response: AgenticWebAuthnResponse };
 
 export async function messageTab(msg: Message) {
     const [activeTab] = await browser.tabs.query({ active: true, currentWindow: true });

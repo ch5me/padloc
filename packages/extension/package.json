@@ -21,6 +21,9 @@
     },
     "scripts": {
         "build": "node ../../scripts/build-web-extension.cjs",
+        "agentic:extension-cdp": "node scripts/agentic-extension-cdp.mjs",
+        "preflight:source": "node ../../scripts/preflight-web-extension-source.cjs",
+        "preflight:dist": "node ../../scripts/preflight-web-extension-dist.cjs",
         "test": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\"}' mocha --require ts-node/register/transpile-only --require tsconfig-paths/register 'test/**/*.ts'",
         "test:harness": "playwright test --config test-harness/playwright.config.ts",
         "test:harness:install": "playwright install chromium"

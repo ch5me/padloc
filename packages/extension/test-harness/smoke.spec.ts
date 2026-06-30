@@ -1,19 +1,71 @@
-import { test, expect } from "@playwright/test";
+import { chromium, expect, test as base } from "@playwright/test";
+import type { BrowserContext, Page } from "@playwright/test";
+import os from "os";
 import path from "path";
 import fs from "fs";
 
-const EXT_DIST = path.resolve(__dirname, "..");
+const EXT_DIST = path.resolve(__dirname, "../dist");
 const LOGIN_FIXTURE = path.join(__dirname, "fixtures", "login-form.html");
+const LOGIN_FORM_HTML = fs.readFileSync(LOGIN_FIXTURE, "utf8");
+
+const test = base.extend<{ extensionId: string }>({
+    context: async ({}, use) => {
+        const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "padloc-extension-harness-"));
+        const context = await chromium.launchPersistentContext(userDataDir, {
+            headless: false,
+            args: [
+                `--disable-extensions-except=${EXT_DIST}`,
+                `--load-extension=${EXT_DIST}`,
+                "--disable-backgrounding-occluded-windows",
+                "--disable-renderer-backgrounding",
+            ],
+        });
+        await use(context);
+        await context.close();
+        fs.rmSync(userDataDir, { recursive: true, force: true });
+    },
+    extensionId: async ({ context }, use) => {
+        const worker = context.serviceWorkers()[0] || await context.waitForEvent("serviceworker", { timeout: 15_000 });
+        const extensionId = parseExtensionId(worker.url());
+        expect(extensionId).toBeTruthy();
+        await use(extensionId);
+    },
+});
+
+function parseExtensionId(workerUrl: string): string {
+    const match = workerUrl.match(/^chrome-extension:\/\/([^/]+)\//);
+    return match?.[1] ?? "";
+}
 
 async function getExtensionId(page: any): Promise<string> {
-    const cdp = await page.context().newCDPSession(page);
-    const { result } = await cdp.send("ChromeExtension.getExtensions");
-    const ext = result.find(
-        (e: any) =>
-            (e.name.includes("CH5 Auth") || e.name.includes("Padloc")) &&
-            e.url.startsWith(`file://${EXT_DIST}`)
-    );
-    return ext?.id ?? "";
+    const worker = page.context().serviceWorkers()[0] || await page.context().waitForEvent("serviceworker", { timeout: 15_000 });
+    return parseExtensionId(worker.url());
+}
+
+async function openLoginFixture(page: Page): Promise<void> {
+    await page.goto("https://example.com");
+    await page.setContent(LOGIN_FORM_HTML);
+    await page.waitForSelector("#username");
+    await page.waitForTimeout(500);
+}
+
+async function sendActiveTabMessage(
+    context: BrowserContext,
+    message: unknown
+): Promise<{ resp: unknown; lastError: string }> {
+    const worker = context.serviceWorkers()[0] || await context.waitForEvent("serviceworker", { timeout: 15_000 });
+    return worker.evaluate(async (msg: unknown) => {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        const tabId = tab && typeof tab.id === "number" ? tab.id : null;
+        if (tabId === null) {
+            return { resp: null, lastError: "no active tab" };
+        }
+        return new Promise<{ resp: unknown; lastError: string }>((resolve) => {
+            chrome.tabs.sendMessage(tabId, msg, (resp: unknown) => {
+                resolve({ resp, lastError: chrome.runtime.lastError?.message || "" });
+            });
+        });
+    }, message);
 }
 
 test.describe("Extension smoke — unpacked extension runtime", () => {
@@ -41,24 +93,64 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
         expect(extId).toBeTruthy();
 
         await page.goto(`chrome-extension://${extId}/popup.html`);
-        const body = await page.locator("body").innerHTML();
-        expect(body.trim().length, "Popup body should not be empty").toBeGreaterThan(0);
+        const appState = await page.evaluate(() => {
+            const app = document.querySelector("pl-extension-app");
+            return {
+                customElementRegistered: !!customElements.get("pl-extension-app"),
+                appMounted: !!app,
+                appRendered: !!app?.shadowRoot,
+            };
+        });
+        expect(appState).toMatchObject({
+            customElementRegistered: true,
+            appMounted: true,
+            appRendered: true,
+        });
     });
 
     test("background worker handles ping message", async ({ page }) => {
         const extId = await getExtensionId(page);
         expect(extId).toBeTruthy();
 
+        await page.goto(`chrome-extension://${extId}/popup.html`);
         const result = await page.evaluate(async (id) => {
             return new Promise<string>((resolve) => {
                 chrome.runtime.sendMessage(id, { type: "ping" }, (resp: any) => {
-                    resolve(JSON.stringify(resp));
+                    resolve(JSON.stringify({ resp, lastError: chrome.runtime.lastError?.message || "" }));
                 });
             });
         }, extId);
 
         const parsed = JSON.parse(result);
-        expect(parsed).toHaveProperty("type", "pong");
+        expect(parsed.lastError).toBe("");
+        expect(parsed.resp).toHaveProperty("type", "pong");
+    });
+
+    test("background worker bundle is service-worker safe", async ({ context }) => {
+        const worker = context.serviceWorkers()[0] || await context.waitForEvent("serviceworker", { timeout: 15_000 });
+        const state = await worker.evaluate(async () => {
+            const backgroundSource = await fetch(chrome.runtime.getURL("background.js")).then((res) => res.text());
+            return {
+                hasHistoryGlobal: typeof history !== "undefined",
+                hasXhrGlobal: typeof XMLHttpRequest !== "undefined",
+                hasMessageListeners: chrome.runtime.onMessage.hasListeners(),
+                hasImmediateBridge: backgroundSource.includes("registerImmediateMessageBridge"),
+                importsAjaxSender: backgroundSource.includes("AjaxSender") || backgroundSource.includes("new XMLHttpRequest"),
+                importsPageRouter:
+                    backgroundSource.includes("history.replaceState") ||
+                    backgroundSource.includes("history.pushState") ||
+                    backgroundSource.includes("window.router"),
+            };
+        });
+
+        expect(state).toMatchObject({
+            hasHistoryGlobal: false,
+            hasXhrGlobal: false,
+            hasMessageListeners: true,
+            hasImmediateBridge: true,
+            importsAjaxSender: false,
+            importsPageRouter: false,
+        });
     });
 
     test("extension loads on a plain page and badge updates", async ({ page }) => {
@@ -68,11 +160,12 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
         await page.goto("https://example.com");
         await page.waitForTimeout(1500);
 
-        const badge = await page.evaluate((id) => {
-            return new Promise<string>((resolve) => {
-                chrome.action.getBadgeText({ extensionId: id }, resolve);
-            });
-        }, extId);
+        const worker = page.context().serviceWorkers()[0] || await page.context().waitForEvent("serviceworker", { timeout: 15_000 });
+        const badge = await worker.evaluate(async () => {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            const tabId = tab && typeof tab.id === "number" ? tab.id : undefined;
+            return chrome.action.getBadgeText({ tabId });
+        });
         expect(typeof badge).toBe("string");
     });
 
@@ -80,8 +173,7 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
         const extId = await getExtensionId(page);
         expect(extId).toBeTruthy();
 
-        await page.goto(`file://${LOGIN_FIXTURE}`);
-        await page.waitForLoadState("networkidle");
+        await openLoginFixture(page);
 
         const fields = await page.evaluate(() => {
             const inputs = document.querySelectorAll("input");
@@ -100,29 +192,11 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
         const extId = await getExtensionId(page);
         expect(extId).toBeTruthy();
 
-        await page.goto(`file://${LOGIN_FIXTURE}`);
-        await page.waitForLoadState("networkidle");
-        await page.waitForTimeout(500);
+        await openLoginFixture(page);
 
-        const cdp = await page.context().newCDPSession(page);
-        const { data } = await cdp.send("Target.getTargets", {});
-        const contentTarget = data.targetInfos?.find(
-            (t: any) => t.type === "page" && t.url.includes("login-form.html")
-        );
-        const tabId = contentTarget?.targetId;
-        expect(tabId, "Content script should be attached to fixture page").toBeTruthy();
-
-        const ready = await page.evaluate(
-            async ({ id, tid }: { id: string; tid: string }) => {
-                return new Promise<boolean>((resolve) => {
-                    chrome.runtime.sendMessage(id, { type: "isContentReady" }, (resp: any) => {
-                        resolve(resp === true);
-                    });
-                });
-            },
-            { id: extId, tid: tabId as any }
-        );
-        expect(ready, "Content script should respond true to isContentReady").toBe(true);
+        const ready = await sendActiveTabMessage(page.context(), { type: "isContentReady" });
+        expect(ready.lastError).toBe("");
+        expect(ready.resp, "Content script should respond true to isContentReady").toBe(true);
     });
 
     test("dist contains manifest.json before any browser work", () => {
@@ -138,8 +212,17 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
         await page.waitForLoadState("networkidle");
         await page.waitForTimeout(1000);
 
-        const bodyText = await page.locator("body").innerText();
-        expect(bodyText.length).toBeGreaterThan(0);
+        const popupState = await page.evaluate(() => {
+            const app = document.querySelector("pl-extension-app");
+            return {
+                registered: !!customElements.get("pl-extension-app"),
+                mounted: !!app,
+                shadowHtmlLength: app?.shadowRoot?.innerHTML.length || 0,
+            };
+        });
+        expect(popupState.registered).toBe(true);
+        expect(popupState.mounted).toBe(true);
+        expect(popupState.shadowHtmlLength).toBeGreaterThan(0);
     });
 
     test("manifest grants identity permission for OAuth", async () => {
@@ -161,19 +244,14 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
         const extId = await getExtensionId(page);
         expect(extId).toBeTruthy();
 
-        await page.goto(`file://${LOGIN_FIXTURE}`);
-        await page.waitForLoadState("networkidle");
-        await page.waitForTimeout(500);
+        await openLoginFixture(page);
 
-        await page.evaluate(async ({ id }: { id: string }) => {
-            return new Promise<void>((resolve) => {
-                chrome.runtime.sendMessage(
-                    id,
-                    { type: "fillFields", mappings: { username: "alice", password: "sekret", totp: "123456" } },
-                    () => resolve()
-                );
-            });
-        }, { id: extId });
+        const fillResult = await sendActiveTabMessage(page.context(), {
+            type: "fillFields",
+            mappings: { username: "alice", password: "sekret", totp: "123456" },
+        });
+        expect(fillResult.lastError).toBe("");
+        expect(fillResult.resp).toBe(true);
 
         await page.waitForTimeout(300);
 
@@ -190,22 +268,14 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
         const extId = await getExtensionId(page);
         expect(extId).toBeTruthy();
 
-        await page.goto(`file://${LOGIN_FIXTURE}`);
-        await page.waitForLoadState("networkidle");
-        await page.waitForTimeout(500);
+        await openLoginFixture(page);
 
-        const result = await page.evaluate(async ({ id }: { id: string }) => {
-            return new Promise<string>((resolve) => {
-                chrome.runtime.sendMessage(
-                    id,
-                    {
-                        type: "fillFields",
-                        mappings: { username: "alice", password: "secret123" }
-                    },
-                    (resp: any) => resolve(JSON.stringify(resp))
-                );
-            });
-        }, { id: extId });
+        const result = await sendActiveTabMessage(page.context(), {
+            type: "fillFields",
+            mappings: { username: "alice", password: "secret123" }
+        });
+        expect(result.lastError).toBe("");
+        expect(result.resp).toBe(true);
 
         const usernameVal = await page.locator("#username").inputValue();
         const passwordVal = await page.locator("#password").inputValue();

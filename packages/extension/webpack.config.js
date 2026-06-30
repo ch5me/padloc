@@ -18,6 +18,7 @@ module.exports = {
         popup: resolve(__dirname, "src/popup.ts"),
         background: resolve(__dirname, "src/background.ts"),
         content: resolve(__dirname, "src/content.ts"),
+        "webauthn-page": resolve(__dirname, "src/webauthn-page.ts"),
     },
     output: {
         path: resolve(__dirname, "dist"),

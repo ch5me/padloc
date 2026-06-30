@@ -2,7 +2,7 @@
 const { expect } = require("chai");
 const { suite: mochaSuite, test: mochaTest } = require("mocha");
 const requireModule = require;
-const { bytesToBase64, stringToBytes } = requireModule("../../core/src/encoding");
+const { base64ToBytes, bytesToBase64, stringToBytes } = requireModule("../../core/src/encoding");
 const { FieldType, PasskeyCredentialPolicy, VaultItem, VaultItemKind } = requireModule("../../core/src/item");
 const {
     enrollPasskeyCredential,
@@ -25,6 +25,37 @@ const ALGORITHMS = [
 
 mochaSuite("Passkey broker", () => {
     for (const algorithm of ALGORITHMS) {
+        mochaTest(`${algorithm.label} generated enroll stores Padloc-owned private key and returns WebAuthn registration material`, async () => {
+            const request = await enrollmentRequest({
+                algorithm: algorithm.value,
+                passkey: {
+                    credentialId: undefined,
+                    privateKeyPkcs8: undefined,
+                },
+            });
+            const result = await enrollPasskeyCredential(request, new Date("2026-06-29T18:00:00.000Z"));
+            const privateKeyField = result.fields[result.passkeyCredential.privateKeyFieldIndex];
+
+            expect(privateKeyField.type).to.equal(FieldType.Password);
+            expect(privateKeyField.value).to.be.a("string").and.not.equal("");
+            expect(result.passkeyCredential.credentialId).to.be.a("string").and.not.equal("");
+            expect(JSON.stringify(result.response)).not.to.contain(privateKeyField.value);
+            expect(result.response.passkey.registration.attestationObject).to.be.a("string").and.not.equal("");
+            expect(result.response.passkey.registration.publicKeySpki).to.be.a("string").and.not.equal("");
+
+            const item = asStoredItem(result);
+            const requestAssertion = assertionRequest(item.passkeyCredential.credentialId, `nonce-generated-${algorithm.value}`, "flow-generated");
+            const assertion = await requestPasskeyAssertion(requestAssertion, [item], new Date("2026-06-29T18:05:00.000Z"));
+            const verified = await verifyAssertionSignature(
+                assertion.updatedItem.passkeyCredential,
+                assertion.response.passkey.assertion,
+                requestAssertion.passkey
+            );
+
+            expect(assertion.response.ok).to.equal(true);
+            expect(verified).to.equal(true);
+        });
+
         mochaTest(`${algorithm.label} enroll-import stores private key in secret field and never leaks it in broker response`, async () => {
             const request = await enrollmentRequest({ algorithm: algorithm.value });
             const result = await enrollPasskeyCredential(request, new Date("2026-06-29T18:00:00.000Z"));
@@ -137,6 +168,20 @@ mochaSuite("Passkey broker", () => {
         expect(result.response.ok).to.equal(false);
         expect(result.response.reason).to.equal("emergency_lockout");
     });
+
+    mochaTest("marks WebAuthn UV bit when userVerification is required", async () => {
+        const enrolled = await enrollPasskeyCredential(
+            await enrollmentRequest({ passkey: { userVerification: "required" } }),
+            new Date("2026-06-29T18:00:00.000Z")
+        );
+        const item = asStoredItem(enrolled);
+        const request = assertionRequest(item.passkeyCredential.credentialId, "nonce-uv", "flow-uv");
+        request.passkey.userVerification = "required";
+        const assertion = await requestPasskeyAssertion(request, [item], new Date("2026-06-29T18:05:00.000Z"));
+
+        expect(readAuthenticatorFlags(enrolled.response.passkey.registration.authenticatorData) & 0x04).to.equal(0x04);
+        expect(readAuthenticatorFlags(assertion.response.passkey.assertion.authenticatorData) & 0x04).to.equal(0x04);
+    });
 });
 
 function asStoredItem(enrolled: { itemName: string; fields: unknown[]; passkeyCredential: Record<string, unknown> }) {
@@ -247,4 +292,8 @@ async function makeImportedCredentialFixture(algorithm: number, seed: string) {
         userHandle: bytesToBase64(stringToBytes(`user-${seed}-${algorithm}`)),
         signCount: 0,
     };
+}
+
+function readAuthenticatorFlags(authenticatorData: string) {
+    return base64ToBytes(authenticatorData)[32];
 }

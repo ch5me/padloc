@@ -1,7 +1,13 @@
-import "@webcomponents/webcomponentsjs";
 import { browser } from "webextension-polyfill-ts";
 // import { throttle } from "@padloc/core/src/util";
-import { FieldMappings, Message, CredentialData } from "./message";
+import {
+    AgenticWebAuthnCreateRequest,
+    AgenticWebAuthnGetRequest,
+    AgenticWebAuthnResponse,
+    FieldMappings,
+    Message,
+    CredentialData,
+} from "./message";
 import { AutofillFieldRole, classifyAutofillField, isFillableInputType } from "./autofill-classifier";
 
 const css = `
@@ -97,6 +103,12 @@ const css = `
     }
 `;
 
+const WEBAUTHN_REQUEST_EVENT = "padloc-webauthn-request";
+const WEBAUTHN_RESPONSE_EVENT = "padloc-webauthn-response";
+const WEBAUTHN_PAGE_SOURCE = "padloc-webauthn-page";
+const WEBAUTHN_CONTENT_SOURCE = "padloc-webauthn-content";
+const WEBAUTHN_BACKGROUND_TIMEOUT_MS = 60000;
+
 class ExtensionContent {
     // private _hoveredInput: HTMLInputElement | null = null;
     //
@@ -104,11 +116,89 @@ class ExtensionContent {
 
     async init() {
         const style = document.createElement("style");
-        document.head.appendChild(style);
         style.type = "text/css";
         style.appendChild(document.createTextNode(css));
+        if (document.head) {
+            document.head.appendChild(style);
+        } else {
+            document.documentElement.appendChild(style);
+        }
         browser.runtime.onMessage.addListener((msg: Message) => this._handleMessage(msg));
         this._listenForFormSubmit();
+        this._listenForWebAuthnRequests();
+    }
+
+    private _listenForWebAuthnRequests() {
+        window.addEventListener("message", (event) => {
+            const data = event.data as { source?: string; type?: string; request?: unknown };
+            if (data?.source !== WEBAUTHN_PAGE_SOURCE || data.type !== WEBAUTHN_REQUEST_EVENT) return;
+            void this._handleWebAuthnRequest(data.request);
+        });
+    }
+
+    private async _handleWebAuthnRequest(detail: unknown) {
+        const request = this._normalizeWebAuthnRequest(detail);
+        if (!request) return;
+        let response: AgenticWebAuthnResponse;
+        try {
+            const message = request.kind === "create"
+                ? { type: "agenticWebAuthnCreate" as const, request }
+                : { type: "agenticWebAuthnGet" as const, request };
+            const result = await withTimeout(
+                browser.runtime.sendMessage(message),
+                WEBAUTHN_BACKGROUND_TIMEOUT_MS
+            );
+            response = result?.response || {
+                ok: false,
+                error: {
+                    name: "NotAllowedError",
+                    message: "Padloc passkey broker timed out",
+                    reason: "broker_timeout",
+                },
+                valuePolicy: "redacted WebAuthn denial only; no private key material",
+            };
+        } catch (error) {
+            response = {
+                ok: false,
+                error: {
+                    name: "UnknownError",
+                    message: error instanceof Error ? error.message : "Padloc passkey broker failed",
+                },
+                valuePolicy: "redacted WebAuthn response only; no private key material",
+            };
+        }
+        window.postMessage({
+            source: WEBAUTHN_CONTENT_SOURCE,
+            type: WEBAUTHN_RESPONSE_EVENT,
+            response: {
+                requestId: request.requestId,
+                ...response,
+            },
+        }, request.origin);
+    }
+
+    private _normalizeWebAuthnRequest(detail: unknown):
+        | (AgenticWebAuthnCreateRequest & { kind: "create" })
+        | (AgenticWebAuthnGetRequest & { kind: "get" })
+        | null {
+        if (!detail || typeof detail !== "object") return null;
+        const record = detail as Record<string, unknown>;
+        if (record.kind !== "create" && record.kind !== "get") return null;
+        if (
+            typeof record.requestId !== "string" ||
+            typeof record.rpId !== "string" ||
+            typeof record.origin !== "string" ||
+            typeof record.challenge !== "string" ||
+            typeof record.clientDataJSON !== "string"
+        ) {
+            return null;
+        }
+        if (record.kind === "get" && typeof record.clientDataHash !== "string") {
+            return null;
+        }
+        return record as unknown as
+            | (AgenticWebAuthnCreateRequest & { kind: "create" })
+            | (AgenticWebAuthnGetRequest & { kind: "get" });
     }
 
     private _handleMessage(msg: Message) {
@@ -619,6 +709,20 @@ class ExtensionContent {
 
 function hasFillMappings(mappings: FieldMappings): boolean {
     return Object.values(mappings).some((value) => !!value);
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T | null> {
+    let timeoutId: number | undefined;
+    try {
+        return await Promise.race([
+            promise,
+            new Promise<null>((resolve) => {
+                timeoutId = window.setTimeout(() => resolve(null), timeoutMs);
+            }),
+        ]);
+    } finally {
+        if (timeoutId) window.clearTimeout(timeoutId);
+    }
 }
 
 if (typeof window.extension === "undefined") {
