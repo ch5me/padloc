@@ -94,10 +94,22 @@ export async function runHqInstrumentationTests(): Promise<HqInstrumentationRepo
         span.end({ status: "ok" });
         await flushHqInstrumentation();
         assertEqual(posts.length, 2, "two telemetry posts");
-        assertTrue(posts.some((post) => post.url === "https://logs.ch5.me/api/42/envelope/"), "envelope URL used");
-        assertTrue(posts.some((post) => post.url === "https://logs.ch5.me/otlp/v1/traces"), "OTLP URL used");
-        assertTrue(posts.some((post) => post.body.includes("boom")), "error included in envelope");
-        assertTrue(posts.some((post) => post.body.includes("padloc.worker.test")), "span included in trace");
+        assertTrue(
+            posts.some((post) => post.url === "https://logs.ch5.me/api/42/envelope/"),
+            "envelope URL used"
+        );
+        assertTrue(
+            posts.some((post) => post.url === "https://logs.ch5.me/otlp/v1/traces"),
+            "OTLP URL used"
+        );
+        assertTrue(
+            posts.some((post) => post.body.includes("boom")),
+            "error included in envelope"
+        );
+        assertTrue(
+            posts.some((post) => post.body.includes("padloc.worker.test")),
+            "span included in trace"
+        );
     });
 
     await check("HQ unreachable degrades with visible warning", results, async () => {
@@ -112,9 +124,11 @@ export async function runHqInstrumentationTests(): Promise<HqInstrumentationRepo
         captureHqException(new Error("hq down"));
         await flushHqInstrumentation();
         assertEqual(hqInstrumentationStatus(), "degraded", "status degraded");
-        assertTrue(warnings.some((message) => message.includes("HQ telemetry unreachable")), "visible warning emitted");
+        assertTrue(
+            warnings.some((message) => message.includes("HQ telemetry unreachable")),
+            "visible warning emitted"
+        );
     });
-
 
     const passed = results.filter((result) => result.ok).length;
     return {

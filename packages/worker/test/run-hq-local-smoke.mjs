@@ -44,13 +44,15 @@ try {
     const envelopePost = posts.find((post) => post.url === "/api/321/envelope/");
     const ok = hqInstrumentationStatus() === "ready" && !!tracePost;
 
-    console.log([
-        "=== HQ Local Smoke ===",
-        `Status: ${hqInstrumentationStatus()}`,
-        `Posts: ${posts.length}`,
-        `Envelope: ${envelopePost ? "yes" : "no"}`,
-        `Trace: ${tracePost ? "yes" : "no"}`,
-    ].join("\n"));
+    console.log(
+        [
+            "=== HQ Local Smoke ===",
+            `Status: ${hqInstrumentationStatus()}`,
+            `Posts: ${posts.length}`,
+            `Envelope: ${envelopePost ? "yes" : "no"}`,
+            `Trace: ${tracePost ? "yes" : "no"}`,
+        ].join("\n")
+    );
 
     process.exitCode = ok ? 0 : 1;
 } finally {

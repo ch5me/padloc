@@ -137,27 +137,32 @@ wrangler deploy --env=preview
 
 ## HQ Observability
 
-Padloc Worker emits CH5 HQ telemetry from `packages/worker/src/hq-instrumentation.ts`.
-It sends Sentry-compatible envelopes for reportable Worker errors and OTLP JSON
-traces for `padloc.worker.fetch`, `padloc.worker.healthcheck`, and
+Padloc Worker emits CH5 HQ telemetry from
+`packages/worker/src/hq-instrumentation.ts`. It sends Sentry-compatible
+envelopes for reportable Worker errors and OTLP JSON traces for
+`padloc.worker.fetch`, `padloc.worker.healthcheck`, and
 `padloc.worker.core_request` spans.
 
 ### Env Contract
 
-| Name | Delivery | Required | Notes |
-| ---- | -------- | -------- | ----- |
-| `HQ_SENTRY_DSN` | Hush-backed Worker secret | staging, production | CH5 internal Sentry-compatible DSN. Host must be `logs.ch5.me` or `staging.logs.ch5.me`; `sentry.io` is rejected. |
+| Name               | Delivery                  | Required            | Notes                                                                                                                      |
+| ------------------ | ------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `HQ_SENTRY_DSN`    | Hush-backed Worker secret | staging, production | CH5 internal Sentry-compatible DSN. Host must be `logs.ch5.me` or `staging.logs.ch5.me`; `sentry.io` is rejected.          |
 | `HQ_OTLP_ENDPOINT` | Hush-backed Worker secret | staging, production | CH5 internal OTLP HTTP endpoint. Host must be `logs.ch5.me` or `staging.logs.ch5.me`; `/v1/traces` is appended if missing. |
-| `HQ_ENVIRONMENT` | Derived var/secret | staging, production | Environment tag, e.g. `staging` or `production`. Defaults to `development`. |
-| `HQ_RELEASE` | Derived var/secret | staging, production | Release tag, e.g. `padloc-worker@<sha>`. Defaults from `VERSION`. |
-| `HQ_SERVICE_NAME` | Derived var/secret | staging, production | OTLP `service.name`. Defaults to `padloc-worker`. |
+| `HQ_ENVIRONMENT`   | Derived var/secret        | staging, production | Environment tag, e.g. `staging` or `production`. Defaults to `development`.                                                |
+| `HQ_RELEASE`       | Derived var/secret        | staging, production | Release tag, e.g. `padloc-worker@<sha>`. Defaults from `VERSION`.                                                          |
+| `HQ_SERVICE_NAME`  | Derived var/secret        | staging, production | OTLP `service.name`. Defaults to `padloc-worker`.                                                                          |
 
 ### Failure Rules
 
-- Mis-wire fails loud: one missing endpoint, invalid URL, `sentry.io`, or non-CH5 host throws during request startup.
-- Both endpoints absent disables instrumentation and logs visible warning for local/dev fallback.
-- HQ outage degrades gracefully: Worker keeps serving, status becomes `degraded`, and warning is emitted once.
-- Local proof may set `HQ_ALLOW_LOCAL_ENDPOINTS=1`; do not set it in staging or production.
+-   Mis-wire fails loud: one missing endpoint, invalid URL, `sentry.io`, or
+    non-CH5 host throws during request startup.
+-   Both endpoints absent disables instrumentation and logs visible warning for
+    local/dev fallback.
+-   HQ outage degrades gracefully: Worker keeps serving, status becomes
+    `degraded`, and warning is emitted once.
+-   Local proof may set `HQ_ALLOW_LOCAL_ENDPOINTS=1`; do not set it in staging
+    or production.
 
 ### Secret Commands
 

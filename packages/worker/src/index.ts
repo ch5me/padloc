@@ -7,11 +7,7 @@ import { AccountLockDO } from "./locks/account-lock";
 import { Server } from "@padloc/core/src/server";
 import { responseHeaders } from "./observability/security-headers";
 import { RateLimiter } from "./rate-limiter";
-import {
-    captureHqException,
-    initializeHqInstrumentationFromEnv,
-    withHqSpan,
-} from "./hq-instrumentation";
+import { captureHqException, initializeHqInstrumentationFromEnv, withHqSpan } from "./hq-instrumentation";
 
 let cachedServer: Server | undefined;
 
@@ -79,8 +75,10 @@ export default {
 
         const url = new URL(request.url);
         if (request.method === "GET" && url.pathname === config.healthCheckPath) {
-            const health = await withHqSpan("padloc.worker.healthcheck", { attributes: requestAttributes(request) }, () =>
-                healthcheck(env)
+            const health = await withHqSpan(
+                "padloc.worker.healthcheck",
+                { attributes: requestAttributes(request) },
+                () => healthcheck(env)
             );
             return new Response(JSON.stringify(health), {
                 status: 200,
