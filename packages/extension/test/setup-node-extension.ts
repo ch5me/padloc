@@ -75,6 +75,7 @@ type NodeExtensionGlobal = typeof globalThis & {
     window: typeof globalThis;
 };
 
+// Loaded before Node unit tests that import browser-extension-only modules.
 function callbackWith(args: unknown[], value?: unknown) {
     const maybeCallback = args[args.length - 1];
     if (typeof maybeCallback === "function") {
