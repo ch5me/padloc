@@ -136,6 +136,16 @@ For Crown or other real accounts, use a dedicated Chrome for Testing profile and
 separate CDP port. Chris must complete the first Google ownership checkpoint in the
 browser. Do not request or store Crown passwords by default.
 
+For a non-Google public relying-party proof through the actual extension hook, use
+WebAuthn.io from an owned Chrome for Testing lane with Padloc unlocked:
+
+```sh
+npm --prefix packages/extension run agentic:extension-cdp -- --mode webauthn-io-proof --port 9831 --extension-id phgggllfaobigoepghbbeojablefkkfa
+```
+
+Pass means `status=webauthn-io-proof`, `ok=true`, WebAuthn.io shows
+`You're logged in!`, and provider metadata shows the Padloc AAGUID.
+
 **First run**: Install the Chromium browser for Playwright:
 
 ```sh

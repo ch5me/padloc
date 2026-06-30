@@ -37,6 +37,15 @@ Scope: non-Crown Google accounts only. Crown lane/account untouched.
 - Hooks stayed active: `createHooked=true`, `getHooked=true`.
 - No native chooser, Touch ID, or `2-Step Verification only security key` text appeared in the patched Zack login proof.
 
+## External RP Result
+
+- `webauthn.io` proof passed on the Zack CFT lane with the actual Padloc extension hook active.
+- The public RP profile showed `You're logged in!`.
+- The credential provider metadata showed AAGUID `7a46cc38-26d9-47fe-9f3b-b52837c6020d`.
+- Transports showed `["internal"]`.
+- Helper status: `webauthn-io-proof`, `ok=true`.
+- This proves the patched Padloc WebAuthn create/get path works on a non-Google public relying party. It does not replace the Google-specific policy/risk proof.
+
 ## Evidence Files
 
 - `passkey-registration-shape.json`: decoded Padloc registration shape after identity patch.
@@ -46,6 +55,6 @@ Scope: non-Crown Google accounts only. Crown lane/account untouched.
 - `hassongoblue/google-passkey-login.json`: old Blue fresh-login retest.
 - `zackattacktucker-patched/google-passkey-enroll.json`: patched Zack enrollment and Google label.
 - `zackattacktucker-patched/google-passkey-login.json`: patched Zack fresh-login result.
+- `webauthn-io-proof.json`: public WebAuthn.io external-RP proof through the Padloc extension hook.
 
 Screenshots in this folder were redacted in-page before capture.
-

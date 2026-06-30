@@ -94,6 +94,10 @@ try {
         const result = await webAuthnProof();
         console.log(JSON.stringify(result, null, 2));
         if (!result.ok) process.exitCode = 1;
+    } else if (mode === "webauthn-io-proof") {
+        const result = await webAuthnIoProof();
+        console.log(JSON.stringify(result, null, 2));
+        if (!result.ok) process.exitCode = 1;
     } else if (mode === "inject-webauthn-hooks") {
         const result = await injectWebAuthnHooks();
         console.log(JSON.stringify(result, null, 2));
@@ -359,6 +363,145 @@ async function webAuthnProof() {
     return { status: "webauthn-proof", ok: Boolean(pageState?.ok), pageState };
 }
 
+async function webAuthnIoProof() {
+    const username = `padloc-agentic-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+    const created = await cdp.send("Target.createTarget", { url: "about:blank" });
+    const pageSession = await attach(created.targetId);
+    await cdp.send("Page.enable", {}, pageSession);
+    await cdp.send("Storage.clearDataForOrigin", {
+        origin: "https://webauthn.io",
+        storageTypes: "appcache,cache_storage,cookies,file_systems,indexeddb,local_storage,service_workers,websql",
+    }, pageSession).catch(() => undefined);
+    await cdp.send("Page.navigate", { url: "https://webauthn.io/logout" }, pageSession).catch(() => undefined);
+    await sleep(4000);
+    await cdp.send("Page.navigate", { url: "https://webauthn.io/" }, pageSession);
+    await sleep(3500);
+    let pageState;
+    try {
+        pageState = await evaluate(
+            pageSession,
+            `(async () => {
+                const username = ${JSON.stringify(username)};
+                const registerSuccess = "Success! Now try to authenticate";
+                const loginSuccess = "You're logged in!";
+                const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+                const bodyText = () => document.body?.innerText || "";
+                const hookState = (extra = {}) => ({
+                    url: location.href,
+                    title: document.title,
+                    createHooked: !String(navigator.credentials.create).includes("[native code]"),
+                    getHooked: !String(navigator.credentials.get).includes("[native code]"),
+                    ...extra
+                });
+                async function waitFor(predicate, timeoutMs, label) {
+                    const deadline = Date.now() + timeoutMs;
+                    while (Date.now() < deadline) {
+                        if (predicate()) return;
+                        await sleep(250);
+                    }
+                    throw new Error("timed out waiting for " + label);
+                }
+                function setInput(selector, value) {
+                    const input = document.querySelector(selector);
+                    if (!input) throw new Error("missing input " + selector);
+                    input.focus();
+                    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+                    setter ? setter.call(input, value) : (input.value = value);
+                    input.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: value }));
+                    input.dispatchEvent(new Event("change", { bubbles: true }));
+                }
+                function setSelect(selector, value) {
+                    const select = document.querySelector(selector);
+                    if (!select) return;
+                    select.value = value;
+                    select.dispatchEvent(new Event("input", { bubbles: true }));
+                    select.dispatchEvent(new Event("change", { bubbles: true }));
+                }
+                function setCheckbox(selector, checked) {
+                    const input = document.querySelector(selector);
+                    if (!input || input.checked === checked) return;
+                    input.click();
+                }
+                function click(selector) {
+                    const el = document.querySelector(selector);
+                    if (!el) throw new Error("missing button " + selector);
+                    el.click();
+                }
+                function configure() {
+                    setSelect("#optRegUserVerification", "required");
+                    setSelect("#attachment", "platform");
+                    setSelect("#discoverableCredential", "required");
+                    setSelect("#attestation", "none");
+                    setSelect("#optAuthUserVerification", "required");
+                    setCheckbox("#optAlgEd25519", false);
+                    setCheckbox("#optAlgRS256", false);
+                    setCheckbox("#optAlgES256", true);
+                }
+
+                const initialText = bodyText();
+                if (initialText.includes(loginSuccess) && initialText.includes("7a46cc38-26d9-47fe-9f3b-b52837c6020d")) {
+                    return hookState({
+                        ok: true,
+                        stage: "profile",
+                        username,
+                        registerSuccess: true,
+                        loginSuccess: true,
+                        successIndicator: initialText.slice(initialText.indexOf(loginSuccess), initialText.indexOf(loginSuccess) + 240),
+                        text: initialText.slice(0, 1200)
+                    });
+                }
+                try {
+                    await waitFor(() => document.querySelector("#input-email") && document.querySelector("#register-button"), 15000, "webauthn.io controls");
+                } catch (error) {
+                    return hookState({
+                        ok: false,
+                        stage: "controls",
+                        username,
+                        error: error?.message || String(error),
+                        text: bodyText().slice(0, 1200)
+                    });
+                }
+                configure();
+                setInput("#input-email", username);
+                click("#register-button");
+                await waitFor(() => bodyText().includes(registerSuccess) || /error|failed|not allowed|denied/i.test(bodyText()), 25000, "registration result");
+                const afterRegister = bodyText();
+                if (!afterRegister.includes(registerSuccess)) {
+                    return hookState({
+                        ok: false,
+                        stage: "register",
+                        username,
+                        text: afterRegister.slice(0, 1200)
+                    });
+                }
+
+                configure();
+                setInput("#input-email", username);
+                click("#login-button");
+                await waitFor(() => bodyText().includes(loginSuccess) || /error|failed|not allowed|denied/i.test(bodyText()), 25000, "authentication result");
+                const afterLogin = bodyText();
+                return hookState({
+                    ok: afterLogin.includes(loginSuccess),
+                    stage: afterLogin.includes(loginSuccess) ? "complete" : "login",
+                    username,
+                    registerSuccess: afterRegister.includes(registerSuccess),
+                    loginSuccess: afterLogin.includes(loginSuccess),
+                    successIndicator: afterLogin.includes(loginSuccess)
+                        ? afterLogin.slice(afterLogin.indexOf(loginSuccess), afterLogin.indexOf(loginSuccess) + 240)
+                        : null,
+                    text: afterLogin.slice(0, 1200)
+                });
+            })()`,
+            "webauthn.io WebAuthn proof",
+            60000
+        );
+    } finally {
+        await cdp.send("Target.closeTarget", { targetId: created.targetId }).catch(() => undefined);
+    }
+
+    return { status: "webauthn-io-proof", ok: Boolean(pageState?.ok), pageState };
+}
+
 async function injectWebAuthnHooks() {
     const sessionId = await attachWorker({ reloadOnUnresponsive: true });
     const urlMatch = args.get("url-match") || "https://*.google.com/*";
@@ -481,13 +624,14 @@ async function attach(targetId, label = "target") {
     return sessionId;
 }
 
-async function evaluate(sessionId, expression, label = "Runtime.evaluate") {
+async function evaluate(sessionId, expression, label = "Runtime.evaluate", timeoutMs = 10000) {
     let result;
     try {
         result = await cdp.send(
             "Runtime.evaluate",
-            { expression, awaitPromise: true, returnByValue: true, timeout: 10000 },
-            sessionId
+            { expression, awaitPromise: true, returnByValue: true, timeout: timeoutMs },
+            sessionId,
+            timeoutMs + 5000
         );
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
