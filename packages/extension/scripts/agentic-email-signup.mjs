@@ -21,7 +21,7 @@ for (let i = 2; i < process.argv.length; i += 1) {
 
 const mode = args.get("mode") || "status";
 const port = args.get("port") || "9800";
-const extensionId = args.get("extension-id") || "phgggllfaobigoepghbbeojablefkkfa";
+let extensionId = args.get("extension-id") || "";
 const email = args.get("email") || "";
 const code = args.get("code") || "";
 const displayName = args.get("name") || "Agent";
@@ -59,6 +59,29 @@ class Cdp {
 
 const cdp = new Cdp();
 await cdp.connect();
+await ensureExtensionId();
+
+async function ensureExtensionId() {
+    if (extensionId) return extensionId;
+    extensionId = await discoverExtensionId();
+    return extensionId;
+}
+
+async function discoverExtensionId() {
+    const targets = await cdp.send("Target.getTargets");
+    const extensionTargets = (targets.targetInfos || [])
+        .map((target) => {
+            const match = String(target.url || "").match(/^chrome-extension:\/\/([^/]+)\//);
+            return match ? { id: match[1], type: target.type, url: target.url || "" } : null;
+        })
+        .filter(Boolean);
+    const serviceWorker = extensionTargets.find((target) => target.type === "service_worker" && /\/background\.js$/.test(target.url));
+    const selected = serviceWorker || extensionTargets.find((target) => target.type === "page") || extensionTargets[0];
+    if (!selected?.id) {
+        throw new Error("extension id not provided and no loaded extension target was discoverable");
+    }
+    return selected.id;
+}
 
 async function getPopupSession() {
     const targets = await cdp.send("Target.getTargets");

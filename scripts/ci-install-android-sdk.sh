@@ -2,7 +2,7 @@
 set -euo pipefail
 
 android_home="${ANDROID_HOME:-${RUNNER_TEMP:-/tmp}/android-sdk}"
-cmdline_tools_version="${ANDROID_CMDLINE_TOOLS_VERSION:-11076708}"
+cmdline_tools_version="${ANDROID_CMDLINE_TOOLS_VERSION:-8512546}"
 work_dir="${RUNNER_TEMP:-/tmp}/android-sdk-install"
 sdkmanager="${android_home}/cmdline-tools/latest/bin/sdkmanager"
 

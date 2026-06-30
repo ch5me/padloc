@@ -142,10 +142,15 @@ use the deterministic local RP first, then WebAuthn.io from an owned Chrome for
 Testing lane with Padloc unlocked:
 
 ```sh
-npm --prefix packages/extension run agentic:extension-cdp -- --mode local-rp-webauthn-proof --port 9831 --extension-id phgggllfaobigoepghbbeojablefkkfa
-npm --prefix packages/extension run agentic:extension-cdp -- --mode webauthn-io-proof --port 9831 --extension-id phgggllfaobigoepghbbeojablefkkfa
-npm --prefix packages/extension run agentic:extension-cdp -- --mode webauthn-me-proof --port 9831 --extension-id phgggllfaobigoepghbbeojablefkkfa
+npm --prefix packages/extension run agentic:extension-cdp -- --mode local-rp-webauthn-proof --port 9831
+npm --prefix packages/extension run agentic:extension-cdp -- --mode webauthn-io-proof --port 9831
+npm --prefix packages/extension run agentic:extension-cdp -- --mode webauthn-me-proof --port 9831
 ```
+
+If `--extension-id` is omitted, the helper discovers the loaded unpacked
+extension ID from the CDP extension service-worker target. Pass
+`--extension-id <id>` only when you are intentionally attaching to a known
+historical lane.
 
 Local RP pass means server-side registration and authentication checks pass,
 including challenge, origin, RP ID hash, AAGUID, flags, transports, and

@@ -25,7 +25,7 @@ for (let i = 2; i < process.argv.length; i += 1) {
 
 const mode = args.get("mode") || "smoke";
 const port = args.get("port") || "9800";
-const extensionId = args.get("extension-id") || "phgggllfaobigoepghbbeojablefkkfa";
+let extensionId = args.get("extension-id") || "";
 const extensionPath = args.get("extension-path") || new URL("../dist", import.meta.url).pathname;
 const PADLOC_AGENTIC_VAULT_AAGUID = "7a46cc38-26d9-47fe-9f3b-b52837c6020d";
 const PADLOC_AGENTIC_VAULT_TRANSPORTS = ["internal"];
@@ -96,34 +96,42 @@ try {
     if (mode === "reload") {
         console.log(JSON.stringify(await reloadExtension(), null, 2));
     } else if (mode === "clear-storage") {
+        await ensureExtensionId();
         console.log(JSON.stringify(await clearStorage(), null, 2));
     } else if (mode === "reset") {
         await reloadExtension();
         await clearStorage();
         console.log(JSON.stringify(await reloadExtension(), null, 2));
     } else if (mode === "smoke") {
+        await ensureExtensionId();
         console.log(JSON.stringify(await smoke(), null, 2));
     } else if (mode === "readiness") {
+        await ensureExtensionId();
         const result = await readiness();
         console.log(JSON.stringify(result, null, 2));
         if (!result.ok && args.get("fail-on-not-ready") !== "false") process.exitCode = 1;
     } else if (mode === "webauthn-proof") {
+        await ensureExtensionId();
         const result = await webAuthnProof();
         console.log(JSON.stringify(result, null, 2));
         if (!result.ok) process.exitCode = 1;
     } else if (mode === "webauthn-io-proof") {
+        await ensureExtensionId();
         const result = await webAuthnIoProof();
         console.log(JSON.stringify(result, null, 2));
         if (!result.ok) process.exitCode = 1;
     } else if (mode === "webauthn-me-proof") {
+        await ensureExtensionId();
         const result = await webAuthnMeProof();
         console.log(JSON.stringify(result, null, 2));
         if (!result.ok) process.exitCode = 1;
     } else if (mode === "local-rp-webauthn-proof") {
+        await ensureExtensionId();
         const result = await localRpWebAuthnProof();
         console.log(JSON.stringify(result, null, 2));
         if (!result.ok) process.exitCode = 1;
     } else if (mode === "inject-webauthn-hooks") {
+        await ensureExtensionId();
         const result = await injectWebAuthnHooks();
         console.log(JSON.stringify(result, null, 2));
         if (!result.ok) process.exitCode = 1;
@@ -136,7 +144,30 @@ try {
 
 async function reloadExtension() {
     const loaded = await cdp.send("Extensions.loadUnpacked", { path: extensionPath });
+    extensionId = loaded.id || extensionId;
     return { status: "reloaded", id: loaded.id, path: extensionPath };
+}
+
+async function ensureExtensionId() {
+    if (extensionId) return extensionId;
+    extensionId = await discoverExtensionId();
+    return extensionId;
+}
+
+async function discoverExtensionId() {
+    const targets = await cdp.send("Target.getTargets");
+    const extensionTargets = (targets.targetInfos || [])
+        .map((target) => {
+            const match = String(target.url || "").match(/^chrome-extension:\/\/([^/]+)\//);
+            return match ? { id: match[1], type: target.type, url: target.url || "" } : null;
+        })
+        .filter(Boolean);
+    const serviceWorker = extensionTargets.find((target) => target.type === "service_worker" && /\/background\.js$/.test(target.url));
+    const selected = serviceWorker || extensionTargets.find((target) => target.type === "page") || extensionTargets[0];
+    if (!selected?.id) {
+        throw new Error("extension id not provided and no loaded extension target was discoverable");
+    }
+    return selected.id;
 }
 
 async function clearStorage() {

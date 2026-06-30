@@ -4,6 +4,11 @@
     "description": "Electron Wrapper for Padloc app",
     "main": "main.js",
     "private": true,
+    "scripts": {
+        "prepare-build": "node prepare-build.js",
+        "build": "npm run prepare-build && webpack && electron-builder --config build/build.json",
+        "build:flatpak": "npm run prepare-build && webpack && electron-builder --config build/build-flatpak.json"
+    },
     "repository": {
         "type": "git",
         "url": "https://github.com/padloc/padloc.git"

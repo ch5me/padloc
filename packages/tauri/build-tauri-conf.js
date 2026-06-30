@@ -18,7 +18,7 @@ const manifest = require(manifestFilePath);
 
 const vendorVersion = process.env.PL_VENDOR_VERSION || version;
 const vendorName = manifest.name;
-const vendorNameLowercase = vendorName.toLowerCase();
+const vendorCrateName = cargoPackageName(vendorName);
 const vendorBaseUrl = process.env.PL_VENDOR_BASE_URL || "https://github.com/padloc/padloc";
 
 tauriConfig.package.version = vendorVersion;
@@ -31,10 +31,18 @@ writeFileSync(tauriConfigFilePath, JSON.stringify(tauriConfig, null, 4), "utf-8"
 
 const cargoToml = TOML.parse(readFileSync(cargoTomlFilePath, "utf-8"));
 
-cargoToml.package.name = vendorNameLowercase;
+cargoToml.package.name = vendorCrateName;
 cargoToml.package.description = vendorName;
 cargoToml.package.version = vendorVersion;
 cargoToml.package.authors = [manifest.author];
 cargoToml.package.repository = vendorBaseUrl;
 
 writeFileSync(cargoTomlFilePath, TOML.stringify(cargoToml), "utf-8");
+
+function cargoPackageName(value) {
+    const slug = String(value)
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+    return slug || "padloc";
+}
