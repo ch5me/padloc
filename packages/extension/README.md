@@ -112,24 +112,29 @@ The harness is headless by default so it does not steal focus. Use
 
 ### Agentic Google Passkey Proof <!-- oc:id=sec_agentic_google_passkey -->
 
-Use the existing owned Chrome on CDP port `9800`; do not launch another visible
-browser:
+Use the existing owned Chrome for Testing lane on CDP port `9812`; do not launch another
+visible browser:
 
 ```sh
-npm --prefix packages/extension run agentic:google-passkey -- --mode state --port 9800
+npm --prefix packages/extension run agentic:google-passkey -- --mode state --port 9812
 ```
 
 After the disposable Google account has passed password reauth, run enrollment
 and login proof from the same Chrome:
 
 ```sh
-npm --prefix packages/extension run agentic:google-passkey -- --mode enroll --port 9800 --screenshots=1
-npm --prefix packages/extension run agentic:google-passkey -- --mode login --port 9800 --screenshots=1
+npm --prefix packages/extension run agentic:google-passkey -- --mode enroll --port 9812 --screenshots=1
+npm --prefix packages/extension run agentic:google-passkey -- --mode clear-google-session --port 9812
+npm --prefix packages/extension run agentic:google-passkey -- --mode login --port 9812 --screenshots=1
 ```
 
 The helper refuses non-disposable Google accounts unless
 `--allow-non-disposable` is explicitly set after disposable proof succeeds. Its
 routine output redacts account identifiers and URL challenge tokens.
+
+For Crown or other real accounts, use a dedicated Chrome for Testing profile and a
+separate CDP port. Chris must complete the first Google ownership checkpoint in the
+browser. Do not request or store Crown passwords by default.
 
 **First run**: Install the Chromium browser for Playwright:
 
