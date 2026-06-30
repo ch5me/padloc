@@ -21,6 +21,8 @@ on:
             - ".forgejo/workflows/build-web-extension.yml"
             - "package.json"
             - "package-lock.json"
+            - "packages/*/package.json"
+            - "packages/*/package-lock.json"
             - "packages/app/**"
             - "packages/core/**"
             - "packages/extension/**"

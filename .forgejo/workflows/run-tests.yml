@@ -5,8 +5,11 @@ on:
         branches:
             - main
         paths:
+            - ".forgejo/workflows/run-tests.yml"
             - "package.json"
             - "package-lock.json"
+            - "packages/*/package.json"
+            - "packages/*/package-lock.json"
             - "packages/extension/**"
             - "packages/core/**"
             - "packages/app/**"
@@ -17,8 +20,11 @@ on:
             - "scripts/build-web-extension.cjs"
     pull_request:
         paths:
+            - ".forgejo/workflows/run-tests.yml"
             - "package.json"
             - "package-lock.json"
+            - "packages/*/package.json"
+            - "packages/*/package-lock.json"
             - "packages/extension/**"
             - "packages/core/**"
             - "packages/app/**"

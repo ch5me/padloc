@@ -7,6 +7,13 @@ on:
         branches:
             - "main"
         paths:
+            - ".forgejo/workflows/update-dockerhub.yml"
+            - "Dockerfile-pwa"
+            - "Dockerfile-server"
+            - "package.json"
+            - "package-lock.json"
+            - "packages/*/package.json"
+            - "packages/*/package-lock.json"
             - "packages/app/**"
             - "packages/core/**"
             - "packages/locale/**"

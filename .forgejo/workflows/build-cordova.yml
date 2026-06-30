@@ -22,6 +22,11 @@ on:
             - "feature/**"
             - "fix/**"
         paths:
+            - ".forgejo/workflows/build-cordova.yml"
+            - "package.json"
+            - "package-lock.json"
+            - "packages/*/package.json"
+            - "packages/*/package-lock.json"
             - "packages/app/**"
             - "packages/core/**"
             - "packages/cordova/**"
