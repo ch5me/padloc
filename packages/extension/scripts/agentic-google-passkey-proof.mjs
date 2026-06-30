@@ -25,10 +25,12 @@ const mode = args.get("mode") || "state";
 const port = args.get("port") || "9800";
 const account = args.get("account") || "zackattacktucker@gmail.com";
 const allowNonDisposable = args.get("allow-non-disposable") === "true";
+const passwordEnv = args.get("password-env") || defaultPasswordEnv(account);
 const evidenceDir = args.get("evidence-dir") || path.resolve(process.cwd(), ".sisyphus/evidence/oauth-fleet-passkey-2026-06-29");
 const screenshots = args.get("screenshots") === "1" || args.get("screenshots") === "true";
 const passkeysUrl = "https://myaccount.google.com/signinoptions/passkeys";
 const loginUrl = `https://accounts.google.com/ServiceLogin?continue=${encodeURIComponent("https://myaccount.google.com/")}`;
+const logoutUrl = `https://accounts.google.com/Logout?continue=${encodeURIComponent(loginUrl)}`;
 
 if (!allowNonDisposable && account !== "zackattacktucker@gmail.com") {
     throw new Error("refusing non-disposable Google account; pass --allow-non-disposable only after disposable proof succeeds");
@@ -96,6 +98,8 @@ try {
         await ensurePasskeysPage(sessionId);
         const state = await pageState(sessionId);
         result = { status: state.needsGoogleReauth ? "blocked_google_reauth" : "ready", state };
+    } else if (mode === "password-login") {
+        result = await passwordLogin(sessionId);
     } else if (mode === "enroll") {
         result = await enroll(sessionId);
     } else if (mode === "login") {
@@ -209,6 +213,74 @@ async function login(sessionId) {
     return { status: "unknown_login_state", state };
 }
 
+async function passwordLogin(sessionId) {
+    const password = process.env[passwordEnv];
+    if (!password) {
+        return { status: "blocked_missing_password_env", passwordEnv, state: await pageState(sessionId) };
+    }
+    await navigate(sessionId, logoutUrl);
+    await sleep(2500);
+    await clickText(sessionId, ["Use another account"]);
+    await sleep(1000);
+    await typeAccountIfNeeded(sessionId);
+    await clickText(sessionId, ["Next"]);
+    await sleep(2500);
+
+    await driveToPasswordInput(sessionId);
+    const passwordFilled = await typePasswordIfNeeded(sessionId, password);
+    if (passwordFilled.ok) {
+        await clickText(sessionId, ["Next"]);
+    }
+    let state = await waitForPasswordLoginCompletion(sessionId, 90000);
+    await maybeScreenshot(sessionId, "google-password-login-after");
+
+    if (!state.createHooked || !state.getHooked) return { status: "failed_hooks_missing_after_password_login", state };
+    if (new URL(state.url).host === "myaccount.google.com") return { status: "logged_in", state };
+    if (/2-step|verify|check your phone|tap yes|to continue, first verify|enter the code|recovery/i.test(state.text)) {
+        return { status: "blocked_google_2fa_or_reauth", state };
+    }
+    if (/wrong password|couldn.t sign you in|something went wrong/i.test(state.text)) {
+        return { status: "failed_google_password_login", state };
+    }
+    return { status: "unknown_password_login_state", passwordFilled, state };
+}
+
+async function driveToPasswordInput(sessionId) {
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+        const hasPassword = await hasPasswordInput(sessionId);
+        if (hasPassword) return { ok: true };
+        const state = await pageState(sessionId);
+        if (/use your passkey|fingerprint|face|screen lock/i.test(state.text)) {
+            await clickText(sessionId, ["Try another way"]);
+        } else {
+            await clickText(sessionId, ["Password", "Enter your password", "Try another way"]);
+        }
+        await sleep(1500);
+    }
+    return { ok: false };
+}
+
+async function hasPasswordInput(sessionId) {
+    return evaluate(
+        sessionId,
+        `Boolean(document.querySelector('input[type="password"], input[name="Passwd"]'))`,
+        "check password input"
+    );
+}
+
+async function waitForPasswordLoginCompletion(sessionId, timeoutMs) {
+    const started = Date.now();
+    let latest = await pageState(sessionId);
+    while (Date.now() - started < timeoutMs) {
+        const host = new URL(latest.url).host;
+        if (host === "myaccount.google.com") return latest;
+        if (/wrong password|couldn.t sign you in|something went wrong/i.test(latest.text)) return latest;
+        await sleep(1000);
+        latest = await pageState(sessionId);
+    }
+    return latest;
+}
+
 async function waitForLoginCompletion(sessionId, timeoutMs) {
     const started = Date.now();
     let latest = await pageState(sessionId);
@@ -237,6 +309,23 @@ async function typeAccountIfNeeded(sessionId) {
             return { ok: true };
         })()`,
         "type Google account"
+    );
+}
+
+async function typePasswordIfNeeded(sessionId, password) {
+    return evaluate(
+        sessionId,
+        `(async () => {
+            const password = ${JSON.stringify(password)};
+            const input = document.querySelector('input[type="password"], input[name="Passwd"]');
+            if (!input) return { ok: false, reason: "password input missing" };
+            input.focus();
+            input.value = password;
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+            input.dispatchEvent(new Event("change", { bubbles: true }));
+            return { ok: true };
+        })()`,
+        "type Google password"
     );
 }
 
@@ -398,7 +487,7 @@ async function redactPageForScreenshot(sessionId) {
                 [/\bZack\s+Tucker\b/gi, "[redacted-name]"],
                 [/\bTucker\b/gi, "[redacted-name]"],
                 ["Tucker", "[redacted-name]"],
-                [/\\bZack\\b/g, "[redacted-name]"],
+                [/\bZack\b/g, "[redacted-name]"],
                 ["Zack", "[redacted-name]"],
                 [emailPattern, "[redacted-email]"]
             ];
@@ -464,23 +553,30 @@ function redact(value) {
 }
 
 function redactString(value) {
+    const password = process.env[passwordEnv] || "";
     return value
-        .replace(/zackattacktucker@gmail\\.com/g, "[redacted-google-account]")
+        .replace(/zackattacktucker@gmail\.com/g, "[redacted-google-account]")
         .replace(new RegExp(escapeRegExp(account), "gi"), "[redacted-google-account]")
-        .replace(/hassoncs@gmail\\.com/g, "[redacted-forbidden-account]")
+        .replace(password ? new RegExp(escapeRegExp(password), "g") : /$a/, "[redacted-google-password]")
+        .replace(/hassoncs@gmail\.com/g, "[redacted-forbidden-account]")
         .replace(/[A-Za-z0-9._%+-]+@elf\\.dance/g, "[redacted-padloc-agent]")
         .replace(
             /([?&])([A-Za-z0-9_%-]*?(?:TL|token|authuser|cid|dsh|rart|rapt|rpbg|continue|followup|ifkv|flowEntry|flowName|service|pli|sarp|scc|lid)[A-Za-z0-9_%-]*=)[^&\s"]+/gi,
             (_match, prefix, key) => `${prefix}${key}[redacted]`
         )
         .replace(/Zack\s+Tucker/gi, "[redacted-name]")
-        .replace(/\\bTucker\\b/gi, "[redacted-name]")
+        .replace(/\bTucker\b/gi, "[redacted-name]")
         .replace(/Hi Zack/g, "Hi [redacted-name]")
-        .replace(/\\bZack\\b/g, "[redacted-name]");
+        .replace(/\bZack\b/g, "[redacted-name]");
 }
 
 function escapeRegExp(value) {
     return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function defaultPasswordEnv(email) {
+    const local = String(email).split("@")[0] || "GOOGLE";
+    return `GOOGLE_TEST_${local.replace(/[^A-Za-z0-9]+/g, "_").toUpperCase()}_PASSWORD`;
 }
 
 function sleep(ms) {
