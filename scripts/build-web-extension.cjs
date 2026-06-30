@@ -1,7 +1,12 @@
 const path = require("path");
 const { spawnSync } = require("child_process");
 
-if (!(process.env.NODE_OPTIONS || "").split(/\s+/).includes("--openssl-legacy-provider")) {
+const needsLegacyOpenSslProvider = Number(process.versions.node.split(".")[0]) >= 17;
+
+if (
+    needsLegacyOpenSslProvider &&
+    !(process.env.NODE_OPTIONS || "").split(/\s+/).includes("--openssl-legacy-provider")
+) {
     const env = {
         ...process.env,
         NODE_OPTIONS: [process.env.NODE_OPTIONS, "--openssl-legacy-provider"].filter(Boolean).join(" "),

@@ -44,6 +44,8 @@ Scope: non-Crown Google accounts only. Crown lane/account untouched.
 - The credential provider metadata showed AAGUID `7a46cc38-26d9-47fe-9f3b-b52837c6020d`.
 - Transports showed `["internal"]`.
 - Helper status: `webauthn-io-proof`, `ok=true`.
+- Latest rerun: `webauthn-io-proof-rerun-2026-06-30.json`, after hardening the helper
+  to use an email-shaped WebAuthn.io username and scoped error text.
 - This proves the patched Padloc WebAuthn create/get path works on a non-Google public relying party. It does not replace the Google-specific policy/risk proof.
 
 ## Evidence Files
@@ -56,5 +58,6 @@ Scope: non-Crown Google accounts only. Crown lane/account untouched.
 - `zackattacktucker-patched/google-passkey-enroll.json`: patched Zack enrollment and Google label.
 - `zackattacktucker-patched/google-passkey-login.json`: patched Zack fresh-login result.
 - `webauthn-io-proof.json`: public WebAuthn.io external-RP proof through the Padloc extension hook.
+- `webauthn-io-proof-rerun-2026-06-30.json`: repeat WebAuthn.io proof after helper hardening.
 
 Screenshots in this folder were redacted in-page before capture.

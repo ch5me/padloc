@@ -364,7 +364,7 @@ async function webAuthnProof() {
 }
 
 async function webAuthnIoProof() {
-    const username = `padloc-agentic-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+    const username = `padloc-agentic-${Date.now()}-${Math.floor(Math.random() * 1000000)}@example.com`;
     const created = await cdp.send("Target.createTarget", { url: "about:blank" });
     const pageSession = await attach(created.targetId);
     await cdp.send("Page.enable", {}, pageSession);
@@ -386,6 +386,10 @@ async function webAuthnIoProof() {
                 const loginSuccess = "You're logged in!";
                 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
                 const bodyText = () => document.body?.innerText || "";
+                const resultErrorText = () =>
+                    [...document.querySelectorAll(".alert-danger,.text-danger,.error,#error,[role='alert']")]
+                        .map((node) => node.innerText || node.textContent || "")
+                        .join("\\n");
                 const hookState = (extra = {}) => ({
                     url: location.href,
                     title: document.title,
@@ -464,13 +468,18 @@ async function webAuthnIoProof() {
                 configure();
                 setInput("#input-email", username);
                 click("#register-button");
-                await waitFor(() => bodyText().includes(registerSuccess) || /error|failed|not allowed|denied/i.test(bodyText()), 25000, "registration result");
+                await waitFor(
+                    () => bodyText().includes(registerSuccess) || /error|failed|not allowed|denied/i.test(resultErrorText()),
+                    25000,
+                    "registration result"
+                );
                 const afterRegister = bodyText();
                 if (!afterRegister.includes(registerSuccess)) {
                     return hookState({
                         ok: false,
                         stage: "register",
                         username,
+                        error: resultErrorText(),
                         text: afterRegister.slice(0, 1200)
                     });
                 }
@@ -478,7 +487,11 @@ async function webAuthnIoProof() {
                 configure();
                 setInput("#input-email", username);
                 click("#login-button");
-                await waitFor(() => bodyText().includes(loginSuccess) || /error|failed|not allowed|denied/i.test(bodyText()), 25000, "authentication result");
+                await waitFor(
+                    () => bodyText().includes(loginSuccess) || /error|failed|not allowed|denied/i.test(resultErrorText()),
+                    25000,
+                    "authentication result"
+                );
                 const afterLogin = bodyText();
                 return hookState({
                     ok: afterLogin.includes(loginSuccess),
@@ -486,6 +499,7 @@ async function webAuthnIoProof() {
                     username,
                     registerSuccess: afterRegister.includes(registerSuccess),
                     loginSuccess: afterLogin.includes(loginSuccess),
+                    error: afterLogin.includes(loginSuccess) ? "" : resultErrorText(),
                     successIndicator: afterLogin.includes(loginSuccess)
                         ? afterLogin.slice(afterLogin.indexOf(loginSuccess), afterLogin.indexOf(loginSuccess) + 240)
                         : null,
