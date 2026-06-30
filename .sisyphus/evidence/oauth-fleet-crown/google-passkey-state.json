@@ -1,11 +1,11 @@
 {
   "status": "ready",
   "state": {
-    "url": "https://accounts.google.com/v3/signin/identifier?continue=[redacted]&dsh=[redacted]&followup=[redacted]&osid=1&passive=1209600&flowName=[redacted]&flowEntry=[redacted]&ifkv=[redacted]",
-    "title": "Sign in - Google Accounts",
+    "url": "https://myaccount.google.com/signinoptions/passkeys?pli=[redacted]&rapt=[redacted]",
+    "title": "Passkeys and security keys",
     "createHooked": true,
     "getHooked": true,
     "needsGoogleReauth": false,
-    "text": "Loading\nSign in\nwith your Google Account. This account will be available to other Google apps in the browser.\nEmail or phone\nForgot email?\nNot your computer? Use Guest mode to sign in privately. Learn more about using Guest mode\nNext\nCreate account\nEnglish (United States)\nHelp\nPrivacy\nTerms"
+    "text": "Skip to main content\nAccount\nHelp\nBack to previous page\nPasskeys and security keys"
   }
 }

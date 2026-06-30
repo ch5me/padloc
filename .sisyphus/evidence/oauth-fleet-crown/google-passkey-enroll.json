@@ -1,0 +1,11 @@
+{
+  "status": "enrolled",
+  "state": {
+    "url": "https://myaccount.google.com/signinoptions/passkeys?pli=[redacted]&rapt=[redacted]",
+    "title": "Passkeys and security keys",
+    "createHooked": true,
+    "getHooked": true,
+    "needsGoogleReauth": false,
+    "text": "Skip to main content\nAccount\nHelp\nBack to previous page\nPasskeys and security keys\nYou’re all set!\n\nYou can now use your fingerprint, face, or screen lock to sign in on this device\n\nTry it out\n\n\n\nWith passkeys, you can securely sign in to your Google Account using just your fingerprint, face, screen lock, or security key. Passkeys and security keys can also be used as a second step when signing in with your password. Be sure to keep your screen locks private and security keys safe, so only you can use them.\n\nPasskeys can be created on your devices or on security keys. Learn more\n\nCreate a passkey\nPasskeys\nCreate passkeys on your devices, or you can create a passkey on your security key. Learn more\nYOUR DEVICES\n1Password (May 23, 2026, 9:58:24 PM)\nCreated: May 23, 9:58 PM\nLast used: Yesterday, 2:06 PM, Chrome on Mac in San Francisco, CA, USA\niCloud Keychain (Mar 4, 2024, 1:37:06 PM)\nCreated: March 4, 2024\nLast used: June 24, 8:37 PM, New York, NY, USA\nGoogle Pixel 9 Pro Fold\nLast used: Not yet used\nCreated automatically by Android Learn more\niCloud Keychain (Jun 30, 2026, 9:08:08 AM)\nCreated: Just now\nLast used: Not yet used\n\nApprove this passkey?\n\n\n\nTo keep your account safe, there’s a security delay before you can use a new passkey. To speed up this process, you can approve your new passkey using an existing passkey or security key.\n\n\n\nRemove\nApprove\nPrivacyTermsHelpAbout\nPasskey created\n\nYou can now use your fingerprint, face, screen lock, or hardware security key to verify it’s really you signing in. Learn more\n\nDone"
+  }
+}
