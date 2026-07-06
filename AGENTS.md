@@ -44,6 +44,17 @@
     -   `runtime` - shared local/runtime compatibility target
     -   `runtime-staging` - staging deploy/runtime target
     -   `runtime-production` - production deploy/runtime target
+    -   `wrangler-deploy-staging` - governed `ch5-padloc-staging` Cloudflare deploy
+        token (least-priv for every staging binding). Consumed by
+        `scripts/deploy-staging`.
+    -   `wrangler-deploy-production` - governed `ch5-padloc-prod` Cloudflare deploy
+        token (least-priv for every production binding). Consumed by
+        `scripts/deploy-production`.
+-   Cloudflare deploy-auth is **hush-in-CI** (company standard): `scripts/deploy-<stage>`
+    is the self-contained entrypoint that resolves the governed token from Hush and
+    runs migrations + worker deploy + PWA Pages deploy. The IDENTICAL command runs on a
+    laptop, a harness, or CI. CI holds only `SOPS_AGE_KEY` (to unlock Hush) — never a
+    Cloudflare API-token secret. Rotation = re-mint the token + push.
 -   Do not create `.env`, `.dev.vars`, or plaintext secret files.
 -   Production email auth requires a valid `RESEND_API_KEY` and a verified
     `EMAIL_FROM_ADDRESS` sender domain. Current production sender is
@@ -83,9 +94,13 @@
 -   `packages/worker/src/server-factory.ts` currently falls back to
     `MockMessenger` if either email secret is missing. That is useful locally
     and dangerous in production; keep an eye on it when changing auth.
--   The repo-scoped Cloudflare deploy token currently lacks KV write for Worker
-    deploys; production deploys may need the bootstrap/operator lane until that
-    token is reminted correctly.
+-   The governed `ch5-padloc-{staging,prod}` deploy tokens are least-privilege for
+    every binding across their stage (Workers Scripts / D1 / KV / R2 Storage Write,
+    Pages Write, Account Settings Read, Workers Tail Read). Add or remove a binding
+    in `packages/worker/wrangler.toml` → re-mint that stage's token
+    (`cf-mint-project-token --project padloc --stage <staging|prod> --dir . --hush-file
+    env/project/<staging|production>`) so the token stays complete; an under-scoped
+    token breaks the deploy.
 -   `packages/worker/src/email/templates.ts` is generated from `assets/email/*`;
     regenerate after changing email copy.
 -   Cordova platform plugin fixes applied under `packages/cordova/platforms/`

@@ -93,8 +93,8 @@
         "svc:status": "devmux status",
         "svc:attach": "devmux attach",
         "svc:stop": "devmux stop",
-        "deploy:staging": "bash scripts/deploy-staging.sh",
-        "deploy:production": "bash scripts/deploy-production.sh",
+        "deploy:staging": "bash scripts/deploy-staging",
+        "deploy:production": "bash scripts/deploy-production",
         "update-version": "lerna version $1 --yes",
         "version": "lerna version $1 --yes",
         "publish": "lerna publish"

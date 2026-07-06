@@ -1,5 +1,14 @@
 name: Promote Production
 
+# Cloudflare deploy-auth: hush-in-CI (company standard).
+# Production deploys resolve the governed `ch5-padloc-prod` Cloudflare token from the
+# repo's own stage-split Hush (target `wrangler-deploy-production`) via
+# `scripts/deploy-production` — the IDENTICAL command runs on a laptop, a harness, or CI.
+# The ONLY Cloudflare-deploy secret CI holds is SOPS_AGE_KEY (to unlock Hush); no
+# Cloudflare API-token secret is used. Rotation = re-mint the token + push.
+#
+# Production is workflow_dispatch-gated on purpose: it never auto-deploys on push.
+
 on:
     workflow_dispatch:
 
@@ -14,25 +23,9 @@ jobs:
             - name: Install dependencies
               run: |
                   env -u ESBUILD_BINARY_PATH npm ci
-            - name: Check runtime contract
-              run: npm run runtime-config:check
-            - name: Apply production migrations
+            - name: Setup Hush (hush-in-CI)
+              run: bash scripts/ci-setup-hush.sh wrangler-deploy-production
               env:
-                  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-                  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-              run: npm run worker:migrate:production
-            - name: Deploy production worker
-              env:
-                  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-                  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-              run: npm run worker:deploy:production
-            - name: Build production PWA
-              env:
-                  PL_SERVER_URL: https://api-pad.ch5.me
-                  PL_PWA_URL: https://pad.ch5.me
-              run: npm run pwa:build
-            - name: Deploy production PWA to Pages
-              env:
-                  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-                  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-              run: ./node_modules/.bin/wrangler pages deploy packages/pwa/dist --project-name padloc-pwa --branch main
+                  SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+            - name: Deploy production (migrations + worker + PWA via governed ch5-padloc-prod token)
+              run: bash scripts/deploy-production
