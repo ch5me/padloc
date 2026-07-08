@@ -34,10 +34,16 @@ npm --prefix packages/extension run agentic:google-passkey -- --mode state \
   --port <owned-cft-port> --account zackattacktucker@gmail.com --screenshots=1 \
   --evidence-dir .sisyphus/evidence/gate1-noncrown/zack
 
-# 2. enroll a fresh Padloc automation passkey (BE=1, patched AAGUID)
+# 2. enroll a fresh Padloc automation passkey (BE=0/BS=0 device-bound, UV=1, patched AAGUID)
 npm --prefix packages/extension run agentic:google-passkey -- --mode enroll \
   --port <owned-cft-port> --account zackattacktucker@gmail.com --screenshots=1 \
   --evidence-dir .sisyphus/evidence/gate1-noncrown/zack
+
+# 2b. CLEAR THE SECURITY DELAY BEFORE LOGIN. A just-created Google passkey shows
+#     "Approve this passkey? … there's a security delay before you can use a new passkey"
+#     and cannot sign in yet (confounded the 2026-07-08 run). Click Approve with an existing
+#     authenticator on the account, or wait out the delay, until the credential no longer
+#     shows "Approve this passkey?". See .llm/wiki/passkey-google-gate1.md.
 
 # 3. clear ONLY Google cookies/origin storage, preserve Padloc extension/signer state,
 #    then attempt passwordless login
