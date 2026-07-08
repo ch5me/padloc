@@ -313,6 +313,33 @@ mochaSuite("Passkey broker", () => {
         expect(assertionFlags & 0x18).to.equal(0);
     });
 
+    mochaTest("marks WebAuthn UV bit when userVerification is omitted (spec default is preferred)", async () => {
+        const enrolled = await enrollPasskeyCredential(
+            await enrollmentRequest({ passkey: { userVerification: undefined } }),
+            new Date("2026-06-29T18:00:00.000Z")
+        );
+        const item = asStoredItem(enrolled);
+        const request = assertionRequest(item.passkeyCredential.credentialId, "nonce-uv-default", "flow-uv-default");
+        request.passkey.userVerification = undefined;
+        const assertion = await requestPasskeyAssertion(request, [item], new Date("2026-06-29T18:05:00.000Z"));
+
+        const registrationFlags = readAuthenticatorFlags(enrolled.response.passkey.registration.authenticatorData);
+        const assertionFlags = readAuthenticatorFlags(assertion.response.passkey.assertion.authenticatorData);
+        expect(registrationFlags & 0x04).to.equal(0x04);
+        expect(assertionFlags & 0x04).to.equal(0x04);
+        expect(registrationFlags & 0x18).to.equal(0);
+        expect(assertionFlags & 0x18).to.equal(0);
+    });
+
+    mochaTest("suppresses WebAuthn UV bit only when userVerification is discouraged", async () => {
+        const enrolled = await enrollPasskeyCredential(
+            await enrollmentRequest({ passkey: { userVerification: "discouraged" } }),
+            new Date("2026-06-29T18:00:00.000Z")
+        );
+        const registrationFlags = readAuthenticatorFlags(enrolled.response.passkey.registration.authenticatorData);
+        expect(registrationFlags & 0x04).to.equal(0);
+    });
+
     mochaTest("generated registration uses Padloc platform-passkey identity metadata", async () => {
         const enrolled = await enrollPasskeyCredential(
             await enrollmentRequest({ passkey: { userVerification: "required" } }),

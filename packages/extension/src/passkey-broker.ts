@@ -78,8 +78,8 @@ const PASSKEY_SIGNER_DB_VERSION = 1;
 const PASSKEY_SIGNER_STORE_NAME = "keys";
 const AUTHENTICATOR_FLAG_USER_PRESENT = 0x01;
 const AUTHENTICATOR_FLAG_USER_VERIFIED = 0x04;
-const AUTHENTICATOR_FLAG_BACKUP_ELIGIBLE = 0x08;
-const AUTHENTICATOR_FLAG_BACKED_UP = 0x10;
+// BE (0x08) and BS (0x10) are intentionally never set: Padloc's signer store is device-local, not
+// synced/backed up, so generated credentials are truthfully device-bound.
 const AUTHENTICATOR_FLAG_ATTESTED_CREDENTIAL_DATA = 0x40;
 export const PADLOC_AGENTIC_VAULT_AAGUID = "7a46cc38-26d9-47fe-9f3b-b52837c6020d";
 export const PADLOC_AGENTIC_VAULT_TRANSPORTS = ["internal"];
@@ -735,7 +735,11 @@ async function buildAssertionAuthenticatorData(
 }
 
 function shouldSetUserVerification(userVerification: UserVerificationRequirement | undefined): boolean {
-    return userVerification === "required" || userVerification === "preferred";
+    // WebAuthn defaults `userVerification` to "preferred" when the RP omits it. Padloc verifies the
+    // user via vault unlock before every ceremony, so honor that default (and "preferred"/"required")
+    // with UV=1. Only an explicit "discouraged" suppresses the flag. Emitting UV=0 on an omitted value
+    // makes relying parties (e.g. Google) classify the credential as a 2SV-only security key.
+    return userVerification !== "discouraged";
 }
 
 async function encodeAttestationObject(
