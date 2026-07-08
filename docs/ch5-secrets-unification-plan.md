@@ -394,9 +394,23 @@ key use through the rate-limited/flow-bound/audited/lockout-capable policy engin
 
 ## 12. REVISED execution order (supersedes §8 sequencing)
 
-**Gate 0 — verify revocation reality (autonomous, in flight).** Confirm Padloc re-keys the
-shared vault on member removal. If it does NOT, weaken D1/D2 toward "don't roam" and design
-a rotation path first.
+**Gate 0 — verify revocation reality. DONE (2026-07-08, code-verified).** Padloc re-keying
+is REAL, not theater: `SharedContainer.updateAccessors` (`packages/core/src/container.ts:210`)
+*always* generates a fresh AES vault key and re-wraps it only for still-active members;
+removal drops the accessor and the server denies the removed member further reads
+(`server.ts:1444`, `org.ts:429`). **Two load-bearing caveats the automation design must
+handle:**
+1. **Re-key is LAZY** — deferred until a remaining write-capable member next syncs that
+   vault (`app.ts:1441-1448`); `removeMember` itself does not re-key. Window is unbounded if
+   no one edits the vault. → **Revocation ops must FORCE an immediate re-key**: after removing
+   a member, edit/touch the automation vault and sync so `accessorsChanged` fires now.
+2. **Already-read/exported secrets are NEVER clawed back** — there is no per-item key or
+   retraction; a device that already synced holds those passkeys permanently. → **The real
+   kill-switch for an already-synced passkey is RP-side credential DELETION**, not vault
+   re-key. Vault re-key only protects *future* credentials. Keep an armed RP-side revocation
+   path per credential (matches the oracle's "rotation ≠ revocation"). This is why the
+   automation vaults must be RP/device-split (blast radius = the creds one device already
+   read, nothing more).
 
 **Gate 1 — PROVE Google passwordless login (P0, human-gated). Nothing roaming proceeds
 until this is green.** Minimal canary on a NON-Crown/disposable account (go-b
