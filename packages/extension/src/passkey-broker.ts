@@ -81,7 +81,6 @@ const AUTHENTICATOR_FLAG_USER_VERIFIED = 0x04;
 const AUTHENTICATOR_FLAG_BACKUP_ELIGIBLE = 0x08;
 const AUTHENTICATOR_FLAG_BACKED_UP = 0x10;
 const AUTHENTICATOR_FLAG_ATTESTED_CREDENTIAL_DATA = 0x40;
-const PASSKEY_BACKUP_FLAGS = AUTHENTICATOR_FLAG_BACKUP_ELIGIBLE | AUTHENTICATOR_FLAG_BACKED_UP;
 export const PADLOC_AGENTIC_VAULT_AAGUID = "7a46cc38-26d9-47fe-9f3b-b52837c6020d";
 export const PADLOC_AGENTIC_VAULT_TRANSPORTS = ["internal"];
 export const PADLOC_AGENTIC_VAULT_AUTHENTICATOR_ATTACHMENT = "platform";
@@ -699,7 +698,6 @@ async function buildAttestedCredentialData(
     const rpIdHash = await sha256(stringToBytes(rpId));
     const flags = new Uint8Array([
         AUTHENTICATOR_FLAG_USER_PRESENT |
-            PASSKEY_BACKUP_FLAGS |
             AUTHENTICATOR_FLAG_ATTESTED_CREDENTIAL_DATA |
             (userVerified ? AUTHENTICATOR_FLAG_USER_VERIFIED : 0),
     ]);
@@ -725,7 +723,7 @@ async function buildAssertionAuthenticatorData(
 ): Promise<Uint8Array> {
     const rpIdHash = await sha256(stringToBytes(rpId));
     const flags = new Uint8Array([
-        AUTHENTICATOR_FLAG_USER_PRESENT | PASSKEY_BACKUP_FLAGS | (userVerified ? AUTHENTICATOR_FLAG_USER_VERIFIED : 0),
+        AUTHENTICATOR_FLAG_USER_PRESENT | (userVerified ? AUTHENTICATOR_FLAG_USER_VERIFIED : 0),
     ]);
     const count = new Uint8Array([
         (signCount >>> 24) & 0xff,

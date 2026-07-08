@@ -309,8 +309,8 @@ mochaSuite("Passkey broker", () => {
         const assertionFlags = readAuthenticatorFlags(assertion.response.passkey.assertion.authenticatorData);
         expect(registrationFlags & 0x04).to.equal(0x04);
         expect(assertionFlags & 0x04).to.equal(0x04);
-        expect(registrationFlags & 0x18).to.equal(0x18);
-        expect(assertionFlags & 0x18).to.equal(0x18);
+        expect(registrationFlags & 0x18).to.equal(0);
+        expect(assertionFlags & 0x18).to.equal(0);
     });
 
     mochaTest("generated registration uses Padloc platform-passkey identity metadata", async () => {
@@ -329,7 +329,7 @@ mochaSuite("Passkey broker", () => {
         expect(decodedAuthData.flags & 0x01).to.equal(0x01);
         expect(decodedAuthData.flags & 0x04).to.equal(0x04);
         expect(decodedAuthData.flags & 0x40).to.equal(0x40);
-        expect(decodedAuthData.flags & 0x18).to.equal(0x18);
+        expect(decodedAuthData.flags & 0x18).to.equal(0);
         expect(decodedAttestationAuthData.flags).to.equal(decodedAuthData.flags);
         expect(decodedAuthData.signCount).to.equal(0);
         expect(attestationObject.fmt).to.equal("none");

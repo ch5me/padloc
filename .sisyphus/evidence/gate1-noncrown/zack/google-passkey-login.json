@@ -1,0 +1,11 @@
+{
+  "status": "blocked_google_password_required_no_passkey_offer",
+  "state": {
+    "url": "https://accounts.google.com/v3/signin/challenge/selection?TL=[redacted]&checkConnection=youtube%3A336&checkedDomains=youtube&continue=[redacted]&dsh=[redacted]&flowEntry=[redacted]&flowName=[redacted]&ifkv=[redacted]&lid=[redacted]&pstMsg=1",
+    "title": "Hi [redacted-name]",
+    "createHooked": true,
+    "getHooked": true,
+    "needsGoogleReauth": true,
+    "text": "Loading\nHi [redacted-name]\n[redacted-google-account]\nChoose how you want to sign in:\nEnter your password\nTry another way\nEnglish (United States)\nHelp\nPrivacy\nTerms\nHi [redacted-name]"
+  }
+}
