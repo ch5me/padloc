@@ -37,3 +37,4 @@ packages/extension/.playwright-results.json
 packages/extension/test-harness/.playwright-html
 packages/extension/test-harness/.playwright-results.json
 packages/extension/test-results
+.ch5/shadow/
