@@ -27,10 +27,8 @@ COPY packages/app/types ./packages/app/types
 COPY packages/app/tsconfig.json ./packages/app/
 COPY packages/core/src ./packages/core/src
 COPY packages/core/vendor ./packages/core/vendor
-COPY packages/core/tsconfig.json ./packages/core/
 COPY packages/locale/src ./packages/locale/src
 COPY packages/locale/res ./packages/locale/res
-COPY packages/locale/tsconfig.json ./packages/locale/
 COPY assets /assets
 
 WORKDIR /padloc/packages/pwa
