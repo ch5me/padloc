@@ -74,9 +74,11 @@ try {
         parsed.results.map((r) => `${r.ok ? "✅" : "❌"} ${r.name}: ${r.detail}`).join("\n") +
         "\n";
 
-    writeFileSync(join(evidenceDir, "task-22-idempotency.txt"), evidence);
-    writeFileSync(join(evidenceDir, "task-22-sanitized-error.txt"), evidence);
-    writeFileSync(join(evidenceDir, "task-22-error-semantics.txt"), evidence);
+    if (process.env.PADLOC_WRITE_TEST_EVIDENCE === "1") {
+        writeFileSync(join(evidenceDir, "task-22-idempotency.txt"), evidence);
+        writeFileSync(join(evidenceDir, "task-22-sanitized-error.txt"), evidence);
+        writeFileSync(join(evidenceDir, "task-22-error-semantics.txt"), evidence);
+    }
 
     console.log(evidence);
     process.exitCode = report.statusCode >= 200 && report.statusCode < 300 ? 0 : 1;

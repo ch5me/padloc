@@ -2,28 +2,35 @@ import { spawn } from "child_process";
 import { writeFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
+import net from "net";
 
-const port = 18788;
+const port = Number(process.env.TRANSPORT_TEST_PORT || 18788);
 const packageRoot = dirname(fileURLToPath(new URL(".", import.meta.url)));
 const evidenceDir = join(packageRoot, "..", "..", ".sisyphus", "evidence");
 const evidenceFile = join(evidenceDir, "task-12-roundtrip.txt");
 
 let output = "";
-const child = spawn(
-    "wrangler",
-    ["dev", "test/transport-roundtrip.worker.ts", "--local", "--ip", "127.0.0.1", "--port", String(port)],
-    {
-        cwd: packageRoot,
-        stdio: ["ignore", "pipe", "pipe"],
-    }
-);
+let child;
 
-child.stdout.on("data", (chunk) => {
-    output += chunk.toString();
-});
-child.stderr.on("data", (chunk) => {
-    output += chunk.toString();
-});
+async function assertPortAvailable() {
+    await new Promise((resolve, reject) => {
+        const server = net.createServer();
+        server.once("error", () => reject(new Error(`port ${port} is already in use`)));
+        server.listen({ host: "127.0.0.1", port, exclusive: true }, () => server.close(resolve));
+    });
+}
+
+async function startChild() {
+    await assertPortAvailable();
+    child = spawn(
+        "wrangler",
+        ["dev", "test/transport-roundtrip.worker.ts", "--local", "--ip", "127.0.0.1", "--port", String(port)],
+        { cwd: packageRoot, stdio: ["ignore", "pipe", "pipe"] }
+    );
+
+    child.stdout.on("data", (chunk) => { output += chunk.toString(); });
+    child.stderr.on("data", (chunk) => { output += chunk.toString(); });
+}
 
 async function waitForReady() {
     const start = Date.now();
@@ -148,17 +155,31 @@ async function run() {
         "req.method in handlerDefinitions and invokes the corresponding controller method.\n\n" +
         `=== Wrangler Output ===\n${output}\n`;
 
-    writeFileSync(evidenceFile, report);
+    if (process.env.PADLOC_WRITE_TEST_EVIDENCE === "1") {
+        writeFileSync(evidenceFile, report);
+    }
     console.log(report);
 }
 
-run()
-    .then(() => {
-        child.kill("SIGTERM");
-        process.exit(results.some((r) => r.startsWith("❌")) ? 1 : 0);
-    })
-    .catch((e) => {
-        console.error(e.message);
-        child.kill("SIGTERM");
-        process.exit(1);
-    });
+async function terminateChild() {
+    if (!child || child.exitCode !== null) return;
+    child.kill("SIGTERM");
+    await Promise.race([
+        new Promise((resolve) => child.once("exit", resolve)),
+        new Promise((resolve) => setTimeout(resolve, 5000)),
+    ]);
+    if (child.exitCode === null) child.kill("SIGKILL");
+}
+
+let exitCode = 0;
+try {
+    await startChild();
+    await run();
+    exitCode = results.some((result) => result.startsWith("❌")) ? 1 : 0;
+} catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    exitCode = 1;
+} finally {
+    await terminateChild();
+}
+process.exitCode = exitCode;
