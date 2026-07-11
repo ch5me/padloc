@@ -51,44 +51,22 @@
 
 ### Findings
 
--   `WebPlatform._getAuthClient` (private) already returns `webAuthnClient` for
-    `AuthType.WebAuthnPlatform` and `AuthType.WebAuthnPortable`. No override
-    needed in `ExtensionPlatform` — inheritance handles the auth client wiring
-    automatically.
--   The extension popup context has full `navigator.credentials` support;
-    WebAuthn assertion/registration executes correctly in popup (not service
-    worker).
--   `@simplewebauthn/browser` 5.4.0 and `@simplewebauthn/typescript-types` 5.4.0
-    resolved correctly from `@padloc/app/node_modules/` via the existing
-    tsconfig path aliases and webpack alias resolution.
--   `packages/core/src/auth.ts` defines `AuthType.WebAuthnPlatform`
-    ("webauthn_platform") and `AuthType.WebAuthnPortable` ("webauthn_portable")
-    — both match the server-side WebAuthn flow.
--   Worker-side WebAuthn verification uses `@simplewebauthn/server` (version
-    9.x); the browser client sends `PublicKeyCredential` responses that the
-    worker verifies against registration records.
+- `WebPlatform._getAuthClient` originally returned `webAuthnClient` for `AuthType.WebAuthnPlatform` and `AuthType.WebAuthnPortable`, but it was private and could not select extension-native clients. It is now protected and `ExtensionPlatform` explicitly selects its OAuth and WebAuthn clients.
+- The extension popup context exposes `navigator.credentials`, so it can invoke the browser/OS authenticator for CH5 Auth account authentication. This does not make the extension an arbitrary relying-party passkey provider.
+- `@simplewebauthn/browser` 5.4.0 and `@simplewebauthn/typescript-types` 5.4.0 resolved correctly from `@padloc/app/node_modules/` via the existing tsconfig path aliases and webpack alias resolution.
+- `packages/core/src/auth.ts` defines `AuthType.WebAuthnPlatform` ("webauthn_platform") and `AuthType.WebAuthnPortable` ("webauthn_portable") — both match the server-side WebAuthn flow.
+- The legacy Node server has WebAuthn verification code, but the shipped Cloudflare Worker currently registers only Email and TOTP auth servers. WebAuthn cannot complete against the production Worker until a Worker-compatible verifier and configuration are wired.
 
 ### Implementation
 
--   `packages/extension/src/auth/webauthn.ts` — extension-scoped
-    `WebAuthnClient` mirroring `@padloc/app/src/lib/auth/webauthn.ts`. Uses
-    `@simplewebauthn/browser` directly via `browserSupportsWebauthn()`,
-    `platformAuthenticatorIsAvailable()`, `startRegistration()`,
-    `startAuthentication()`.
--   `packages/extension/package.json` — added `@simplewebauthn/browser` 5.4.0
-    and `@simplewebauthn/typescript-types` 5.4.0 as dependencies; added `mocha`
-    9.2.2, `chai` 4.3.4, `@types/chai`, `@types/mocha` for test coverage.
--   `packages/extension/test/webauthn.ts` — smoke tests for
-    `ExtensionPlatform.supportedAuthTypes` and `WebAuthnClient.supportsType`
-    behavior.
--   `packages/extension/src/platform.ts` — unchanged from Task 1;
-    `supportedAuthTypes` already includes WebAuthn types.
+- `packages/extension/src/auth/webauthn.ts` — extension-scoped `WebAuthnClient` mirroring `@padloc/app/src/lib/auth/webauthn.ts`. Uses `@simplewebauthn/browser` directly via `browserSupportsWebauthn()`, `platformAuthenticatorIsAvailable()`, `startRegistration()`, `startAuthentication()`.
+- `packages/extension/package.json` — added `@simplewebauthn/browser` 5.4.0 and `@simplewebauthn/typescript-types` 5.4.0 as dependencies; added `mocha` 9.2.2, `chai` 4.3.4, `@types/chai`, `@types/mocha` for test coverage.
+- `packages/extension/test/webauthn.ts` — smoke tests for `ExtensionPlatform.supportedAuthTypes` and `WebAuthnClient.supportsType` behavior.
+- `packages/extension/src/platform.ts` — explicitly selects the extension WebAuthn client for CH5 Auth account authentication.
 
 ### Verification
 
--   `tsc --noEmit` passed (0 errors).
--   `npm run build` passed — webpack bundles `@simplewebauthn/browser` into both
-    `popup.js` (1.4M) and `background.js` (1.5M).
+- The current verified extension build bundles the client successfully. End-to-end WebAuthn remains gated on Worker verifier wiring and is not evidence of third-party passkey-provider support.
 
 ## Task 3: Extension-Native OAuth Flow
 

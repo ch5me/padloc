@@ -4,7 +4,33 @@ import { expect } from "chai";
 import { setup, suite, teardown, test } from "mocha";
 import sinon from "sinon";
 import { browser } from "webextension-polyfill-ts";
-import { OauthClient } from "../src/auth/oauth";
+import { ExtensionPlatform } from "../src/platform";
+import { oauthClient, OauthClient } from "../src/auth/oauth";
+import { ErrorCode } from "@padloc/core/src/error";
+
+suite("ExtensionPlatform OAuth", () => {
+    let sandbox: sinon.SinonSandbox;
+
+    setup(() => {
+        sandbox = sinon.createSandbox();
+    });
+
+    teardown(() => {
+        sandbox.restore();
+    });
+
+    test("supportedAuthTypes includes OAuth", () => {
+        const platform = new ExtensionPlatform();
+        const types = platform.supportedAuthTypes;
+        expect(types).to.include(AuthType.Oauth);
+    });
+
+    test("_getAuthClient returns oauthClient for OAuth type", async () => {
+        const platform = new ExtensionPlatform();
+        const client = await (platform as any)._getAuthClient(AuthType.Oauth);
+        expect(client).to.equal(oauthClient);
+    });
+});
 
 suite("OauthClient", () => {
     let sandbox: sinon.SinonSandbox;

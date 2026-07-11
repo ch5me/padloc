@@ -1,8 +1,11 @@
 import { expect } from "chai";
-import { suite, test } from "mocha";
-import { AuthType } from "../../core/src/auth";
-import { ErrorCode } from "../../core/src/error";
-import { shouldAttemptBiometricReunlock, unlockWithBiometric } from "../src/auth/biometric";
+import { AuthType } from "@padloc/core/src/auth";
+import { ErrorCode } from "@padloc/core/src/error";
+import {
+    shouldAttemptBiometricReunlock,
+    unlockWithBiometric,
+    verifyUserPresenceWithBiometric,
+} from "../src/auth/biometric";
 
 suite("Extension biometric re-unlock", () => {
     test("cold start attempts biometric re-unlock only when session key is missing", () => {
@@ -69,6 +72,24 @@ suite("Extension biometric re-unlock", () => {
         });
 
         expect(result).to.equal("expired");
+    });
+
+    test("performs a fresh biometric verification without re-unlocking the vault", async () => {
+        let authenticateCalls = 0;
+        const app = {
+            state: { rememberedMasterKey: { authenticatorId: "authenticator-1" } },
+        } as any;
+
+        const result = await verifyUserPresenceWithBiometric(app, {
+            authenticate: async () => {
+                authenticateCalls++;
+                return { token: "unused" } as any;
+            },
+            getPlatformAuthType: () => AuthType.WebAuthnPlatform,
+        });
+
+        expect(result).to.equal("verified");
+        expect(authenticateCalls).to.equal(1);
     });
 
     test("extension reload keeps auto-lock restore path available after biometric unlock", async () => {

@@ -1,8 +1,38 @@
 import { expect } from "chai";
 import * as sinon from "sinon";
-import { installUnlockPersistenceHooks } from "../src/unlock-persistence";
+import { awaitWorkerUnlock, installUnlockPersistenceHooks } from "../src/unlock-persistence";
 
 suite("Extension unlock session persistence", () => {
+    test("worker unlock acknowledgment is an awaited barrier", async () => {
+        let release!: (value: unknown) => void;
+        const notification = new Promise<unknown>((resolve) => {
+            release = resolve;
+        });
+        let resolved = false;
+        const barrier = awaitWorkerUnlock(() => notification).then(() => {
+            resolved = true;
+        });
+
+        await Promise.resolve();
+        expect(resolved).to.equal(false);
+
+        release({ type: "unlockedAck", unlocked: true });
+        await barrier;
+        expect(resolved).to.equal(true);
+    });
+
+    test("worker unlock acknowledgment fails closed", async () => {
+        for (const response of [undefined, { type: "unlockedAck", unlocked: false }, { type: "unexpected" }]) {
+            let error: unknown;
+            try {
+                await awaitWorkerUnlock(async () => response);
+            } catch (caught) {
+                error = caught;
+            }
+            expect(error).to.be.instanceOf(Error);
+        }
+    });
+
     test("password unlock awaits session persistence before resolving", async () => {
         const callOrder: string[] = [];
         let releasePersist!: () => void;

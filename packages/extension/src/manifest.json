@@ -26,6 +26,28 @@
         "default_popup": "popup.html",
         "default_icon": "icon.png"
     },
+    "content_scripts": [
+        {
+            "matches": ["https://*/*", "http://localhost/*", "http://127.0.0.1/*"],
+            "js": ["passkey-page.js"],
+            "all_frames": false,
+            "run_at": "document_start",
+            "world": "MAIN"
+        },
+        {
+            "matches": ["https://*/*", "http://localhost/*", "http://127.0.0.1/*"],
+            "js": ["passkey-content-bridge.js"],
+            "all_frames": false,
+            "run_at": "document_start",
+            "world": "ISOLATED"
+        },
+        {
+            "matches": ["<all_urls>"],
+            "js": ["content.js"],
+            "all_frames": true,
+            "run_at": "document_idle"
+        }
+    ],
     "permissions": [
         "storage",
         "unlimitedStorage",
@@ -34,8 +56,7 @@
         "contextMenus",
         "alarms",
         "identity",
-        "nativeMessaging",
-        "scripting"
+        "nativeMessaging"
     ],
     "host_permissions": ["<all_urls>"],
     "commands": {

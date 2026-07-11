@@ -1,29 +1,13 @@
 import { browser, Menus, Runtime } from "webextension-polyfill-ts";
 import { setPlatform } from "@padloc/core/src/platform";
 import { App } from "@padloc/core/src/app";
-import { uuid } from "@padloc/core/src/util";
-import { base64ToBytes, bytesToBase64 } from "@padloc/core/src/encoding";
-import {
-    AutofillFieldRole,
-    FieldType,
-    Field,
-    PasskeyCredentialPolicy,
-    isPasskeyCredentialItem,
-    VaultItem,
-} from "@padloc/core/src/item";
-import { BackgroundExtensionPlatform } from "./background-platform";
-import {
-    AgenticAutofillApprovalPrompt,
-    AgenticWebAuthnCreateRequest,
-    AgenticWebAuthnErrorName,
-    AgenticWebAuthnGetRequest,
-    AgenticWebAuthnResponse,
-    FieldMappings,
-    Message,
-    messageTab,
-    SavePrompt,
-    CredentialData,
-} from "./message";
+import { debounce, uuid } from "@padloc/core/src/util";
+import { FieldType, Field, VaultItem } from "@padloc/core/src/item";
+import { PasskeyCredential } from "@padloc/core/src/passkey";
+import { bytesToBase64 } from "@padloc/core/src/encoding";
+import { ExtensionWorkerPlatform } from "./worker-platform";
+import { FetchSender } from "./fetch-sender";
+import { AgenticAutofillApprovalPrompt, Message, messageTab, SavePrompt, CredentialData } from "./message";
 import { clearSessionMasterKey, configureSessionStorage, getSessionMasterKey } from "./storage";
 import { BackgroundFetchSender } from "./background-fetch-sender";
 import { AutofillBrokerRequest, AutofillBrokerResponse, buildLockedBrokerResponse } from "./autofill-broker-protocol";
@@ -37,11 +21,23 @@ import {
     redactBrokerResponse,
     revokeBrokerBundleResponse,
 } from "./autofill-broker";
-import { enrollPasskeyCredential, requestPasskeyAssertion } from "./passkey-broker";
+import { PASSKEY_PROTOCOL_VERSION, PasskeyResult } from "./passkey-protocol";
+import { PasskeyApprovalCoordinator, PasskeyApprovalResolution } from "./passkey-approval-coordinator";
+import { PasskeySelectionCoordinator, PasskeySelectionResolution } from "./passkey-selection-coordinator";
+import {
+    describePasskeyOperation,
+    executePasskeyOperation,
+    PasskeyCredentialRepository,
+    PasskeyProviderError,
+    PasskeySelectionCandidate,
+} from "./passkey-provider-engine";
+import { approvePasskeyRpSuffix, isPasskeyProviderOriginEnabled } from "./passkey-rp-policy";
+import { bindPasskeyRequest, isPasskeyRequestBindingCurrent, PasskeyRequestBinding } from "./passkey-request-binding";
 
-setPlatform(new BackgroundExtensionPlatform());
+setPlatform(new ExtensionWorkerPlatform());
 
 const API_BASE_URL = process.env.PL_SERVER_URL!;
+const PASSKEY_DIAGNOSTICS_ENABLED = process.env.PL_PASSKEY_DIAGNOSTICS === "true";
 
 // MV3 service worker - state must be persisted to storage
 let app: App;
@@ -70,9 +66,523 @@ const WEBAUTHN_APP_READY_TIMEOUT_MS = 5000;
 // evaluation. Register the fail-fast WebAuthn bridge before async app init.
 registerImmediateMessageBridge();
 
+// Register the cold-start probe synchronously and answer it through Chrome's
+// callback contract. This must not depend on the webextension polyfill or App
+// initialization, either of which may still be loading when the popup opens.
+const nativeRuntime = (
+    globalThis as typeof globalThis & {
+        chrome: {
+            runtime: {
+                id: string;
+                onMessage: {
+                    addListener(
+                        listener: (
+                            msg: Message,
+                            sender: Runtime.MessageSender,
+                            sendResponse: (response: unknown) => void
+                        ) => boolean | void
+                    ): void;
+                };
+                onConnect: {
+                    addListener(
+                        listener: (port: {
+                            name: string;
+                            sender?: Runtime.MessageSender;
+                            onMessage: { addListener(listener: (message: Message) => void): void };
+                            onDisconnect: { addListener(listener: () => void): void };
+                            postMessage(message: unknown): void;
+                        }) => void
+                    ): void;
+                };
+                getURL(path: string): string;
+            };
+        };
+    }
+).chrome.runtime;
+
+const passkeyApprovalCoordinator = new PasskeyApprovalCoordinator({
+    approvalUiSenderUrl: nativeRuntime.getURL("popup.html"),
+});
+const passkeySelectionCoordinator = new PasskeySelectionCoordinator({
+    selectionUiSenderUrl: nativeRuntime.getURL("popup.html"),
+});
+const passkeyRuntimeDiagnostics = {
+    connectionCount: 0,
+    requestCount: 0,
+    lastStage: "idle",
+    lastErrorName: "",
+};
+if (PASSKEY_DIAGNOSTICS_ENABLED) {
+    (
+        globalThis as typeof globalThis & { padlocPasskeyDiagnostics?: typeof passkeyRuntimeDiagnostics }
+    ).padlocPasskeyDiagnostics = passkeyRuntimeDiagnostics;
+}
+
+nativeRuntime.onConnect.addListener((port) => {
+    passkeyRuntimeDiagnostics.connectionCount += 1;
+    if (port.name !== "padloc-passkey-v1" || !port.sender?.tab) {
+        passkeyRuntimeDiagnostics.lastStage = "port-rejected";
+        return;
+    }
+    passkeyRuntimeDiagnostics.lastStage = "port-connected";
+    let activeRequestId: string | null = null;
+    const abortController = new AbortController();
+    let responded = false;
+    const respond = (result: PasskeyResult) => {
+        if (responded) return;
+        responded = true;
+        try {
+            port.postMessage(result);
+        } catch {
+            // The page may have navigated or aborted while approval was open.
+        }
+    };
+    port.onMessage.addListener((msg) => {
+        if (msg.type !== "passkeyRequest" || activeRequestId) return;
+        passkeyRuntimeDiagnostics.requestCount += 1;
+        passkeyRuntimeDiagnostics.lastStage = "request-received";
+        activeRequestId = msg.requestId;
+        const deadline = Date.now() + passkeyRequestTimeoutMs(msg.options);
+        void beginPasskeyRequest(msg, port.sender!, respond, abortController.signal, deadline);
+    });
+    port.onDisconnect.addListener(() => {
+        abortController.abort();
+        if (activeRequestId) {
+            passkeyApprovalCoordinator.cancel(activeRequestId);
+            passkeySelectionCoordinator.cancel(activeRequestId);
+        }
+    });
+});
+
+nativeRuntime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (!sender.tab && msg.type === "ping") {
+        sendResponse({ type: "pong" });
+        return true;
+    }
+    if (sender.tab && msg.type === "passkeyRequest") {
+        // Long-running ceremonies use a runtime port so an MV3 worker stays
+        // alive. One-shot callers retain native WebAuthn rather than waiting.
+        sendResponse(buildPasskeyFallback(msg, sender));
+        return true;
+    }
+});
+
+function buildPasskeyFallback(
+    msg: Extract<Message, { type: "passkeyRequest" }>,
+    sender: Runtime.MessageSender
+): PasskeyResult {
+    if (PASSKEY_DIAGNOSTICS_ENABLED) {
+        console.debug("[Padloc passkey] background request", msg.requestId, msg.operation);
+    }
+    const verified = bindPasskeyRequest(msg.origin, sender) !== null;
+    return {
+        type: "passkeyResult",
+        protocolVersion: PASSKEY_PROTOCOL_VERSION,
+        requestId: msg.requestId,
+        outcome: verified ? "fallback" : "error",
+        ...(verified
+            ? { reason: "provider-not-configured" }
+            : { error: { name: "SecurityError", message: "Unable to verify the requesting origin" } }),
+    } as PasskeyResult;
+}
+
+async function beginPasskeyRequest(
+    msg: Extract<Message, { type: "passkeyRequest" }>,
+    sender: Runtime.MessageSender,
+    respond: (result: PasskeyResult) => void,
+    signal: AbortSignal,
+    deadline: number
+): Promise<void> {
+    const binding = bindPasskeyRequest(msg.origin, sender);
+    if (!binding || !isPasskeyProviderOriginEnabled(msg.origin)) {
+        respond(passkeyErrorResult(msg, "SecurityError", "Unable to verify the requesting origin"));
+        return;
+    }
+
+    try {
+        const description = describePasskeyOperation({
+            request: msg,
+            origin: msg.origin,
+            rpIdSuffixValidator: approvePasskeyRpSuffix,
+        });
+        passkeyApprovalCoordinator.begin(
+            {
+                requestId: msg.requestId,
+                operation: description.operation,
+                origin: msg.origin,
+                rpId: description.rpId,
+                rpName: description.rpName,
+                userName: description.userName,
+                userDisplayName: description.userDisplayName,
+            },
+            (resolution) => {
+                void resolvePasskeyRequest(msg, binding, resolution, respond, signal, deadline);
+            }
+        );
+        passkeyRuntimeDiagnostics.lastStage = "approval-pending";
+        if (PASSKEY_DIAGNOSTICS_ENABLED) {
+            console.info("[Padloc passkey] approval pending", msg.requestId, description.operation, description.rpId);
+        }
+        void updateBadgeAndContextMenu();
+    } catch (error) {
+        passkeyRuntimeDiagnostics.lastStage = "request-rejected";
+        passkeyRuntimeDiagnostics.lastErrorName = error instanceof Error ? error.name : "OperationError";
+        respond(passkeyErrorFromUnknown(msg, error));
+    }
+}
+
+async function resolvePasskeyRequest(
+    msg: Extract<Message, { type: "passkeyRequest" }>,
+    binding: PasskeyRequestBinding,
+    resolution: Readonly<PasskeyApprovalResolution>,
+    respond: (result: PasskeyResult) => void,
+    signal: AbortSignal,
+    deadline: number
+): Promise<void> {
+    try {
+        if (resolution.outcome !== "approved") {
+            if (resolution.outcome !== "cancelled") {
+                respond(passkeyErrorResult(msg, "NotAllowedError", "The passkey request was not approved"));
+            }
+            if (PASSKEY_DIAGNOSTICS_ENABLED) {
+                console.info("[Padloc passkey] ceremony ended", msg.requestId, msg.operation, resolution.outcome);
+            }
+            return;
+        }
+
+        await assertPasskeyCeremonyActive(binding, signal, deadline);
+
+        const application = await getApp();
+        if (!application.state.loggedIn || application.state.locked) {
+            respond(passkeyErrorResult(msg, "NotAllowedError", "Unlock Padloc to use this passkey"));
+            return;
+        }
+
+        const credential = await executePasskeyOperation({
+            request: msg,
+            origin: msg.origin,
+            repository: createVaultPasskeyRepository(application),
+            userVerified: resolution.userVerified,
+            rpIdSuffixValidator: approvePasskeyRpSuffix,
+            selectCredential: (candidates) =>
+                requestPasskeyCredentialSelection(msg, binding, candidates, signal, deadline),
+            assertActive: () => assertPasskeyCeremonyActive(binding, signal, deadline),
+        });
+        await assertPasskeyCeremonyActive(binding, signal, deadline);
+        respond({
+            type: "passkeyResult",
+            protocolVersion: PASSKEY_PROTOCOL_VERSION,
+            requestId: msg.requestId,
+            outcome: "credential",
+            credential,
+        });
+        if (PASSKEY_DIAGNOSTICS_ENABLED) {
+            console.info("[Padloc passkey] ceremony completed", msg.requestId, msg.operation);
+        }
+        passkeyRuntimeDiagnostics.lastStage = "completed";
+    } catch (error) {
+        passkeyRuntimeDiagnostics.lastStage = "failed";
+        passkeyRuntimeDiagnostics.lastErrorName = error instanceof Error ? error.name : "OperationError";
+        respond(passkeyErrorFromUnknown(msg, error));
+        if (PASSKEY_DIAGNOSTICS_ENABLED) {
+            console.warn(
+                "[Padloc passkey] ceremony failed",
+                msg.requestId,
+                msg.operation,
+                error instanceof Error ? error.name : "OperationError"
+            );
+        }
+    } finally {
+        void updateBadgeAndContextMenu();
+    }
+}
+
+async function requestPasskeyCredentialSelection(
+    msg: Extract<Message, { type: "passkeyRequest" }>,
+    binding: PasskeyRequestBinding,
+    candidates: readonly PasskeySelectionCandidate[],
+    signal: AbortSignal,
+    deadline: number
+): Promise<string | undefined> {
+    const description = describePasskeyOperation({
+        request: msg,
+        origin: msg.origin,
+        rpIdSuffixValidator: approvePasskeyRpSuffix,
+    });
+    passkeyRuntimeDiagnostics.lastStage = "selection-pending";
+    void updateBadgeAndContextMenu();
+
+    return new Promise<string | undefined>((resolve, reject) => {
+        const finish = async (resolution: Readonly<PasskeySelectionResolution>) => {
+            try {
+                if (resolution.outcome !== "selected") {
+                    resolve(undefined);
+                    return;
+                }
+                await assertPasskeyCeremonyActive(binding, signal, deadline);
+                resolve(resolution.selectionId);
+            } catch (error) {
+                reject(error);
+            } finally {
+                void updateBadgeAndContextMenu();
+            }
+        };
+
+        try {
+            passkeySelectionCoordinator.begin(
+                {
+                    requestId: msg.requestId,
+                    origin: msg.origin,
+                    rpId: description.rpId,
+                    candidates,
+                },
+                (resolution) => void finish(resolution)
+            );
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
+
+async function isPasskeyTabStillBound(binding: PasskeyRequestBinding): Promise<boolean> {
+    try {
+        const tab = await browser.tabs.get(binding.tabId);
+        return isPasskeyRequestBindingCurrent(binding, tab);
+    } catch {
+        return false;
+    }
+}
+
+function passkeyRequestTimeoutMs(options: Record<string, unknown>): number {
+    return Math.min(Math.max(Number(options.timeout) || 60_000, 1_000), 120_000);
+}
+
+async function assertPasskeyCeremonyActive(
+    binding: PasskeyRequestBinding,
+    signal: AbortSignal,
+    deadline: number
+): Promise<void> {
+    if (signal.aborted || Date.now() >= deadline) {
+        throw new PasskeyProviderError("NotAllowedError", "The passkey request is no longer active");
+    }
+    if (!(await isPasskeyTabStillBound(binding))) {
+        throw new PasskeyProviderError("SecurityError", "The requesting page changed during the passkey request");
+    }
+    if (signal.aborted || Date.now() >= deadline) {
+        throw new PasskeyProviderError("NotAllowedError", "The passkey request is no longer active");
+    }
+}
+
+function createVaultPasskeyRepository(application: App): PasskeyCredentialRepository {
+    const findOwner = (credential: PasskeyCredential): VaultItem | null => {
+        const credentialKey = bytesToBase64(credential.credentialId);
+        for (const vault of application.vaults) {
+            for (const item of vault.items) {
+                if (
+                    item.passkeys.some(
+                        (stored) =>
+                            stored.rpId === credential.rpId && bytesToBase64(stored.credentialId) === credentialKey
+                    )
+                ) {
+                    return item;
+                }
+            }
+        }
+        return null;
+    };
+
+    return {
+        async listCredentials(rpId) {
+            const credentials: PasskeyCredential[] = [];
+            for (const vault of application.vaults) {
+                for (const item of vault.items) {
+                    credentials.push(...item.passkeys.filter((credential) => credential.rpId === rpId));
+                }
+            }
+            return credentials;
+        },
+        async createCredential(credential) {
+            const vault = application.mainVault;
+            if (!vault) throw new PasskeyProviderError("NotAllowedError", "A writable Padloc vault is required");
+            let created: VaultItem | null = null;
+            try {
+                created = await application.createItem({
+                    name: `${credential.rpName || credential.rpId} Passkey`,
+                    vault: { id: vault.id },
+                    fields: [
+                        new Field({ name: "username", type: FieldType.Username, value: credential.userName }),
+                        new Field({ name: "url", type: FieldType.Url, value: `https://${credential.rpId}` }),
+                    ],
+                    passkeys: [credential],
+                });
+                await application.syncVaultStrict(vault, [created.id]);
+            } catch (error) {
+                if (created && application.getItem(created.id)) {
+                    await application.deleteItems([created]);
+                    await application.syncVaultStrict(vault, [created.id]);
+                }
+                throw error;
+            }
+        },
+        async updateCredential(credential) {
+            const item = findOwner(credential);
+            if (!item) throw new PasskeyProviderError("NotAllowedError", "The selected passkey is no longer stored");
+            const credentialKey = bytesToBase64(credential.credentialId);
+            await application.updateItem(item, {
+                passkeys: item.passkeys.map((stored) =>
+                    stored.rpId === credential.rpId && bytesToBase64(stored.credentialId) === credentialKey
+                        ? credential
+                        : stored
+                ),
+            });
+            const located = application.getItem(item.id);
+            if (!located) throw new PasskeyProviderError("NotAllowedError", "The selected passkey is no longer stored");
+            await application.syncVaultStrict(located.vault, [item.id]);
+        },
+        async deleteCredential(credential) {
+            const item = findOwner(credential);
+            if (!item) return;
+            const located = application.getItem(item.id);
+            if (!located) return;
+            await application.deleteItems([item]);
+            await application.syncVaultStrict(located.vault, [item.id]);
+        },
+    };
+}
+
+function passkeyErrorResult(
+    msg: Extract<Message, { type: "passkeyRequest" }>,
+    name: string,
+    message: string
+): PasskeyResult {
+    return {
+        type: "passkeyResult",
+        protocolVersion: PASSKEY_PROTOCOL_VERSION,
+        requestId: msg.requestId,
+        outcome: "error",
+        error: { name, message },
+    };
+}
+
+function passkeyErrorFromUnknown(msg: Extract<Message, { type: "passkeyRequest" }>, error: unknown): PasskeyResult {
+    if (error instanceof PasskeyProviderError) return passkeyErrorResult(msg, error.name, error.message);
+    return passkeyErrorResult(msg, "OperationError", "Padloc could not complete the passkey request");
+}
+
+async function handleRuntimeMessage(msg: Message, sender: Runtime.MessageSender) {
+    if (sender.tab && !isExtensionDocumentSender(sender)) {
+        // Ignore page-origin content-script messages (one-way communication).
+        return;
+    }
+
+    const application = await getApp();
+
+    switch (msg.type) {
+        case "loggedOut":
+        case "locked":
+            await clearSessionMasterKey();
+            await application.load();
+            await cancelAutoLock();
+            await updateBadgeAndContextMenu();
+            break;
+        case "unlocked":
+            await application.load();
+            await restoreSessionUnlock(application);
+            await startAutoLockTimer();
+            await updateBadgeAndContextMenu();
+            return { type: "unlockedAck", unlocked: application.state.loggedIn && !application.state.locked };
+        case "state-changed":
+            await application.reload();
+            await updateBadgeAndContextMenu();
+            break;
+        case "formSubmitDetected":
+            return handleFormSubmitDetected(msg.data, application);
+        case "getSavePrompt":
+            return handleGetSavePrompt();
+        case "saveCredential":
+            return handleSaveCredential(msg.promptId, msg.vaultId, application);
+        case "updateCredential":
+            return handleUpdateCredential(msg.promptId, msg.vaultId, application);
+        case "dismissPrompt":
+            return handleDismissPrompt(msg.promptId);
+        case "getAgenticAutofillApprovalPrompt":
+            return handleGetAgenticAutofillApprovalPrompt(sender);
+        case "approveAgenticAutofill":
+            return handleApproveAgenticAutofill(msg.planId, msg.promptNonce, sender);
+        case "dismissAgenticAutofill":
+            return handleDismissAgenticAutofill(msg.planId);
+        case "getPasskeyApprovalPrompt":
+            return {
+                type: "getPasskeyApprovalPromptResponse",
+                prompt: passkeyApprovalCoordinator.getPrompt(sender.url || ""),
+            };
+        case "approvePasskey":
+            if (
+                msg.userVerified !== true ||
+                !passkeyApprovalCoordinator.approve(
+                    { requestId: msg.requestId, promptNonce: msg.promptNonce, userVerified: true },
+                    sender.url || ""
+                )
+            ) {
+                throw new Error("Passkey approval is no longer available");
+            }
+            return null;
+        case "dismissPasskey":
+            if (
+                !passkeyApprovalCoordinator.dismiss(
+                    { requestId: msg.requestId, promptNonce: msg.promptNonce },
+                    sender.url || ""
+                )
+            ) {
+                throw new Error("Passkey approval is no longer available");
+            }
+            return null;
+        case "getPasskeySelectionPrompt":
+            return {
+                type: "getPasskeySelectionPromptResponse",
+                prompt: passkeySelectionCoordinator.getPrompt(sender.url || ""),
+            };
+        case "selectPasskeyCredential":
+            if (
+                !passkeySelectionCoordinator.select(
+                    {
+                        requestId: msg.requestId,
+                        promptNonce: msg.promptNonce,
+                        selectionId: msg.selectionId,
+                    },
+                    sender.url || ""
+                )
+            ) {
+                throw new Error("Passkey selection is no longer available");
+            }
+            return null;
+        case "dismissPasskeySelection":
+            if (
+                !passkeySelectionCoordinator.dismiss(
+                    { requestId: msg.requestId, promptNonce: msg.promptNonce },
+                    sender.url || ""
+                )
+            ) {
+                throw new Error("Passkey selection is no longer available");
+            }
+            return null;
+        case "agenticAutofillBroker":
+            return handleAgenticAutofillBroker(msg.request, application);
+    }
+}
+
+function isExtensionDocumentSender(sender: Runtime.MessageSender): boolean {
+    if (sender.id !== nativeRuntime.id || !sender.url) return false;
+    try {
+        return new URL(sender.url).origin === new URL(nativeRuntime.getURL("/")).origin;
+    } catch {
+        return false;
+    }
+}
+
 async function getApp(): Promise<App> {
     if (!app) {
-        app = new App(new BackgroundFetchSender(API_BASE_URL));
+        app = new App(new FetchSender(API_BASE_URL));
         await app.load();
         if (await restoreSessionUnlock(app)) {
             await startAutoLockTimer();
@@ -126,26 +636,15 @@ async function initBackground() {
     if (isInitialized) return;
     isInitialized = true;
 
-    const update = debounceBackground(() => {
-        void enqueueBadgeAndContextMenuUpdate().catch((error) => console.error(error));
-    }, 500);
-    registerImmediateMessageBridge();
+    browser.runtime.onMessage.addListener((msg, sender) =>
+        msg.type === "ping" || msg.type === "passkeyRequest" ? undefined : handleRuntimeMessage(msg, sender)
+    );
 
-    // Message listener - handles communication from popup and other contexts.
-    // Keep this listener synchronous so it cannot consume immediate bridge
-    // messages by resolving an async undefined response first.
-    browser.runtime.onMessage.addListener((msg: Message, sender: Runtime.MessageSender) => {
-        if (msg.type === "ping" || msg.type === "agenticWebAuthnCreate" || msg.type === "agenticWebAuthnGet") {
-            return;
-        }
-        const senderUrl = sender.url || "";
-        const isExtensionUiSender = senderUrl.startsWith(browser.runtime.getURL(""));
-        if (sender.tab && !isExtensionUiSender) {
-            // Ignore legacy content-script messages; WebAuthn has an explicit page bridge.
-            return;
-        }
-        return handleExtensionMessage(msg, sender, update);
-    });
+    await configureSessionStorage();
+
+    const _app = await getApp();
+    const update = debounce(() => updateBadgeAndContextMenu(), 500);
+    _app.subscribe(update);
 
     // Tab listeners for badge updates
     browser.tabs.onUpdated.addListener(update);
@@ -368,11 +867,28 @@ async function fillItemMultiField(item: MatchedVaultItem) {
 async function updateBadgeAndContextMenu() {
     const application = await getApp();
     const count = await getCountForActiveTab();
+    const passkeyApprovalPending =
+        passkeyApprovalCoordinator.pendingCount > 0 || passkeySelectionCoordinator.pendingCount > 0;
 
     // Update badge
-    const badgeText = count && application.settings.extensionBadge ? count.toString() : "";
+    const badgeText = passkeyApprovalPending
+        ? "PK"
+        : count && application.settings.extensionBadge
+        ? count.toString()
+        : "";
     actionApi.setBadgeText({ text: badgeText });
-    actionApi.setBadgeBackgroundColor({ color: "#ff6666" });
+    actionApi.setBadgeBackgroundColor({ color: passkeyApprovalPending ? "#5c6bc0" : "#ff6666" });
+
+    if (passkeyApprovalPending) {
+        actionApi.setIcon({ path: "icon.png" });
+        actionApi.setTitle({ title: "Passkey approval required" });
+    } else if (!application.account) {
+        actionApi.setIcon({ path: "icon-grayscale.png" });
+        actionApi.setTitle({ title: "Please Log In" });
+    } else {
+        actionApi.setIcon({ path: "icon.png" });
+        actionApi.setTitle({ title: "CH5 Auth" });
+    }
 
     // Update context menu
     await browser.contextMenus.removeAll();
@@ -413,15 +929,6 @@ async function updateBadgeAndContextMenu() {
                 });
             }
         }
-    }
-
-    // Update icon
-    if (!application.account) {
-        actionApi.setIcon({ path: "icon-grayscale.png" });
-        actionApi.setTitle({ title: "Please Log In" });
-    } else {
-        actionApi.setIcon({ path: "icon.png" });
-        actionApi.setTitle({ title: "CH5 Auth" });
     }
 }
 
@@ -884,335 +1391,6 @@ function requireExtensionUiSender(sender: Runtime.MessageSender): string {
         throw new Error("Autofill approval requires Padloc extension UI sender");
     }
     return senderUrl;
-}
-
-function validatePageWebAuthnRequest(
-    request: AgenticWebAuthnCreateRequest | AgenticWebAuthnGetRequest,
-    sender: Runtime.MessageSender
-): AgenticWebAuthnResponse | null {
-    const senderUrl = sender.url || sender.tab?.url || "";
-    let senderOrigin = "";
-    try {
-        senderOrigin = new URL(senderUrl).origin;
-    } catch {
-        return denyWebAuthn("SecurityError", "Padloc WebAuthn request missing sender origin", "sender_origin_missing");
-    }
-    if (senderOrigin !== request.origin) {
-        return denyWebAuthn("SecurityError", "Padloc WebAuthn origin mismatch", "origin_mismatch");
-    }
-    const topOrigin = request.topOrigin || request.origin;
-    if (request.crossOrigin && !request.topOrigin) {
-        return denyWebAuthn(
-            "SecurityError",
-            "Padloc WebAuthn cross-origin request missing top origin",
-            "top_origin_missing"
-        );
-    }
-    if (request.crossOrigin) {
-        return denyWebAuthn(
-            "NotSupportedError",
-            "Padloc WebAuthn cross-origin frames are not supported",
-            "cross_origin_not_supported"
-        );
-    }
-    if (sender.tab?.url && request.topOrigin) {
-        try {
-            const senderTopOrigin = new URL(sender.tab.url).origin;
-            if (senderTopOrigin !== request.topOrigin) {
-                return denyWebAuthn("SecurityError", "Padloc WebAuthn top origin mismatch", "top_origin_mismatch");
-            }
-        } catch {
-            return denyWebAuthn(
-                "SecurityError",
-                "Padloc WebAuthn sender top origin invalid",
-                "sender_top_origin_invalid"
-            );
-        }
-    }
-    if (!rpIdMatchesOrigin(request.rpId, topOrigin)) {
-        return denyWebAuthn("SecurityError", "Padloc WebAuthn rpId not allowed for origin", "rp_id_origin_mismatch");
-    }
-    return null;
-}
-
-function rpIdMatchesOrigin(rpId: string, origin: string): boolean {
-    try {
-        const hostname = normalizeWebAuthnDomain(new URL(origin).hostname);
-        const normalizedRpId = normalizeWebAuthnDomain(rpId);
-        if (!hostname || !normalizedRpId || isForbiddenRpId(normalizedRpId)) return false;
-        if (hostname === "localhost" && normalizedRpId === "localhost") return true;
-        return hostname === normalizedRpId || hostname.endsWith(`.${normalizedRpId}`);
-    } catch {
-        return false;
-    }
-}
-
-function normalizeWebAuthnDomain(value: string): string | null {
-    const normalized = value.trim().toLowerCase().replace(/\.$/, "");
-    if (!normalized || normalized.includes("/") || normalized.includes(":")) return null;
-    if (normalized.length > 253) return null;
-    const labels = normalized.split(".");
-    if (labels.some((label) => !label || label.length > 63 || !/^[a-z0-9-]+$/.test(label))) return null;
-    return normalized;
-}
-
-function isForbiddenRpId(rpId: string): boolean {
-    if (rpId === "localhost") return false;
-    if (!rpId.includes(".")) return true;
-    if (isIpAddress(rpId)) return true;
-    return PUBLIC_SUFFIX_RP_IDS.has(rpId);
-}
-
-function isIpAddress(value: string): boolean {
-    if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(value)) {
-        return value.split(".").every((part) => Number(part) <= 255);
-    }
-    return value.includes(":");
-}
-
-const PUBLIC_SUFFIX_RP_IDS = new Set([
-    "app",
-    "co.jp",
-    "co.uk",
-    "com",
-    "com.au",
-    "com.br",
-    "com.cn",
-    "com.mx",
-    "com.tr",
-    "co.nz",
-    "dev",
-    "edu",
-    "gov",
-    "io",
-    "net",
-    "ne.jp",
-    "org",
-    "org.uk",
-    "uk",
-    "us",
-]);
-
-function selectPasskeyItem(
-    application: App,
-    request: AgenticWebAuthnGetRequest
-): (VaultItem & { passkeyCredential: NonNullable<VaultItem["passkeyCredential"]> }) | null {
-    const allowedIds = request.allowCredentialIds || [];
-    const matches = getAllVaultItems(application)
-        .filter(isPasskeyCredentialItem)
-        .filter((item) => item.passkeyCredential.rpId === request.rpId)
-        .filter(
-            (item) => !allowedIds.length || allowedIds.includes(toBrowserBase64Url(item.passkeyCredential.credentialId))
-        );
-    if (matches.length !== 1) return null;
-    return matches[0];
-}
-
-function defaultAllowedTopOrigins(rpId: string, origin: string, topOrigin?: string): string[] {
-    return Array.from(new Set([topOrigin || origin, origin, `https://${rpId}`].filter(Boolean)));
-}
-
-function findPasskeyItemByCredentialId(application: App, credentialId: string): VaultItem | null {
-    const normalizedCredentialId = toBrowserBase64Url(credentialId);
-    return (
-        getAllVaultItems(application)
-            .filter(isPasskeyCredentialItem)
-            .find((item) => toBrowserBase64Url(item.passkeyCredential.credentialId) === normalizedCredentialId) || null
-    );
-}
-
-function webAuthnMessage(response: AgenticWebAuthnResponse): {
-    type: "agenticWebAuthnResponse";
-    response: AgenticWebAuthnResponse;
-} {
-    return { type: "agenticWebAuthnResponse", response };
-}
-
-function denyWebAuthn(name: AgenticWebAuthnErrorName, message: string, reason: string): AgenticWebAuthnResponse {
-    return {
-        ok: false,
-        error: { name, message, reason },
-        valuePolicy: "redacted WebAuthn denial only; no private key material",
-    };
-}
-
-function toBrowserBase64Url(value: string): string {
-    return bytesToBase64(base64ToBytesLoose(value)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-}
-
-function base64ToBytesLoose(value: string): Uint8Array {
-    const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
-    return base64ToBytes(padded);
-}
-
-async function handleSeedAgenticAutofillFixtures(sender: Runtime.MessageSender, application: App) {
-    requireExtensionUiSender(sender);
-    if (application.state.locked || !application.state.loggedIn) {
-        throw new Error("Fixture seeding requires unlocked Padloc extension UI");
-    }
-    const vault = application.mainVault;
-    if (!vault) throw new Error("Fixture seeding requires a main vault");
-    const fixtures = buildAgenticAutofillFixtureItems();
-    for (const fixture of fixtures) {
-        await application.createItem({
-            name: fixture.name,
-            vault: { id: vault.id },
-            fields: fixture.fields,
-            tags: ["agentic-autofill-fixture"],
-            icon: fixture.icon,
-        });
-    }
-    return {
-        type: "seedAgenticAutofillFixturesResponse",
-        created: fixtures.length,
-        itemNames: fixtures.map((fixture) => fixture.name),
-        valuePolicy: "fake fixture values only; response contains item names and counts, no raw field values",
-    };
-}
-
-function buildAgenticAutofillFixtureItems(): Array<{ name: string; icon: string; fields: Field[] }> {
-    return [
-        {
-            name: "Agentic Autofill Fixture - Person",
-            icon: "user",
-            fields: [
-                new Field({
-                    name: "Full Name",
-                    value: "Pat Fixture",
-                    type: FieldType.Text,
-                    autofillRole: AutofillFieldRole.PersonFullName,
-                }),
-                new Field({
-                    name: "First Name",
-                    value: "Pat",
-                    type: FieldType.Text,
-                    autofillRole: AutofillFieldRole.PersonFirstName,
-                }),
-                new Field({
-                    name: "Last Name",
-                    value: "Fixture",
-                    type: FieldType.Text,
-                    autofillRole: AutofillFieldRole.PersonLastName,
-                }),
-                new Field({
-                    name: "Email",
-                    value: "fixture@example.test",
-                    type: FieldType.Email,
-                    autofillRole: AutofillFieldRole.ContactEmail,
-                }),
-                new Field({
-                    name: "Phone",
-                    value: "5550100000",
-                    type: FieldType.Phone,
-                    autofillRole: AutofillFieldRole.ContactPhone,
-                }),
-            ],
-        },
-        {
-            name: "Agentic Autofill Fixture - Address",
-            icon: "passport",
-            fields: [
-                new Field({
-                    name: "Address Line 1",
-                    value: "100 Fixture Way",
-                    type: FieldType.Text,
-                    autofillRole: AutofillFieldRole.AddressLine1,
-                }),
-                new Field({
-                    name: "Address Line 2",
-                    value: "Unit 10",
-                    type: FieldType.Text,
-                    autofillRole: AutofillFieldRole.AddressLine2,
-                }),
-                new Field({
-                    name: "City",
-                    value: "Fixture City",
-                    type: FieldType.Text,
-                    autofillRole: AutofillFieldRole.AddressCity,
-                }),
-                new Field({
-                    name: "State",
-                    value: "CA",
-                    type: FieldType.Text,
-                    autofillRole: AutofillFieldRole.AddressRegion,
-                }),
-                new Field({
-                    name: "Postal Code",
-                    value: "90001",
-                    type: FieldType.Text,
-                    autofillRole: AutofillFieldRole.AddressPostalCode,
-                }),
-                new Field({
-                    name: "Country",
-                    value: "US",
-                    type: FieldType.Text,
-                    autofillRole: AutofillFieldRole.AddressCountry,
-                }),
-            ],
-        },
-        {
-            name: "Agentic Autofill Fixture - Payment Card",
-            icon: "credit",
-            fields: [
-                new Field({
-                    name: "Card Number",
-                    value: "4111111111111111",
-                    type: FieldType.Credit,
-                    autofillRole: AutofillFieldRole.PaymentCardPan,
-                }),
-                new Field({
-                    name: "Card Owner",
-                    value: "Pat Fixture",
-                    type: FieldType.Text,
-                    autofillRole: AutofillFieldRole.PaymentCardholderName,
-                }),
-                new Field({
-                    name: "Valid Until",
-                    value: "2031-09",
-                    type: FieldType.Month,
-                    autofillRole: AutofillFieldRole.PaymentCardExpiry,
-                }),
-                new Field({
-                    name: "CVC",
-                    value: "123",
-                    type: FieldType.Pin,
-                    autofillRole: AutofillFieldRole.PaymentCardCvvTransient,
-                    transactionOnly: true,
-                }),
-            ],
-        },
-        {
-            name: "Agentic Autofill Fixture - Gift Recipient",
-            icon: "user",
-            fields: [
-                new Field({
-                    name: "Recipient Name",
-                    value: "Gift Fixture",
-                    type: FieldType.Text,
-                    autofillRole: AutofillFieldRole.PersonFullName,
-                }),
-                new Field({
-                    name: "Recipient Email",
-                    value: "gift.fixture@example.test",
-                    type: FieldType.Email,
-                    autofillRole: AutofillFieldRole.ContactEmail,
-                }),
-            ],
-        },
-        {
-            name: "Agentic Autofill Fixture - Merchant",
-            icon: "web",
-            fields: [
-                new Field({
-                    name: "Merchant Origin",
-                    value: "https://checkout.example.test",
-                    type: FieldType.Url,
-                    autofillRole: AutofillFieldRole.MerchantOrigin,
-                }),
-            ],
-        },
-    ];
 }
 
 async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, application: App) {

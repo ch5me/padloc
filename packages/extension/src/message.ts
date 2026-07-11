@@ -1,6 +1,7 @@
 import { browser } from "webextension-polyfill-ts";
 import { VaultItem } from "@padloc/core/src/item";
 import { AutofillBrokerRequest, AutofillBrokerResponse } from "./autofill-broker-protocol";
+import { PasskeyRuntimeRequest } from "./passkey-protocol";
 
 /**
  * Mapping of field role to value for multi-field fill orchestration.
@@ -68,63 +69,30 @@ export interface AgenticAutofillApprovalPrompt {
     }>;
 }
 
-export interface AgenticWebAuthnCreateRequest {
+export interface PasskeyApprovalPrompt {
     requestId: string;
-    rpId: string;
+    promptNonce: string;
+    operation: "create" | "get";
     origin: string;
-    topOrigin?: string;
-    crossOrigin?: boolean;
-    challenge: string;
-    clientDataJSON: string;
-    userHandle?: string;
+    rpId: string;
+    rpName: string;
     userName?: string;
     userDisplayName?: string;
-    algorithm?: number;
-    userVerification?: UserVerificationRequirement;
-    excludeCredentialIds?: string[];
+    expiresAt: number;
 }
 
-export interface AgenticWebAuthnGetRequest {
+export interface PasskeyCredentialSelectionPrompt {
     requestId: string;
-    rpId: string;
+    promptNonce: string;
     origin: string;
-    topOrigin?: string;
-    crossOrigin?: boolean;
-    challenge: string;
-    clientDataJSON: string;
-    clientDataHash: string;
-    userVerification?: UserVerificationRequirement;
-    allowCredentialIds?: string[];
+    rpId: string;
+    candidates: Array<{
+        selectionId: string;
+        userName: string;
+        userDisplayName: string;
+    }>;
+    expiresAt: number;
 }
-
-export type AgenticWebAuthnErrorName =
-    | "InvalidStateError"
-    | "NotAllowedError"
-    | "NotSupportedError"
-    | "SecurityError"
-    | "UnknownError";
-
-export interface AgenticWebAuthnCredentialResponse {
-    id: string;
-    rawId: string;
-    type: "public-key";
-    authenticatorAttachment: "platform" | "cross-platform";
-    clientExtensionResults: { credProps?: { rk: boolean } };
-    response: {
-        clientDataJSON: string;
-        attestationObject?: string;
-        authenticatorData?: string;
-        publicKey?: string;
-        publicKeyAlgorithm?: number;
-        signature?: string;
-        userHandle?: string;
-        transports?: string[];
-    };
-}
-
-export type AgenticWebAuthnResponse =
-    | { ok: true; credential: AgenticWebAuthnCredentialResponse; valuePolicy: string }
-    | { ok: false; error: { name: AgenticWebAuthnErrorName; message: string; reason?: string }; valuePolicy: string };
 
 export type Message =
     | { type: "loggedIn" }
@@ -150,13 +118,17 @@ export type Message =
     | { type: "getAgenticAutofillApprovalPromptResponse"; prompt: AgenticAutofillApprovalPrompt | null }
     | { type: "approveAgenticAutofill"; planId: string; promptNonce: string }
     | { type: "dismissAgenticAutofill"; planId: string }
-    | { type: "seedAgenticAutofillFixtures" }
-    | { type: "seedAgenticAutofillFixturesResponse"; created: number; itemNames: string[]; valuePolicy: string }
+    | { type: "getPasskeyApprovalPrompt" }
+    | { type: "getPasskeyApprovalPromptResponse"; prompt: PasskeyApprovalPrompt | null }
+    | { type: "approvePasskey"; requestId: string; promptNonce: string; userVerified: boolean }
+    | { type: "dismissPasskey"; requestId: string; promptNonce: string }
+    | { type: "getPasskeySelectionPrompt" }
+    | { type: "getPasskeySelectionPromptResponse"; prompt: PasskeyCredentialSelectionPrompt | null }
+    | { type: "selectPasskeyCredential"; requestId: string; promptNonce: string; selectionId: string }
+    | { type: "dismissPasskeySelection"; requestId: string; promptNonce: string }
     | { type: "agenticAutofillBroker"; request: AutofillBrokerRequest }
     | { type: "agenticAutofillBrokerResponse"; response: AutofillBrokerResponse }
-    | { type: "agenticWebAuthnCreate"; request: AgenticWebAuthnCreateRequest }
-    | { type: "agenticWebAuthnGet"; request: AgenticWebAuthnGetRequest }
-    | { type: "agenticWebAuthnResponse"; response: AgenticWebAuthnResponse };
+    | PasskeyRuntimeRequest;
 
 export async function messageTab(msg: Message) {
     const [activeTab] = await browser.tabs.query({ active: true, currentWindow: true });

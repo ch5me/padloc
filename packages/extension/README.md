@@ -6,17 +6,18 @@ re-unlock.
 
 ## Parity Feature Set <!-- oc:id=sec_ab -->
 
-| Feature                                                       | Status   |
-| ------------------------------------------------------------- | -------- |
-| Email + TOTP auth                                             | Complete |
-| WebAuthn / Passkey auth                                       | Complete |
-| OAuth (Google, GitHub, etc.)                                  | Complete |
-| Biometric re-unlock (MV3 session key)                         | Complete |
-| Multi-field login form autofill                               | Complete |
-| Save / update credential prompts                              | Complete |
-| Content script login/identity/address/payment field detection | Complete |
-| Popup cold-start state restoration                            | Complete |
-| Playwright runtime test harness                               | Complete |
+| Feature                                                       | Status                                                                                                                           |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Email + TOTP auth                                             | Complete                                                                                                                         |
+| WebAuthn for CH5 Auth account authentication                  | Client implemented; Worker verifier not yet wired                                                                                |
+| OAuth (Google, GitHub, etc.)                                  | Extension client implemented; Worker auth server not wired                                                                       |
+| Biometric re-unlock (MV3 session key)                         | Complete                                                                                                                         |
+| Multi-field login form autofill                               | Complete                                                                                                                         |
+| Padloc-held passkeys for third-party relying parties          | Browser canary implemented; controlled CH5 RP five-credential create/get E2E passing; Google canary awaiting user-presence steps |
+| Save / update credential prompts                              | Complete                                                                                                                         |
+| Content script login/identity/address/payment field detection | Complete                                                                                                                         |
+| Popup cold-start state restoration                            | Complete                                                                                                                         |
+| Playwright runtime test harness                               | Complete                                                                                                                         |
 
 ## Setup <!-- oc:id=sec_ac -->
 
@@ -51,13 +52,18 @@ The resulting build is in `packages/extension/dist/`.
 
 All build options are provided as environment variables:
 
-| Variable Name   | Description                              | Default                 |
-| --------------- | ---------------------------------------- | ----------------------- |
-| `PL_SERVER_URL` | URL to the Worker backend                | `http://127.0.0.1:8787` |
-| `PL_BUILD_ENV`  | Build environment label (e.g. `staging`) | unset                   |
+| Variable Name            | Description                                                  | Default                                      |
+| ------------------------ | ------------------------------------------------------------ | -------------------------------------------- |
+| `PL_SERVER_URL`          | URL to the Worker backend                                    | `http://127.0.0.1:8787`                      |
+| `PL_BUILD_ENV`           | Baked build label (e.g. `staging`)                           | `development`                                |
+| `PL_PASSKEY_DIAGNOSTICS` | Expose redacted passkey stage diagnostics and console events | `true` outside production; otherwise `false` |
 
 `PL_SERVER_URL` is baked into the extension at build time via webpack
 `DefinePlugin`. The extension does not read this value at runtime.
+
+Passkey diagnostics contain ceremony IDs, operation/RP metadata, stage, result,
+and error category only. They are disabled by default for production builds; set
+`PL_PASSKEY_DIAGNOSTICS=true` only for a bounded canary build.
 
 ### Installing an Unpacked Extension <!-- oc:id=sec_af -->
 
@@ -80,9 +86,10 @@ cd packages/extension
 npm test
 ```
 
-Tests live in `test/*.ts` and cover: field classification, cold-start state
-machines, OAuth stubs, biometric gating, save/update message types, and autofill
-orchestration.
+Tests live in `test/*.ts` and cover field classification, cold-start state
+machines, OAuth stubs, biometric gating, save/update message types, autofill
+orchestration, passkey cryptography, RP/origin enforcement, and nonce-bound
+approval and multi-credential selection.
 
 ### Runtime Smoke Tests (Playwright) <!-- oc:id=sec_ai -->
 
@@ -203,6 +210,37 @@ in `chrome://extensions` after each build.
 For hot-reload development, rebuild manually or use a file watcher.
 
 ## Architecture Notes <!-- oc:id=sec_al -->
+
+-   **Three distinct credential paths**: CH5 Auth WebAuthn authenticates the
+    user to Padloc through the browser or operating-system authenticator.
+    Biometric re-unlock uses that CH5 Auth token to release the remembered vault
+    key. Username/password/TOTP autofill writes approved vault values into web
+    forms. The separate browser-provider path described below is what makes
+    Padloc a passkey provider for explicitly enabled relying parties.
+-   **Third-party passkey provider gate**: A Padloc-held passkey must retain an
+    RP-scoped private key inside the encrypted vault and answer WebAuthn
+    create/get requests after local user verification. A desktop extension can
+    do this by replacing the page's WebAuthn methods in the main world while
+    preserving a native fallback; mobile apps require the operating system's
+    credential-provider surface. The extension now has the ES256 vault
+    record/authenticator and the HTTPS-only main/isolated-world bridge with
+    bounded native fallback, nonce-bound approval, recent password/biometric
+    verification, RP option validation, and encrypted-vault persistence. The
+    controlled `ch5.me` RP E2E creates five discoverable ES256 credentials,
+    signs a fresh assertion with an exact redacted user choice, verifies the
+    signature and RP hash in Chromium, preserves the multi-device zero counter,
+    and reloads the credentials from encrypted vault storage. Ambiguous requests
+    require a second, nonce-bound choice tied to the original RP, origin, tab,
+    frame, and ceremony; stale or mismatched state fails closed. The current
+    rollout remains an explicit CH5/Google canary; a complete public-suffix
+    policy is still required before general enablement. See
+    [the provider test plan](../../docs/passkey-provider-test-plan.md).
+-   **Synchronized passkey semantics**: Vault-held passkeys are backup-eligible
+    multi-device credentials. They use the WebAuthn zero-counter policy, and a
+    registration is returned only after encrypted vault synchronization. Page
+    abort/timeout disconnects the ceremony port; background lifetime and
+    tab/origin checks are re-run around signing and persistence, with rollback
+    if cancellation is observed after a local mutation.
 
 -   **MV3 session key**: Raw master key is stored in `browser.storage.session`
     (volatile, survives worker restarts). The worker and popup both restore from

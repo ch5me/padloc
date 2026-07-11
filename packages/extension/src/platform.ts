@@ -1,8 +1,9 @@
 import { WebPlatform } from "@padloc/app/src/lib/platform";
 import { StartAuthRequestResponse, StartRegisterAuthenticatorResponse } from "@padloc/core/src/api";
-import { AuthType } from "@padloc/core/src/auth";
+import { AuthClient, AuthType } from "@padloc/core/src/auth";
 import { ExtensionStorage } from "./storage";
 import { oauthClient } from "./auth/oauth";
+import { webAuthnClient } from "./auth/webauthn";
 
 export class ExtensionPlatform extends WebPlatform {
     storage = new ExtensionStorage();
@@ -17,6 +18,16 @@ export class ExtensionPlatform extends WebPlatform {
                 AuthType.Oauth,
             ].includes(type)
         );
+    }
+
+    protected async _getAuthClient(type: AuthType): Promise<AuthClient | null> {
+        if (type === AuthType.Oauth) {
+            return oauthClient;
+        }
+        if (type === AuthType.WebAuthnPlatform || type === AuthType.WebAuthnPortable) {
+            return webAuthnClient;
+        }
+        return super._getAuthClient(type);
     }
 
     protected async _prepareRegisterAuthenticator({ data, type }: StartRegisterAuthenticatorResponse): Promise<any> {

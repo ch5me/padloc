@@ -1,15 +1,12 @@
 import { expect } from "chai";
 import { spawnSync } from "child_process";
-import { createRequire } from "module";
-import { dirname, resolve } from "path";
-import { fileURLToPath } from "url";
+import { resolve } from "path";
 import { mkdtempSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { suite, test } from "mocha";
 
-const requireModule = createRequire(import.meta.url);
-const { buildLockedBrokerResponse } = requireModule("../src/autofill-broker-protocol");
-const currentDir = dirname(fileURLToPath(import.meta.url));
+const { buildLockedBrokerResponse } = require("../src/autofill-broker-protocol");
+const currentDir = __dirname;
 
 suite("Autofill broker protocol", () => {
     test("builds redacted locked response", () => {

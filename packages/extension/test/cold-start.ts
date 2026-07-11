@@ -307,9 +307,10 @@ suite("ExtensionApp routing decision logic", () => {
                 ({ item }: { item: { id: string } }) => !routerState.lastMatchingItems.includes(item.id)
             );
 
-        const shouldGoToItems =
+        const shouldGoToItems = Boolean(
             matchingItems.length &&
-            (hasNewMatchingItems || (routerState.path === "items" && !routerState.params.search));
+                (hasNewMatchingItems || (routerState.path === "items" && !routerState.params.search))
+        );
 
         expect(shouldGoToItems).to.be.true;
     });
@@ -324,9 +325,10 @@ suite("ExtensionApp routing decision logic", () => {
                 ({ item }: { item: { id: string } }) => !routerState.lastMatchingItems.includes(item.id)
             );
 
-        const shouldGoToItems =
+        const shouldGoToItems = Boolean(
             matchingItems.length &&
-            (hasNewMatchingItems || (routerState.path === "items" && !routerState.params.search));
+                (hasNewMatchingItems || (routerState.path === "items" && !routerState.params.search))
+        );
 
         expect(Boolean(shouldGoToItems)).to.be.false;
     });

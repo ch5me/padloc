@@ -1,9 +1,7 @@
 import { expect } from "chai";
-import { createRequire } from "module";
 import { suite, test } from "mocha";
 
-const requireModule = createRequire(import.meta.url);
-const { AutofillFieldRole, classifyAutofillField } = requireModule("../src/autofill-classifier");
+const { AutofillFieldRole, classifyAutofillField } = require("../src/autofill-classifier");
 
 suite("Autofill classifier", () => {
     function field(overrides: {
@@ -29,6 +27,13 @@ suite("Autofill classifier", () => {
         expect(classifyAutofillField(field({ autocomplete: "username" }))).to.equal(AutofillFieldRole.Username);
         expect(classifyAutofillField(field({ type: "password" }))).to.equal(AutofillFieldRole.Password);
         expect(classifyAutofillField(field({ autocomplete: "one-time-code" }))).to.equal(AutofillFieldRole.Totp);
+    });
+
+    test("recognizes common provider-specific username and OTP signals", () => {
+        expect(classifyAutofillField(field({ name: "screen_name" }))).to.equal(AutofillFieldRole.Username);
+        expect(classifyAutofillField(field({ name: "team" }))).to.equal(AutofillFieldRole.Username);
+        expect(classifyAutofillField(field({ pattern: "\\d+", maxLength: 6 }))).to.equal(AutofillFieldRole.Totp);
+        expect(classifyAutofillField(field({ pattern: "[0-9]{6}", maxLength: 6 }))).to.equal(AutofillFieldRole.Totp);
     });
 
     test("classifies identity roles", () => {

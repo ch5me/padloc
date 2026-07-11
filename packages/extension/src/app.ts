@@ -1,12 +1,21 @@
 import { browser } from "webextension-polyfill-ts";
+import { css } from "lit";
 import { App } from "@padloc/app/src/elements/app";
 import { debounce } from "@padloc/core/src/util";
 import { Storable } from "@padloc/core/src/storage";
 import { VaultItem } from "@padloc/core/src/item";
-import { shouldAttemptBiometricReunlock, unlockWithBiometric } from "./auth/biometric";
-import { AgenticAutofillApprovalPrompt, messageTab, SavePrompt } from "./message";
+import { shouldAttemptBiometricReunlock, unlockWithBiometric, verifyUserPresenceWithBiometric } from "./auth/biometric";
+import {
+    AgenticAutofillApprovalPrompt,
+    messageTab,
+    PasskeyApprovalPrompt,
+    PasskeyCredentialSelectionPrompt,
+    SavePrompt,
+} from "./message";
 import { clearSessionMasterKey, getSessionMasterKey, saveSessionMasterKey } from "./storage";
-import { installUnlockPersistenceHooks } from "./unlock-persistence";
+import { awaitWorkerUnlock, installUnlockPersistenceHooks } from "./unlock-persistence";
+import { waitForWorkerReady } from "./worker-readiness";
+import { verifyPasskeyUserPresence } from "./passkey-user-verification";
 // import { messageTab } from "./message";
 
 const notifyStateChanged = debounce(() => {
@@ -14,10 +23,6 @@ const notifyStateChanged = debounce(() => {
         type: "state-changed",
     });
 }, 500);
-
-// Minimum time to wait for worker to settle after cold start (ms)
-const WORKER_SETTLE_MIN_WAIT = 100;
-const WORKER_SETTLE_MAX_WAIT = 500;
 
 class RouterState extends Storable {
     id = "";
@@ -32,6 +37,110 @@ class RouterState extends Storable {
 }
 
 export class ExtensionApp extends App {
+    static styles = [
+        ...App.styles,
+        css`
+            .save-prompt-overlay {
+                position: absolute;
+                inset: 0;
+                z-index: 1000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: var(--spacing);
+                box-sizing: border-box;
+                background: rgba(0, 0, 0, 0.45);
+                pointer-events: auto;
+            }
+
+            .save-prompt-card {
+                width: min(100%, 28em);
+                max-height: 100%;
+                overflow: auto;
+                padding: calc(var(--spacing) * 1.25);
+                box-sizing: border-box;
+                border-radius: 0.75em;
+                color: var(--color-foreground);
+                background: var(--color-background);
+                box-shadow: 0 0.75em 2.5em rgba(0, 0, 0, 0.28);
+            }
+
+            .save-prompt-header,
+            .save-prompt-actions,
+            .save-prompt-username,
+            .save-prompt-password {
+                display: flex;
+                align-items: center;
+                gap: var(--spacing);
+            }
+
+            .save-prompt-header {
+                margin-bottom: var(--spacing);
+                font-weight: 600;
+            }
+
+            .save-prompt-body {
+                display: grid;
+                gap: calc(var(--spacing) * 0.75);
+            }
+
+            .save-prompt-host {
+                overflow-wrap: anywhere;
+                font-weight: 600;
+            }
+
+            .save-prompt-label {
+                min-width: 5em;
+                color: var(--color-foreground-dimmed);
+            }
+
+            .save-prompt-value {
+                min-width: 0;
+                overflow-wrap: anywhere;
+            }
+
+            .save-prompt-actions {
+                justify-content: flex-end;
+                margin-top: calc(var(--spacing) * 1.25);
+            }
+
+            .save-prompt-btn {
+                min-height: 2.5em;
+                padding: 0.5em 1em;
+                border: 0;
+                border-radius: 0.5em;
+                cursor: pointer;
+                font: inherit;
+            }
+
+            .save-prompt-btn-primary {
+                color: var(--color-background);
+                background: var(--color-highlight);
+            }
+
+            .passkey-selection-list {
+                display: grid;
+                gap: calc(var(--spacing) * 0.5);
+            }
+
+            .passkey-selection-option {
+                display: grid;
+                grid-template-columns: auto minmax(0, 1fr);
+                gap: var(--spacing);
+                align-items: center;
+                padding: calc(var(--spacing) * 0.75);
+                border: 1px solid var(--color-foreground-dimmed);
+                border-radius: 0.5em;
+                cursor: pointer;
+            }
+
+            .passkey-selection-identity {
+                display: grid;
+                min-width: 0;
+            }
+        `,
+    ];
+
     private _isLocked = true;
     private _isLoggedIn = false;
     private _workerReady = false;
@@ -39,6 +148,11 @@ export class ExtensionApp extends App {
     private _savePromptOverlay: HTMLElement | null = null;
     private _pendingAutofillApproval: AgenticAutofillApprovalPrompt | null = null;
     private _autofillApprovalOverlay: HTMLElement | null = null;
+    private _pendingPasskeyApproval: PasskeyApprovalPrompt | null = null;
+    private _passkeyApprovalOverlay: HTMLElement | null = null;
+    private _pendingPasskeySelection: PasskeyCredentialSelectionPrompt | null = null;
+    private _passkeySelectionOverlay: HTMLElement | null = null;
+    private _lastFreshUserVerificationAt = 0;
     private _unlockHooksInstalled = false;
     private _sessionSyncPromise: Promise<void> | null = null;
 
@@ -54,26 +168,10 @@ export class ExtensionApp extends App {
     private async _waitForWorkerReady(): Promise<void> {
         if (this._workerReady) return;
 
-        // Check if worker is already initialized by trying to send a ping
-        // If the worker was just restarted, this gives it time to boot
-        const start = Date.now();
-        const maxWait = WORKER_SETTLE_MAX_WAIT;
+        await waitForWorkerReady(() => browser.runtime.sendMessage({ type: "ping" }));
 
-        while (Date.now() - start < maxWait) {
-            try {
-                const response = await browser.runtime.sendMessage({ type: "ping" });
-                if (response?.type === "pong") {
-                    this._workerReady = true;
-                    return;
-                }
-            } catch {
-                // Worker is still starting, wait and retry
-            }
-            await new Promise((r) => setTimeout(r, WORKER_SETTLE_MIN_WAIT));
-        }
-
-        // Worker didn't respond to ping, but continue anyway
-        // The worker might be in a state where it can't respond but is still functional
+        // Continue even if the worker did not answer. The bounded probe is only
+        // a cold-start aid and must never block the popup indefinitely.
         this._workerReady = true;
     }
 
@@ -82,7 +180,10 @@ export class ExtensionApp extends App {
             return;
         }
 
-        installUnlockPersistenceHooks(this.app, () => this._persistUnlockedState());
+        installUnlockPersistenceHooks(this.app, (reason) => {
+            if (reason === "login" || reason === "password") this._lastFreshUserVerificationAt = Date.now();
+            return this._persistUnlockedState();
+        });
 
         this._unlockHooksInstalled = true;
     }
@@ -97,7 +198,7 @@ export class ExtensionApp extends App {
         });
 
         await this._sessionSyncPromise;
-        this._notifyUnlockedState();
+        await this._notifyUnlockedState();
     }
 
     async load() {
@@ -217,6 +318,8 @@ export class ExtensionApp extends App {
         this._wrapper.classList.toggle("active", true);
         void this._checkForSavePrompt();
         void this._checkForAgenticAutofillApproval();
+        void this._checkForPasskeyApproval();
+        void this._checkForPasskeySelection();
     }
 
     async _locked() {
@@ -226,6 +329,7 @@ export class ExtensionApp extends App {
     private async _restoreBiometricUnlock() {
         const result = await unlockWithBiometric(this.app);
         if (result === "unlocked") {
+            this._lastFreshUserVerificationAt = Date.now();
             this._unlocked();
             return true;
         }
@@ -254,8 +358,8 @@ export class ExtensionApp extends App {
         });
     }
 
-    private _notifyUnlockedState() {
-        void browser.runtime.sendMessage({ type: "unlocked" }).catch(() => undefined);
+    private async _notifyUnlockedState() {
+        await awaitWorkerUnlock(() => browser.runtime.sendMessage({ type: "unlocked" }));
     }
 
     private async _syncLockedState(type: "locked" | "loggedOut") {
@@ -487,6 +591,201 @@ export class ExtensionApp extends App {
         const planId = this._pendingAutofillApproval.planId;
         this._dismissAgenticAutofillApprovalOverlay();
         await browser.runtime.sendMessage({ type: "dismissAgenticAutofill", planId });
+    }
+
+    private async _checkForPasskeyApproval() {
+        if (this.app.state.locked || !this.app.state.loggedIn) return;
+        try {
+            const response = await browser.runtime.sendMessage({ type: "getPasskeyApprovalPrompt" });
+            if (response?.type === "getPasskeyApprovalPromptResponse" && response.prompt) {
+                this._pendingPasskeyApproval = response.prompt;
+                this._renderPasskeyApprovalOverlay();
+            }
+        } catch {
+            // The ceremony may have expired or the worker may still be waking.
+        }
+    }
+
+    private _renderPasskeyApprovalOverlay() {
+        if (!this._pendingPasskeyApproval || this._passkeyApprovalOverlay) return;
+        const prompt = this._pendingPasskeyApproval;
+        const action = prompt.operation === "create" ? "Create Passkey" : "Use Passkey";
+        const identity = prompt.userDisplayName || prompt.userName || "Saved account";
+        this._wrapper.insertAdjacentHTML(
+            "beforeend",
+            `<div class="save-prompt-overlay">
+                <div class="save-prompt-card">
+                    <div class="save-prompt-header">
+                        <pl-icon icon="fingerprint" class="save-prompt-icon"></pl-icon>
+                        <span class="save-prompt-title">${action}?</span>
+                    </div>
+                    <div class="save-prompt-body">
+                        <div class="save-prompt-host">${this._escapeHtml(prompt.rpName || prompt.rpId)}</div>
+                        <div class="save-prompt-username">
+                            <span class="save-prompt-label">Account</span>
+                            <span class="save-prompt-value">${this._escapeHtml(identity)}</span>
+                        </div>
+                        <div class="save-prompt-password">
+                            <span class="save-prompt-label">Origin</span>
+                            <span class="save-prompt-value">${this._escapeHtml(prompt.origin)}</span>
+                        </div>
+                    </div>
+                    <div class="save-prompt-actions">
+                        <button class="save-prompt-btn save-prompt-btn-primary" id="passkey-approve">${action}</button>
+                        <button class="save-prompt-btn save-prompt-btn-dismiss" id="passkey-dismiss">Cancel</button>
+                    </div>
+                </div>
+            </div>`
+        );
+        this._passkeyApprovalOverlay = this._wrapper.querySelector(".save-prompt-overlay:last-child");
+        this._passkeyApprovalOverlay?.querySelector("#passkey-approve")?.addEventListener("click", () => {
+            void this._handlePasskeyApproval();
+        });
+        this._passkeyApprovalOverlay?.querySelector("#passkey-dismiss")?.addEventListener("click", () => {
+            void this._handlePasskeyDismiss();
+        });
+    }
+
+    private _dismissPasskeyApprovalOverlay() {
+        this._passkeyApprovalOverlay?.remove();
+        this._passkeyApprovalOverlay = null;
+        this._pendingPasskeyApproval = null;
+    }
+
+    private async _handlePasskeyApproval() {
+        const prompt = this._pendingPasskeyApproval;
+        if (!prompt || Date.now() >= prompt.expiresAt) return this._dismissPasskeyApprovalOverlay();
+        const verification = await verifyPasskeyUserPresence({
+            recentlyVerified: Date.now() - this._lastFreshUserVerificationAt <= 60_000,
+            verifyBiometric: () => verifyUserPresenceWithBiometric(this.app),
+            requirePassword: async () => {
+                this._dismissPasskeyApprovalOverlay();
+                await this.app.lock();
+            },
+        });
+        if (verification === "cancelled") {
+            const button = this._passkeyApprovalOverlay?.querySelector("#passkey-approve");
+            if (button) button.textContent = "Verification cancelled";
+            return;
+        }
+        if (verification === "password-required") return;
+        this._dismissPasskeyApprovalOverlay();
+        await browser.runtime.sendMessage({
+            type: "approvePasskey",
+            requestId: prompt.requestId,
+            promptNonce: prompt.promptNonce,
+            userVerified: true,
+        });
+        for (let attempt = 0; attempt < 30; attempt++) {
+            if (await this._checkForPasskeySelection()) return;
+            await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+    }
+
+    private async _handlePasskeyDismiss() {
+        const prompt = this._pendingPasskeyApproval;
+        this._dismissPasskeyApprovalOverlay();
+        if (prompt) {
+            await browser.runtime.sendMessage({
+                type: "dismissPasskey",
+                requestId: prompt.requestId,
+                promptNonce: prompt.promptNonce,
+            });
+        }
+    }
+
+    private async _checkForPasskeySelection(): Promise<boolean> {
+        if (this.app.state.locked || !this.app.state.loggedIn) return false;
+        try {
+            const response = await browser.runtime.sendMessage({ type: "getPasskeySelectionPrompt" });
+            if (response?.type !== "getPasskeySelectionPromptResponse" || !response.prompt) return false;
+            this._pendingPasskeySelection = response.prompt;
+            this._renderPasskeySelectionOverlay();
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    private _renderPasskeySelectionOverlay() {
+        if (!this._pendingPasskeySelection || this._passkeySelectionOverlay) return;
+        const prompt = this._pendingPasskeySelection;
+        const candidates = prompt.candidates
+            .map(
+                (candidate, index) => `<label class="passkey-selection-option" for="passkey-selection-${index}">
+                    <input type="radio" id="passkey-selection-${index}" name="passkey-selection" value="${this._escapeHtml(
+                    candidate.selectionId
+                )}" />
+                    <span class="passkey-selection-identity">
+                        <strong>${this._escapeHtml(candidate.userDisplayName)}</strong>
+                        <span>${this._escapeHtml(candidate.userName)}</span>
+                    </span>
+                </label>`
+            )
+            .join("");
+        this._wrapper.insertAdjacentHTML(
+            "beforeend",
+            `<div class="save-prompt-overlay">
+                <div class="save-prompt-card">
+                    <div class="save-prompt-header">
+                        <pl-icon icon="fingerprint" class="save-prompt-icon"></pl-icon>
+                        <span class="save-prompt-title">Choose a Passkey</span>
+                    </div>
+                    <div class="save-prompt-body">
+                        <div class="save-prompt-host">${this._escapeHtml(prompt.rpId)}</div>
+                        <div class="passkey-selection-list">${candidates}</div>
+                    </div>
+                    <div class="save-prompt-actions">
+                        <button class="save-prompt-btn save-prompt-btn-primary" id="passkey-selection-confirm">Continue</button>
+                        <button class="save-prompt-btn save-prompt-btn-dismiss" id="passkey-selection-dismiss">Cancel</button>
+                    </div>
+                </div>
+            </div>`
+        );
+        this._passkeySelectionOverlay = this._wrapper.querySelector(".save-prompt-overlay:last-child");
+        this._passkeySelectionOverlay?.querySelector("#passkey-selection-confirm")?.addEventListener("click", () => {
+            void this._handlePasskeySelection();
+        });
+        this._passkeySelectionOverlay?.querySelector("#passkey-selection-dismiss")?.addEventListener("click", () => {
+            void this._handlePasskeySelectionDismiss();
+        });
+    }
+
+    private _dismissPasskeySelectionOverlay() {
+        this._passkeySelectionOverlay?.remove();
+        this._passkeySelectionOverlay = null;
+        this._pendingPasskeySelection = null;
+    }
+
+    private async _handlePasskeySelection() {
+        const prompt = this._pendingPasskeySelection;
+        if (!prompt || Date.now() >= prompt.expiresAt) return this._dismissPasskeySelectionOverlay();
+        const selected = this._passkeySelectionOverlay?.querySelector<HTMLInputElement>(
+            "input[name='passkey-selection']:checked"
+        );
+        if (!selected) {
+            const button = this._passkeySelectionOverlay?.querySelector("#passkey-selection-confirm");
+            if (button) button.textContent = "Choose an account";
+            return;
+        }
+        this._dismissPasskeySelectionOverlay();
+        await browser.runtime.sendMessage({
+            type: "selectPasskeyCredential",
+            requestId: prompt.requestId,
+            promptNonce: prompt.promptNonce,
+            selectionId: selected.value,
+        });
+    }
+
+    private async _handlePasskeySelectionDismiss() {
+        const prompt = this._pendingPasskeySelection;
+        this._dismissPasskeySelectionOverlay();
+        if (!prompt) return;
+        await browser.runtime.sendMessage({
+            type: "dismissPasskeySelection",
+            requestId: prompt.requestId,
+            promptNonce: prompt.promptNonce,
+        });
     }
 
     private _dismissSavePromptOverlay() {

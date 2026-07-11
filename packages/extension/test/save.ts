@@ -131,7 +131,7 @@ suite("Save/Update credential flow", () => {
     suite("Prompt suppression", () => {
         let dismissedUrls: Map<string, number>;
 
-        beforeEach(() => {
+        setup(() => {
             dismissedUrls = new Map();
         });
 

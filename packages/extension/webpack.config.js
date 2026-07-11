@@ -8,6 +8,8 @@ const sharp = require("sharp");
 const { version } = require("./package.json");
 
 const serverUrl = process.env.PL_SERVER_URL || `http://127.0.0.1:${process.env.PL_WORKER_PORT || 8787}`;
+const buildEnvironment = process.env.PL_BUILD_ENV || "development";
+const passkeyDiagnostics = process.env.PL_PASSKEY_DIAGNOSTICS || (buildEnvironment === "production" ? "false" : "true");
 const rootDir = resolve(__dirname, "../..");
 const assetsDir = resolve(rootDir, process.env.PL_ASSETS_DIR || "assets");
 
@@ -18,7 +20,8 @@ module.exports = {
         popup: resolve(__dirname, "src/popup.ts"),
         background: resolve(__dirname, "src/background.ts"),
         content: resolve(__dirname, "src/content.ts"),
-        "webauthn-page": resolve(__dirname, "src/webauthn-page.ts"),
+        "passkey-page": resolve(__dirname, "src/passkey-page.ts"),
+        "passkey-content-bridge": resolve(__dirname, "src/passkey-content-bridge.ts"),
     },
     output: {
         path: resolve(__dirname, "dist"),
@@ -27,8 +30,8 @@ module.exports = {
         publicPath: "",
         hashFunction: "sha256",
     },
-    mode: process.env.NODE_ENV || "production",
-    devtool: "source-map",
+    mode: buildEnvironment === "production" ? "production" : "development",
+    devtool: buildEnvironment === "production" ? false : "source-map",
     stats: "minimal",
     optimization: {
         minimize: false,
@@ -84,6 +87,8 @@ module.exports = {
         new EnvironmentPlugin({
             PL_APP_NAME: name,
             PL_SERVER_URL: serverUrl,
+            PL_BUILD_ENV: buildEnvironment,
+            PL_PASSKEY_DIAGNOSTICS: passkeyDiagnostics,
             PL_BILLING_ENABLED: null,
             PL_BILLING_DISABLE_PAYMENT: null,
             PL_BILLING_STRIPE_PUBLIC_KEY: null,

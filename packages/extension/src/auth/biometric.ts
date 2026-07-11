@@ -4,6 +4,7 @@ import { ErrorCode } from "@padloc/core/src/error";
 import { authenticate, getPlatformAuthType } from "@padloc/core/src/platform";
 
 export type BiometricReunlockResult = "unavailable" | "unlocked" | "expired" | "cancelled" | "failed";
+export type BiometricVerificationResult = "unavailable" | "verified" | "expired" | "cancelled" | "failed";
 
 type BiometricDeps = {
     authenticate: typeof authenticate;
@@ -41,6 +42,34 @@ export async function unlockWithBiometric(
         });
         await app.unlockWithRememberedMasterKey(token);
         return "unlocked";
+    } catch (error) {
+        switch (getErrorCode(error)) {
+            case ErrorCode.NOT_FOUND:
+                return "expired";
+            case ErrorCode.AUTHENTICATION_FAILED:
+                return "cancelled";
+            default:
+                return "failed";
+        }
+    }
+}
+
+/** Performs a fresh platform verification without changing vault lock state. */
+export async function verifyUserPresenceWithBiometric(
+    app: App,
+    deps: BiometricDeps = { authenticate, getPlatformAuthType }
+): Promise<BiometricVerificationResult> {
+    const rememberedMasterKey = app.state.rememberedMasterKey;
+    const type = deps.getPlatformAuthType();
+    if (!rememberedMasterKey || !type) return "unavailable";
+
+    try {
+        await deps.authenticate({
+            purpose: AuthPurpose.AccessKeyStore,
+            type,
+            authenticatorId: rememberedMasterKey.authenticatorId,
+        });
+        return "verified";
     } catch (error) {
         switch (getErrorCode(error)) {
             case ErrorCode.NOT_FOUND:

@@ -109,7 +109,8 @@ export function classifyAutofillField(candidate: AutofillFieldCandidate): Autofi
     }
 
     const isTotpSignal = /\b(totp|otp|one-time|verification|code)\b/.test(haystack) || autocomplete === "one-time-code";
-    const isDigitPattern = /^\d+$/.test(pattern);
+    const normalizedPattern = pattern.replace(/^\^|\$$/g, "");
+    const isDigitPattern = /^(?:\\d|\[0-9\])(?:\+|\{\d+(?:,\d*)?\})$/.test(normalizedPattern);
     const isOtpLength = maxLength >= 4 && maxLength <= 8;
     const isNumericInputmode = inputmode === "numeric" || inputmode === "text";
 
@@ -117,7 +118,10 @@ export function classifyAutofillField(candidate: AutofillFieldCandidate): Autofi
         return AutofillFieldRole.Totp;
     }
 
-    if (/\b(user|login|account|username|identifier|screen-name)\b/.test(haystack) || autocomplete === "username") {
+    if (
+        /\b(user|login|account|username|identifier|screen[\s_-]?name|team)\b/.test(haystack) ||
+        autocomplete === "username"
+    ) {
         return AutofillFieldRole.Username;
     }
 

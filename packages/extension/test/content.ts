@@ -87,7 +87,8 @@ suite("Content script field detection and fill", () => {
             dataAttr.includes("totp") ||
             dataAttr.includes("otp");
 
-        const isDigitPattern = /^\d+$/.test(pattern);
+        const normalizedPattern = pattern.replace(/^\^|\$$/g, "");
+        const isDigitPattern = /^(?:\\d|\[0-9\])(?:\+|\{\d+(?:,\d*)?\})$/.test(normalizedPattern);
         const isOtpLength = maxLength >= 4 && maxLength <= 8;
         const isNumericInputmode = inputmode === "numeric" || inputmode === "text";
 
@@ -104,6 +105,8 @@ suite("Content script field detection and fill", () => {
                 name.includes("username") ||
                 name.includes("identifier") ||
                 name.includes("screen-name") ||
+                name.includes("screen_name") ||
+                name.includes("team") ||
                 id.includes("user") ||
                 id.includes("login") ||
                 id.includes("email") ||
@@ -151,7 +154,7 @@ suite("Content script field detection and fill", () => {
             "aria-labelledby": overrides.ariaLabelledBy ?? null,
         };
         const getAttribute = (name: string) => attrs[name] ?? null;
-        return {
+        const input = {
             type: overrides.type ?? "text",
             name: overrides.name ?? "",
             id: overrides.id ?? "",
@@ -168,6 +171,10 @@ suite("Content script field detection and fill", () => {
                     id === overrides.ariaLabelledBy ? { textContent: overrides.label ?? "" } : null,
             },
         };
+        if (overrides.label && !overrides.ariaLabelledBy) {
+            input.form = { labels: [{ textContent: overrides.label }] };
+        }
+        return input;
     }
 
     // -------------------------------------------------------------------------
