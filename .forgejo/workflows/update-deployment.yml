@@ -3,15 +3,6 @@ name: Update Deployments
 on:
     workflow_dispatch:
 
-    push:
-        branches:
-            - "main"
-        paths:
-            - "packages/app/**"
-            - "packages/core/**"
-            - "packages/locale/**"
-            - "assets/**"
-
 env:
     CH5_FORGEJO_API_URL: ${{ github.server_url }}/api/v1
 

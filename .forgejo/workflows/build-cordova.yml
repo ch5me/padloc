@@ -16,31 +16,14 @@ on:
                     - "Android"
                     - "iOS"
 
-    push:
-        branches:
-            - "main"
-            - "feature/**"
-            - "fix/**"
-        paths:
-            - ".forgejo/workflows/build-cordova.yml"
-            - "package.json"
-            - "package-lock.json"
-            - "packages/*/package.json"
-            - "packages/*/package-lock.json"
-            - "packages/app/**"
-            - "packages/core/**"
-            - "packages/cordova/**"
-            - "packages/locale/**"
-            - "assets/**"
-
 jobs:
     android:
         if: ${{ github.event.inputs.targets != 'iOS' }}
         runs-on: ubuntu-latest
         environment: ${{ github.event.inputs.environment || 'Local' }}
         steps:
-            - uses: actions/checkout@v3
-            - uses: actions/setup-java@v3
+            - uses: actions/checkout@v4
+            - uses: actions/setup-java@v4
               with:
                   distribution: "adopt"
                   java-version: "11"
@@ -79,7 +62,7 @@ jobs:
                   PL_ANDROID_KEYSTORE_ALIAS: ${{ secrets.PL_ANDROID_KEYSTORE_ALIAS }}
               run: npm run cordova:build:android:signed
             - name: Archive Signed APK (Android)
-              uses: actions/upload-artifact@v2
+              uses: actions/upload-artifact@v4
               with:
                   name: padloc-android-${{ github.sha }}-signed.apk
                   path: packages/cordova/platforms/android/app/build/outputs/apk/release/app-release.apk
@@ -89,10 +72,10 @@ jobs:
               if: always()
     ios:
         if: ${{ github.event.inputs.targets != 'Android' }}
-        runs-on: macos-11
+        runs-on: macos-arm64
         environment: ${{ github.event.inputs.environment || 'Local' }}
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
             - uses: actions/setup-node@v4
               with:
                   node-version-file: ".nvmrc"
@@ -104,7 +87,7 @@ jobs:
                   PL_SERVER_URL: ${{ secrets.PL_SERVER_URL }}
               run: npm run cordova:build:ios
             - name: Archive Unsigned App (iOS)
-              uses: actions/upload-artifact@v2
+              uses: actions/upload-artifact@v4
               with:
                   name: padloc-ios-${{ github.sha }}-unsigned.app
                   path: packages/cordova/platforms/ios/build/emulator/Padloc.app

@@ -7,23 +7,6 @@ on:
                 type: environment
                 default: "Local"
 
-    push:
-        branches:
-            - "main"
-            - "feature/**"
-            - "fix/**"
-        paths:
-            - ".forgejo/workflows/build-tauri.yml"
-            - "package.json"
-            - "package-lock.json"
-            - "packages/*/package.json"
-            - "packages/*/package-lock.json"
-            - "packages/app/**"
-            - "packages/core/**"
-            - "packages/tauri/**"
-            - "packages/locale/**"
-            - "assets/**"
-
 jobs:
     build:
         environment: ${{ github.event.inputs.environment || 'Local' }}
@@ -35,10 +18,10 @@ jobs:
                     - os: ubuntu-latest
                       arch: x86_64
                       rust_target: x86_64-unknown-linux-gnu
-                    - os: macos-latest
+                    - os: macos-arm64
                       arch: x86_64
                       rust_target: x86_64-apple-darwin
-                    - os: macos-latest
+                    - os: macos-arm64
                       arch: aarch64
                       rust_target: aarch64-apple-darwin
                     - os: windows-latest
@@ -47,7 +30,7 @@ jobs:
 
         runs-on: ${{ matrix.config.os }}
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
             - uses: actions/setup-node@v4
               with:
                   node-version-file: ".nvmrc"
@@ -87,35 +70,35 @@ jobs:
                   TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
                   TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
             - name: Archive AppImage
-              uses: actions/upload-artifact@v2
+              uses: actions/upload-artifact@v4
               if: matrix.config.os == 'ubuntu-latest'
               with:
                   name: padloc-linux-${{ github.sha }}-unsigned.AppImage
                   path: packages/tauri/src-tauri/target/debug/bundle/appimage/padloc*.AppImage
                   if-no-files-found: error
             - name: Archive deb
-              uses: actions/upload-artifact@v2
+              uses: actions/upload-artifact@v4
               if: matrix.config.os == 'ubuntu-latest'
               with:
                   name: padloc-linux-${{ github.sha }}-unsigned.deb
                   path: packages/tauri/src-tauri/target/debug/bundle/deb/*.deb
                   if-no-files-found: error
             - name: Archive dmg
-              uses: actions/upload-artifact@v2
-              if: matrix.config.os == 'macos-latest'
+              uses: actions/upload-artifact@v4
+              if: matrix.config.os == 'macos-arm64'
               with:
                   name: padloc-macos-${{ matrix.config.arch }}-${{ github.sha }}-unsigned.dmg
                   path: packages/tauri/src-tauri/target/debug/bundle/dmg/*.dmg
                   if-no-files-found: error
             - name: Archive app
-              uses: actions/upload-artifact@v2
-              if: matrix.config.os == 'macos-latest'
+              uses: actions/upload-artifact@v4
+              if: matrix.config.os == 'macos-arm64'
               with:
                   name: padloc-macos-${{ matrix.config.arch }}-${{ github.sha }}-unsigned.app
                   path: packages/tauri/src-tauri/target/debug/bundle/macos/*.app
                   if-no-files-found: error
             - name: Archive msi
-              uses: actions/upload-artifact@v2
+              uses: actions/upload-artifact@v4
               if: matrix.config.os == 'windows-latest'
               with:
                   name: padloc-windows-${{ github.sha }}-unsigned.msi

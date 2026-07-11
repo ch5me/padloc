@@ -33,7 +33,7 @@ jobs:
         outputs:
             release_id: ${{ steps.create_release.outputs.id }}
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
             - uses: actions/setup-node@v4
               with:
                   node-version-file: ".nvmrc"
@@ -146,7 +146,7 @@ jobs:
 
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
             - uses: actions/setup-node@v4
               with:
                   node-version-file: ".nvmrc"
@@ -274,24 +274,33 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                platform: [macos-latest, ubuntu-latest, windows-latest]
+                platform: [macos-arm64, ubuntu-latest, windows-latest]
 
         runs-on: ${{ matrix.platform }}
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
             - uses: actions/setup-node@v4
               with:
                   node-version-file: ".nvmrc"
             - name: Install Rust stable
-              uses: actions-rs/toolchain@v1
-              with:
-                  toolchain: stable
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  curl -fsSf --proto '=https' --tlsv1.2 https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
+                  cargo_bin="$HOME/.cargo/bin"
+                  path_file="${FORGEJO_PATH:-${GITHUB_PATH:-}}"
+                  if [ -n "$path_file" ]; then
+                    echo "$cargo_bin" >> "$path_file"
+                  fi
+                  export PATH="$cargo_bin:$PATH"
+                  rustc --version
+                  cargo --version
             - name: Install webkit2gtk (ubuntu only)
               if: matrix.platform == 'ubuntu-latest'
               run: |
                   scripts/ci-apt-install.sh webkit2gtk-4.0
             - name: Install coreutils
-              if: matrix.platform == 'macos-latest'
+              if: matrix.platform == 'macos-arm64'
               run: |
                   brew install coreutils
             - name: Install dependencies
@@ -390,7 +399,7 @@ jobs:
               if: matrix.platform == 'ubuntu-latest'
               run: |
                   cd packages/tauri/src-tauri/target/release/bundle/deb
-                  sha256sum *.deb > sha256sum-deb.txt
+                  sha256sum ./*.deb > sha256sum-deb.txt
             - name: Upload checksum (deb)
               if: matrix.platform == 'ubuntu-latest'
               env:
@@ -399,18 +408,18 @@ jobs:
               run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
               shell: bash
             - name: Upload dmg
-              if: matrix.platform == 'macos-latest'
+              if: matrix.platform == 'macos-arm64'
               env:
                   RELEASE_ASSET_FILE: packages/tauri/src-tauri/target/release/bundle/dmg/*.dmg
               run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
               shell: bash
             - name: Generate checksum (dmg)
-              if: matrix.platform == 'macos-latest'
+              if: matrix.platform == 'macos-arm64'
               run: |
                   cd packages/tauri/src-tauri/target/release/bundle/dmg
-                  sha256sum *.dmg > sha256sum-dmg.txt
+                  sha256sum ./*.dmg > sha256sum-dmg.txt
             - name: Upload checksum (dmg)
-              if: matrix.platform == 'macos-latest'
+              if: matrix.platform == 'macos-arm64'
               env:
                   RELEASE_ASSET_FILE: packages/tauri/src-tauri/target/release/bundle/dmg/sha256sum-dmg.txt
                   RELEASE_ASSET_NAME: sha256sum-tauri-dmg.txt
@@ -426,7 +435,7 @@ jobs:
               if: matrix.platform == 'windows-latest'
               run: |
                   cd packages/tauri/src-tauri/target/release/bundle/msi
-                  sha256sum *.msi > sha256sum-msi.txt
+                  sha256sum ./*.msi > sha256sum-msi.txt
             - name: Upload checksum (msi)
               if: matrix.platform == 'windows-latest'
               env:
@@ -446,16 +455,16 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                platform: [macos-latest, ubuntu-latest, windows-latest]
+                platform: [macos-arm64, ubuntu-latest, windows-latest]
 
         runs-on: ${{ matrix.platform }}
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
             - uses: actions/setup-node@v4
               with:
                   node-version-file: ".nvmrc"
             - name: Install coreutils
-              if: matrix.platform == 'macos-latest'
+              if: matrix.platform == 'macos-arm64'
               run: |
                   brew install coreutils
             - name: Install Flatpak build tools
@@ -545,7 +554,7 @@ jobs:
               if: matrix.platform == 'ubuntu-latest'
               run: |
                   cd packages/electron/dist
-                  sha256sum *.AppImage > sha256sum-appimage.txt
+                  sha256sum ./*.AppImage > sha256sum-appimage.txt
             - name: Upload checksum (AppImage)
               if: matrix.platform == 'ubuntu-latest'
               env:
@@ -563,7 +572,7 @@ jobs:
               if: matrix.platform == 'ubuntu-latest'
               run: |
                   cd packages/electron/dist
-                  sha256sum *.deb > sha256sum-deb.txt
+                  sha256sum ./*.deb > sha256sum-deb.txt
             - name: Upload checksum (deb)
               if: matrix.platform == 'ubuntu-latest'
               env:
@@ -581,7 +590,7 @@ jobs:
               if: matrix.platform == 'ubuntu-latest'
               run: |
                   cd packages/electron/dist
-                  sha256sum *.snap > sha256sum-snap.txt
+                  sha256sum ./*.snap > sha256sum-snap.txt
             - name: Upload checksum (snap)
               if: matrix.platform == 'ubuntu-latest'
               env:
@@ -599,7 +608,7 @@ jobs:
               if: matrix.platform == 'ubuntu-latest'
               run: |
                   cd packages/electron/dist
-                  sha256sum *.flatpak > sha256sum-flatpak.txt
+                  sha256sum ./*.flatpak > sha256sum-flatpak.txt
             - name: Upload checksum (flatpak)
               if: matrix.platform == 'ubuntu-latest'
               env:
@@ -608,18 +617,18 @@ jobs:
               run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
               shell: bash
             - name: Upload dmg
-              if: matrix.platform == 'macos-latest'
+              if: matrix.platform == 'macos-arm64'
               env:
                   RELEASE_ASSET_FILE: packages/electron/dist/*.dmg
               run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
               shell: bash
             - name: Generate checksum (dmg)
-              if: matrix.platform == 'macos-latest'
+              if: matrix.platform == 'macos-arm64'
               run: |
                   cd packages/electron/dist
-                  sha256sum *.dmg > sha256sum-dmg.txt
+                  sha256sum ./*.dmg > sha256sum-dmg.txt
             - name: Upload checksum (dmg)
-              if: matrix.platform == 'macos-latest'
+              if: matrix.platform == 'macos-arm64'
               env:
                   RELEASE_ASSET_FILE: packages/electron/dist/sha256sum-dmg.txt
                   RELEASE_ASSET_NAME: sha256sum-electron-dmg.txt
@@ -635,7 +644,7 @@ jobs:
               if: matrix.platform == 'windows-latest'
               run: |
                   cd packages/electron/dist
-                  sha256sum *.exe > sha256sum-exe.txt
+                  sha256sum ./*.exe > sha256sum-exe.txt
             - name: Upload checksum (exe)
               if: matrix.platform == 'windows-latest'
               env:
@@ -657,12 +666,12 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                platform: [macos-latest, ubuntu-latest]
+                platform: [macos-arm64, ubuntu-latest]
 
         runs-on: ${{ matrix.platform }}
         steps:
-            - uses: actions/checkout@v3
-            - uses: actions/setup-java@v3
+            - uses: actions/checkout@v4
+            - uses: actions/setup-java@v4
               if: matrix.platform == 'ubuntu-latest'
               with:
                   distribution: "adopt"
@@ -689,7 +698,7 @@ jobs:
               with:
                   node-version-file: ".nvmrc"
             # - name: Install coreutils
-            #   if: matrix.platform == 'macos-latest'
+            #   if: matrix.platform == 'macos-arm64'
             #   run: |
             #       brew install coreutils
             - name: Install dependencies
@@ -761,7 +770,7 @@ jobs:
                   npm run prepare-build
                   ./node_modules/.bin/cordova build android --release -- --packageType=apk --keystore=./android-upload-key.keystore --storePassword='${{ secrets.PL_ANDROID_STORE_PASSWORD }}' --alias=${{ secrets.PL_ANDROID_KEYSTORE_ALIAS }} --password='${{ secrets.PL_ANDROID_STORE_PASSWORD }}'
             # - name: Install the Apple certificate and provisioning profile
-            #   if: matrix.platform == 'macos-latest'
+            #   if: matrix.platform == 'macos-arm64'
             #   env:
             #       PL_IOS_DISTRIBUTION_CERT_BASE64: ${{ secrets.PL_IOS_DISTRIBUTION_CERT_BASE64 }}
             #       PL_IOS_DEVELOPMENT_CERT_BASE64: ${{ secrets.PL_IOS_DEVELOPMENT_CERT_BASE64 }}
@@ -800,11 +809,11 @@ jobs:
             #       cp $DEV_PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles
             # - name: Setup Xcode
             #   uses: maxim-lobanov/setup-xcode@v1
-            #   if: matrix.platform == 'macos-latest'
+            #   if: matrix.platform == 'macos-arm64'
             #   with:
             #       xcode-version: "13.2.1"
             # - name: Build iOS
-            #   if: matrix.platform == 'macos-latest'
+            #   if: matrix.platform == 'macos-arm64'
             #   run: |
             #       cd packages/cordova
             #       npm run prepare-build
@@ -832,21 +841,21 @@ jobs:
               run: '"$RUNNER_TEMP/upload-forgejo-release-asset"'
               shell: bash
             # - name: Generate checksum (ipa)
-            #   if: matrix.platform == 'macos-latest'
+            #   if: matrix.platform == 'macos-arm64'
             #   run: |
             #       cd packages/cordova/platforms/ios/build/device
             #       sha256sum Padloc.ipa > sha256sum-ipa.txt
             # iOS checksum upload disabled until App Store signing is restored.
             #       prerelease: true
             # - name: Upload Signed IPA to App Store
-            #   if: matrix.platform == 'macos-latest'
+            #   if: matrix.platform == 'macos-arm64'
             #   run: |
             #       xcrun altool --upload-app --type ios -f packages/cordova/platforms/ios/build/device/Padloc.ipa -u "${{ secrets.PL_IOS_CODE_SIGN_IDENTITY }}" -p "${{ secrets.PL_IOS_DEVELOPMENT_TEAM }}"
             - name: Delete android-upload-key.keystore
               if: matrix.platform == 'ubuntu-latest' && always()
               run: rm -f ./packages/cordova/android-upload-key.keystore
             # - name: Clean up keychain and provisioning profile
-            #   if: matrix.platform == 'macos-latest' && always()
+            #   if: matrix.platform == 'macos-arm64' && always()
             #   run: |
             #       security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
             #       rm -f ~/Library/MobileDevice/Provisioning\ Profiles/build_pp.mobileprovision
@@ -861,7 +870,7 @@ jobs:
 
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
             - uses: actions/setup-node@v4
               with:
                   node-version-file: ".nvmrc"
@@ -929,7 +938,7 @@ jobs:
             - name: Generate pwa.tar.gz
               run: |
                   cd packages/pwa/dist
-                  tar -czf ../pwa.tar.gz *
+                  tar -czf ../pwa.tar.gz ./*
             - name: Upload pwa.tar.gz
               env:
                   RELEASE_ASSET_FILE: packages/pwa/pwa.tar.gz
@@ -939,7 +948,7 @@ jobs:
             - name: Generate checksums
               run: |
                   cd packages/pwa/dist
-                  find . -type f ! -name "sha256sums-web.txt" -exec sha256sum {} > sha256sums-web.txt \;
+                  find . -type f ! -name "sha256sums-web.txt" -exec sha256sum {} \; > sha256sums-web.txt
             - name: Upload checksums
               env:
                   RELEASE_ASSET_FILE: packages/pwa/dist/sha256sums-web.txt
@@ -958,23 +967,23 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Check out the repo
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
 
             - name: Log in to Docker Hub
-              uses: docker/login-action@v2
+              uses: docker/login-action@v3
               with:
                   username: ${{ secrets.DOCKER_USERNAME }}
                   password: ${{ secrets.DOCKER_PASSWORD }}
 
             - name: Build and push Docker image (server)
-              uses: docker/build-push-action@v3
+              uses: docker/build-push-action@v6
               with:
                   push: true
                   tags: padloc/server:v${{ github.event.inputs.vendor_version || '0.0.1' }}
                   file: Dockerfile-server
 
             - name: Build and push Docker image (pwa)
-              uses: docker/build-push-action@v3
+              uses: docker/build-push-action@v6
               with:
                   push: true
                   tags: padloc/pwa:v${{ github.event.inputs.vendor_version || '0.0.1' }}
