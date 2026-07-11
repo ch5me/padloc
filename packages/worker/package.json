@@ -17,7 +17,7 @@
         "esbuild": "0.27.0"
     },
     "scripts": {
-        "test": "npm run test:logging-redaction",
+        "test": "npm run test:ci",
         "dev": "wrangler dev --local --env=dev --ip 127.0.0.1 --port ${PL_WORKER_PORT:-8787}",
         "dev:remote": "wrangler dev --remote --env=dev --ip 127.0.0.1 --port ${PL_WORKER_PORT:-8787}",
         "start": "npm run dev",
@@ -30,6 +30,11 @@
         "migrate:staging": "wrangler d1 migrations apply DB --remote --env=staging",
         "migrate:production": "wrangler d1 migrations apply DB --remote --env=production",
         "test:logging-redaction": "node test/run-worker-logging-redaction.mjs",
+        "test:session-contract": "node test/session-contract.test.mjs",
+        "test:transport-roundtrip": "node test/run-transport-roundtrip.mjs",
+        "test:vault-crud": "node test/run-vault-crud-e2e.mjs",
+        "test:error-semantics": "node test/run-error-semantics.mjs",
+        "test:ci": "npm run test:logging-redaction && npm run test:session-contract && npm run test:crypto-parity && npm run test:transport-roundtrip && npm run test:vault-crud",
         "test:crypto-parity": "node test/run-crypto-parity-worker.mjs --local",
         "test:crypto-parity:remote": "node test/run-crypto-parity-worker.mjs --remote",
         "dev:crypto-parity": "wrangler dev test/crypto-parity.worker.ts --local --ip 127.0.0.1 --port 18787",

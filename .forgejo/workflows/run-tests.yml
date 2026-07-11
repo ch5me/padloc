@@ -5,46 +5,30 @@ on:
         branches:
             - main
         paths:
-            - ".forgejo/workflows/run-tests.yml"
+            - ".forgejo/workflows/**"
+            - "Dockerfile*"
+            - "cypress/**"
+            - "config/**"
+            - "scripts/**"
             - "package.json"
             - "package-lock.json"
             - "packages/*/package.json"
             - "packages/*/package-lock.json"
-            - "packages/extension/**"
-            - "packages/core/**"
-            - "packages/app/**"
-            - "packages/locale/**"
-            - "packages/pwa/**"
-            - "packages/server/**"
-            - "packages/worker/package.json"
-            - "packages/worker/package-lock.json"
+            - "packages/**"
             - "assets/**"
-            - "scripts/build-web-extension.cjs"
-            - "scripts/proof-lanes/**"
-            - "packages/macos/**"
-            - "docs/passkey-provider-*.md"
-            - "package.json"
     pull_request:
         paths:
-            - ".forgejo/workflows/run-tests.yml"
+            - ".forgejo/workflows/**"
+            - "Dockerfile*"
+            - "cypress/**"
+            - "config/**"
+            - "scripts/**"
             - "package.json"
             - "package-lock.json"
             - "packages/*/package.json"
             - "packages/*/package-lock.json"
-            - "packages/extension/**"
-            - "packages/core/**"
-            - "packages/app/**"
-            - "packages/locale/**"
-            - "packages/pwa/**"
-            - "packages/server/**"
-            - "packages/worker/package.json"
-            - "packages/worker/package-lock.json"
+            - "packages/**"
             - "assets/**"
-            - "scripts/build-web-extension.cjs"
-            - "scripts/proof-lanes/**"
-            - "packages/macos/**"
-            - "docs/passkey-provider-*.md"
-            - "package.json"
 
 jobs:
     test:
@@ -73,8 +57,8 @@ jobs:
             - name: Install dependencies
               run: |
                   env -u ESBUILD_BINARY_PATH npm ci
-            - name: Run prettier check
-              run: npm run prettier:check
+            - name: Run changed-source prettier check
+              run: npm run prettier:check:changed
             - name: Run translation checks
               run: |
                   npm run locale:extract
@@ -90,8 +74,10 @@ jobs:
               run: npm run web-extension:build
             - name: Test starting zero-config server
               run: npm run server:start-dry
-            - name: Run tests
-              run: npm test
+            - name: Run extension and Worker tests
+              run: |
+                  npm --prefix packages/extension test
+                  npm --prefix packages/worker test
             # - name: Run e2e tests
             #   run: npm run test:e2e
 

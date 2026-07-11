@@ -27,7 +27,24 @@ on:
             - "packages/*/package-lock.json"
 
 jobs:
+    verify:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version-file: ".nvmrc"
+            - name: Install dependencies
+              run: env -u ESBUILD_BINARY_PATH npm ci
+            - name: Verify the exact staging SHA
+              run: |
+                  npm run prettier:check:changed
+                  npm run runtime-config:check
+                  npm --prefix packages/worker test
+                  npm run proof:passkeys:pr
+
     deploy-staging:
+        needs: verify
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
@@ -47,3 +64,7 @@ jobs:
                   SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
             - name: Deploy staging (migrations + worker + PWA via governed ch5-padloc-staging token)
               run: bash scripts/deploy-staging
+            - name: Verify staging API and PWA canaries
+              run: |
+                  curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 5 --max-time 20 https://api-pad-staging.ch5.me/healthcheck >/dev/null
+                  curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 5 --max-time 20 https://pad-staging.ch5.me/ >/dev/null
