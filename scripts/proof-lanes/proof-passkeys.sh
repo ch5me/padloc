@@ -15,6 +15,22 @@ if [[ -n "${npm_node_execpath:-}" && -n "${npm_execpath:-}" ]]; then
   npm_command=("$npm_node_execpath" "$npm_execpath")
 fi
 
+search_lines() {
+  if command -v rg >/dev/null 2>&1; then
+    rg -n "$@"
+  else
+    grep -REn "$@"
+  fi
+}
+
+filter_lines_out() {
+  if command -v rg >/dev/null 2>&1; then
+    rg -v "$1"
+  else
+    grep -Ev "$1"
+  fi
+}
+
 mode="${1:-all}"
 if [[ "$mode" == "--help" || "$mode" == "-h" ]]; then
   cat <<'EOF'
@@ -68,10 +84,10 @@ if [[ "$mode" == "--macos-contract" ]]; then
     SWIFT_ACTIVE_COMPILATION_CONDITIONS='$(inherited) CH5_PASSKEY_TEST_VERIFICATION_INJECTION'
 
   echo "passkey proof: native diagnostic secrecy"
-  diagnostic_matches="$(rg -n '(logger|console)\.(notice|error|log).*?(clientDataHash|credentialID|userHandle|userName|rawRepresentation|privateKey|password|challenge)' \
+  diagnostic_matches="$(search_lines '(logger|console)\.(notice|error|log).*?(clientDataHash|credentialID|userHandle|userName|rawRepresentation|privateKey|password|challenge)' \
     packages/macos || true)"
   approved_fingerprint_log='^packages/macos/CredentialProvider/CredentialProviderViewController\.swift:[0-9]+:[[:space:]]+logger\.notice\("(registration|assertion) credential fingerprint=\\\(self\.credentialFingerprint\(record\.credentialID\), privacy: \.public\)"\)$'
-  unsafe_diagnostic_matches="$(printf '%s\n' "$diagnostic_matches" | rg -v "$approved_fingerprint_log" || true)"
+  unsafe_diagnostic_matches="$(printf '%s\n' "$diagnostic_matches" | filter_lines_out "$approved_fingerprint_log" || true)"
   if [[ -n "$unsafe_diagnostic_matches" ]]; then
     printf '%s\n' "$unsafe_diagnostic_matches"
     echo "passkey diagnostic may expose sensitive ceremony material" >&2
@@ -111,10 +127,10 @@ echo "passkey proof: worker log redaction and runtime target contract"
 "${npm_command[@]}" run runtime-config:check
 
 echo "passkey proof: changed-source diagnostic secrecy"
-diagnostic_matches="$(rg -n '(logger|console)\.(notice|error|log).*?(clientDataHash|credentialID|userHandle|userName|rawRepresentation|privateKey|password|challenge)' \
+diagnostic_matches="$(search_lines '(logger|console)\.(notice|error|log).*?(clientDataHash|credentialID|userHandle|userName|rawRepresentation|privateKey|password|challenge)' \
   packages/macos packages/extension/src packages/extension/test/passkey-rp packages/worker/src || true)"
 approved_fingerprint_log='^packages/macos/CredentialProvider/CredentialProviderViewController\.swift:[0-9]+:[[:space:]]+logger\.notice\("(registration|assertion) credential fingerprint=\\\(self\.credentialFingerprint\(record\.credentialID\), privacy: \.public\)"\)$'
-unsafe_diagnostic_matches="$(printf '%s\n' "$diagnostic_matches" | rg -v "$approved_fingerprint_log" || true)"
+unsafe_diagnostic_matches="$(printf '%s\n' "$diagnostic_matches" | filter_lines_out "$approved_fingerprint_log" || true)"
 if [[ -n "$unsafe_diagnostic_matches" ]]; then
   printf '%s\n' "$unsafe_diagnostic_matches"
   echo "passkey diagnostic may expose sensitive ceremony material" >&2
@@ -128,7 +144,11 @@ if find packages/extension/dist -name '*.map' -print -quit | grep -q .; then
   echo "production extension build contains source maps" >&2
   exit 1
 fi
-rg -q 'https://api-pad\.ch5\.me' packages/extension/dist
+if command -v rg >/dev/null 2>&1; then
+  rg -q 'https://api-pad\.ch5\.me' packages/extension/dist
+else
+  grep -RqE 'https://api-pad\.ch5\.me' packages/extension/dist
+fi
 
 git --no-pager diff --check -- packages/core packages/extension packages/macos packages/worker \
   docs/passkey-provider-test-plan.md docs/passkey-provider-native-handoff.md \
