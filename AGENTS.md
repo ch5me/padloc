@@ -44,17 +44,18 @@
     -   `runtime` - shared local/runtime compatibility target
     -   `runtime-staging` - staging deploy/runtime target
     -   `runtime-production` - production deploy/runtime target
-    -   `wrangler-deploy-staging` - governed `ch5-padloc-staging` Cloudflare deploy
-        token (least-priv for every staging binding). Consumed by
+    -   `wrangler-deploy-staging` - governed `ch5-padloc-staging` Cloudflare
+        deploy token (least-priv for every staging binding). Consumed by
         `scripts/deploy-staging`.
-    -   `wrangler-deploy-production` - governed `ch5-padloc-prod` Cloudflare deploy
-        token (least-priv for every production binding). Consumed by
+    -   `wrangler-deploy-production` - governed `ch5-padloc-prod` Cloudflare
+        deploy token (least-priv for every production binding). Consumed by
         `scripts/deploy-production`.
--   Cloudflare deploy-auth is **hush-in-CI** (company standard): `scripts/deploy-<stage>`
-    is the self-contained entrypoint that resolves the governed token from Hush and
-    runs migrations + worker deploy + PWA Pages deploy. The IDENTICAL command runs on a
-    laptop, a harness, or CI. CI holds only `SOPS_AGE_KEY` (to unlock Hush) — never a
-    Cloudflare API-token secret. Rotation = re-mint the token + push.
+-   Cloudflare deploy-auth is **hush-in-CI** (company standard):
+    `scripts/deploy-<stage>` is the self-contained entrypoint that resolves the
+    governed token from Hush and runs migrations + worker deploy + PWA Pages
+    deploy. The IDENTICAL command runs on a laptop, a harness, or CI. CI holds
+    only `SOPS_AGE_KEY` (to unlock Hush) — never a Cloudflare API-token secret.
+    Rotation = re-mint the token + push.
 -   Do not create `.env`, `.dev.vars`, or plaintext secret files.
 -   Production email auth requires a valid `RESEND_API_KEY` and a verified
     `EMAIL_FROM_ADDRESS` sender domain. Current production sender is
@@ -71,38 +72,40 @@
 
 ## Rules
 
-- Treat `preview` as a legacy compatibility env. New stable pre-prod work should
-  use `staging`.
-- Personal autofill records are Padloc-owned encrypted items. Magic Browser owns
-  browser execution/redacted proof. Bridge doctrine lives in
-  `docs/agentic-autofill-bridge.md`.
-- Do not reintroduce `process.env.PL_APP_NAME` assumptions into
-  Worker/runtime-shared code; Workers do not provide `process`.
-- Keep `clientUrl` on the app host (`pad.ch5.me` / `pad-staging.ch5.me`), never
-  the API host.
-- The PWA must always be built with an explicit `PL_SERVER_URL`; do not rely on
-  runtime mutation.
-- If email auth breaks, first verify the live Worker secret values and sender
-  domain before changing app logic.
-- For user-authorized local Chrome testing, hand off between the Chrome control
-  surface and Computer Use when ordinary visible browser UI (including toolbar,
-  extension, or internal management UI) is not addressable by the first tool.
-  This authorization covers normal reversible UI operation only; it does not
-  override required human-presence, confirmation, credential, CAPTCHA, security,
-  or other higher-priority safety boundaries.
+-   Do not create pull requests for this repository. Push work to a topic
+    branch, require exact-SHA branch CI, then fast-forward the verified commit
+    to `main`; close any accidentally created pull request without merging it.
+-   Treat `preview` as a legacy compatibility env. New stable pre-prod work
+    should use `staging`.
+-   Personal autofill records are Padloc-owned encrypted items. Magic Browser
+    owns browser execution/redacted proof. Bridge doctrine lives in
+    `docs/agentic-autofill-bridge.md`.
+-   Do not reintroduce `process.env.PL_APP_NAME` assumptions into
+    Worker/runtime-shared code; Workers do not provide `process`.
+-   Keep `clientUrl` on the app host (`pad.ch5.me` / `pad-staging.ch5.me`),
+    never the API host.
+-   The PWA must always be built with an explicit `PL_SERVER_URL`; do not rely
+    on runtime mutation.
+-   If email auth breaks, first verify the live Worker secret values and sender
+    domain before changing app logic.
+-   For user-authorized local Chrome testing, hand off between the Chrome
+    control surface and Computer Use when ordinary visible browser UI (including
+    toolbar, extension, or internal management UI) is not addressable by the
+    first tool. This authorization covers normal reversible UI operation only;
+    it does not override required human-presence, confirmation, credential,
+    CAPTCHA, security, or other higher-priority safety boundaries.
 
 ## Sharp Edges
 
 -   `packages/worker/src/server-factory.ts` currently falls back to
     `MockMessenger` if either email secret is missing. That is useful locally
     and dangerous in production; keep an eye on it when changing auth.
--   The governed `ch5-padloc-{staging,prod}` deploy tokens are least-privilege for
-    every binding across their stage (Workers Scripts / D1 / KV / R2 Storage Write,
-    Pages Write, Account Settings Read, Workers Tail Read). Add or remove a binding
-    in `packages/worker/wrangler.toml` → re-mint that stage's token
-    (`cf-mint-project-token --project padloc --stage <staging|prod> --dir . --hush-file
-    env/project/<staging|production>`) so the token stays complete; an under-scoped
-    token breaks the deploy.
+-   The governed `ch5-padloc-{staging,prod}` deploy tokens are least-privilege
+    for every binding across their stage (Workers Scripts / D1 / KV / R2 Storage
+    Write, Pages Write, Account Settings Read, Workers Tail Read). Add or remove
+    a binding in `packages/worker/wrangler.toml` → re-mint that stage's token
+    (`cf-mint-project-token --project padloc --stage <staging|prod> --dir . --hush-file env/project/<staging|production>`)
+    so the token stays complete; an under-scoped token breaks the deploy.
 -   `packages/worker/src/email/templates.ts` is generated from `assets/email/*`;
     regenerate after changing email copy.
 -   Cordova platform plugin fixes applied under `packages/cordova/platforms/`

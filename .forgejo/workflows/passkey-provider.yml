@@ -1,7 +1,9 @@
 name: Passkey Provider
 
 on:
-    pull_request:
+    push:
+        branches:
+            - "codex/**"
         paths:
             - ".forgejo/workflows/passkey-provider.yml"
             - "package.json"
@@ -25,7 +27,7 @@ on:
 
 jobs:
     pr-linux:
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'push'
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
@@ -37,7 +39,7 @@ jobs:
             - run: npm run proof:passkeys:pr
 
     macos-contract:
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'push'
         runs-on: macos-arm64
         steps:
             - uses: actions/checkout@v4

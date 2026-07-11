@@ -4,6 +4,7 @@ on:
     push:
         branches:
             - main
+            - "codex/**"
         paths:
             - ".forgejo/workflows/**"
             - "Dockerfile*"
@@ -16,20 +17,6 @@ on:
             - "packages/*/package-lock.json"
             - "packages/**"
             - "assets/**"
-    pull_request:
-        paths:
-            - ".forgejo/workflows/**"
-            - "Dockerfile*"
-            - "cypress/**"
-            - "config/**"
-            - "scripts/**"
-            - "package.json"
-            - "package-lock.json"
-            - "packages/*/package.json"
-            - "packages/*/package-lock.json"
-            - "packages/**"
-            - "assets/**"
-
 jobs:
     test:
         runs-on: ubuntu-latest
