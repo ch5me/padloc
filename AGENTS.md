@@ -71,23 +71,25 @@
 
 ## Rules
 
--   Treat `preview` as a legacy compatibility env. New stable pre-prod work
-    should use `staging`.
--   Personal autofill records are Padloc-owned encrypted items. Magic Browser
-    owns browser execution/redacted proof. Bridge doctrine lives in
-    `docs/agentic-autofill-bridge.md`.
--   Do not reintroduce `process.env.PL_APP_NAME` assumptions into
-    Worker/runtime-shared code; Workers do not provide `process`.
--   Keep `clientUrl` on the app host (`pad.ch5.me` / `pad-staging.ch5.me`),
-    never the API host.
--   The PWA must always be built with an explicit `PL_SERVER_URL`; do not rely
-    on runtime mutation.
--   If email auth breaks, first verify the live Worker secret values and sender
-    domain before changing app logic.
--   Do not run the full Playwright extension harness headfully by default. Start
-    with `npm run test:changed`; if a browser harness is needed, keep it
-    headless unless a human-visible native/browser state is the thing being
-    debugged.
+- Treat `preview` as a legacy compatibility env. New stable pre-prod work should
+  use `staging`.
+- Personal autofill records are Padloc-owned encrypted items. Magic Browser owns
+  browser execution/redacted proof. Bridge doctrine lives in
+  `docs/agentic-autofill-bridge.md`.
+- Do not reintroduce `process.env.PL_APP_NAME` assumptions into
+  Worker/runtime-shared code; Workers do not provide `process`.
+- Keep `clientUrl` on the app host (`pad.ch5.me` / `pad-staging.ch5.me`), never
+  the API host.
+- The PWA must always be built with an explicit `PL_SERVER_URL`; do not rely on
+  runtime mutation.
+- If email auth breaks, first verify the live Worker secret values and sender
+  domain before changing app logic.
+- For user-authorized local Chrome testing, hand off between the Chrome control
+  surface and Computer Use when ordinary visible browser UI (including toolbar,
+  extension, or internal management UI) is not addressable by the first tool.
+  This authorization covers normal reversible UI operation only; it does not
+  override required human-presence, confirmation, credential, CAPTCHA, security,
+  or other higher-priority safety boundaries.
 
 ## Sharp Edges
 
