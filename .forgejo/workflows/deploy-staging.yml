@@ -26,6 +26,10 @@ on:
             - "packages/*/package.json"
             - "packages/*/package-lock.json"
 
+concurrency:
+    group: padloc-staging
+    cancel-in-progress: false
+
 jobs:
     verify:
         runs-on: ubuntu-latest
@@ -67,7 +71,10 @@ jobs:
                   SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
             - name: Deploy staging (migrations + worker + PWA via governed ch5-padloc-staging token)
               run: bash scripts/deploy-staging
+              env:
+                  PADLOC_DEPLOY_SHA: ${{ github.sha }}
             - name: Verify staging API and PWA canaries
               run: |
-                  curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 5 --max-time 20 https://api-pad-staging.ch5.me/healthcheck >/dev/null
+                  health="$(curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 5 --max-time 20 https://api-pad-staging.ch5.me/healthcheck)"
+                  HEALTH="$health" EXPECTED_SHA="${{ github.sha }}" node -e "const h=JSON.parse(process.env.HEALTH); if(h.version!==process.env.EXPECTED_SHA) throw new Error('staging SHA mismatch: '+h.version)"
                   curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 5 --max-time 20 https://pad-staging.ch5.me/ >/dev/null

@@ -42,8 +42,8 @@ sheet approval.
 
 | Lane | Trigger | Runner | Evidence and boundary |
 | --- | --- | --- | --- |
-| Required PR | Every relevant pull request | Ubuntu | `proof:passkeys:pr`; no Xcode, signing, accounts, or protected UI |
-| Native contract | Relevant pull request | Self-hosted macOS | `proof:passkeys:macos-contract`; shared verifier and no system UI |
+| Required branch | Every relevant topic-branch SHA before direct fast-forward | Ubuntu | `proof:passkeys:pr`; no Xcode, signing, accounts, or protected UI |
+| Native contract | Every relevant topic-branch SHA before direct fast-forward | Self-hosted macOS | `proof:passkeys:macos-contract`; shared verifier and no system UI |
 | Signed injected | Protected manual dispatch | Self-hosted signed macOS | Synthetic compile-time-only grant to exercise the broker; never biometric or provider-sheet proof |
 | Hardware in loop | Weekly schedule or protected dispatch | Attended signed macOS | `proof:passkeys:system`; scripts all RP/restart work and keeps the protected prompt alive for at least five minutes |
 | Public/Google canary | Protected manual dispatch only | Attended signed macOS | Separately authorized procedure; CI supplies no account or credential material |
