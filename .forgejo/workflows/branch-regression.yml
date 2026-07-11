@@ -70,6 +70,8 @@ jobs:
                   node-version-file: ".nvmrc"
             - name: Install Android SDK
               run: scripts/ci-install-android-sdk.sh
+            - name: Install Gradle
+              run: scripts/ci-install-gradle.sh
             - name: Install dependencies
               run: env -u ESBUILD_BINARY_PATH npm ci
             - name: Build unsigned debug APK
@@ -105,12 +107,10 @@ jobs:
               run: npm --prefix packages/tauri run check:ci
 
     docker-build:
-        runs-on: ubuntu-latest
+        runs-on: hq-writer
         steps:
             - uses: actions/checkout@v4
-            - name: Install daemonless image builder
-              run: scripts/ci-apt-install.sh buildah
             - name: Build server image without pushing
-              run: buildah bud --isolation chroot --file Dockerfile-server --tag padloc-server:${{ github.sha }} .
+              run: docker build --file Dockerfile-server --tag padloc-server:${{ github.sha }} .
             - name: Build PWA image without pushing
-              run: buildah bud --isolation chroot --file Dockerfile-pwa --tag padloc-pwa:${{ github.sha }} .
+              run: docker build --file Dockerfile-pwa --tag padloc-pwa:${{ github.sha }} .
