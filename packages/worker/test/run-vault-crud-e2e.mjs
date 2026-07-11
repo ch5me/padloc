@@ -1,13 +1,19 @@
 import http from "http";
-import { spawn } from "child_process";
+import { execFileSync, spawn } from "child_process";
 import net from "net";
+import { mkdtempSync, rmSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 
 const port = Number(process.env.VAULT_TEST_PORT || 18790);
 const packageRoot = new URL("..", import.meta.url);
+const persistDir = mkdtempSync(join(tmpdir(), "padloc-vault-crud-"));
 const wranglerArgs = [
     "dev",
     "test/vault-crud-e2e.worker.ts",
     "--local",
+    "--persist-to",
+    persistDir,
     "--env=dev",
     "--ip",
     "127.0.0.1",
@@ -24,6 +30,11 @@ async function startChild() {
         server.once("error", () => reject(new Error(`port ${port} is already in use`)));
         server.listen({ host: "127.0.0.1", port, exclusive: true }, () => server.close(resolve));
     });
+    execFileSync(
+        "wrangler",
+        ["d1", "migrations", "apply", "DB", "--local", "--env=dev", "--persist-to", persistDir],
+        { cwd: packageRoot, stdio: "ignore" }
+    );
     child = spawn("wrangler", wranglerArgs, { cwd: packageRoot, stdio: ["ignore", "pipe", "pipe"] });
     child.stdout.on("data", (chunk) => { output += chunk.toString(); });
     child.stderr.on("data", (chunk) => { output += chunk.toString(); });
@@ -55,7 +66,10 @@ async function terminateChild() {
         new Promise((resolve) => child.once("exit", resolve)),
         new Promise((resolve) => setTimeout(resolve, 5000)),
     ]);
-    if (child.exitCode === null) child.kill("SIGKILL");
+    if (child.exitCode === null) {
+        child.kill("SIGKILL");
+        await new Promise((resolve) => child.once("exit", resolve));
+    }
 }
 
 async function waitForWorker() {
@@ -85,4 +99,5 @@ try {
     process.exitCode = 1;
 } finally {
     await terminateChild();
+    rmSync(persistDir, { recursive: true, force: true });
 }

@@ -1,5 +1,6 @@
 import { spawn } from "child_process";
-import { writeFileSync } from "fs";
+import { mkdtempSync, rmSync, writeFileSync } from "fs";
+import { tmpdir } from "os";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import net from "net";
@@ -8,6 +9,7 @@ const port = Number(process.env.TRANSPORT_TEST_PORT || 18788);
 const packageRoot = dirname(fileURLToPath(new URL(".", import.meta.url)));
 const evidenceDir = join(packageRoot, "..", "..", ".sisyphus", "evidence");
 const evidenceFile = join(evidenceDir, "task-12-roundtrip.txt");
+const persistDir = mkdtempSync(join(tmpdir(), "padloc-transport-"));
 
 let output = "";
 let child;
@@ -24,7 +26,7 @@ async function startChild() {
     await assertPortAvailable();
     child = spawn(
         "wrangler",
-        ["dev", "test/transport-roundtrip.worker.ts", "--local", "--ip", "127.0.0.1", "--port", String(port)],
+        ["dev", "test/transport-roundtrip.worker.ts", "--local", "--persist-to", persistDir, "--ip", "127.0.0.1", "--port", String(port)],
         { cwd: packageRoot, stdio: ["ignore", "pipe", "pipe"] }
     );
 
@@ -168,7 +170,10 @@ async function terminateChild() {
         new Promise((resolve) => child.once("exit", resolve)),
         new Promise((resolve) => setTimeout(resolve, 5000)),
     ]);
-    if (child.exitCode === null) child.kill("SIGKILL");
+    if (child.exitCode === null) {
+        child.kill("SIGKILL");
+        await new Promise((resolve) => child.once("exit", resolve));
+    }
 }
 
 let exitCode = 0;
@@ -181,5 +186,6 @@ try {
     exitCode = 1;
 } finally {
     await terminateChild();
+    rmSync(persistDir, { recursive: true, force: true });
 }
 process.exitCode = exitCode;
