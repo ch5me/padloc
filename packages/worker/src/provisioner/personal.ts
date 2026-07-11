@@ -20,7 +20,10 @@ export class PersonalProvisioner implements Provisioner {
         params: { email: string; accountId?: AccountID; account?: AccountID; orgs?: OrgInfo[] },
         _session?: Session
     ): Promise<Provisioning> {
-        debugLog("getProvisioning called", params);
+        debugLog("getProvisioning", {
+            hasAccountId: Boolean(params.accountId || params.account),
+            orgCount: params.orgs?.length ?? 0,
+        });
 
         const provisioning = new Provisioning();
 
@@ -52,15 +55,15 @@ export class PersonalProvisioner implements Provisioner {
     }
 
     async accountDeleted(_params: { email: string; accountId?: AccountID }): Promise<void> {
-        debugLog("accountDeleted", _params);
+        debugLog("accountDeleted", { hasAccountId: Boolean(_params.accountId) });
     }
 
     async accountEmailChanged(_params: { prevEmail: string; newEmail: string; accountId?: AccountID }): Promise<void> {
-        debugLog("accountEmailChanged", _params);
+        debugLog("accountEmailChanged", { hasAccountId: Boolean(_params.accountId) });
     }
 
     async orgDeleted(_params: OrgInfo): Promise<void> {
-        debugLog("orgDeleted", _params);
+        debugLog("orgDeleted", { hasOrgId: Boolean(_params.id) });
     }
 
     async orgOwnerChanged(
@@ -68,6 +71,10 @@ export class PersonalProvisioner implements Provisioner {
         _prevOwner: { email: string; id?: AccountID },
         _newOwner: { email: string; id?: AccountID }
     ): Promise<void> {
-        debugLog("orgOwnerChanged", _org, _prevOwner, _newOwner);
+        debugLog("orgOwnerChanged", {
+            hasOrgId: Boolean(_org.id),
+            hadPreviousOwnerId: Boolean(_prevOwner.id),
+            hasNewOwnerId: Boolean(_newOwner.id),
+        });
     }
 }

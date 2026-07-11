@@ -32,17 +32,11 @@ export class ResendMessenger {
         });
 
         if (!res.ok) {
-            const body = await res.json().catch(() => ({}));
-            const message = (body as Record<string, unknown>).message ?? res.statusText;
             console.error("Resend send failed", {
                 status: res.status,
-                message,
-                from: this.fromAddress,
-                to: addr,
-                subject: msg.title,
                 template: msg.template,
             });
-            throw new Err(ErrorCode.SERVER_ERROR, `Resend error [${res.status}]: ${message}`, {
+            throw new Err(ErrorCode.SERVER_ERROR, `Resend request failed [${res.status}]`, {
                 report: true,
             });
         }
