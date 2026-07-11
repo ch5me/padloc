@@ -3,6 +3,7 @@ set -euo pipefail
 
 android_home="${ANDROID_HOME:-${RUNNER_TEMP:-/tmp}/android-sdk}"
 cmdline_tools_version="${ANDROID_CMDLINE_TOOLS_VERSION:-8512546}"
+cmdline_tools_sha256="${ANDROID_CMDLINE_TOOLS_SHA256:-2ccbda4302db862a28ada25aa7425d99dce9462046003c1714b059b5c47970d8}"
 work_dir="${RUNNER_TEMP:-/tmp}/android-sdk-install"
 sdkmanager="${android_home}/cmdline-tools/latest/bin/sdkmanager"
 
@@ -12,6 +13,7 @@ mkdir -p "$work_dir" "$android_home/cmdline-tools"
 curl -fsSL \
   "https://dl.google.com/android/repository/commandlinetools-linux-${cmdline_tools_version}_latest.zip" \
   -o "$work_dir/cmdline-tools.zip"
+printf '%s  %s\n' "$cmdline_tools_sha256" "$work_dir/cmdline-tools.zip" | sha256sum -c -
 unzip -q "$work_dir/cmdline-tools.zip" -d "$work_dir"
 rm -rf "$android_home/cmdline-tools/latest"
 mv "$work_dir/cmdline-tools" "$android_home/cmdline-tools/latest"

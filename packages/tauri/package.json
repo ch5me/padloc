@@ -8,6 +8,7 @@
         "tauricon": "tauri icon",
         "build": "tauri build",
         "build:debug": "tauri build --debug",
+        "check:ci": "webpack && cd src-tauri && cargo check --locked",
         "dev": "tauri dev",
         "update-tauri": "cd src-tauri && cargo update",
         "setup-tauri": "cd src-tauri && cargo build",

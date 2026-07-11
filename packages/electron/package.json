@@ -7,6 +7,7 @@
     "scripts": {
         "prepare-build": "node prepare-build.js",
         "build": "npm run prepare-build && webpack && electron-builder --config build/build.json",
+        "build:ci": "npm run prepare-build && webpack && electron-builder --config build/build.json --linux dir --publish never",
         "build:flatpak": "npm run prepare-build && webpack && electron-builder --config build/build-flatpak.json"
     },
     "repository": {

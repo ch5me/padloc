@@ -1,0 +1,4 @@
+self-hosted-runner:
+    labels:
+        - hq-writer
+        - macos-arm64
