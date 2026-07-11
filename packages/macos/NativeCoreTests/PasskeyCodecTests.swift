@@ -4,8 +4,17 @@ import XCTest
 
 final class PasskeyCodecTests: XCTestCase {
 #if DEBUG && CH5_PASSKEY_TEST_VERIFICATION_INJECTION
+    private func makeTestStore() -> NativePasskeyStore {
+        NativePasskeyStore(testingInMemory: ())
+    }
+#else
+    private func makeTestStore() -> NativePasskeyStore {
+        NativePasskeyStore(synchronized: false)
+    }
+#endif
+#if DEBUG && CH5_PASSKEY_TEST_VERIFICATION_INJECTION
     func testTestOnlyVerificationInjectionIsSyntheticAndStillClientHashBound() throws {
-        let broker = NativePasskeyBroker(store: NativePasskeyStore(synchronized: false))
+        let broker = NativePasskeyBroker(store: makeTestStore())
         let clientDataHash = PasskeyCodec.sha256(Data("injected-registration".utf8))
         let binding = NativeUserVerificationBinding.registration(
             relyingParty: "localhost", userHandle: Data([1]), clientDataHash: clientDataHash
@@ -90,7 +99,7 @@ final class PasskeyCodecTests: XCTestCase {
             "origin": origin,
             "crossOrigin": false,
         ])
-        let store = NativePasskeyStore(synchronized: false)
+        let store = makeTestStore()
         let record = try store.create(
             relyingParty: rpID,
             userName: "native-contract-user",
@@ -208,7 +217,7 @@ final class PasskeyCodecTests: XCTestCase {
     }
 
     func testBrokerSelectsExactCredentialAcrossFiveRecordsAndRejectsCrossRP() throws {
-        let store = NativePasskeyStore(synchronized: false)
+        let store = makeTestStore()
         let broker = NativePasskeyBroker(store: store)
         let registrations = try (0..<5).map { index in
             let userHandle = Data([UInt8(index + 1)])
@@ -283,7 +292,7 @@ final class PasskeyCodecTests: XCTestCase {
     }
 
     func testBrokerRejectsMismatchedAndExpiredVerificationGrants() throws {
-        let broker = NativePasskeyBroker(store: NativePasskeyStore(synchronized: false))
+        let broker = NativePasskeyBroker(store: makeTestStore())
         let clientDataHash = PasskeyCodec.sha256(Data("registration-binding".utf8))
         let wrongBinding = NativeUserVerificationBinding.registration(
             relyingParty: "wrong.invalid",

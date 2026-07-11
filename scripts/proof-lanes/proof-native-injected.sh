@@ -26,7 +26,7 @@ if [[ -z "$release_binary" ]]; then
   echo "Release credential-provider binary was not found" >&2
   exit 1
 fi
-if strings "$release_binary" | rg -q 'NativeTestVerificationInjection|CH5_PASSKEY_TEST_VERIFICATION_INJECTION'; then
+if strings "$release_binary" | rg -q 'NativeTestVerificationInjection|NativePasskeyMemoryStore|testingInMemory|CH5_PASSKEY_TEST_VERIFICATION_INJECTION'; then
   echo "test-only native verification injection leaked into Release" >&2
   exit 1
 fi

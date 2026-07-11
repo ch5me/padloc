@@ -29,6 +29,9 @@ public final class NativePasskeyStore: @unchecked Sendable {
     private let keyService = "me.ch5.auth.dev.passkeys.signing"
     private let pendingIndexKey = "NativePasskeyPendingCredentialIDs"
     private let synchronized: Bool
+#if DEBUG && CH5_PASSKEY_TEST_VERIFICATION_INJECTION
+    private let memory: NativePasskeyMemoryStore?
+#endif
 
     public convenience init() {
         self.init(synchronized: true)
@@ -36,7 +39,17 @@ public final class NativePasskeyStore: @unchecked Sendable {
 
     init(synchronized: Bool) {
         self.synchronized = synchronized
+#if DEBUG && CH5_PASSKEY_TEST_VERIFICATION_INJECTION
+        self.memory = nil
+#endif
     }
+
+#if DEBUG && CH5_PASSKEY_TEST_VERIFICATION_INJECTION
+    init(testingInMemory: Void) {
+        self.synchronized = false
+        self.memory = NativePasskeyMemoryStore()
+    }
+#endif
 
     public func create(relyingParty: String, userName: String, userHandle: Data) throws -> NativePasskeyRecord {
         let credentialID = try randomBytes(count: 32)
@@ -46,6 +59,11 @@ public final class NativePasskeyStore: @unchecked Sendable {
             userHandle: userHandle,
             credentialID: credentialID
         )
+#if DEBUG && CH5_PASSKEY_TEST_VERIFICATION_INJECTION
+        if let memory {
+            return try memory.create(record)
+        }
+#endif
         try createSigningKey(credentialID: credentialID)
         do {
             try save(record)
@@ -60,12 +78,21 @@ public final class NativePasskeyStore: @unchecked Sendable {
     }
 
     public func commit(_ record: NativePasskeyRecord) {
+#if DEBUG && CH5_PASSKEY_TEST_VERIFICATION_INJECTION
+        if let memory {
+            memory.commit(record)
+            return
+        }
+#endif
         let encoded = record.credentialID.base64EncodedString()
         let pending = (UserDefaults.standard.stringArray(forKey: pendingIndexKey) ?? []).filter { $0 != encoded }
         UserDefaults.standard.set(pending, forKey: pendingIndexKey)
     }
 
     public func pendingRecords() throws -> [NativePasskeyRecord] {
+#if DEBUG && CH5_PASSKEY_TEST_VERIFICATION_INJECTION
+        if let memory { return memory.pendingRecords() }
+#endif
         let pending = UserDefaults.standard.stringArray(forKey: pendingIndexKey) ?? []
         return try pending.compactMap { account in
             guard let credentialID = Data(base64Encoded: account) else { return nil }
@@ -78,6 +105,9 @@ public final class NativePasskeyStore: @unchecked Sendable {
     }
 
     public func load(credentialID: Data) throws -> NativePasskeyRecord {
+#if DEBUG && CH5_PASSKEY_TEST_VERIFICATION_INJECTION
+        if let memory { return try memory.load(credentialID: credentialID) }
+#endif
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -94,15 +124,29 @@ public final class NativePasskeyStore: @unchecked Sendable {
     }
 
     func publicKey(for record: NativePasskeyRecord) throws -> P256.Signing.PublicKey {
-        try signingKey(credentialID: record.credentialID).publicKey
+#if DEBUG && CH5_PASSKEY_TEST_VERIFICATION_INJECTION
+        if let memory { return try memory.signingKey(credentialID: record.credentialID).publicKey }
+#endif
+        return try signingKey(credentialID: record.credentialID).publicKey
     }
 
     func signature(for record: NativePasskeyRecord, data: Data) throws -> Data {
+#if DEBUG && CH5_PASSKEY_TEST_VERIFICATION_INJECTION
+        if let memory {
+            return try memory.signingKey(credentialID: record.credentialID).signature(for: data).derRepresentation
+        }
+#endif
         let key = try signingKey(credentialID: record.credentialID)
         return try key.signature(for: data).derRepresentation
     }
 
     public func delete(credentialID: Data) throws {
+#if DEBUG && CH5_PASSKEY_TEST_VERIFICATION_INJECTION
+        if let memory {
+            memory.delete(credentialID: credentialID)
+            return
+        }
+#endif
         let account = credentialID.base64EncodedString()
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -186,3 +230,52 @@ public final class NativePasskeyStore: @unchecked Sendable {
         return bytes
     }
 }
+
+#if DEBUG && CH5_PASSKEY_TEST_VERIFICATION_INJECTION
+private final class NativePasskeyMemoryStore: @unchecked Sendable {
+    private let lock = NSLock()
+    private var records: [Data: NativePasskeyRecord] = [:]
+    private var signingKeys: [Data: P256.Signing.PrivateKey] = [:]
+    private var pending: Set<Data> = []
+
+    func create(_ record: NativePasskeyRecord) throws -> NativePasskeyRecord {
+        try lock.withLock {
+            guard records[record.credentialID] == nil else { throw NativePasskeyStoreError.duplicateCredential }
+            records[record.credentialID] = record
+            signingKeys[record.credentialID] = P256.Signing.PrivateKey()
+            pending.insert(record.credentialID)
+            return record
+        }
+    }
+
+    func commit(_ record: NativePasskeyRecord) {
+        lock.withLock { _ = pending.remove(record.credentialID) }
+    }
+
+    func pendingRecords() -> [NativePasskeyRecord] {
+        lock.withLock { pending.compactMap { records[$0] } }
+    }
+
+    func load(credentialID: Data) throws -> NativePasskeyRecord {
+        try lock.withLock {
+            guard let record = records[credentialID] else { throw NativePasskeyStoreError.credentialNotFound }
+            return record
+        }
+    }
+
+    func signingKey(credentialID: Data) throws -> P256.Signing.PrivateKey {
+        try lock.withLock {
+            guard let key = signingKeys[credentialID] else { throw NativePasskeyStoreError.credentialNotFound }
+            return key
+        }
+    }
+
+    func delete(credentialID: Data) {
+        lock.withLock {
+            records.removeValue(forKey: credentialID)
+            signingKeys.removeValue(forKey: credentialID)
+            pending.remove(credentialID)
+        }
+    }
+}
+#endif
