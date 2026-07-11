@@ -2,9 +2,6 @@ name: Run Tests
 
 on:
     push:
-        branches:
-            - main
-            - "codex/**"
         paths:
             - ".forgejo/workflows/**"
             - "Dockerfile*"

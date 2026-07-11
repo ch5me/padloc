@@ -2,8 +2,6 @@ name: Passkey Provider
 
 on:
     push:
-        branches:
-            - "codex/**"
         paths:
             - ".forgejo/workflows/passkey-provider.yml"
             - "package.json"

@@ -3,8 +3,6 @@ name: Branch Regression
 on:
     workflow_dispatch:
     push:
-        branches-ignore:
-            - main
 
 concurrency:
     group: branch-regression-${{ github.ref }}
