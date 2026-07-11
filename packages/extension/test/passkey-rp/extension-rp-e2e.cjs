@@ -6,6 +6,9 @@ const net = require("net");
 const path = require("path");
 
 const repo = path.resolve(__dirname, "../../../..");
+const npmCli = process.env.npm_execpath;
+const nodeExecutable = process.env.npm_node_execpath || process.execPath;
+const nodeBin = path.dirname(nodeExecutable);
 const workerPort = Number(process.env.PADLOC_PASSKEY_WORKER_PORT || 18787);
 const localServer = `http://127.0.0.1:${workerPort}`;
 const canaryId = `${process.pid}-${Date.now()}`;
@@ -54,6 +57,14 @@ function run(command, args, env = {}) {
         stdio: "inherit",
     });
     if (result.status !== 0) throw new Error(`${command} ${args.join(" ")} failed`);
+}
+
+function runNpm(args, env = {}) {
+    if (!npmCli) throw new Error("npm_execpath is required for deterministic child npm execution");
+    run(nodeExecutable, [npmCli, ...args], {
+        ...env,
+        PATH: `${nodeBin}${path.delimiter}${process.env.PATH || ""}`,
+    });
 }
 
 function cleanupLocalCanaries() {
@@ -109,19 +120,25 @@ async function stopWorker() {
 async function main() {
     if (await portOpen()) throw new Error(`owned local Worker port ${workerPort} is already in use`);
     snapshotArtifacts();
-    run("npm", ["run", "worker:migrate:local"]);
+    runNpm(["run", "worker:migrate:local"]);
     cleanupLocalCanaries();
-    worker = spawn("npm", ["run", "worker:dev"], {
+    if (!npmCli) throw new Error("npm_execpath is required for deterministic child npm execution");
+    worker = spawn(nodeExecutable, [npmCli, "run", "worker:dev"], {
         cwd: repo,
-        env: { ...process.env, PL_WORKER_PORT: String(workerPort) },
+        env: {
+            ...process.env,
+            PATH: `${nodeBin}${path.delimiter}${process.env.PATH || ""}`,
+            PL_WORKER_PORT: String(workerPort),
+        },
         stdio: "inherit",
     });
     await waitForWorker();
-    run("npm", ["run", "web-extension:build"], {
+    runNpm(["run", "web-extension:build"], {
         PL_SERVER_URL: localServer,
-        PL_BUILD_ENV: "development",
+        PL_BUILD_ENV: "production",
+        PL_PASSKEY_DIAGNOSTICS: "true",
     });
-    run("npm", ["--prefix", "packages/extension", "run", "test:harness", "--", "--grep", "controlled CH5 RP creates and verifies"], {
+    runNpm(["--prefix", "packages/extension", "run", "test:harness", "--", "--grep", "controlled CH5 RP creates and verifies"], {
         PADLOC_PASSKEY_E2E: "1",
         PADLOC_PASSKEY_CANARY_ID: canaryId,
         PL_SERVER_URL: localServer,

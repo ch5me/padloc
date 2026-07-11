@@ -54,7 +54,7 @@ if (manifest) {
         failures.push("manifest.json: expected background.service_worker background.js");
     }
     const scripts = (manifest.content_scripts || []).flatMap((entry) => entry.js || []);
-    for (const required of ["webauthn-page.js", "content.js"]) {
+    for (const required of ["passkey-page.js", "passkey-content-bridge.js", "content.js"]) {
         if (!scripts.includes(required)) {
             failures.push(`manifest.json: missing content script ${required}`);
         }
@@ -62,8 +62,9 @@ if (manifest) {
 }
 
 const background = read("background.js");
-const backgroundMap = read("background.js.map");
-const webauthnPage = read("webauthn-page.js");
+const backgroundMap = fs.existsSync(path.join(distDir, "background.js.map")) ? read("background.js.map") : "";
+const passkeyPage = read("passkey-page.js");
+const passkeyContentBridge = read("passkey-content-bridge.js");
 read("content.js");
 
 failIf("background.js", background, [
@@ -96,15 +97,20 @@ failIf("background.js.map", backgroundMap, [
     { pattern: /app\/src\/lib\/route\.ts/, reason: "service worker source map includes page router" },
 ]);
 
-failIf("webauthn-page.js", webauthnPage, [
+failIf("passkey-page.js", passkeyPage, [
     {
-        pattern: /navigator\.credentials\.create\s*=\s*async/.test(webauthnPage) ? /a^/ : /(?:)/,
+        pattern: /create:\s*\{\s*configurable:\s*true,\s*value:/.test(passkeyPage) ? /a^/ : /(?:)/,
         reason: "missing create() interception",
     },
     {
-        pattern: /navigator\.credentials\.get\s*=\s*async/.test(webauthnPage) ? /a^/ : /(?:)/,
+        pattern: /get:\s*\{\s*configurable:\s*true,\s*value:/.test(passkeyPage) ? /a^/ : /(?:)/,
         reason: "missing get() interception",
     },
+]);
+
+failIfMissing("passkey-content-bridge.js", passkeyContentBridge, [
+    { pattern: /padloc-passkey-page/, reason: "missing page bridge source marker" },
+    { pattern: /padloc-passkey-extension/, reason: "missing extension bridge source marker" },
 ]);
 
 for (const [file, source] of readBuiltJavaScriptFiles()) {

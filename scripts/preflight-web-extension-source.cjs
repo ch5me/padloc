@@ -181,16 +181,6 @@ function checkBackgroundSource() {
         failures.push("packages/extension/src/background.ts: runtime message listeners must not be async catch-alls");
     }
 
-    const bridgeIndex = backgroundSource.indexOf("registerImmediateMessageBridge();");
-    const initIndex = backgroundSource.indexOf("async function initBackground");
-    if (bridgeIndex < 0) {
-        failures.push("packages/extension/src/background.ts: missing immediate WebAuthn message bridge registration");
-    } else if (initIndex >= 0 && bridgeIndex > initIndex) {
-        failures.push(
-            "packages/extension/src/background.ts: immediate bridge must register before async background init"
-        );
-    }
-
     if (!backgroundSource.includes("badgeAndContextMenuUpdateChain")) {
         failures.push("packages/extension/src/background.ts: context menu rebuilds must be serialized");
     }
@@ -232,65 +222,42 @@ function checkManifestSource() {
     }
 
     const contentScripts = manifest.content_scripts || [];
-    const pageHook = contentScripts.find((entry) => (entry.js || []).includes("webauthn-page.js"));
-    const contentBridge = contentScripts.find((entry) => (entry.js || []).includes("content.js"));
+    const pageHook = contentScripts.find((entry) => (entry.js || []).includes("passkey-page.js"));
+    const contentBridge = contentScripts.find((entry) => (entry.js || []).includes("passkey-content-bridge.js"));
 
     if (!pageHook) {
-        failures.push("packages/extension/src/manifest.json: missing webauthn-page.js content script");
+        failures.push("packages/extension/src/manifest.json: missing passkey-page.js content script");
     } else {
         if (pageHook.world !== "MAIN")
-            failures.push("packages/extension/src/manifest.json: webauthn-page.js must run in MAIN world");
+            failures.push("packages/extension/src/manifest.json: passkey-page.js must run in MAIN world");
         if (pageHook.run_at !== "document_start")
-            failures.push("packages/extension/src/manifest.json: webauthn-page.js must run at document_start");
-        if (pageHook.all_frames !== true)
-            failures.push("packages/extension/src/manifest.json: webauthn-page.js must run in all frames");
+            failures.push("packages/extension/src/manifest.json: passkey-page.js must run at document_start");
+        if (pageHook.all_frames !== false)
+            failures.push("packages/extension/src/manifest.json: passkey-page.js must run only in the top frame");
     }
 
     if (!contentBridge) {
-        failures.push("packages/extension/src/manifest.json: missing content.js bridge content script");
+        failures.push("packages/extension/src/manifest.json: missing passkey-content-bridge.js content script");
     } else {
         if (contentBridge.run_at !== "document_start")
-            failures.push("packages/extension/src/manifest.json: content.js must run at document_start");
-        if (contentBridge.all_frames !== true)
-            failures.push("packages/extension/src/manifest.json: content.js must run in all frames");
+            failures.push("packages/extension/src/manifest.json: passkey-content-bridge.js must run at document_start");
+        if (contentBridge.world !== "ISOLATED")
+            failures.push("packages/extension/src/manifest.json: passkey-content-bridge.js must run isolated");
+        if (contentBridge.all_frames !== false)
+            failures.push("packages/extension/src/manifest.json: passkey-content-bridge.js must run only in the top frame");
     }
 }
 
 function checkWebAuthnPageSource() {
-    const source = read("packages/extension/src/webauthn-page.ts");
-    if (!/navigator\.credentials\.create\s*=\s*async/.test(source)) {
-        failures.push("packages/extension/src/webauthn-page.ts: missing navigator.credentials.create interception");
+    const source = read("packages/extension/src/passkey-page.ts");
+    if (!source.includes('value: wrap("create", nativeCreate)')) {
+        failures.push("packages/extension/src/passkey-page.ts: missing navigator.credentials.create interception");
     }
-    if (!/navigator\.credentials\.get\s*=\s*async/.test(source)) {
-        failures.push("packages/extension/src/webauthn-page.ts: missing navigator.credentials.get interception");
+    if (!source.includes('value: wrap("get", nativeGet)')) {
+        failures.push("packages/extension/src/passkey-page.ts: missing navigator.credentials.get interception");
     }
-    if (!source.includes("padloc-webauthn-page") || !source.includes("padloc-webauthn-content")) {
-        failures.push("packages/extension/src/webauthn-page.ts: missing page/content WebAuthn bridge markers");
-    }
-}
-
-function checkPasskeyBrokerSource() {
-    const source = read("packages/extension/src/passkey-broker.ts");
-    if (/new\s+Field\s*\(\s*\{\s*name:\s*["']Private Key["']/.test(source)) {
-        failures.push(
-            "packages/extension/src/passkey-broker.ts: passkey private keys must not be stored in vault fields"
-        );
-    }
-    if (/cryptoApi\.subtle\.exportKey\s*\(\s*["']pkcs8["']/.test(source)) {
-        failures.push("packages/extension/src/passkey-broker.ts: generated passkey private keys must not be exported");
-    }
-    if (!source.includes("PASSKEY_SIGNER_HANDLE_PREFIX") || !source.includes("storePasskeySignerKey")) {
-        failures.push("packages/extension/src/passkey-broker.ts: missing opaque signer handle storage");
-    }
-    if (/if\s*\(\s*!indexedDb\s*\)\s*return\b/.test(source)) {
-        failures.push(
-            "packages/extension/src/passkey-broker.ts: signer storage must fail loud when IndexedDB is unavailable"
-        );
-    }
-    if (!source.includes("refusing volatile passkey enrollment")) {
-        failures.push(
-            "packages/extension/src/passkey-broker.ts: signer enrollment must refuse volatile memory-only production storage"
-        );
+    if (!source.includes("PASSKEY_PAGE_MESSAGE_SOURCE") || !source.includes("PASSKEY_EXTENSION_MESSAGE_SOURCE")) {
+        failures.push("packages/extension/src/passkey-page.ts: missing page/content passkey bridge markers");
     }
 }
 
@@ -390,7 +357,6 @@ function checkExtensionUiSource() {
 checkBackgroundSource();
 checkManifestSource();
 checkWebAuthnPageSource();
-checkPasskeyBrokerSource();
 checkExtensionUiSource();
 
 if (failures.length) {

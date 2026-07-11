@@ -7,9 +7,15 @@ import { PasskeyCredential } from "@padloc/core/src/passkey";
 import { bytesToBase64 } from "@padloc/core/src/encoding";
 import { ExtensionWorkerPlatform } from "./worker-platform";
 import { FetchSender } from "./fetch-sender";
-import { AgenticAutofillApprovalPrompt, Message, messageTab, SavePrompt, CredentialData } from "./message";
+import {
+    AgenticAutofillApprovalPrompt,
+    CredentialData,
+    FieldMappings,
+    Message,
+    SavePrompt,
+    messageTab,
+} from "./message";
 import { clearSessionMasterKey, configureSessionStorage, getSessionMasterKey } from "./storage";
-import { BackgroundFetchSender } from "./background-fetch-sender";
 import { AutofillBrokerRequest, AutofillBrokerResponse, buildLockedBrokerResponse } from "./autofill-broker-protocol";
 import {
     applyBrokerBundleResponse,
@@ -44,7 +50,6 @@ let app: App;
 let autoLockAlarmName = "pl_autoLock";
 let nativeBrokerAlarmName = "pl_agenticAutofillNativeBroker";
 let isInitialized = false;
-let immediateMessageBridgeRegistered = false;
 const actionApi = chrome.action;
 let badgeAndContextMenuUpdateChain = Promise.resolve();
 
@@ -60,11 +65,6 @@ const pendingAutofillPromptNonces = new Map<string, { nonce: string; senderUrl: 
 const dismissedUrls = new Map<string, number>();
 
 const DISMISSAL_DURATION_MS = 60 * 60 * 1000; // 1 hour
-const WEBAUTHN_APP_READY_TIMEOUT_MS = 5000;
-
-// MV3 wake events are dispatched to listeners registered during service-worker
-// evaluation. Register the fail-fast WebAuthn bridge before async app init.
-registerImmediateMessageBridge();
 
 // Register the cold-start probe synchronously and answer it through Chrome's
 // callback contract. This must not depend on the webextension polyfill or App
@@ -595,20 +595,6 @@ async function getApp(): Promise<App> {
     return app;
 }
 
-async function getAppWithin(timeoutMs: number): Promise<App | null> {
-    let timeoutId: number | undefined;
-    try {
-        return await Promise.race([
-            getApp(),
-            new Promise<null>((resolve) => {
-                timeoutId = setTimeout(() => resolve(null), timeoutMs) as unknown as number;
-            }),
-        ]);
-    } finally {
-        if (timeoutId) clearTimeout(timeoutId);
-    }
-}
-
 async function restoreSessionUnlock(application: App) {
     if (!application.state.locked || !application.account || !application.session) {
         return false;
@@ -670,20 +656,9 @@ async function initBackground() {
         // Commands are handled via popup for MV3
     });
 
-    await configureSessionStorage();
-    const _app = await getApp();
-    _app.subscribe(update);
     await enqueueBadgeAndContextMenuUpdate();
     browser.alarms.create(nativeBrokerAlarmName, { periodInMinutes: 1 });
     void processPendingNativeBrokerRequest(_app);
-}
-
-function debounceBackground(fn: () => void, delay: number) {
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    return () => {
-        if (timeout) clearTimeout(timeout);
-        timeout = setTimeout(fn, delay);
-    };
 }
 
 function enqueueBadgeAndContextMenuUpdate() {
@@ -693,111 +668,6 @@ function enqueueBadgeAndContextMenuUpdate() {
     return badgeAndContextMenuUpdateChain;
 }
 
-async function handleExtensionMessage(msg: Message, sender: Runtime.MessageSender, update: () => void) {
-    const application = await getApp();
-
-    switch (msg.type) {
-        case "loggedOut":
-        case "locked":
-            await clearSessionMasterKey();
-            await application.load();
-            await cancelAutoLock();
-            await update();
-            break;
-        case "unlocked":
-            await application.load();
-            await restoreSessionUnlock(application);
-            await startAutoLockTimer();
-            await update();
-            break;
-        case "state-changed":
-            await application.reload();
-            await update();
-            break;
-        case "formSubmitDetected":
-            return handleFormSubmitDetected(msg.data, application);
-        case "getSavePrompt":
-            return handleGetSavePrompt();
-        case "saveCredential":
-            return handleSaveCredential(msg.promptId, msg.vaultId, application);
-        case "updateCredential":
-            return handleUpdateCredential(msg.promptId, msg.vaultId, application);
-        case "dismissPrompt":
-            return handleDismissPrompt(msg.promptId);
-        case "getAgenticAutofillApprovalPrompt":
-            return handleGetAgenticAutofillApprovalPrompt(sender);
-        case "approveAgenticAutofill":
-            return handleApproveAgenticAutofill(msg.planId, msg.promptNonce, sender);
-        case "dismissAgenticAutofill":
-            return handleDismissAgenticAutofill(msg.planId);
-        case "seedAgenticAutofillFixtures":
-            return handleSeedAgenticAutofillFixtures(sender, application);
-        case "agenticAutofillBroker":
-            return handleAgenticAutofillBroker(msg.request, application);
-    }
-}
-
-function registerImmediateMessageBridge() {
-    if (immediateMessageBridgeRegistered) return;
-    immediateMessageBridgeRegistered = true;
-    const chromeRuntime = (
-        chrome as typeof chrome & {
-            runtime: {
-                onMessage: {
-                    addListener(
-                        listener: (
-                            msg: Message,
-                            sender: Runtime.MessageSender,
-                            sendResponse: (response?: unknown) => void
-                        ) => boolean | void
-                    ): void;
-                };
-            };
-        }
-    ).runtime;
-    chromeRuntime.onMessage.addListener(
-        (msg: Message, sender: Runtime.MessageSender, sendResponse: (response?: unknown) => void) => {
-            if (!msg || typeof msg !== "object") return false;
-            if (msg.type === "ping") {
-                void getApp().then((application) => processPendingNativeBrokerRequest(application));
-                sendResponse({ type: "pong" });
-                return false;
-            }
-            if (msg.type === "agenticWebAuthnCreate" || msg.type === "agenticWebAuthnGet") {
-                void handleImmediateWebAuthnMessage(msg, sender)
-                    .then(sendResponse)
-                    .catch((error) =>
-                        sendResponse(
-                            webAuthnMessage(
-                                denyWebAuthn(
-                                    "UnknownError",
-                                    error instanceof Error ? error.message : "Padloc passkey broker failed",
-                                    "broker_failed"
-                                )
-                            )
-                        )
-                    );
-                return true;
-            }
-            return false;
-        }
-    );
-}
-
-async function handleImmediateWebAuthnMessage(
-    msg: Extract<Message, { type: "agenticWebAuthnCreate" | "agenticWebAuthnGet" }>,
-    sender: Runtime.MessageSender
-) {
-    const webAuthnApp = await getAppWithin(WEBAUTHN_APP_READY_TIMEOUT_MS);
-    if (!webAuthnApp) {
-        return webAuthnMessage(
-            denyWebAuthn("NotAllowedError", "Padloc background app not initialized", "background_not_ready")
-        );
-    }
-    return msg.type === "agenticWebAuthnCreate"
-        ? handleAgenticWebAuthnCreate(msg.request, sender, webAuthnApp)
-        : handleAgenticWebAuthnGet(msg.request, sender, webAuthnApp);
-}
 
 async function handleContextMenuClick(menuItemId: string) {
     if (menuItemId === "openPopup") {
@@ -971,10 +841,6 @@ async function getItemsForActiveTab() {
     const tab = await getActiveTab();
     const application = await getApp();
     return tab && tab.url ? application.getItemsForUrl(tab.url) : [];
-}
-
-function getAllVaultItems(application: App) {
-    return Array.from(application.vaults).flatMap((vault) => Array.from(vault.items));
 }
 
 async function getCountForActiveTab() {
@@ -1184,200 +1050,6 @@ function handleDismissAgenticAutofill(planId: string): null {
     return null;
 }
 
-async function handleAgenticWebAuthnCreate(
-    request: AgenticWebAuthnCreateRequest,
-    sender: Runtime.MessageSender,
-    application: App
-): Promise<{ type: "agenticWebAuthnResponse"; response: AgenticWebAuthnResponse }> {
-    const validation = validatePageWebAuthnRequest(request, sender);
-    if (validation) return webAuthnMessage(validation);
-    if (application.state.locked || !application.state.loggedIn) {
-        return webAuthnMessage(denyWebAuthn("NotAllowedError", "Padloc vault locked", "vault_locked"));
-    }
-    if (
-        request.excludeCredentialIds?.some((credentialId) => findPasskeyItemByCredentialId(application, credentialId))
-    ) {
-        return webAuthnMessage(
-            denyWebAuthn("InvalidStateError", "Passkey already exists in Padloc", "credential_excluded")
-        );
-    }
-
-    const vault = application.mainVault;
-    if (!vault) return webAuthnMessage(denyWebAuthn("NotAllowedError", "No writable Padloc vault", "vault_missing"));
-
-    try {
-        const result = await enrollPasskeyCredential({
-            type: "enroll-passkey",
-            protocolVersion: 1,
-            requestId: request.requestId,
-            binding: {
-                sessionId: "padloc-extension-webauthn",
-                origin: request.origin,
-                topOrigin: request.topOrigin || request.origin,
-                rpId: request.rpId,
-                vendor: request.rpId,
-            },
-            passkey: {
-                itemName: request.userName ? `${request.rpId} ${request.userName}` : `Passkey ${request.rpId}`,
-                rpId: request.rpId,
-                topOrigin: request.topOrigin || request.origin,
-                userHandle: request.userHandle,
-                algorithm: request.algorithm,
-                clientDataHash: bytesToBase64(
-                    new Uint8Array(await crypto.subtle.digest("SHA-256", base64ToBytesLoose(request.clientDataJSON)))
-                ),
-                userVerification: request.userVerification,
-                vendor: request.rpId,
-                policy: new PasskeyCredentialPolicy({
-                    allowedRpIds: [request.rpId],
-                    allowedTopOrigins: defaultAllowedTopOrigins(request.rpId, request.origin, request.topOrigin),
-                    allowedVendorFlows: [request.rpId],
-                    approval: "none",
-                    rateLimit: {},
-                    timeWindows: [],
-                    requireFlowBinding: false,
-                    emergencyLockout: false,
-                }),
-            },
-        });
-        const createdItem = await application.createItem({
-            name: result.itemName,
-            vault: { id: vault.id },
-            icon: result.icon,
-            fields: result.fields,
-            itemKind: result.itemKind,
-            passkeyCredential: result.passkeyCredential,
-        });
-        if (result.response.passkey) {
-            result.response.passkey.itemId = createdItem.id;
-            result.response.passkey.itemName = createdItem.name;
-        }
-        void publishRedactedBrokerResponse(result.response);
-        const registration = result.response.passkey?.registration;
-        if (!registration) {
-            return webAuthnMessage(
-                denyWebAuthn("UnknownError", "Padloc passkey registration missing", "registration_missing")
-            );
-        }
-        return webAuthnMessage({
-            ok: true,
-            credential: {
-                id: toBrowserBase64Url(registration.credentialId),
-                rawId: toBrowserBase64Url(registration.credentialId),
-                type: "public-key",
-                authenticatorAttachment: registration.authenticatorAttachment,
-                clientExtensionResults: registration.clientExtensionResults,
-                response: {
-                    clientDataJSON: request.clientDataJSON,
-                    attestationObject: toBrowserBase64Url(registration.attestationObject),
-                    authenticatorData: toBrowserBase64Url(registration.authenticatorData),
-                    publicKey: toBrowserBase64Url(registration.publicKeySpki),
-                    publicKeyAlgorithm: Number(registration.algorithm),
-                    transports: registration.transports,
-                },
-            },
-            valuePolicy: "redacted WebAuthn registration only; private key stays in Padloc signer store",
-        });
-    } catch (error) {
-        return webAuthnMessage(
-            denyWebAuthn(
-                "UnknownError",
-                error instanceof Error ? error.message : "Padloc passkey registration failed",
-                "registration_failed"
-            )
-        );
-    }
-}
-
-async function handleAgenticWebAuthnGet(
-    request: AgenticWebAuthnGetRequest,
-    sender: Runtime.MessageSender,
-    application: App
-): Promise<{ type: "agenticWebAuthnResponse"; response: AgenticWebAuthnResponse }> {
-    const validation = validatePageWebAuthnRequest(request, sender);
-    if (validation) return webAuthnMessage(validation);
-    if (application.state.locked || !application.state.loggedIn) {
-        return webAuthnMessage(denyWebAuthn("NotAllowedError", "Padloc vault locked", "vault_locked"));
-    }
-
-    const item = selectPasskeyItem(application, request);
-    if (!item) {
-        return webAuthnMessage(denyWebAuthn("NotAllowedError", "No matching Padloc passkey", "credential_not_found"));
-    }
-
-    try {
-        const nonce = await uuid();
-        const result = await requestPasskeyAssertion(
-            {
-                type: "request-assertion",
-                protocolVersion: 1,
-                requestId: request.requestId,
-                binding: {
-                    sessionId: "padloc-extension-webauthn",
-                    origin: request.origin,
-                    topOrigin: request.topOrigin || request.origin,
-                    rpId: request.rpId,
-                    vendor: request.rpId,
-                    nonce,
-                },
-                passkey: {
-                    credentialId: item.passkeyCredential.credentialId,
-                    rpId: request.rpId,
-                    topOrigin: request.topOrigin || request.origin,
-                    clientDataHash: request.clientDataHash,
-                    challenge: request.challenge,
-                    userVerification: request.userVerification,
-                    nonce,
-                    vendor: request.rpId,
-                },
-            },
-            getAllVaultItems(application)
-        );
-        if (result.updatedItem?.id) {
-            await application.updateItem(result.updatedItem, {
-                itemKind: result.updatedItem.itemKind,
-                passkeyCredential: result.updatedItem.passkeyCredential,
-            });
-        }
-        void publishRedactedBrokerResponse(result.response);
-        const assertion = result.response.passkey?.assertion;
-        if (!result.response.ok || !assertion) {
-            return webAuthnMessage(
-                denyWebAuthn(
-                    "NotAllowedError",
-                    result.response.reason || "Padloc passkey assertion denied",
-                    result.response.passkey?.reasonCode || "assertion_denied"
-                )
-            );
-        }
-        return webAuthnMessage({
-            ok: true,
-            credential: {
-                id: toBrowserBase64Url(assertion.credentialId),
-                rawId: toBrowserBase64Url(assertion.credentialId),
-                type: "public-key",
-                authenticatorAttachment: "platform",
-                clientExtensionResults: {},
-                response: {
-                    clientDataJSON: request.clientDataJSON,
-                    authenticatorData: toBrowserBase64Url(assertion.authenticatorData),
-                    signature: toBrowserBase64Url(assertion.signature),
-                    userHandle: toBrowserBase64Url(assertion.userHandle),
-                },
-            },
-            valuePolicy: "redacted WebAuthn assertion only; private key stays in Padloc signer store",
-        });
-    } catch (error) {
-        return webAuthnMessage(
-            denyWebAuthn(
-                "UnknownError",
-                error instanceof Error ? error.message : "Padloc passkey assertion failed",
-                "assertion_failed"
-            )
-        );
-    }
-}
-
 function randomApprovalPromptNonce(): string {
     const bytes = new Uint8Array(16);
     crypto.getRandomValues(bytes);
@@ -1411,39 +1083,6 @@ async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, appli
 
     if (request.type === "approve") {
         throw new Error("Autofill approval requires Padloc approval UI");
-    }
-
-    if (request.type === "enroll-passkey") {
-        const vaultId = request.passkey && "vaultId" in request.passkey ? request.passkey.vaultId : undefined;
-        const vault = vaultId ? application.getVault(vaultId) : application.mainVault;
-        if (!vault) throw new Error("Passkey enrollment requires an accessible vault");
-        const result = await enrollPasskeyCredential(request);
-        const createdItem = await application.createItem({
-            name: result.itemName,
-            vault: { id: vault.id },
-            icon: result.icon,
-            fields: result.fields,
-            itemKind: result.itemKind,
-            passkeyCredential: result.passkeyCredential,
-        });
-        if (result.response.passkey) {
-            result.response.passkey.itemId = createdItem.id;
-            result.response.passkey.itemName = createdItem.name;
-        }
-        void publishRedactedBrokerResponse(result.response);
-        return { type: "agenticAutofillBrokerResponse", response: result.response };
-    }
-
-    if (request.type === "request-assertion") {
-        const result = await requestPasskeyAssertion(request, getAllVaultItems(application));
-        if (result.updatedItem?.id) {
-            await application.updateItem(result.updatedItem, {
-                itemKind: result.updatedItem.itemKind,
-                passkeyCredential: result.updatedItem.passkeyCredential,
-            });
-        }
-        void publishRedactedBrokerResponse(result.response);
-        return { type: "agenticAutofillBrokerResponse", response: result.response };
     }
 
     if (request.type === "mint-fill-bundle") {

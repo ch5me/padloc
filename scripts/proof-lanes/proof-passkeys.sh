@@ -4,6 +4,17 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
+# npm lifecycle shells may restore an ambient machine PATH. Keep every nested
+# proof process on the Node runtime that launched this proof.
+if [[ -n "${npm_node_execpath:-}" ]]; then
+  export PATH="$(dirname "$npm_node_execpath"):$PATH"
+  hash -r
+fi
+npm_command=(npm)
+if [[ -n "${npm_node_execpath:-}" && -n "${npm_execpath:-}" ]]; then
+  npm_command=("$npm_node_execpath" "$npm_execpath")
+fi
+
 mode="${1:-all}"
 if [[ "$mode" == "--help" || "$mode" == "-h" ]]; then
   cat <<'EOF'
@@ -73,14 +84,14 @@ if [[ "$mode" == "--macos-contract" ]]; then
 fi
 
 echo "passkey proof: shared verifier and RP server"
-npm --prefix packages/extension run test:passkey-rp
+"${npm_command[@]}" --prefix packages/extension run test:passkey-rp
 
 echo "passkey proof: extension unit and integration suite"
 TS_NODE_TRANSPILE_ONLY=1 TS_NODE_COMPILER_OPTIONS='{"module":"commonjs"}' \
   node packages/extension/test/passkey-rp/run-tests.cjs packages/extension/test
 
 echo "passkey proof: extension controlled RP, restart, and five-identity E2E"
-npm --prefix packages/extension run test:passkey-rp:extension
+"${npm_command[@]}" --prefix packages/extension run test:passkey-rp:extension
 
 echo "passkey proof: extension typecheck"
 ./node_modules/.bin/tsc --noEmit --skipLibCheck -p packages/extension/tsconfig.json
@@ -96,8 +107,8 @@ if [[ "$mode" != "--pr" ]]; then
 fi
 
 echo "passkey proof: worker log redaction and runtime target contract"
-npm --prefix packages/worker run test:logging-redaction
-npm run runtime-config:check
+"${npm_command[@]}" --prefix packages/worker run test:logging-redaction
+"${npm_command[@]}" run runtime-config:check
 
 echo "passkey proof: changed-source diagnostic secrecy"
 diagnostic_matches="$(rg -n '(logger|console)\.(notice|error|log).*?(clientDataHash|credentialID|userHandle|userName|rawRepresentation|privateKey|password|challenge)' \
@@ -111,7 +122,7 @@ if [[ -n "$unsafe_diagnostic_matches" ]]; then
 fi
 
 echo "passkey proof: production extension artifact restoration"
-PL_SERVER_URL=https://api-pad.ch5.me PL_BUILD_ENV=production npm run web-extension:build >/dev/null
+PL_SERVER_URL=https://api-pad.ch5.me PL_BUILD_ENV=production "${npm_command[@]}" run web-extension:build >/dev/null
 test -f packages/extension/dist/manifest.json
 if find packages/extension/dist -name '*.map' -print -quit | grep -q .; then
   echo "production extension build contains source maps" >&2

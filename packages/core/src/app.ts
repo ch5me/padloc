@@ -14,8 +14,6 @@ import {
     ItemHistoryEntry,
     ITEM_HISTORY_ENTRIES_LIMIT,
     TagInfo,
-    PasskeyCredential,
-    VaultItemKind,
 } from "./item";
 import { Account, AccountID, UnlockedAccount } from "./account";
 import { Auth, AuthPurpose, AuthType } from "./auth";
@@ -1575,8 +1573,6 @@ export class App {
         passkeys,
         tags,
         icon,
-        itemKind,
-        passkeyCredential,
     }: {
         name: string;
         vault: { id: VaultID };
@@ -1584,8 +1580,6 @@ export class App {
         passkeys?: PasskeyCredential[];
         tags?: Tag[];
         icon?: string;
-        itemKind?: VaultItemKind;
-        passkeyCredential?: PasskeyCredential;
     }): Promise<VaultItem> {
         const item = await createVaultItem({ name, fields, passkeys, tags, icon });
         if (this.account) {
@@ -1609,8 +1603,6 @@ export class App {
             auditResults?: AuditResult[];
             lastAudited?: Date;
             expiresAfter?: number;
-            itemKind?: VaultItemKind;
-            passkeyCredential?: PasskeyCredential;
         },
         save = true,
         sync = true
@@ -1626,8 +1618,7 @@ export class App {
             item.name !== newItem.name ||
             JSON.stringify(item.tags) !== JSON.stringify(newItem.tags) ||
             JSON.stringify(item.fields) !== JSON.stringify(newItem.fields) ||
-            item.itemKind !== newItem.itemKind ||
-            JSON.stringify(item.passkeyCredential) !== JSON.stringify(newItem.passkeyCredential)
+            JSON.stringify(item.passkeys) !== JSON.stringify(newItem.passkeys)
         ) {
             newItem.history = [new ItemHistoryEntry(item), ...item.history].slice(0, ITEM_HISTORY_ENTRIES_LIMIT);
         }

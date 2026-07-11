@@ -302,6 +302,8 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
             [
                 "-r",
                 path.resolve(__dirname, "../../../node_modules/ts-node/register"),
+                "-r",
+                path.resolve(__dirname, "../node_modules/tsconfig-paths/register"),
                 path.resolve(__dirname, "local-account.ts"),
                 process.env.PL_SERVER_URL || "http://127.0.0.1:8787",
                 email,
@@ -312,6 +314,7 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
                 env: {
                     ...process.env,
                     TS_NODE_TRANSPILE_ONLY: "1",
+                    TS_NODE_PROJECT: path.resolve(__dirname, "../tsconfig.json"),
                     TS_NODE_COMPILER_OPTIONS: JSON.stringify({
                         module: "commonjs",
                         experimentalDecorators: true,
