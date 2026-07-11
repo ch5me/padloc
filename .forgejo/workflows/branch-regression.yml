@@ -105,10 +105,12 @@ jobs:
               run: npm --prefix packages/tauri run check:ci
 
     docker-build:
-        runs-on: hq-writer
+        runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
+            - name: Install daemonless image builder
+              run: scripts/ci-apt-install.sh buildah
             - name: Build server image without pushing
-              run: docker build --file Dockerfile-server --tag padloc-server:${{ github.sha }} .
+              run: buildah bud --isolation chroot --file Dockerfile-server --tag padloc-server:${{ github.sha }} .
             - name: Build PWA image without pushing
-              run: docker build --file Dockerfile-pwa --tag padloc-pwa:${{ github.sha }} .
+              run: buildah bud --isolation chroot --file Dockerfile-pwa --tag padloc-pwa:${{ github.sha }} .
