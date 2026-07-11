@@ -1,0 +1,99 @@
+name: CH5AuthPasskeyProvider
+options:
+  bundleIdPrefix: me.ch5.auth.dev
+  deploymentTarget:
+    macOS: "15.0"
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    CODE_SIGN_STYLE: Automatic
+    MACOSX_DEPLOYMENT_TARGET: "15.0"
+    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: 0.1.0
+targets:
+  CH5AuthNativeCore:
+    type: framework
+    platform: macOS
+    sources:
+      - NativeCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: me.ch5.auth.dev.nativecore
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGNING_ALLOWED: NO
+  CH5AuthCredentialProvider:
+    type: app-extension
+    platform: macOS
+    sources:
+      - CredentialProvider
+    dependencies:
+      - target: CH5AuthNativeCore
+        embed: true
+    info:
+      path: CredentialProvider/Info.plist
+      properties:
+        CFBundleDisplayName: CH5 Auth Passkeys
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.authentication-services-credential-provider-ui
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).CredentialProviderViewController
+          NSExtensionAttributes:
+            ASCredentialProviderExtensionShowsConfigurationUI: false
+            ASCredentialProviderExtensionCapabilities:
+              ProvidesPasskeys: true
+    entitlements:
+      path: Config/Provider.entitlements
+      properties:
+        com.apple.developer.authentication-services.autofill-credential-provider: true
+        com.apple.security.app-sandbox: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: me.ch5.auth.dev.passkeys.provider
+        PRODUCT_NAME: CH5AuthCredentialProvider
+        SKIP_INSTALL: YES
+  CH5AuthHost:
+    type: application
+    platform: macOS
+    sources:
+      - Host
+    dependencies:
+      - target: CH5AuthNativeCore
+      - target: CH5AuthCredentialProvider
+        embed: true
+    info:
+      path: Host/Info.plist
+      properties:
+        CFBundleDisplayName: CH5 Auth Passkeys
+        LSApplicationCategoryType: public.app-category.productivity
+        NSPrincipalClass: NSApplication
+    entitlements:
+      path: Config/Host.entitlements
+      properties:
+        com.apple.developer.authentication-services.autofill-credential-provider: true
+        com.apple.security.app-sandbox: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: me.ch5.auth.dev.passkeys
+        PRODUCT_NAME: CH5 Auth Passkeys
+  CH5AuthNativeCoreTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - NativeCoreTests
+    dependencies:
+      - target: CH5AuthNativeCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: me.ch5.auth.dev.nativecore.tests
+schemes:
+  CH5AuthHost:
+    build:
+      targets:
+        CH5AuthHost: all
+        CH5AuthNativeCoreTests: [test]
+    test:
+      targets:
+        - CH5AuthNativeCoreTests
+    run:
+      config: Debug
+    archive:
+      config: Release

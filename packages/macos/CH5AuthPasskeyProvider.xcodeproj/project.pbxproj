@@ -1,0 +1,720 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		02464BEB94CD074D1FF8E77B /* PasskeyCodec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 241B6237AA193A3D39FD651B /* PasskeyCodec.swift */; };
+		1D31329EC6F179EAD4A703A5 /* CH5AuthNativeCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 59FC09F12B73D8D9A6D2548E /* CH5AuthNativeCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		253B26F2102D1907BF634C8B /* CH5AuthNativeCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 59FC09F12B73D8D9A6D2548E /* CH5AuthNativeCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		29F381F18AC72105243392E8 /* CH5AuthCredentialProvider.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = CEE3A6E982CB66F8584A0174 /* CH5AuthCredentialProvider.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		46CC6619018765A7A5716211 /* CH5AuthNativeCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 59FC09F12B73D8D9A6D2548E /* CH5AuthNativeCore.framework */; };
+		4F1754D86525A8BC8D8787D6 /* NativeUserVerifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24B4D4C98DD5E11A160F11D0 /* NativeUserVerifier.swift */; };
+		7B85B74A1F95BB65EB8491BB /* CredentialProviderViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5D582473A3E6863835AF4B3 /* CredentialProviderViewController.swift */; };
+		7C7EC325F28882AD0E637DBF /* NativePasskeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 208744021658A2DCEEEFE1A2 /* NativePasskeyStore.swift */; };
+		D7FDE77965C52DC2FB14C68E /* CH5AuthNativeCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 59FC09F12B73D8D9A6D2548E /* CH5AuthNativeCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		D88634758A5E8AC575A85551 /* PasskeyCodecTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20FE8227DED5D08CB0EBB11 /* PasskeyCodecTests.swift */; };
+		D93C4921C62E85BB40472EB1 /* CH5AuthNativeCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 59FC09F12B73D8D9A6D2548E /* CH5AuthNativeCore.framework */; };
+		E895AD79D0D468778C93D24D /* NativePasskeyBroker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A6C0352A4A2462C6D9CC2A8 /* NativePasskeyBroker.swift */; };
+		EDCAF759B0AD67AA7D0157E3 /* CH5AuthNativeCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 59FC09F12B73D8D9A6D2548E /* CH5AuthNativeCore.framework */; };
+		EEBDC1B798BB923AACAB584B /* CH5AuthPasskeyProviderApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76DB8B4DF9AE3D137790A7BE /* CH5AuthPasskeyProviderApp.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		AB163ADBFD5F5096DBC87211 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1A8A9EE40D8AC2F19C4F5D44 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 563805C3C0B51CB9BECDD422;
+			remoteInfo = CH5AuthNativeCore;
+		};
+		ACDC785086BB9B8115C89DC1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1A8A9EE40D8AC2F19C4F5D44 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 563805C3C0B51CB9BECDD422;
+			remoteInfo = CH5AuthNativeCore;
+		};
+		C0B155D66BACFF7C2D2DEDF7 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1A8A9EE40D8AC2F19C4F5D44 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B29F7E9030D8DB1CB18E6A1B;
+			remoteInfo = CH5AuthCredentialProvider;
+		};
+		DFCCC9CB8F85D7E68BC6AB5A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1A8A9EE40D8AC2F19C4F5D44 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 563805C3C0B51CB9BECDD422;
+			remoteInfo = CH5AuthNativeCore;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		4375DB8EA811958F54F11368 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				1D31329EC6F179EAD4A703A5 /* CH5AuthNativeCore.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		531B504074AE2307E60CE58D /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				D7FDE77965C52DC2FB14C68E /* CH5AuthNativeCore.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A14CDC5DBCA8305DD033B9DF /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				253B26F2102D1907BF634C8B /* CH5AuthNativeCore.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F2B637A46DFE4DF259C6999B /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				29F381F18AC72105243392E8 /* CH5AuthCredentialProvider.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		114939280BE9CE908A072D9D /* CH5AuthNativeCoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CH5AuthNativeCoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		208744021658A2DCEEEFE1A2 /* NativePasskeyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativePasskeyStore.swift; sourceTree = "<group>"; };
+		241B6237AA193A3D39FD651B /* PasskeyCodec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasskeyCodec.swift; sourceTree = "<group>"; };
+		24B4D4C98DD5E11A160F11D0 /* NativeUserVerifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeUserVerifier.swift; sourceTree = "<group>"; };
+		59FC09F12B73D8D9A6D2548E /* CH5AuthNativeCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = CH5AuthNativeCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		5F5147447649F365C5A01F3B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		6A6C0352A4A2462C6D9CC2A8 /* NativePasskeyBroker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativePasskeyBroker.swift; sourceTree = "<group>"; };
+		76DB8B4DF9AE3D137790A7BE /* CH5AuthPasskeyProviderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CH5AuthPasskeyProviderApp.swift; sourceTree = "<group>"; };
+		A20FE8227DED5D08CB0EBB11 /* PasskeyCodecTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasskeyCodecTests.swift; sourceTree = "<group>"; };
+		BC826596D89A45E3EE28FAC0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		C82D67CE0FDBFF5B51956EF9 /* CH5AuthHost.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CH5AuthHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CEE3A6E982CB66F8584A0174 /* CH5AuthCredentialProvider.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = CH5AuthCredentialProvider.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		E5D582473A3E6863835AF4B3 /* CredentialProviderViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialProviderViewController.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		084305B570A56627E98CE5A6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D93C4921C62E85BB40472EB1 /* CH5AuthNativeCore.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CD72D7E28754AE4BE42BD3F3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EDCAF759B0AD67AA7D0157E3 /* CH5AuthNativeCore.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DF11AB3F82A9D205156A6910 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				46CC6619018765A7A5716211 /* CH5AuthNativeCore.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		113961FD9437834A35530507 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				CEE3A6E982CB66F8584A0174 /* CH5AuthCredentialProvider.appex */,
+				C82D67CE0FDBFF5B51956EF9 /* CH5AuthHost.app */,
+				59FC09F12B73D8D9A6D2548E /* CH5AuthNativeCore.framework */,
+				114939280BE9CE908A072D9D /* CH5AuthNativeCoreTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A3C0DE971C4532B85656CCA5 /* NativeCore */ = {
+			isa = PBXGroup;
+			children = (
+				6A6C0352A4A2462C6D9CC2A8 /* NativePasskeyBroker.swift */,
+				208744021658A2DCEEEFE1A2 /* NativePasskeyStore.swift */,
+				24B4D4C98DD5E11A160F11D0 /* NativeUserVerifier.swift */,
+				241B6237AA193A3D39FD651B /* PasskeyCodec.swift */,
+			);
+			path = NativeCore;
+			sourceTree = "<group>";
+		};
+		BE3BAB05511210B522BC019A /* NativeCoreTests */ = {
+			isa = PBXGroup;
+			children = (
+				A20FE8227DED5D08CB0EBB11 /* PasskeyCodecTests.swift */,
+			);
+			path = NativeCoreTests;
+			sourceTree = "<group>";
+		};
+		C0A5F98E7D0B79B52E6E1176 /* CredentialProvider */ = {
+			isa = PBXGroup;
+			children = (
+				E5D582473A3E6863835AF4B3 /* CredentialProviderViewController.swift */,
+				5F5147447649F365C5A01F3B /* Info.plist */,
+			);
+			path = CredentialProvider;
+			sourceTree = "<group>";
+		};
+		CAB0BF7650FF96986BF2AC46 /* Host */ = {
+			isa = PBXGroup;
+			children = (
+				76DB8B4DF9AE3D137790A7BE /* CH5AuthPasskeyProviderApp.swift */,
+				BC826596D89A45E3EE28FAC0 /* Info.plist */,
+			);
+			path = Host;
+			sourceTree = "<group>";
+		};
+		DFF738251C367E511A0E2480 = {
+			isa = PBXGroup;
+			children = (
+				C0A5F98E7D0B79B52E6E1176 /* CredentialProvider */,
+				CAB0BF7650FF96986BF2AC46 /* Host */,
+				A3C0DE971C4532B85656CCA5 /* NativeCore */,
+				BE3BAB05511210B522BC019A /* NativeCoreTests */,
+				113961FD9437834A35530507 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		563805C3C0B51CB9BECDD422 /* CH5AuthNativeCore */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F59CB1217BDC9CCECF098994 /* Build configuration list for PBXNativeTarget "CH5AuthNativeCore" */;
+			buildPhases = (
+				6793595FADF1B98119EC2350 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = CH5AuthNativeCore;
+			packageProductDependencies = (
+			);
+			productName = CH5AuthNativeCore;
+			productReference = 59FC09F12B73D8D9A6D2548E /* CH5AuthNativeCore.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		A3955012785D46D32EBBF31A /* CH5AuthNativeCoreTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B999030806A0C2506092FDD8 /* Build configuration list for PBXNativeTarget "CH5AuthNativeCoreTests" */;
+			buildPhases = (
+				5E28E1A07D205B6F408B2938 /* Sources */,
+				DF11AB3F82A9D205156A6910 /* Frameworks */,
+				A14CDC5DBCA8305DD033B9DF /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				02EEB894028ADFB72749BE2E /* PBXTargetDependency */,
+			);
+			name = CH5AuthNativeCoreTests;
+			packageProductDependencies = (
+			);
+			productName = CH5AuthNativeCoreTests;
+			productReference = 114939280BE9CE908A072D9D /* CH5AuthNativeCoreTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		B29F7E9030D8DB1CB18E6A1B /* CH5AuthCredentialProvider */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 83FE25E77F17CD78B8468EF2 /* Build configuration list for PBXNativeTarget "CH5AuthCredentialProvider" */;
+			buildPhases = (
+				816D23CF13188D093D87ED6A /* Sources */,
+				CD72D7E28754AE4BE42BD3F3 /* Frameworks */,
+				4375DB8EA811958F54F11368 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				EE454E10A4481D51E6E43B09 /* PBXTargetDependency */,
+			);
+			name = CH5AuthCredentialProvider;
+			packageProductDependencies = (
+			);
+			productName = CH5AuthCredentialProvider;
+			productReference = CEE3A6E982CB66F8584A0174 /* CH5AuthCredentialProvider.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		C2D960B4473351C59275BB21 /* CH5AuthHost */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6E906E77F309F334B7B403F7 /* Build configuration list for PBXNativeTarget "CH5AuthHost" */;
+			buildPhases = (
+				F260F867AA242FFB9D0CF18D /* Sources */,
+				084305B570A56627E98CE5A6 /* Frameworks */,
+				F2B637A46DFE4DF259C6999B /* Embed Foundation Extensions */,
+				531B504074AE2307E60CE58D /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				F02D7127A7D1A60B3316B81B /* PBXTargetDependency */,
+				DF4EDD3324D484112F99A4E4 /* PBXTargetDependency */,
+			);
+			name = CH5AuthHost;
+			packageProductDependencies = (
+			);
+			productName = CH5AuthHost;
+			productReference = C82D67CE0FDBFF5B51956EF9 /* CH5AuthHost.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		1A8A9EE40D8AC2F19C4F5D44 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					563805C3C0B51CB9BECDD422 = {
+						ProvisioningStyle = Automatic;
+					};
+					A3955012785D46D32EBBF31A = {
+						ProvisioningStyle = Automatic;
+					};
+					B29F7E9030D8DB1CB18E6A1B = {
+						ProvisioningStyle = Automatic;
+					};
+					C2D960B4473351C59275BB21 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = D3797B4BF77C33332AF0C5C2 /* Build configuration list for PBXProject "CH5AuthPasskeyProvider" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = DFF738251C367E511A0E2480;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 113961FD9437834A35530507 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				B29F7E9030D8DB1CB18E6A1B /* CH5AuthCredentialProvider */,
+				C2D960B4473351C59275BB21 /* CH5AuthHost */,
+				563805C3C0B51CB9BECDD422 /* CH5AuthNativeCore */,
+				A3955012785D46D32EBBF31A /* CH5AuthNativeCoreTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		5E28E1A07D205B6F408B2938 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D88634758A5E8AC575A85551 /* PasskeyCodecTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6793595FADF1B98119EC2350 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E895AD79D0D468778C93D24D /* NativePasskeyBroker.swift in Sources */,
+				7C7EC325F28882AD0E637DBF /* NativePasskeyStore.swift in Sources */,
+				4F1754D86525A8BC8D8787D6 /* NativeUserVerifier.swift in Sources */,
+				02464BEB94CD074D1FF8E77B /* PasskeyCodec.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		816D23CF13188D093D87ED6A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7B85B74A1F95BB65EB8491BB /* CredentialProviderViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F260F867AA242FFB9D0CF18D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EEBDC1B798BB923AACAB584B /* CH5AuthPasskeyProviderApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		02EEB894028ADFB72749BE2E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 563805C3C0B51CB9BECDD422 /* CH5AuthNativeCore */;
+			targetProxy = AB163ADBFD5F5096DBC87211 /* PBXContainerItemProxy */;
+		};
+		DF4EDD3324D484112F99A4E4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B29F7E9030D8DB1CB18E6A1B /* CH5AuthCredentialProvider */;
+			targetProxy = C0B155D66BACFF7C2D2DEDF7 /* PBXContainerItemProxy */;
+		};
+		EE454E10A4481D51E6E43B09 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 563805C3C0B51CB9BECDD422 /* CH5AuthNativeCore */;
+			targetProxy = DFCCC9CB8F85D7E68BC6AB5A /* PBXContainerItemProxy */;
+		};
+		F02D7127A7D1A60B3316B81B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 563805C3C0B51CB9BECDD422 /* CH5AuthNativeCore */;
+			targetProxy = ACDC785086BB9B8115C89DC1 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		0F7B3441D00873FBACD9683B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.ch5.auth.dev.nativecore;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+		29CFE78FE3328B62149A5482 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.ch5.auth.dev.nativecore.tests;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		84AB4E82F928F86D697D8792 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.ch5.auth.dev.nativecore;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
+		93C9023F973C01C7DE5C0333 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Config/Provider.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = CredentialProvider/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.ch5.auth.dev.passkeys.provider;
+				PRODUCT_NAME = CH5AuthCredentialProvider;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
+		A8215B18551166251903954D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.ch5.auth.dev.nativecore.tests;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		ACCB85CDFBB802764791197D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Config/Provider.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = CredentialProvider/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.ch5.auth.dev.passkeys.provider;
+				PRODUCT_NAME = CH5AuthCredentialProvider;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
+		B29078F34FA7F05F75F57C0E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Config/Host.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = Host/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.ch5.auth.dev.passkeys;
+				PRODUCT_NAME = "CH5 Auth Passkeys";
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		BDA734AB76B6B8089D8611F8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		E7C3CAF671F6107530798176 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Config/Host.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = Host/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.ch5.auth.dev.passkeys;
+				PRODUCT_NAME = "CH5 Auth Passkeys";
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		FD3E537280F1D1CE6BF84998 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		6E906E77F309F334B7B403F7 /* Build configuration list for PBXNativeTarget "CH5AuthHost" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E7C3CAF671F6107530798176 /* Debug */,
+				B29078F34FA7F05F75F57C0E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		83FE25E77F17CD78B8468EF2 /* Build configuration list for PBXNativeTarget "CH5AuthCredentialProvider" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				ACCB85CDFBB802764791197D /* Debug */,
+				93C9023F973C01C7DE5C0333 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B999030806A0C2506092FDD8 /* Build configuration list for PBXNativeTarget "CH5AuthNativeCoreTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				29CFE78FE3328B62149A5482 /* Debug */,
+				A8215B18551166251903954D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		D3797B4BF77C33332AF0C5C2 /* Build configuration list for PBXProject "CH5AuthPasskeyProvider" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FD3E537280F1D1CE6BF84998 /* Debug */,
+				BDA734AB76B6B8089D8611F8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		F59CB1217BDC9CCECF098994 /* Build configuration list for PBXNativeTarget "CH5AuthNativeCore" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				84AB4E82F928F86D697D8792 /* Debug */,
+				0F7B3441D00873FBACD9683B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 1A8A9EE40D8AC2F19C4F5D44 /* Project object */;
+}
