@@ -20,6 +20,10 @@ on:
             - "packages/worker/package-lock.json"
             - "assets/**"
             - "scripts/build-web-extension.cjs"
+            - "scripts/proof-lanes/**"
+            - "packages/macos/**"
+            - "docs/passkey-provider-*.md"
+            - "package.json"
     pull_request:
         paths:
             - ".forgejo/workflows/run-tests.yml"
@@ -37,6 +41,10 @@ on:
             - "packages/worker/package-lock.json"
             - "assets/**"
             - "scripts/build-web-extension.cjs"
+            - "scripts/proof-lanes/**"
+            - "packages/macos/**"
+            - "docs/passkey-provider-*.md"
+            - "package.json"
 
 jobs:
     test:
