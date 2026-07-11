@@ -51,6 +51,32 @@ sheet approval.
 The provider workflow retains only redacted command outcomes. It must never
 upload raw unified logs, WebAuthn material, credential IDs, or account data.
 
+## Portable developer and CI bootstrap
+
+The repeatable design separates company trust metadata from per-machine secret
+identity. A developer Mac or CI runner must not depend on a remembered laptop
+name, personal SSH key, root login, or numeric host address.
+
+Checked-in, non-secret company configuration owns the stable service DNS name,
+unprivileged reader role, protocol version, allowed operations, and pinned host
+key. Each authorized Mac selects its own machine-local Hush identity target;
+each CI trust domain receives a separate Hush target and age recipient. The
+encrypted target materializes only that identity's constrained SSH key for the
+duration of the command and removes it afterward. Developer and CI identities
+are never shared.
+
+The constrained log-reader protocol allows exact repository/run/task metadata
+and redacted job-log retrieval only. Its server forced command rejects arbitrary
+shell, writes, path selection, malformed identifiers, and unsupported protocol
+versions. Bootstrap and doctor commands must prove host trust, Hush identity
+selection, protocol compatibility, read-only access, redaction, and cleanup
+using the same entry point on every authorized Mac and in CI.
+
+Enrollment is complete only after proving a second Mac, a distinct CI identity,
+exact run/task retrieval, redaction, denial tests, key rotation, and revocation.
+Until the unprivileged service and identities are enrolled, personal/root/IP
+access is a temporary operator fallback and is not part of the architecture.
+
 The dedicated Forgejo workflow contains both required PR jobs: Ubuntu runs
 `proof:passkeys:pr`, and the labeled self-hosted macOS runner runs
 `proof:passkeys:macos-contract`. Manual dispatch runs only the selected signed
@@ -124,7 +150,12 @@ Residual status:
   redacted verdicts around those protected sheets.
 - **WATCH:** cross-device native identity reconciliation is not claimed; the
   browser-extension page bridge remains a bounded canary surface; compensating
-  vault sync remains best-effort if both primary and rollback sync fail.
-- **REMOTE GAP:** workflow YAML and local commands can be validated locally,
-  but Forgejo runs are not dispatched by this work. Public/Google compatibility
-  remains separately authorized, manual-only, and untouched.
+  vault sync remains best-effort if both primary and rollback sync fail. The
+  legacy release workflows are not yet all included in the required actionlint
+  lane, and `test:error-semantics` remains outside `packages/worker` `test:ci`
+  while its existing 13/20 assertions fail; neither is represented as green.
+- **REMOTE GAP:** the portable constrained Forgejo log-reader client and server
+  are committed on separate review branches, but the unprivileged service,
+  per-device Hush targets, CI identity, and second-Mac/rotation/revocation proof
+  are not enrolled yet. Public/Google compatibility remains separately
+  authorized, manual-only, and untouched.
