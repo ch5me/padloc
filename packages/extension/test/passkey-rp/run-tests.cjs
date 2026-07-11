@@ -1,9 +1,12 @@
+const path = require("path");
+
+process.env.TS_NODE_PROJECT = path.resolve(__dirname, "../../tsconfig.json");
 require("ts-node/register");
+require("tsconfig-paths/register");
 require("../setup.ts");
 
 const Mocha = require("mocha");
 const fs = require("fs");
-const path = require("path");
 const mocha = new Mocha({ ui: "tdd", color: true });
 const roots = process.argv.slice(2);
 if (!roots.length) {
