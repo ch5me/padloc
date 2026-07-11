@@ -6,6 +6,10 @@ on:
         branches-ignore:
             - main
 
+concurrency:
+    group: branch-regression-${{ github.ref }}
+    cancel-in-progress: true
+
 jobs:
     workflow-yaml:
         runs-on: ubuntu-latest
