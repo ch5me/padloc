@@ -95,7 +95,7 @@ jobs:
             - name: Install Rust
               run: |
                   set -euo pipefail
-                  curl -fsSf --proto '=https' --tlsv1.2 https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
+                  curl -fsSf --proto '=https' --tlsv1.2 https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.65.0
                   echo "$HOME/.cargo/bin" >> "${FORGEJO_PATH:-${GITHUB_PATH}}"
             - name: Install dependencies
               run: env -u ESBUILD_BINARY_PATH npm ci
