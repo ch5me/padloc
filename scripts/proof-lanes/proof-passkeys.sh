@@ -52,7 +52,7 @@ if [[ "$mode" == "--macos-contract" ]]; then
   fi
 
   echo "passkey proof: native codec, store, broker, and shared-verifier contract"
-  xcodebuild test -quiet -project packages/macos/CH5AuthPasskeyProvider.xcodeproj \
+  xcodebuild test -project packages/macos/CH5AuthPasskeyProvider.xcodeproj \
     -scheme CH5AuthHost -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO
 
   echo "passkey proof: native diagnostic secrecy"
