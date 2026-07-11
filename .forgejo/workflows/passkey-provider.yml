@@ -37,7 +37,7 @@ jobs:
             - uses: actions/setup-node@v4
               with:
                   node-version-file: ".nvmrc"
-            - run: npm ci --ignore-scripts && node node_modules/lerna/cli.js bootstrap
+            - run: npm ci --ignore-scripts && bash scripts/ci-bootstrap-workspaces.sh
             - run: cd packages/extension && npx playwright install chromium --with-deps
             - run: npm run proof:passkeys:pr
 
@@ -60,7 +60,7 @@ jobs:
             - uses: actions/setup-node@v4
               with:
                   node-version-file: ".nvmrc"
-            - run: npm ci --ignore-scripts && node node_modules/lerna/cli.js bootstrap
+            - run: npm ci --ignore-scripts && bash scripts/ci-bootstrap-workspaces.sh
             - run: npm run passkeys:native:test-injected
 
     hardware-in-loop:
@@ -72,7 +72,7 @@ jobs:
             - uses: actions/setup-node@v4
               with:
                   node-version-file: ".nvmrc"
-            - run: npm ci --ignore-scripts && node node_modules/lerna/cli.js bootstrap
+            - run: npm ci --ignore-scripts && bash scripts/ci-bootstrap-workspaces.sh
             - run: npm run passkeys:native:install
             - run: PADLOC_NATIVE_SYSTEM_E2E=1 PADLOC_NATIVE_SYSTEM_TIMEOUT_MS=900000 npm run proof:passkeys:system
 

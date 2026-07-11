@@ -39,7 +39,7 @@ jobs:
             - name: Install dependencies
               run: |
                   env -u ESBUILD_BINARY_PATH npm ci --ignore-scripts
-                  node node_modules/lerna/cli.js bootstrap
+                  bash scripts/ci-bootstrap-workspaces.sh
             - name: Test Worker and extension packages
               run: |
                   npm --prefix packages/worker run test:ci

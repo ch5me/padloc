@@ -41,7 +41,7 @@ jobs:
             - name: Install dependencies
               run: |
                   env -u ESBUILD_BINARY_PATH npm ci --ignore-scripts
-                  node node_modules/lerna/cli.js bootstrap
+                  bash scripts/ci-bootstrap-workspaces.sh
             - name: Verify the exact staging SHA
               run: |
                   npm run prettier:check:changed
@@ -64,7 +64,7 @@ jobs:
                   npm config set fetch-retry-maxtimeout 120000
                   npm config set fetch-timeout 600000
                   env -u ESBUILD_BINARY_PATH npm ci --ignore-scripts
-                  node node_modules/lerna/cli.js bootstrap
+                  bash scripts/ci-bootstrap-workspaces.sh
             - name: Setup Hush (hush-in-CI)
               run: bash scripts/ci-setup-hush.sh wrangler-deploy-staging
               env:
