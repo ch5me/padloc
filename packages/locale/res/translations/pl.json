@@ -1,5 +1,193 @@
 [
   [
+    "Are you sure you want to delete this account? All associated vaults and the data within them will be lost and any active subscriptions will be canceled immediately. This action can not be undone!",
+    "Czy na pewno chcesz usunąć to konto? Wszystkie powiązane sejfy i znajdujące się w nich dane zostaną utracone, a wszelkie aktywne subskrypcje zostaną natychmiast anulowane. Tej akcji nie można cofnąć!"
+  ],
+  [
+    "The following organizations are owned by you and will be deleted along with your account:",
+    "Poniższe organizacje są własnością użytkownika i zostaną usunięte wraz z jego kontem:"
+  ],
+  [
+    "Delete",
+    "Usuń"
+  ],
+  [
+    "Cancel",
+    "Anuluj"
+  ],
+  [
+    "Delete Account",
+    "Usuń konto"
+  ],
+  [
+    "Account",
+    "Konto"
+  ],
+  [
+    "Created",
+    "Utworzone"
+  ],
+  [
+    "Email",
+    "E-mail"
+  ],
+  [
+    "Name",
+    "Nazwa"
+  ],
+  [
+    "Orgs",
+    "Organizacje"
+  ],
+  [
+    "owner",
+    "właściciel"
+  ],
+  [
+    "Raw Data",
+    "Dane nieprzetworzone"
+  ],
+  [
+    "Done",
+    "Gotowe"
+  ],
+  [
+    "Accounts",
+    "Konta"
+  ],
+  [
+    "Search...",
+    "Szukaj..."
+  ],
+  [
+    "Admin Portal",
+    "Portal administratora"
+  ],
+  [
+    "Logs",
+    "Rejestry"
+  ],
+  [
+    "Lock App",
+    "Zablokuj aplikację"
+  ],
+  [
+    "Theme:",
+    "Motyw"
+  ],
+  [
+    "lines",
+    "linie"
+  ],
+  [
+    "Time",
+    "Czas"
+  ],
+  [
+    "Class",
+    "Kategoria"
+  ],
+  [
+    "User",
+    "Użytkownik"
+  ],
+  [
+    "Device",
+    "Urządzenie"
+  ],
+  [
+    "App Version",
+    "Wersja aplikacji"
+  ],
+  [
+    "Location",
+    "Lokalizacja"
+  ],
+  [
+    "Unknown Location",
+    "Nieznana lokalizacja"
+  ],
+  [
+    "Changes",
+    "Zmiany"
+  ],
+  [
+    "Object",
+    "Przedmiot"
+  ],
+  [
+    "Audit Logs",
+    "Audyt rejestrów"
+  ],
+  [
+    "API Requests",
+    "Prośby o API"
+  ],
+  [
+    "Display events between",
+    "Wyświetlanie zdarzeń pomiędzy"
+  ],
+  [
+    "and",
+    "i"
+  ],
+  [
+    "Apply",
+    "Zastosuj"
+  ],
+  [
+    "Filter By Email Address...",
+    "Filtruj według adresu e-mail..."
+  ],
+  [
+    "Action",
+    "Działanie"
+  ],
+  [
+    "Endpoint",
+    "Punkt końcowy"
+  ],
+  [
+    "Response Time",
+    "Czas odpowiedzi"
+  ],
+  [
+    "Are you sure you want to delete this organization? All associated vaults and the data within them will be lost! This action can not be undone.",
+    "Czy na pewno chcesz usunąć tę organizację? Wszystkie powiązane sejfy i znajdujące się w nich dane zostaną utracone! Tej czynności nie można cofnąć."
+  ],
+  [
+    "Delete Org",
+    "Usuń organizacje"
+  ],
+  [
+    "Org",
+    "Organizacja"
+  ],
+  [
+    "Members",
+    "Członkowie"
+  ],
+  [
+    "admin",
+    "administrator"
+  ],
+  [
+    "Owner",
+    "Właściciel"
+  ],
+  [
+    "Request",
+    "Prośby"
+  ],
+  [
+    "Method",
+    "Sposób"
+  ],
+  [
+    "Params",
+    "Parametry"
+  ],
+  [
     "OK",
     "OK"
   ],
@@ -32,10 +220,6 @@
     "Konfiguracja"
   ],
   [
-    "Cancel",
-    "Anuluj"
-  ],
-  [
     "Biometric Unlock",
     "Odblokowanie biometryczne"
   ],
@@ -66,10 +250,6 @@
   [
     "Are you sure you want to delete this attachment?",
     "Czy na pewno chcesz usunąć ten załącznik?"
-  ],
-  [
-    "Delete",
-    "Usuń"
   ],
   [
     "Delete Attachment",
@@ -416,10 +596,6 @@
     "Sporządź kopię"
   ],
   [
-    "Members",
-    "Członkowie"
-  ],
-  [
     "No more Members available",
     "Nie ma już więcej dostępnych członków"
   ],
@@ -458,10 +634,6 @@
   [
     "by {0}",
     "przez {0}"
-  ],
-  [
-    "Name",
-    "Nazwa"
   ],
   [
     "<Unnamed>",
@@ -844,6 +1016,10 @@
     "Niektóre elementy z zaznaczonych nie mają uprawnień do zapisu i nie mogą zostać przeniesione. Czy chcesz kontynuować przenoszenie pozostałych elementów?"
   ],
   [
+    "We failed to verify your email address. Please start over!",
+    "Nie udało nam się zweryfikować Twojego adresu e-mail. Proszę zacząć od nowa!"
+  ],
+  [
     "An account with this email address does not exist!",
     "Konto o tym adresie e-mail nie istnieje!"
   ],
@@ -860,10 +1036,6 @@
     "Dodaj zaufane urządzenie"
   ],
   [
-    "We failed to verify your email address. Please start over!",
-    "Nie udało nam się zweryfikować Twojego adresu e-mail. Proszę zacząć od nowa!"
-  ],
-  [
     "Wrong master password. Please try again!",
     "Błędne hasło główne. Proszę spróbować ponownie!"
   ],
@@ -874,10 +1046,6 @@
   [
     "Recover Account",
     "Odzsykaj konto"
-  ],
-  [
-    "We failed to verify your session. Please start over!",
-    "Nie udało się zweryfikować Twojej sesji. Proszę zacząć od nowa!"
   ],
   [
     "We recommend using a randomly generated password that is both strong and easy to remember.",
@@ -898,10 +1066,6 @@
   [
     "Want A Different Master Password?",
     "Chcesz inne hasło główne?"
-  ],
-  [
-    "Choose Own Master Password",
-    "Wybierz własne hasło główne"
   ],
   [
     "The password you entered is weak which makes it easier for attackers to break the encryption used to protect your data. Try to use a longer password or include a variation of uppercase, lowercase and special characters as well as numbers!",
@@ -980,10 +1144,6 @@
     "Niestety nie udało nam się zakończyć migracji Twoich danych."
   ],
   [
-    "Admin Portal",
-    "Portal administratora"
-  ],
-  [
     "has invited you to join their organization",
     "zaprosił cię do przyłączenia się do ich organizacji"
   ],
@@ -1036,10 +1196,6 @@
     "Zmień nazwę"
   ],
   [
-    "Repeat Master Password",
-    "Powtórz hasło główne"
-  ],
-  [
     "Your master password is the last password you'll ever have to remember! Please memorize it and never reveal it to anyone - not even us! We recommend writing it down on a piece of paper and storing it somewhere safe, at least until you have it safely memorized.",
     "Twoje hasło główne jest ostatnim hasłem, które będziesz musiał zapamiętać! Zapamiętaj je i nigdy nie ujawniaj nikomu - nawet nam! Zalecamy zapisanie go na kartce papieru i przechowywanie w bezpiecznym miejscu, przynajmniej do czasu, aż je zapamiętasz."
   ],
@@ -1058,10 +1214,6 @@
   [
     "Get Started",
     "Rozpocznij"
-  ],
-  [
-    "Owner",
-    "Właściciel"
   ],
   [
     "Admin",
@@ -1220,14 +1372,6 @@
     "Wsparcie"
   ],
   [
-    "Lock App",
-    "Zablokuj aplikację"
-  ],
-  [
-    "Theme:",
-    "Motyw"
-  ],
-  [
     "Last Sync:",
     "Ostatnia synchronizacja:"
   ],
@@ -1286,14 +1430,6 @@
   [
     "Create Vault",
     "Utwórz sejf"
-  ],
-  [
-    "Search...",
-    "Szukaj..."
-  ],
-  [
-    "Are you sure you want to delete this organization? All associated vaults and the data within them will be lost! This action can not be undone.",
-    "Czy na pewno chcesz usunąć tę organizację? Wszystkie powiązane sejfy i znajdujące się w nich dane zostaną utracone! Tej czynności nie można cofnąć."
   ],
   [
     "Delete Organization",
@@ -1402,6 +1538,10 @@
   [
     "WARNING: Weak Password!",
     "UWAGA: Słabe hasło!"
+  ],
+  [
+    "Repeat Master Password",
+    "Powtórz hasło główne"
   ],
   [
     "IMPORTANT, READ CAREFULLY: {0} is designed in a way that makes it impossible for us to access the data encrypted in any of your vaults even if we wanted to. While this is essential to ensuring the security of your data, it also has the following implications:",
@@ -1528,28 +1668,8 @@
     "Proszę wpisać hasło główne, aby kontynuować."
   ],
   [
-    "Delete Account",
-    "Usuń konto"
-  ],
-  [
-    "Are you sure you want to delete this account? All associated vaults and the data within them will be lost and any active subscriptions will be canceled immediately. This action can not be undone!",
-    "Czy na pewno chcesz usunąć to konto? Wszystkie powiązane sejfy i znajdujące się w nich dane zostaną utracone, a wszelkie aktywne subskrypcje zostaną natychmiast anulowane. Tej akcji nie można cofnąć!"
-  ],
-  [
-    "The following organizations are owned by you and will be deleted along with your account:",
-    "Poniższe organizacje są własnością użytkownika i zostaną usunięte wraz z jego kontem:"
-  ],
-  [
-    "Account",
-    "Konto"
-  ],
-  [
     "Profile",
     "Profil"
-  ],
-  [
-    "Email",
-    "E-mail"
   ],
   [
     "Display Name",
@@ -2072,6 +2192,38 @@
     "Wygasłe elementy to takie, które zostały zidentyfikowane jako te, które przekroczyły ustaloną datę ważności i nie były zaktualizowane w ciągu określonej liczby dni. Takie elementy powinny być jak najszybciej poddane odnowieniu."
   ],
   [
+    "Please enter the six digit verification code sent to {0}!",
+    ""
+  ],
+  [
+    "Email Authentication",
+    ""
+  ],
+  [
+    "Enter Verification Code",
+    ""
+  ],
+  [
+    "Please enter the 6-digit verification code!",
+    ""
+  ],
+  [
+    "Please scan the following qr-code in your authenticator app, then enter the displayed code to confirm!",
+    ""
+  ],
+  [
+    "Add MFA-Method",
+    ""
+  ],
+  [
+    "Please enter the code displayed in your authenticator app to proceed!",
+    ""
+  ],
+  [
+    "TOTP Authentication",
+    ""
+  ],
+  [
     "Card Number",
     "Numer karty"
   ],
@@ -2224,132 +2376,8 @@
     "Dostępna aktualizacja"
   ],
   [
-    "Created",
-    "Utworzone"
-  ],
-  [
-    "Orgs",
-    "Organizacje"
-  ],
-  [
-    "owner",
-    "właściciel"
-  ],
-  [
-    "Raw Data",
-    "Dane nieprzetworzone"
-  ],
-  [
-    "Done",
-    "Gotowe"
-  ],
-  [
-    "Accounts",
-    "Konta"
-  ],
-  [
-    "Logs",
-    "Rejestry"
-  ],
-  [
-    "lines",
-    "linie"
-  ],
-  [
-    "Time",
-    "Czas"
-  ],
-  [
-    "Class",
-    "Kategoria"
-  ],
-  [
-    "User",
-    "Użytkownik"
-  ],
-  [
-    "Device",
-    "Urządzenie"
-  ],
-  [
-    "App Version",
-    "Wersja aplikacji"
-  ],
-  [
-    "Location",
-    "Lokalizacja"
-  ],
-  [
-    "Unknown Location",
-    "Nieznana lokalizacja"
-  ],
-  [
-    "Changes",
-    "Zmiany"
-  ],
-  [
-    "Object",
-    "Przedmiot"
-  ],
-  [
-    "Audit Logs",
-    "Audyt rejestrów"
-  ],
-  [
-    "API Requests",
-    "Prośby o API"
-  ],
-  [
-    "Display events between",
-    "Wyświetlanie zdarzeń pomiędzy"
-  ],
-  [
-    "and",
-    "i"
-  ],
-  [
-    "Apply",
-    "Zastosuj"
-  ],
-  [
-    "Filter By Email Address...",
-    "Filtruj według adresu e-mail..."
-  ],
-  [
-    "Action",
-    "Działanie"
-  ],
-  [
-    "Endpoint",
-    "Punkt końcowy"
-  ],
-  [
-    "Response Time",
-    "Czas odpowiedzi"
-  ],
-  [
-    "Delete Org",
-    "Usuń organizacje"
-  ],
-  [
-    "Org",
-    "Organizacja"
-  ],
-  [
-    "admin",
-    "administrator"
-  ],
-  [
-    "Request",
-    "Prośby"
-  ],
-  [
-    "Method",
-    "Sposób"
-  ],
-  [
-    "Params",
-    "Parametry"
+    "The encrypted vault update was not acknowledged.",
+    ""
   ],
   [
     "You have been granted access to this vault, but before you can see its contents somebody else with access to it has to log into their account first. Once you have full access, this warning will disappear automatically.",
@@ -2410,6 +2438,58 @@
   [
     "Credit Card",
     "Karta kredytowa"
+  ],
+  [
+    "Person Profile",
+    ""
+  ],
+  [
+    "First Name",
+    ""
+  ],
+  [
+    "Last Name",
+    ""
+  ],
+  [
+    "Postal Address",
+    ""
+  ],
+  [
+    "Address Line 1",
+    ""
+  ],
+  [
+    "Address Line 2",
+    ""
+  ],
+  [
+    "State / Region",
+    ""
+  ],
+  [
+    "Postal Code",
+    ""
+  ],
+  [
+    "Gift Recipient",
+    ""
+  ],
+  [
+    "Recipient Name",
+    ""
+  ],
+  [
+    "Recipient Email",
+    ""
+  ],
+  [
+    "Merchant Profile",
+    ""
+  ],
+  [
+    "Merchant Origin",
+    ""
   ],
   [
     "Bank Account",

@@ -1,5 +1,193 @@
 [
   [
+    "Are you sure you want to delete this account? All associated vaults and the data within them will be lost and any active subscriptions will be canceled immediately. This action can not be undone!",
+    "Sei sicuro di voler eliminare questo account? Tutti gli archivi associati e i dati al loro interno andranno persi e tutte le sottoscrizioni attive verranno cancellate immediatamente. Questa azione non può essere annullata!"
+  ],
+  [
+    "The following organizations are owned by you and will be deleted along with your account:",
+    "Le seguenti organizzazioni sono di tua proprietà e verranno eliminate insieme al tuo account:"
+  ],
+  [
+    "Delete",
+    "Cancella"
+  ],
+  [
+    "Cancel",
+    "Annulla"
+  ],
+  [
+    "Delete Account",
+    "Cancella Account"
+  ],
+  [
+    "Account",
+    "Account"
+  ],
+  [
+    "Created",
+    ""
+  ],
+  [
+    "Email",
+    "Email"
+  ],
+  [
+    "Name",
+    "Nome"
+  ],
+  [
+    "Orgs",
+    ""
+  ],
+  [
+    "owner",
+    ""
+  ],
+  [
+    "Raw Data",
+    ""
+  ],
+  [
+    "Done",
+    ""
+  ],
+  [
+    "Accounts",
+    ""
+  ],
+  [
+    "Search...",
+    "Ricerca..."
+  ],
+  [
+    "Admin Portal",
+    ""
+  ],
+  [
+    "Logs",
+    ""
+  ],
+  [
+    "Lock App",
+    "Blocca Applicazione"
+  ],
+  [
+    "Theme:",
+    "Tema:"
+  ],
+  [
+    "lines",
+    ""
+  ],
+  [
+    "Time",
+    ""
+  ],
+  [
+    "Class",
+    ""
+  ],
+  [
+    "User",
+    ""
+  ],
+  [
+    "Device",
+    ""
+  ],
+  [
+    "App Version",
+    ""
+  ],
+  [
+    "Location",
+    ""
+  ],
+  [
+    "Unknown Location",
+    ""
+  ],
+  [
+    "Changes",
+    ""
+  ],
+  [
+    "Object",
+    ""
+  ],
+  [
+    "Audit Logs",
+    ""
+  ],
+  [
+    "API Requests",
+    ""
+  ],
+  [
+    "Display events between",
+    ""
+  ],
+  [
+    "and",
+    ""
+  ],
+  [
+    "Apply",
+    ""
+  ],
+  [
+    "Filter By Email Address...",
+    ""
+  ],
+  [
+    "Action",
+    ""
+  ],
+  [
+    "Endpoint",
+    ""
+  ],
+  [
+    "Response Time",
+    ""
+  ],
+  [
+    "Are you sure you want to delete this organization? All associated vaults and the data within them will be lost! This action can not be undone.",
+    "Sei sicuro di voler eliminare questa organizzazione? Tutti gli archivi associati e i dati al loro interno andranno persi! Questa azione non può essere annullata."
+  ],
+  [
+    "Delete Org",
+    ""
+  ],
+  [
+    "Org",
+    ""
+  ],
+  [
+    "Members",
+    "Membri"
+  ],
+  [
+    "admin",
+    ""
+  ],
+  [
+    "Owner",
+    "Proprietario"
+  ],
+  [
+    "Request",
+    ""
+  ],
+  [
+    "Method",
+    ""
+  ],
+  [
+    "Params",
+    ""
+  ],
+  [
     "OK",
     "OK"
   ],
@@ -32,10 +220,6 @@
     "Installazione"
   ],
   [
-    "Cancel",
-    "Annulla"
-  ],
-  [
     "Biometric Unlock",
     "Riconoscimento biometrico"
   ],
@@ -66,10 +250,6 @@
   [
     "Are you sure you want to delete this attachment?",
     "Sei sicuro di voler eliminare questo allegato?"
-  ],
-  [
-    "Delete",
-    "Cancella"
   ],
   [
     "Delete Attachment",
@@ -416,10 +596,6 @@
     "Duplica"
   ],
   [
-    "Members",
-    "Membri"
-  ],
-  [
     "No more Members available",
     "Nessun membro disponibile"
   ],
@@ -458,10 +634,6 @@
   [
     "by {0}",
     "di {0}"
-  ],
-  [
-    "Name",
-    "Nome"
   ],
   [
     "<Unnamed>",
@@ -844,6 +1016,10 @@
     "Alcuni elementi della tua selezione provengono da Archivi a cui non hai accesso in scrittura e non possono essere spostati. Vuoi procedere spostando gli altri elementi?"
   ],
   [
+    "We failed to verify your email address. Please start over!",
+    "Non siamo riusciti a verificare il tuo indirizzo email. Ricomincia da capo!"
+  ],
+  [
     "An account with this email address does not exist!",
     "Un account con questo indirizzo email non esiste!"
   ],
@@ -860,10 +1036,6 @@
     "Aggiungi Dispositivo Sicuro"
   ],
   [
-    "We failed to verify your email address. Please start over!",
-    "Non siamo riusciti a verificare il tuo indirizzo email. Ricomincia da capo!"
-  ],
-  [
     "Wrong master password. Please try again!",
     "Password principale errata. Riprova!"
   ],
@@ -874,10 +1046,6 @@
   [
     "Recover Account",
     "Recupera Account"
-  ],
-  [
-    "We failed to verify your session. Please start over!",
-    ""
   ],
   [
     "We recommend using a randomly generated password that is both strong and easy to remember.",
@@ -898,10 +1066,6 @@
   [
     "Want A Different Master Password?",
     "Vuoi una password principale differente?"
-  ],
-  [
-    "Choose Own Master Password",
-    "Scelgi la tua password principale"
   ],
   [
     "The password you entered is weak which makes it easier for attackers to break the encryption used to protect your data. Try to use a longer password or include a variation of uppercase, lowercase and special characters as well as numbers!",
@@ -980,10 +1144,6 @@
     "Purtroppo non siamo riusciti a completare la migrazione dei tuoi dati."
   ],
   [
-    "Admin Portal",
-    ""
-  ],
-  [
     "has invited you to join their organization",
     "ti ha invitato ad unirti alla loro organizzazione"
   ],
@@ -1036,10 +1196,6 @@
     "Cambia Nome"
   ],
   [
-    "Repeat Master Password",
-    "Ripetere la password principale"
-  ],
-  [
     "Your master password is the last password you'll ever have to remember! Please memorize it and never reveal it to anyone - not even us! We recommend writing it down on a piece of paper and storing it somewhere safe, at least until you have it safely memorized.",
     "La tua master password è l'ultima password che dovrai mai ricordare! Per favore memorizzala e non rivelarla a nessuno - nemmeno a noi! Si consiglia di scriverla su un pezzo di carta e conservarla in un luogo sicuro, almeno fino a quando non l'hai memorizzata bene."
   ],
@@ -1058,10 +1214,6 @@
   [
     "Get Started",
     "Inizia"
-  ],
-  [
-    "Owner",
-    "Proprietario"
   ],
   [
     "Admin",
@@ -1220,14 +1372,6 @@
     "Supporta"
   ],
   [
-    "Lock App",
-    "Blocca Applicazione"
-  ],
-  [
-    "Theme:",
-    "Tema:"
-  ],
-  [
     "Last Sync:",
     "Ultima Sincronizzazione:"
   ],
@@ -1286,14 +1430,6 @@
   [
     "Create Vault",
     "Crea Archivio"
-  ],
-  [
-    "Search...",
-    "Ricerca..."
-  ],
-  [
-    "Are you sure you want to delete this organization? All associated vaults and the data within them will be lost! This action can not be undone.",
-    "Sei sicuro di voler eliminare questa organizzazione? Tutti gli archivi associati e i dati al loro interno andranno persi! Questa azione non può essere annullata."
   ],
   [
     "Delete Organization",
@@ -1402,6 +1538,10 @@
   [
     "WARNING: Weak Password!",
     "ATTENZIONE: Password debole!"
+  ],
+  [
+    "Repeat Master Password",
+    "Ripetere la password principale"
   ],
   [
     "IMPORTANT, READ CAREFULLY: {0} is designed in a way that makes it impossible for us to access the data encrypted in any of your vaults even if we wanted to. While this is essential to ensuring the security of your data, it also has the following implications:",
@@ -1528,28 +1668,8 @@
     "Si prega di inserire la password principale per procedere."
   ],
   [
-    "Delete Account",
-    "Cancella Account"
-  ],
-  [
-    "Are you sure you want to delete this account? All associated vaults and the data within them will be lost and any active subscriptions will be canceled immediately. This action can not be undone!",
-    "Sei sicuro di voler eliminare questo account? Tutti gli archivi associati e i dati al loro interno andranno persi e tutte le sottoscrizioni attive verranno cancellate immediatamente. Questa azione non può essere annullata!"
-  ],
-  [
-    "The following organizations are owned by you and will be deleted along with your account:",
-    "Le seguenti organizzazioni sono di tua proprietà e verranno eliminate insieme al tuo account:"
-  ],
-  [
-    "Account",
-    "Account"
-  ],
-  [
     "Profile",
     "Profilo"
-  ],
-  [
-    "Email",
-    "Email"
   ],
   [
     "Display Name",
@@ -2072,6 +2192,38 @@
     ""
   ],
   [
+    "Please enter the six digit verification code sent to {0}!",
+    ""
+  ],
+  [
+    "Email Authentication",
+    ""
+  ],
+  [
+    "Enter Verification Code",
+    ""
+  ],
+  [
+    "Please enter the 6-digit verification code!",
+    ""
+  ],
+  [
+    "Please scan the following qr-code in your authenticator app, then enter the displayed code to confirm!",
+    ""
+  ],
+  [
+    "Add MFA-Method",
+    ""
+  ],
+  [
+    "Please enter the code displayed in your authenticator app to proceed!",
+    ""
+  ],
+  [
+    "TOTP Authentication",
+    ""
+  ],
+  [
     "Card Number",
     "Numero Carta"
   ],
@@ -2224,131 +2376,7 @@
     "Aggiornamento Disponibile"
   ],
   [
-    "Created",
-    ""
-  ],
-  [
-    "Orgs",
-    ""
-  ],
-  [
-    "owner",
-    ""
-  ],
-  [
-    "Raw Data",
-    ""
-  ],
-  [
-    "Done",
-    ""
-  ],
-  [
-    "Accounts",
-    ""
-  ],
-  [
-    "Logs",
-    ""
-  ],
-  [
-    "lines",
-    ""
-  ],
-  [
-    "Time",
-    ""
-  ],
-  [
-    "Class",
-    ""
-  ],
-  [
-    "User",
-    ""
-  ],
-  [
-    "Device",
-    ""
-  ],
-  [
-    "App Version",
-    ""
-  ],
-  [
-    "Location",
-    ""
-  ],
-  [
-    "Unknown Location",
-    ""
-  ],
-  [
-    "Changes",
-    ""
-  ],
-  [
-    "Object",
-    ""
-  ],
-  [
-    "Audit Logs",
-    ""
-  ],
-  [
-    "API Requests",
-    ""
-  ],
-  [
-    "Display events between",
-    ""
-  ],
-  [
-    "and",
-    ""
-  ],
-  [
-    "Apply",
-    ""
-  ],
-  [
-    "Filter By Email Address...",
-    ""
-  ],
-  [
-    "Action",
-    ""
-  ],
-  [
-    "Endpoint",
-    ""
-  ],
-  [
-    "Response Time",
-    ""
-  ],
-  [
-    "Delete Org",
-    ""
-  ],
-  [
-    "Org",
-    ""
-  ],
-  [
-    "admin",
-    ""
-  ],
-  [
-    "Request",
-    ""
-  ],
-  [
-    "Method",
-    ""
-  ],
-  [
-    "Params",
+    "The encrypted vault update was not acknowledged.",
     ""
   ],
   [
@@ -2410,6 +2438,58 @@
   [
     "Credit Card",
     "Carta di Credito"
+  ],
+  [
+    "Person Profile",
+    ""
+  ],
+  [
+    "First Name",
+    ""
+  ],
+  [
+    "Last Name",
+    ""
+  ],
+  [
+    "Postal Address",
+    ""
+  ],
+  [
+    "Address Line 1",
+    ""
+  ],
+  [
+    "Address Line 2",
+    ""
+  ],
+  [
+    "State / Region",
+    ""
+  ],
+  [
+    "Postal Code",
+    ""
+  ],
+  [
+    "Gift Recipient",
+    ""
+  ],
+  [
+    "Recipient Name",
+    ""
+  ],
+  [
+    "Recipient Email",
+    ""
+  ],
+  [
+    "Merchant Profile",
+    ""
+  ],
+  [
+    "Merchant Origin",
+    ""
   ],
   [
     "Bank Account",

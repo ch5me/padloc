@@ -14,6 +14,9 @@
         "directory": "packages/locale"
     },
     "description": "Padloc localization package",
+    "scripts": {
+        "extract": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\"}' ts-node src/extract.ts ../*/src/{**,.}/*.ts"
+    },
     "engines": {
         "node": "24.x",
         "npm": "11.x"
