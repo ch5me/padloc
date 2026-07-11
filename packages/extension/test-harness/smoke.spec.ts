@@ -96,6 +96,9 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
     });
 
     test("background worker initializes its runtime bridge", async ({ extensionWorker }) => {
+        await expect
+            .poll(() => extensionWorker.evaluate(() => (globalThis as any).padlocPasskeyDiagnostics?.lastStage))
+            .toBe("idle");
         const diagnostics = await extensionWorker.evaluate(() => ({
             brokerType: typeof (globalThis as any).padlocAgenticAutofillBroker,
             passkeyDiagnostics: (globalThis as any).padlocPasskeyDiagnostics,
