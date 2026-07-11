@@ -43,12 +43,7 @@ jobs:
         runs-on: macos-arm64
         steps:
             - uses: actions/checkout@v4
-            - uses: actions/setup-node@v4
-              with:
-                  node-version-file: ".nvmrc"
-            - run: npm ci --ignore-scripts && node node_modules/lerna/cli.js bootstrap
-            - run: cd packages/extension && npx playwright install chromium
-            - run: npm run proof:passkeys:macos-contract
+            - run: bash scripts/proof-lanes/proof-passkeys.sh --macos-contract
 
     signed-injected:
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.lane == 'signed-injected'

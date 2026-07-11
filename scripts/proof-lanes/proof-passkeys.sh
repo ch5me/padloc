@@ -45,6 +45,32 @@ if [[ "$mode" != "all" && "$mode" != "--pr" && "$mode" != "--macos-contract" ]];
   exit 2
 fi
 
+if [[ "$mode" == "--macos-contract" ]]; then
+  if [[ "$(uname -s)" != "Darwin" ]]; then
+    echo "native passkey contract requires macOS" >&2
+    exit 2
+  fi
+
+  echo "passkey proof: native codec, store, broker, and shared-verifier contract"
+  xcodebuild test -quiet -project packages/macos/CH5AuthPasskeyProvider.xcodeproj \
+    -scheme CH5AuthHost -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO
+
+  echo "passkey proof: native diagnostic secrecy"
+  diagnostic_matches="$(rg -n '(logger|console)\.(notice|error|log).*?(clientDataHash|credentialID|userHandle|userName|rawRepresentation|privateKey|password|challenge)' \
+    packages/macos || true)"
+  approved_fingerprint_log='^packages/macos/CredentialProvider/CredentialProviderViewController\.swift:[0-9]+:[[:space:]]+logger\.notice\("(registration|assertion) credential fingerprint=\\\(self\.credentialFingerprint\(record\.credentialID\), privacy: \.public\)"\)$'
+  unsafe_diagnostic_matches="$(printf '%s\n' "$diagnostic_matches" | rg -v "$approved_fingerprint_log" || true)"
+  if [[ -n "$unsafe_diagnostic_matches" ]]; then
+    printf '%s\n' "$unsafe_diagnostic_matches"
+    echo "passkey diagnostic may expose sensitive ceremony material" >&2
+    exit 1
+  fi
+
+  git diff --check -- packages/macos scripts/proof-lanes/proof-passkeys.sh
+  echo "passkey proof: macOS contract passed"
+  exit 0
+fi
+
 echo "passkey proof: shared verifier and RP server"
 npm --prefix packages/extension run test:passkey-rp
 
