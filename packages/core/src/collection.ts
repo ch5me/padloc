@@ -15,6 +15,10 @@ export class VaultItemCollection extends Serializable implements Iterable<VaultI
         return !!this._changes.size;
     }
 
+    hasChange(id: string) {
+        return this._changes.has(id);
+    }
+
     /** Aggregated list of tags assigned to the items in this collection */
     get tags(): string[] {
         const tags = new Set<string>();

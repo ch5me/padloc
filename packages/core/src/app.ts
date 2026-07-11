@@ -20,6 +20,7 @@ import {
 import { Account, AccountID, UnlockedAccount } from "./account";
 import { Auth, AuthPurpose, AuthType } from "./auth";
 import { Session, SessionID } from "./session";
+import { PasskeyCredential } from "./passkey";
 import {
     API,
     CreateAccountParams,
@@ -1193,6 +1194,23 @@ export class App {
         return this._queueSync(vault, (vault: { id: VaultID }) => this._syncVault(vault));
     }
 
+    /**
+     * Synchronize a vault and require server acknowledgement for specific item
+     * mutations. General background sync is best-effort; credential creation
+     * needs a strict durability boundary before an RP accepts a public key.
+     */
+    async syncVaultStrict(
+        vault: { id: VaultID; name?: string; revision?: string },
+        itemIds: readonly VaultItemID[]
+    ): Promise<Vault> {
+        const result = await this.syncVault(vault);
+        const current = this.getVault(vault.id);
+        if (!result || !current || current.error || itemIds.some((itemId) => current.items.hasChange(itemId))) {
+            throw new Err(ErrorCode.FAILED_CONNECTION, $l("The encrypted vault update was not acknowledged."));
+        }
+        return current;
+    }
+
     /** Synchronize all vaults the current user has access to. */
     async syncVaults() {
         if (!this.account) {
@@ -1554,6 +1572,7 @@ export class App {
         name = "",
         vault,
         fields,
+        passkeys,
         tags,
         icon,
         itemKind,
@@ -1562,12 +1581,13 @@ export class App {
         name: string;
         vault: { id: VaultID };
         fields?: Field[];
+        passkeys?: PasskeyCredential[];
         tags?: Tag[];
         icon?: string;
         itemKind?: VaultItemKind;
         passkeyCredential?: PasskeyCredential;
     }): Promise<VaultItem> {
-        const item = await createVaultItem({ name, fields, tags, icon, itemKind, passkeyCredential });
+        const item = await createVaultItem({ name, fields, passkeys, tags, icon });
         if (this.account) {
             item.updatedBy = this.account.id;
         }
@@ -1583,6 +1603,7 @@ export class App {
         upd: {
             name?: string;
             fields?: Field[];
+            passkeys?: PasskeyCredential[];
             tags?: Tag[];
             attachments?: AttachmentInfo[];
             auditResults?: AuditResult[];

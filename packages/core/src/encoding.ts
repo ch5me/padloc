@@ -204,7 +204,7 @@ export class Serializable {
 
         try {
             if (!this.validate()) {
-                console.log("failed to validate", this.kind, raw);
+                console.warn("Failed to validate serialized value", this.kind);
                 throw new Err(ErrorCode.ENCODING_ERROR);
             }
         } catch (e) {

@@ -6,6 +6,7 @@ import { AccountID } from "./account";
 import { AttachmentInfo } from "./attachment";
 import { openExternalUrl } from "./platform";
 import { add } from "date-fns";
+import { PasskeyCredential } from "./passkey";
 
 /** A tag that can be assigned to a [[VaultItem]] */
 export type Tag = string;
@@ -466,10 +467,9 @@ export class VaultItem extends Serializable {
     @AsSerializable(Field)
     fields: Field[] = [];
 
-    itemKind?: VaultItemKind = undefined;
-
+    /** passkeys, including private key material, stored in the encrypted item payload */
     @AsSerializable(PasskeyCredential)
-    passkeyCredential?: PasskeyCredential = undefined;
+    passkeys: PasskeyCredential[] = [];
 
     /** array of tags assigned with this item */
     tags: Tag[] = [];
@@ -517,6 +517,7 @@ export class VaultItem extends Serializable {
 export async function createVaultItem({
     name = "Unnamed",
     fields = [],
+    passkeys = [],
     tags = [],
     icon,
     itemKind,
@@ -525,6 +526,7 @@ export async function createVaultItem({
     return new VaultItem({
         name,
         fields,
+        passkeys,
         tags,
         icon,
         itemKind,

@@ -1006,10 +1006,10 @@ export class Controller extends API {
         await this.provisioner.accountDeleted(auth);
 
         // Delete main vault
-        await this.storage.delete(Object.assign(new Vault(), { id: account.mainVault }));
+        await this.storage.delete(Object.assign(new Vault(), { id: account.mainVault.id }));
 
         // Revoke all sessions
-        await auth.sessions.map((s) => this.storage.delete(Object.assign(new Session(), s)));
+        await Promise.all(auth.sessions.map((s) => this.storage.delete(Object.assign(new Session(), s))));
 
         // Delete auth object
         await this.storage.delete(auth);

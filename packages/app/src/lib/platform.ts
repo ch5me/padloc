@@ -2,7 +2,7 @@ import { Platform, StubPlatform, DeviceInfo } from "@padloc/core/src/platform";
 import { bytesToBase64 } from "@padloc/core/src/encoding";
 import { WebCryptoProvider } from "./crypto";
 import { LocalStorage } from "./storage";
-import { AuthPurpose, AuthRequestStatus, AuthType } from "@padloc/core/src/auth";
+import { AuthClient, AuthPurpose, AuthRequestStatus, AuthType } from "@padloc/core/src/auth";
 import { webAuthnClient } from "./auth/webauthn";
 import {
     StartRegisterAuthenticatorResponse,
@@ -188,7 +188,7 @@ export class WebPlatform extends StubPlatform implements Platform {
         document.body.removeChild(a);
     }
 
-    private async _getAuthClient(type: AuthType) {
+    protected async _getAuthClient(type: AuthType): Promise<AuthClient | null> {
         switch (type) {
             case AuthType.WebAuthnPlatform:
             case AuthType.WebAuthnPortable:

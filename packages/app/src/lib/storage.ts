@@ -1,7 +1,6 @@
 import { Storage, Storable, StorableConstructor, StorageListOptions, StorageQuery } from "@padloc/core/src/storage";
 import { Err, ErrorCode } from "@padloc/core/src/error";
-// @ts-ignore
-import localStorage from "localforage/src/localforage";
+import localStorage from "localforage";
 
 export class LocalStorage implements Storage {
     async save(s: Storable) {
