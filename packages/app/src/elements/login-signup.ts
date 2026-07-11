@@ -45,6 +45,9 @@ export class LoginOrSignup extends StartForm {
     private _password: string = "";
 
     @state()
+    private _enteringCustomPassword = false;
+
+    @state()
     private _loginError: string = "";
 
     private _loginFailedCount = 0;
@@ -87,6 +90,7 @@ export class LoginOrSignup extends StartForm {
 
     async reset() {
         await this.updateComplete;
+        this._enteringCustomPassword = false;
         this._emailInput.value = router.params.email || "";
         this._nameInput.value = router.params.name || "";
         this._loginPasswordInput.value = "";
@@ -107,7 +111,7 @@ export class LoginOrSignup extends StartForm {
             return;
         }
 
-        if (page === "signup" && step === "confirm-password" && !this._password) {
+        if (page === "signup" && step === "confirm-password" && !this._password && !this._enteringCustomPassword) {
             this.redirect("signup/choose-password");
             return;
         }
@@ -447,11 +451,12 @@ export class LoginOrSignup extends StartForm {
                 newPwd = await this._generatorDialog.show();
                 break;
             case 2:
-                newPwd = await prompt(
-                    $l("We recommend using a randomly generated password that is both strong and easy to remember."),
-                    { title: $l("Choose Own Master Password"), label: $l("Enter Master Password"), type: "password" }
-                );
-                break;
+                this._enteringCustomPassword = true;
+                this._repeatPasswordInput.value = "";
+                this.go("signup/confirm-password");
+                await this.updateComplete;
+                this._repeatPasswordInput.focus();
+                return;
         }
 
         if (newPwd) {
@@ -492,7 +497,21 @@ export class LoginOrSignup extends StartForm {
             return;
         }
 
-        if (this._password !== this._repeatPasswordInput.value) {
+        const repeatedPassword = this._repeatPasswordInput.value;
+
+        if (this._enteringCustomPassword) {
+            if (!repeatedPassword) {
+                return;
+            }
+
+            this._password = repeatedPassword;
+            this._enteringCustomPassword = false;
+            this._repeatPasswordInput.value = "";
+            this._repeatPasswordInput.focus();
+            return;
+        }
+
+        if (this._password !== repeatedPassword) {
             await alert($l("You didn't repeat your master password correctly. Try again!"), {
                 type: "warning",
                 title: "Incorrect Master Password",
@@ -949,7 +968,9 @@ export class LoginOrSignup extends StartForm {
                             <pl-password-input
                                 id="repeatPasswordInput"
                                 required
-                                .label=${$l("Repeat Master Password")}
+                                .label=${$l(
+                                    this._enteringCustomPassword ? "Enter Master Password" : "Repeat Master Password"
+                                )}
                                 class="repeat-master-password"
                                 @enter=${() => this._confirmPassword()}
                                 @focus=${() => this._revealPassphrase()}
