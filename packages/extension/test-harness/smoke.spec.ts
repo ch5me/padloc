@@ -580,20 +580,22 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
             await page.evaluate(() => (window as any).__padlocPasskeyCanary.assertionChallenge)
         );
         const assertionCredential = getResult.credential;
-        expect(verifyAssertion({
-            clientDataJSON: Buffer.from(assertionCredential.response.clientDataJSON, "base64url"),
-            authenticatorData: Buffer.from(assertionCredential.response.authenticatorData, "base64url"),
-            signature: Buffer.from(assertionCredential.response.signature, "base64url"),
-            credentialID: Buffer.from(assertionCredential.rawId, "base64url"),
-            expectedCredentialID: Buffer.from(createResult.credential.rawId, "base64url"),
-            publicKeyJwk: registered.publicKeyJwk,
-            expectedChallenge: assertionChallenge,
-            expectedOrigin: LOGIN_URL.slice(0, -1),
-            expectedRpID: "ch5.me",
-            requireUV: true,
-            requireBackupEligible: true,
-            requireBackupState: true,
-        })).toMatchObject({ counter: 0 });
+        expect(
+            verifyAssertion({
+                clientDataJSON: Buffer.from(assertionCredential.response.clientDataJSON, "base64url"),
+                authenticatorData: Buffer.from(assertionCredential.response.authenticatorData, "base64url"),
+                signature: Buffer.from(assertionCredential.response.signature, "base64url"),
+                credentialID: Buffer.from(assertionCredential.rawId, "base64url"),
+                expectedCredentialID: Buffer.from(createResult.credential.rawId, "base64url"),
+                publicKeyJwk: registered.publicKeyJwk,
+                expectedChallenge: assertionChallenge,
+                expectedOrigin: LOGIN_URL.slice(0, -1),
+                expectedRpID: "ch5.me",
+                requireUV: true,
+                requireBackupEligible: true,
+                requireBackupState: true,
+            })
+        ).toMatchObject({ counter: 0 });
 
         const additionalAccounts = Array.from({ length: 4 }, (_, index) =>
             email.replace("@example.test", `+profile-${index + 2}@example.test`)
@@ -753,7 +755,10 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
             await restartedPopup.goto(`chrome-extension://${extensionId}/popup.html`);
             await restartedPopup.waitForFunction(() => Boolean((window as any).app?.state?.loggedIn));
             if (await restartedPopup.evaluate(() => (window as any).app.state.locked)) {
-                await restartedPopup.evaluate(async (masterPassword) => (window as any).app.unlock(masterPassword), password);
+                await restartedPopup.evaluate(
+                    async (masterPassword) => (window as any).app.unlock(masterPassword),
+                    password
+                );
             }
             const restartedPage = await restartedContext.newPage();
             const fixtureHtml = fs.readFileSync(LOGIN_FIXTURE, "utf8");
@@ -761,28 +766,40 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
                 route.fulfill({ status: 200, contentType: "text/html", body: fixtureHtml })
             );
             await restartedPage.goto(LOGIN_URL);
-            await restartedPage.waitForFunction(() => Boolean((navigator.credentials as any).__padlocPasskeyInterceptorV1));
+            await restartedPage.waitForFunction(() =>
+                Boolean((navigator.credentials as any).__padlocPasskeyInterceptorV1)
+            );
             const restartChallenge = Array.from(crypto.getRandomValues(new Uint8Array(32)));
             await restartedPage.evaluate(
                 ({ challenge, credentialID }) => {
                     const decode = (value: string) =>
                         Uint8Array.from(
-                            atob(value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=")),
+                            atob(
+                                value
+                                    .replace(/-/g, "+")
+                                    .replace(/_/g, "/")
+                                    .padEnd(Math.ceil(value.length / 4) * 4, "=")
+                            ),
                             (character) => character.charCodeAt(0)
                         );
                     const state = ((window as any).__padlocRestartAssertion = {});
-                    void navigator.credentials.get({
-                        publicKey: {
-                            challenge: new Uint8Array(challenge),
-                            rpId: "ch5.me",
-                            allowCredentials: [{ type: "public-key", id: decode(credentialID), transports: ["internal"] }],
-                            userVerification: "required",
-                            timeout: 60_000,
-                        },
-                    }).then(
-                        (credential) => (state.result = { ok: true, credential: (credential as PublicKeyCredential).toJSON() }),
-                        (error) => (state.result = { ok: false, name: error.name })
-                    );
+                    void navigator.credentials
+                        .get({
+                            publicKey: {
+                                challenge: new Uint8Array(challenge),
+                                rpId: "ch5.me",
+                                allowCredentials: [
+                                    { type: "public-key", id: decode(credentialID), transports: ["internal"] },
+                                ],
+                                userVerification: "required",
+                                timeout: 60_000,
+                            },
+                        })
+                        .then(
+                            (credential) =>
+                                (state.result = { ok: true, credential: (credential as PublicKeyCredential).toJSON() }),
+                            (error) => (state.result = { ok: false, name: error.name })
+                        );
                 },
                 { challenge: restartChallenge, credentialID: createResult.credential.rawId }
             );
@@ -794,20 +811,22 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
             await restartedPage.waitForFunction(() => Boolean((window as any).__padlocRestartAssertion.result));
             const restartResult = await restartedPage.evaluate(() => (window as any).__padlocRestartAssertion.result);
             expect(restartResult.ok).toBe(true);
-            expect(verifyAssertion({
-                clientDataJSON: Buffer.from(restartResult.credential.response.clientDataJSON, "base64url"),
-                authenticatorData: Buffer.from(restartResult.credential.response.authenticatorData, "base64url"),
-                signature: Buffer.from(restartResult.credential.response.signature, "base64url"),
-                credentialID: Buffer.from(restartResult.credential.rawId, "base64url"),
-                expectedCredentialID: Buffer.from(createResult.credential.rawId, "base64url"),
-                publicKeyJwk: registered.publicKeyJwk,
-                expectedChallenge: new Uint8Array(restartChallenge),
-                expectedOrigin: LOGIN_URL.slice(0, -1),
-                expectedRpID: "ch5.me",
-                requireUV: true,
-                requireBackupEligible: true,
-                requireBackupState: true,
-            })).toMatchObject({ counter: 0 });
+            expect(
+                verifyAssertion({
+                    clientDataJSON: Buffer.from(restartResult.credential.response.clientDataJSON, "base64url"),
+                    authenticatorData: Buffer.from(restartResult.credential.response.authenticatorData, "base64url"),
+                    signature: Buffer.from(restartResult.credential.response.signature, "base64url"),
+                    credentialID: Buffer.from(restartResult.credential.rawId, "base64url"),
+                    expectedCredentialID: Buffer.from(createResult.credential.rawId, "base64url"),
+                    publicKeyJwk: registered.publicKeyJwk,
+                    expectedChallenge: new Uint8Array(restartChallenge),
+                    expectedOrigin: LOGIN_URL.slice(0, -1),
+                    expectedRpID: "ch5.me",
+                    requireUV: true,
+                    requireBackupEligible: true,
+                    requireBackupState: true,
+                })
+            ).toMatchObject({ counter: 0 });
             await restartedPopup.evaluate(async () => {
                 await (window as any).app.deleteAccount();
             });

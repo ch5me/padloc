@@ -247,9 +247,7 @@ suite("Passkey provider engine", () => {
                 options: serializedOptions({
                     challenge: new Uint8Array([8, 7, 6, 5]),
                     rpId: "google.com",
-                    allowCredentials: [
-                        { type: "public-key", id: new Uint8Array(repository.created[0].credentialId) },
-                    ],
+                    allowCredentials: [{ type: "public-key", id: new Uint8Array(repository.created[0].credentialId) }],
                     userVerification: "required",
                 }),
             },

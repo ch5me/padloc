@@ -10,9 +10,7 @@ export type UnlockPersistenceApp = {
     unlockWithMasterKey(key: Uint8Array): Promise<void>;
 };
 
-export async function awaitWorkerUnlock(
-    notify: () => Promise<unknown>
-): Promise<void> {
+export async function awaitWorkerUnlock(notify: () => Promise<unknown>): Promise<void> {
     const response = await notify();
     if (
         !response ||

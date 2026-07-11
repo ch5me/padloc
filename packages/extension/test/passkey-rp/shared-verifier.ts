@@ -68,7 +68,8 @@ export function verifyAssertion(input: AssertionInput): { flags: number; counter
     const clientHash = createHash("sha256").update(input.clientDataJSON).digest();
     const signed = Buffer.concat([Buffer.from(input.authenticatorData), clientHash]);
     const key = createPublicKey({ key: input.publicKeyJwk as any, format: "jwk" });
-    if (!verifySignature("sha256", signed, key, Buffer.from(input.signature))) throw new Error("invalid assertion signature");
+    if (!verifySignature("sha256", signed, key, Buffer.from(input.signature)))
+        throw new Error("invalid assertion signature");
     return header;
 }
 
@@ -129,9 +130,13 @@ function decodeCbor(input: Uint8Array): unknown {
         let length: number;
         if (additional < 24) length = additional;
         else if (additional === 24) length = bytes[offset++];
-        else if (additional === 25) { length = bytes.readUInt16BE(offset); offset += 2; }
-        else if (additional === 26) { length = bytes.readUInt32BE(offset); offset += 4; }
-        else throw new Error("unsupported CBOR length");
+        else if (additional === 25) {
+            length = bytes.readUInt16BE(offset);
+            offset += 2;
+        } else if (additional === 26) {
+            length = bytes.readUInt32BE(offset);
+            offset += 4;
+        } else throw new Error("unsupported CBOR length");
         if (major === 0) return [length, offset];
         if (major === 1) return [-1 - length, offset];
         if (major === 2 || major === 3) {

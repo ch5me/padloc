@@ -40,8 +40,10 @@ suite("controlled passkey RP server", () => {
             backupState: true,
         });
         const registration = await buildPasskeyRegistrationResponse(credential, {
-            rpId: "localhost", origin: "http://localhost",
-            challenge: decode(registrationOptions.challenge), userVerified: true,
+            rpId: "localhost",
+            origin: "http://localhost",
+            challenge: decode(registrationOptions.challenge),
+            userVerified: true,
         });
         const registrationBody = {
             ceremony: registrationOptions.ceremony,
@@ -84,25 +86,39 @@ suite("controlled passkey RP server", () => {
 
         const options = await post("/options/register");
         const credential = await generatePasskeyCredential({
-            rpId: "localhost", rpName: "Controlled RP", userHandle: new Uint8Array([5]),
-            userName: "test", userDisplayName: "Test", counterPolicy: PasskeyCounterPolicy.None,
-            backupEligible: true, backupState: true,
+            rpId: "localhost",
+            rpName: "Controlled RP",
+            userHandle: new Uint8Array([5]),
+            userName: "test",
+            userDisplayName: "Test",
+            counterPolicy: PasskeyCounterPolicy.None,
+            backupEligible: true,
+            backupState: true,
         });
         const registration = await buildPasskeyRegistrationResponse(credential, {
-            rpId: "localhost", origin: "http://localhost", challenge: decode(options.challenge), userVerified: true,
+            rpId: "localhost",
+            origin: "http://localhost",
+            challenge: decode(options.challenge),
+            userVerified: true,
         });
-        const rejected = await post("/verify/register", {
-            ceremony: options.ceremony,
-            credentialID: encode(new Uint8Array([9, 9, 9])),
-            clientDataJSON: encode(registration.clientDataJSON),
-            attestationObject: encode(registration.attestationObject),
-        }, 400);
+        const rejected = await post(
+            "/verify/register",
+            {
+                ceremony: options.ceremony,
+                credentialID: encode(new Uint8Array([9, 9, 9])),
+                clientDataJSON: encode(registration.clientDataJSON),
+                attestationObject: encode(registration.attestationObject),
+            },
+            400
+        );
         assert.deepEqual(rejected, { ok: false, category: "verification-rejected" });
     });
 
     async function post(path: string, body: unknown = {}, expectedStatus = 200) {
         const response = await fetch(`${origin}${path}`, {
-            method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(body),
         });
         assert.equal(response.status, expectedStatus);
         return response.json() as Promise<any>;
