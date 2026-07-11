@@ -43,20 +43,23 @@ function providerEvidence(since) {
     ]);
 }
 
-function requireProviderEvidence(since, fingerprint, registrationCount, assertionCount) {
-    const evidence = providerEvidence(since);
-    const registrations = (evidence.match(/registration completion result=accepted/g) || []).length;
-    const assertions = (evidence.match(/assertion verification result=verified/g) || []).length;
-    const registrationFingerprints = (evidence.match(/registration credential fingerprint=[0-9a-f]{16}/g) || []);
-    const assertionFingerprints = (evidence.match(/assertion credential fingerprint=[0-9a-f]{16}/g) || []);
-    const registrationMatches = registrationFingerprints.filter((entry) => entry.endsWith(fingerprint)).length;
-    const assertionMatches = assertionFingerprints.filter((entry) => entry.endsWith(fingerprint)).length;
-    if (
-        registrations < registrationCount || assertions < assertionCount ||
-        registrationMatches < registrationCount || assertionMatches < assertionCount
-    ) {
-        throw new Error("RP result was not bound to the expected CH5 provider callbacks");
-    }
+async function requireProviderEvidence(since, fingerprint, registrationCount, assertionCount) {
+    const deadline = Date.now() + 20_000;
+    do {
+        const evidence = providerEvidence(since);
+        const registrations = (evidence.match(/registration completion result=accepted/g) || []).length;
+        const assertions = (evidence.match(/assertion verification result=verified/g) || []).length;
+        const registrationFingerprints = (evidence.match(/registration credential fingerprint=[0-9a-f]{16}/g) || []);
+        const assertionFingerprints = (evidence.match(/assertion credential fingerprint=[0-9a-f]{16}/g) || []);
+        const registrationMatches = registrationFingerprints.filter((entry) => entry.endsWith(fingerprint)).length;
+        const assertionMatches = assertionFingerprints.filter((entry) => entry.endsWith(fingerprint)).length;
+        if (
+            registrations >= registrationCount && assertions >= assertionCount &&
+            registrationMatches >= registrationCount && assertionMatches >= assertionCount
+        ) return;
+        await new Promise((resolve) => setTimeout(resolve, 1_000));
+    } while (Date.now() < deadline);
+    throw new Error("RP result was not bound to the expected CH5 provider callbacks");
 }
 
 async function terminateForRestart() {
@@ -112,14 +115,14 @@ async function main() {
     try {
         openSafari(`${origin}/?native-system=register`);
         const registration = await pollStatus(origin, (status) => status.registrationVerified, "registration");
-        requireProviderEvidence(evidenceStart, registration.credentialFingerprint, 1, 0);
+        await requireProviderEvidence(evidenceStart, registration.credentialFingerprint, 1, 0);
         await pollStatus(origin, (status) => status.assertionCount >= 1, "first assertion");
-        requireProviderEvidence(evidenceStart, registration.credentialFingerprint, 1, 1);
+        await requireProviderEvidence(evidenceStart, registration.credentialFingerprint, 1, 1);
 
         await terminateForRestart();
         openSafari(`${origin}/?native-system=assert`);
         await pollStatus(origin, (status) => status.assertionCount >= 2, "restart assertion");
-        requireProviderEvidence(evidenceStart, registration.credentialFingerprint, 1, 2);
+        await requireProviderEvidence(evidenceStart, registration.credentialFingerprint, 1, 2);
         console.log("native-system-e2e passed: registration, assertion, and restart assertion verified");
     } finally {
         await closeServer();
