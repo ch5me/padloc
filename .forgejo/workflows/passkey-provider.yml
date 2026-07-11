@@ -9,6 +9,7 @@ on:
             - "config/**"
             - "packages/core/**"
             - "packages/extension/**"
+            - "packages/locale/**"
             - "packages/macos/**"
             - "packages/worker/**"
             - "scripts/proof-lanes/proof-passkeys.sh"
