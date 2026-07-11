@@ -15,7 +15,7 @@ if (!roots.length) {
         const resolved = path.resolve(entry);
         if (fs.statSync(resolved).isDirectory()) {
             for (const child of fs.readdirSync(resolved)) addTests(path.join(resolved, child));
-        } else if (resolved.endsWith(".ts")) {
+        } else if (resolved.endsWith(".ts") && !path.basename(resolved).startsWith("setup")) {
             mocha.addFile(resolved);
         }
     };
