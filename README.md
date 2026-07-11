@@ -1,12 +1,48 @@
-# Padloc
+# CH5 Auth
 
 [![](https://git.ch5.me/ch5/padloc/actions/workflows/run-tests.yml/badge.svg?branch=main)](https://git.ch5.me/ch5/padloc/actions)
 
-Simple, secure password and data management for individuals and teams.
+CH5 Auth is CH5's encrypted credential, passkey, and personal-autofill vault. It
+is a CH5-maintained fork of Padloc with a Cloudflare-native backend, web and
+native clients, and a security-gated bridge to Magic Browser.
 
-[![Deploy to DigitalOcean](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/padloc/padloc/tree/main)
+CH5 Auth is a federated service in the Firefly/ELF product ecosystem. Firefly
+owns the shared product shell, identity, billing, and agent runtime; CH5 Auth
+keeps its own security boundary, encrypted product data, deployment, and release
+cadence. Magic Browser owns browser execution and redacted proof. Hush stores
+operator and deployment secrets, not users' vault records.
 
-## About
+## Use CH5 Auth
+
+-   **Web app:** [pad.ch5.me](https://pad.ch5.me)
+-   **Native app:** CH5 Auth for iPhone
+-   **Service API:** [api-pad.ch5.me](https://api-pad.ch5.me)
+
+The product supports encrypted vaults, credentials, secure notes and structured
+autofill records, attachments, organizations and sharing, account MFA, browser
+autofill, and CH5-owned passkeys. Passkey and agentic-autofill integrations are
+deliberately fail-closed and keep raw secrets out of logs, command arguments,
+screenshots, and durable browser proof.
+
+## Product Status
+
+CH5 Auth is in **maintenance mode**: security fixes, dependency/runtime upkeep,
+upstream compatibility, and regression-proof maintenance continue, while broad
+new product development belongs in Firefly/ELF or the appropriate federated
+sub-app.
+
+Production deployment is human-gated. Staging deployment and automated proof may
+run through CH5-owned Forgejo CI, but production requires an explicit human
+release action after the exact commit has passed its required checks.
+
+The native passkey provider is not yet a release-complete Padloc vault
+integration: its Keychain broker does not currently use the real unlocked-vault
+or local-service boundary. This remains a release blocker and must not be
+described as biometric or vault-backed production proof. See the
+[native vault boundary ADR](docs/adr-passkey-native-vault-boundary.md) and
+[verification matrix](docs/passkey-provider-verification-matrix.md).
+
+## Repository
 
 This repo is split into multiple packages:
 
@@ -22,47 +58,30 @@ This repo is split into multiple packages:
 | [@padloc/tauri](packages/tauri)         | Cross-platform native app, powered by [Tauri](https://github.com/tauri-apps/tauri)               |
 | [@padloc/extension](packages/extension) | Padloc browser extension                                                                         |
 
-## How to use
+## Run Locally
 
-As you can see in the [About](#about) section, there are lots of different
-components to play with! But at a minimum, in order to set up and use your own
-instance of Padloc you'll need to run the
-[Cloudflare Worker backend](packages/worker) and [Web Client](packages/pwa). In
-practice, there are few different ways to do this, but if you just want to
-install and test Padloc locally, doing so is really quite easy:
+The minimum local stack is the [Cloudflare Worker backend](packages/worker) and
+the [web client](packages/pwa):
 
 ```sh
-git clone git@github.com:padloc/padloc.git
+git clone git@git.ch5.me:ch5/padloc.git
 cd padloc
 npm ci
 npm start
 ```
 
-The web client is now available at `http://localhost:8080`!
+The current local web client is available at `http://localhost:3000`, backed by
+the Worker at `http://127.0.0.1:8787`.
 
-In-depth guides on how to host your own "productive" version of Padloc and how
-to build and distribute your own versions of the desktop and mobile apps are
-coming soon!
+## Maintenance and Contributions
 
-## Contributing
-
-All kinds of contributions are welcome!
-
-If you want to **report a bug or have a feature request**, please
-[create an issue](https://github.com/padloc/padloc/issues).
-
-If you **have question, feedback or would just like to chat**, head over to the
-[discussions](https://github.com/padloc/padloc/discussions) section.
-
-If you want to **contribute to Padloc directly** by implementing a new feature
-or fixing an existing issue, feel free to
-[create a pull request](https://github.com/padloc/padloc/pulls)! However if you
-plan to work on anything non-trivial, please do talk to us first, either by
-commenting on an existing issue, creating a new issue or by pinging us in the
-dissusions section!
-
-To learn how to get started working on Padloc, refer to the
-[Development](#development) section of the readme.
+This repository does not use pull requests. Changes go to a topic branch, pass
+exact-SHA branch CI, and are fast-forwarded to `main`. Maintenance changes
+should preserve the upstream-compatible package structure where practical and
+must retain the security boundaries documented in
+[the fork strategy](docs/fork-strategy.md),
+[the agentic-autofill bridge](docs/agentic-autofill-bridge.md), and
+[the passkey test plan](docs/passkey-provider-test-plan.md).
 
 ## Security
 
@@ -88,10 +107,10 @@ Telemetry surface:
 
 ### Setup
 
-Setting up your dev environment for working with Padloc is as simple as:
+Set up the development environment with:
 
 ```sh
-git clone git@github.com:padloc/padloc.git
+git clone git@git.ch5.me:ch5/padloc.git
 cd padloc
 npm ci
 ```
@@ -108,7 +127,7 @@ npm run dev
 
 from the root of the project. This will start the Cloudflare Worker backend on
 `http://127.0.0.1:8787`, as well as the PWA (available on
-`http://localhost:8080`) by default.
+`http://localhost:3000`) by default.
 
 The worker and PWA port can be changed via the `PL_WORKER_PORT` and
 `PL_PWA_PORT` environment variables, respectively. For more configuration
@@ -213,10 +232,9 @@ package:
 scope=server npm run add typescript
 ```
 
-**Note**: We're trying to keep the number and size of third-party dependencies
-to a minumum, so before you add a dependency, please think twice if it is really
-needed! Pull requests with unnecessary dependencies will very likely be
-rejected.
+**Note**: Keep the number and size of third-party dependencies to a minimum.
+Prefer the standard library and existing dependencies; additions need a clear
+maintenance and security justification.
 
 ### Updating The Version
 
@@ -232,18 +250,13 @@ npm run version [semver_version]
 
 ### Deployment / Publishing
 
-Padloc has a lot of different components that all need to be
-built/released/published in different ways. To manage this complexity, we have
-compiled all deployment steps for all components in a single Forgejo workflow.
-To release a new version, simply:
-
-1. [Update project version](#updating-the-version)
-2. Commit and push.
-3. Run the [Publish Release](https://git.ch5.me/ch5/padloc/actions) action.
+CH5 Auth deploys the Worker API and static PWA through CH5-owned Forgejo
+workflows. Staging is the stable pre-production target. Production releases are
+human-gated: update the version, verify the exact commit in branch and staging
+CI, then explicitly run the authorized production release workflow.
 
 ## Licensing
 
 This software is published under the
-[GNU Affero General Public License](LICENSE). If you wish to acquire a
-commercial license, please contact us as
-[sales@padloc.app](mailto:sales@padloc.app?subject=Padloc%20Commercial%20License).
+[GNU Affero General Public License](LICENSE). CH5 Auth derives from Padloc; see
+the repository history and license notices for upstream attribution.
