@@ -108,12 +108,24 @@ changes.
 
 ### Production
 
--   Production deploys from `main` only, triggered by a tagged release or an
-    explicit promotion action.
--   Production does not rebuild from source. It promotes a recorded release
-    candidate artifact.
--   Rollback re-promotes a previously recorded candidate, never builds a new
-    binary.
+-   Production deploys only through the human-triggered `Promote Production`
+    workflow. The operator supplies a full candidate SHA.
+-   Before production credentials are loaded, the workflow proves that the
+    candidate is the current `main` SHA and that the staging API healthcheck
+    reports that exact SHA. This makes the live staging deployment the candidate
+    record and prevents arbitrary-ref promotion.
+-   The Worker receives `VERSION=<candidate-sha>` and
+    `HQ_RELEASE=padloc-worker@<candidate-sha>`. Production API and PWA canaries
+    must pass after deployment, including an exact-SHA healthcheck.
+-   Cloudflare Workers and Pages are currently rebuilt from the exact
+    checked-out candidate because this repository does not yet publish a
+    promotable immutable Worker/Pages artifact. This is a known limitation of
+    the current adapter, not permission to build another ref. A future artifact
+    adapter should replace the rebuild while preserving the same human and
+    exact-SHA gates.
+-   Historical rollback is not automated. A rollback candidate must first become
+    the current, verified staging/main candidate or use a separately reviewed
+    break-glass procedure.
 
 ## Local Development
 

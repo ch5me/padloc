@@ -19,10 +19,22 @@ set -euo pipefail
 # first (bootstraps Hush from the SOPS_AGE_KEY secret — the only Cloudflare-deploy
 # secret CI holds). Production is workflow_dispatch-gated on purpose.
 #
-# Usage: bash scripts/deploy-production
+# PADLOC_DEPLOY_SHA must identify the exact staging-verified main commit.
+# Usage: PADLOC_DEPLOY_SHA=<40-char-sha> bash scripts/deploy-production
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
+
+deploy_sha="${PADLOC_DEPLOY_SHA:-}"
+if ! [[ "$deploy_sha" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "PADLOC_DEPLOY_SHA must be a full 40-character Git SHA" >&2
+  exit 2
+fi
+if [ "$(git rev-parse HEAD)" != "$deploy_sha" ]; then
+  echo "PADLOC_DEPLOY_SHA must match the checked-out commit" >&2
+  exit 2
+fi
+export PADLOC_DEPLOY_SHA="$deploy_sha"
 
 # Runtime contract gate (no Cloudflare auth needed).
 npm run runtime-config:check
@@ -31,7 +43,7 @@ npm run runtime-config:check
 # The token env vars propagate to every wrangler subprocess (migrate, worker, Pages).
 hush run --target wrangler-deploy-production -- bash -euo pipefail -c '
   npm run worker:migrate:production
-  npm run worker:deploy:production
+  npm run worker:deploy:production -- --var "VERSION:${PADLOC_DEPLOY_SHA}" --var "HQ_RELEASE:padloc-worker@${PADLOC_DEPLOY_SHA}"
   PL_SERVER_URL="https://api-pad.ch5.me" PL_PWA_URL="https://pad.ch5.me" npm run pwa:build
   ./node_modules/.bin/wrangler pages deploy packages/pwa/dist --project-name padloc-pwa --branch main
 '

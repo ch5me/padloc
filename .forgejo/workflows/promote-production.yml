@@ -8,15 +8,39 @@ name: Promote Production
 # Cloudflare API-token secret is used. Rotation = re-mint the token + push.
 #
 # Production is workflow_dispatch-gated on purpose: it never auto-deploys on push.
+# The requested candidate must be the current main SHA and must already be live on
+# staging with an exact-SHA healthcheck before production credentials are loaded.
 
 on:
     workflow_dispatch:
+        inputs:
+            candidate_sha:
+                description: "Full 40-character main SHA already verified on staging"
+                required: true
+                type: string
 
 jobs:
     promote-production:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.event.inputs.candidate_sha }}
+                  fetch-depth: 0
+            - name: Verify current-main staging candidate
+              env:
+                  CANDIDATE_SHA: ${{ github.event.inputs.candidate_sha }}
+              run: |
+                  if ! printf '%s' "$CANDIDATE_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+                    echo "candidate_sha must be a full lowercase 40-character Git SHA" >&2
+                    exit 2
+                  fi
+                  test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+                  git fetch --no-tags origin main
+                  test "$(git rev-parse origin/main)" = "$CANDIDATE_SHA"
+                  health="$(curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 5 --max-time 20 https://api-pad-staging.ch5.me/healthcheck)"
+                  HEALTH="$health" EXPECTED_SHA="$CANDIDATE_SHA" node -e "const h=JSON.parse(process.env.HEALTH); if(h.version!==process.env.EXPECTED_SHA) throw new Error('staging SHA mismatch: '+h.version)"
+                  curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 5 --max-time 20 https://pad-staging.ch5.me/ >/dev/null
             - uses: actions/setup-node@v4
               with:
                   node-version-file: ".nvmrc"
@@ -29,3 +53,12 @@ jobs:
                   SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
             - name: Deploy production (migrations + worker + PWA via governed ch5-padloc-prod token)
               run: bash scripts/deploy-production
+              env:
+                  PADLOC_DEPLOY_SHA: ${{ github.event.inputs.candidate_sha }}
+            - name: Verify production API and PWA canaries
+              env:
+                  EXPECTED_SHA: ${{ github.event.inputs.candidate_sha }}
+              run: |
+                  health="$(curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 5 --max-time 20 https://api-pad.ch5.me/healthcheck)"
+                  HEALTH="$health" node -e "const h=JSON.parse(process.env.HEALTH); if(h.version!==process.env.EXPECTED_SHA) throw new Error('production SHA mismatch: '+h.version)"
+                  curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 5 --max-time 20 https://pad.ch5.me/ >/dev/null
