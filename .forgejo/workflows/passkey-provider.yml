@@ -15,6 +15,7 @@ on:
             - "packages/worker/**"
             - "scripts/proof-lanes/proof-passkeys.sh"
             - "scripts/proof-lanes/proof-native-injected.sh"
+            - "scripts/preflight-web-extension-*.cjs"
             - "docs/passkey-provider-*.md"
     workflow_dispatch:
         inputs:
