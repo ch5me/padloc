@@ -110,6 +110,8 @@ jobs:
         runs-on: hq-writer
         steps:
             - uses: actions/checkout@v4
+            - name: Install Docker client
+              run: scripts/ci-apt-install.sh docker.io
             - name: Build server image without pushing
               run: docker build --file Dockerfile-server --tag padloc-server:${{ github.sha }} .
             - name: Build PWA image without pushing
