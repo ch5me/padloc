@@ -26,6 +26,8 @@ jobs:
                   ./actionlint -config-file .github/actionlint.yaml -no-color \
                     .forgejo/workflows/branch-regression.yml \
                     .forgejo/workflows/deploy-staging.yml \
+                    .forgejo/workflows/public-release-staging.yml \
+                    .forgejo/workflows/promote-public-release.yml \
                     .forgejo/workflows/passkey-provider.yml \
                     .forgejo/workflows/run-tests.yml
 

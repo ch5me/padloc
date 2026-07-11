@@ -1,0 +1,49 @@
+{
+    "schemaVersion": 1,
+    "product": "ch5-auth",
+    "updatedAt": "2026-07-11",
+    "platforms": [
+        {
+            "platform": "web",
+            "state": "production-download",
+            "distribution": "hosted-pwa",
+            "notes": "Production and staging PWA deployments have exact-SHA canaries; this is not a downloadable binary."
+        },
+        {
+            "platform": "web-extension",
+            "state": "staging-download",
+            "distribution": "unsigned-zip",
+            "notes": "Durable staging ZIP for developer installation. Chrome/Edge store signing and Firefox signing are not claimed."
+        },
+        {
+            "platform": "android",
+            "state": "verified-build",
+            "distribution": null,
+            "notes": "Owned Linux CI can build an APK, but no durable public signed publication proof is current."
+        },
+        {
+            "platform": "ios",
+            "state": "unsupported",
+            "distribution": null,
+            "notes": "No authorized App Store/TestFlight publication proof. Gate 7 native-vault integration remains a release blocker."
+        },
+        {
+            "platform": "linux",
+            "state": "verified-build",
+            "distribution": null,
+            "notes": "Unsigned desktop builds exist in CI; durable staging publication is not yet proven."
+        },
+        {
+            "platform": "macos",
+            "state": "verified-build",
+            "distribution": null,
+            "notes": "Owned macOS CI exists, but signing, notarization, and Gate 7 release readiness are not proven."
+        },
+        {
+            "platform": "windows",
+            "state": "unsupported",
+            "distribution": null,
+            "notes": "No documented owned Windows runner exists."
+        }
+    ]
+}

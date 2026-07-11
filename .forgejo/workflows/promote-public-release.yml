@@ -1,0 +1,98 @@
+name: Promote Public Release
+
+# Stable downloads are never automatic. Dispatch is a human production gate.
+on:
+    workflow_dispatch:
+        inputs:
+            candidate_sha:
+                description: Full current-main SHA with a green staging release
+                required: true
+                type: string
+            version:
+                description: Stable SemVer (must not already exist)
+                required: true
+                type: string
+            staging_tag:
+                description: Immutable staging release tag to promote
+                required: true
+                type: string
+            release_notes_approved:
+                description: Confirm human-edited release notes are approved
+                required: true
+                type: boolean
+                default: false
+
+jobs:
+    promote:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.event.inputs.candidate_sha }}
+                  fetch-depth: 0
+            - name: Verify human gate, current main, and staging candidate
+              env:
+                  SHA: ${{ github.event.inputs.candidate_sha }}
+                  VERSION: ${{ github.event.inputs.version }}
+                  STAGING_TAG: ${{ github.event.inputs.staging_tag }}
+                  APPROVED: ${{ github.event.inputs.release_notes_approved }}
+              run: |
+                  set -euo pipefail
+                  test "$APPROVED" = true
+                  printf '%s' "$SHA" | grep -Eq '^[0-9a-f]{40}$'
+                  printf '%s' "$VERSION" | grep -Eq '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$'
+                  test "$STAGING_TAG" = "release-v${VERSION}-${SHA}"
+                  git fetch --no-tags origin main
+                  test "$(git rev-parse HEAD)" = "$SHA"
+                  test "$(git rev-parse origin/main)" = "$SHA"
+            - uses: actions/setup-node@v4
+              with:
+                  node-version-file: ".nvmrc"
+            - name: Download and verify immutable staging assets
+              env:
+                  STAGING_TAG: ${{ github.event.inputs.staging_tag }}
+              run: |
+                  set -euo pipefail
+                  base="${{ github.server_url }}/${{ github.repository }}/releases/download/${STAGING_TAG}"
+                  curl -fsSLO "$base/manifest.json"
+                  node scripts/release/validate-manifest.mjs manifest.json
+                  SHA="${{ github.event.inputs.candidate_sha }}" node -e 'const m=require("./manifest.json"); if(m.channel!=="staging"||m.sourceSha!==process.env.SHA) process.exit(1)'
+                  node scripts/release/canary.mjs "$base/manifest.json"
+                  node -e 'const m=require("./manifest.json"); for(const a of m.artifacts) console.log(a.url)' | while read -r url; do curl -fsSLO "$url"; done
+                  curl -fsSLO "$base/RELEASE_NOTES.md"
+            - name: Create stable manifest from identical bytes
+              env:
+                  VERSION: ${{ github.event.inputs.version }}
+                  SHA: ${{ github.event.inputs.candidate_sha }}
+                  TAG: v${{ github.event.inputs.version }}
+                  RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+              run: |
+                  node - <<'NODE'
+                  const fs = require('fs');
+                  const m = JSON.parse(fs.readFileSync('manifest.json'));
+                  m.channel = 'stable';
+                  m.version = process.env.VERSION;
+                  m.publishedAt = new Date().toISOString();
+                  m.releaseNotesUrl = `${m.provenance.repository}/releases/tag/${process.env.TAG}#release-notes`;
+                  m.provenance.runUrl = process.env.RUN_URL;
+                  m.provenance.workflow = 'promote-public-release.yml';
+                  for (const a of m.artifacts) a.url = `${m.provenance.repository}/releases/download/${process.env.TAG}/${encodeURIComponent(a.file)}`;
+                  fs.writeFileSync('manifest.json', JSON.stringify(m, null, 2) + '\n');
+                  NODE
+                  node scripts/release/validate-manifest.mjs manifest.json
+            - name: Publish collision-refusing stable release and pointer
+              env:
+                  FORGEJO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  TAG: v${{ github.event.inputs.version }}
+                  IMMUTABLE_PRERELEASE: "false"
+              run: |
+                  assets=$(node -e 'const m=require("./manifest.json"); process.stdout.write(m.artifacts.map(a=>a.file).join(" "))')
+                  # shellcheck disable=SC2086
+                  bash scripts/release/publish-forgejo.sh immutable manifest.json RELEASE_NOTES.md $assets
+                  RELEASE_POINTER_CHANNEL=stable bash scripts/release/publish-forgejo.sh pointer manifest.json
+            - name: Stable download canary
+              env:
+                  TAG: v${{ github.event.inputs.version }}
+              run: node scripts/release/canary.mjs "${{ github.server_url }}/${{ github.repository }}/releases/download/${TAG}/manifest.json"

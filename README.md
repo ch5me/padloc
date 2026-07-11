@@ -16,6 +16,13 @@ operator and deployment secrets, not users' vault records.
 
 -   **Web app:** [pad.ch5.me](https://pad.ch5.me)
 -   **Native app:** CH5 Auth for iPhone
+
+Public download state, channel semantics, platform support truth, retention, and
+the human stable-promotion boundary are documented in
+[`docs/public-releases.md`](docs/public-releases.md). Download/catalog surfaces
+must consume the authoritative release manifests described in
+[`docs/product-catalog-integration.md`](docs/product-catalog-integration.md).
+
 -   **Service API:** [api-pad.ch5.me](https://api-pad.ch5.me)
 
 The product supports encrypted vaults, credentials, secure notes and structured
