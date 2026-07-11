@@ -78,7 +78,7 @@ if [[ "$mode" == "--macos-contract" ]]; then
     exit 1
   fi
 
-  git diff --check -- packages/macos scripts/proof-lanes/proof-passkeys.sh
+  git --no-pager diff --check -- packages/macos scripts/proof-lanes/proof-passkeys.sh
   echo "passkey proof: macOS contract passed"
   exit 0
 fi
@@ -130,7 +130,7 @@ if find packages/extension/dist -name '*.map' -print -quit | grep -q .; then
 fi
 rg -q 'https://api-pad\.ch5\.me' packages/extension/dist
 
-git diff --check -- packages/core packages/extension packages/macos packages/worker \
+git --no-pager diff --check -- packages/core packages/extension packages/macos packages/worker \
   docs/passkey-provider-test-plan.md docs/passkey-provider-native-handoff.md \
   scripts/install-native-passkey-provider.sh scripts/proof-lanes/proof-passkeys.sh
 echo "passkey proof: deterministic lanes passed"
