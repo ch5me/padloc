@@ -113,14 +113,16 @@ failIfMissing("passkey-content-bridge.js", passkeyContentBridge, [
     { pattern: /padloc-passkey-extension/, reason: "missing extension bridge source marker" },
 ]);
 
-for (const [file, source] of readBuiltJavaScriptFiles()) {
-    failIf(file, source, [
-        { pattern: /Lit is in dev mode|lit-dev-mode/, reason: "bundle must not include Lit dev-mode warning path" },
-        {
-            pattern: /The main 'lit-element' module entrypoint is deprecated|deprecated-import-path/,
-            reason: "bundle must not include deprecated lit-element entrypoint warning path",
-        },
-    ]);
+if (process.env.PL_BUILD_ENV === "production") {
+    for (const [file, source] of readBuiltJavaScriptFiles()) {
+        failIf(file, source, [
+            { pattern: /Lit is in dev mode|lit-dev-mode/, reason: "bundle must not include Lit dev-mode warning path" },
+            {
+                pattern: /The main 'lit-element' module entrypoint is deprecated|deprecated-import-path/,
+                reason: "bundle must not include deprecated lit-element entrypoint warning path",
+            },
+        ]);
+    }
 }
 
 if (failures.length) {
