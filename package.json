@@ -93,6 +93,7 @@
         "proof:help": "bash scripts/proof-lanes/help.sh",
         "proof:all": "npm run proof:contract && npm run proof:crypto && npm run proof:worker && npm run proof:client && npm run proof:migration && npm run proof:extension",
         "runtime-config:check": "node scripts/check-runtime-config.mjs",
+        "theme:check": "node scripts/check-ch5-theme.mjs",
         "hush": "hush",
         "hush:status": "hush status",
         "hush:check": "hush check",
