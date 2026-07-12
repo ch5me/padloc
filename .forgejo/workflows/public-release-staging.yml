@@ -87,7 +87,7 @@ jobs:
               env:
                   PADLOC_DEPLOY_SHA: ${{ github.sha }}
               run: |
-                  hush run --target wrangler-deploy-staging -- npm run worker:deploy:staging -- --var "VERSION:${PADLOC_DEPLOY_SHA}" --var "HQ_RELEASE:padloc-worker@${PADLOC_DEPLOY_SHA}"
+                  hush run --target wrangler-deploy-staging -- npm --prefix packages/worker exec -- wrangler deploy --config packages/worker/wrangler.toml --env=staging --var "VERSION:${PADLOC_DEPLOY_SHA}" --var "HQ_RELEASE:padloc-worker@${PADLOC_DEPLOY_SHA}"
             - name: Publish anonymous staging downloads
               env:
                   TAG: release-v${{ vars.CH5_AUTH_RELEASE_VERSION || '4.3.0' }}-${{ github.sha }}
