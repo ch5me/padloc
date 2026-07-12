@@ -9,6 +9,7 @@ const required = [
     "RELEASE_TAG",
     "RELEASE_ASSET",
     "RELEASE_BASE_URL",
+    "RELEASE_DOWNLOAD_BASE_URL",
     "RELEASE_RUN_URL",
 ];
 for (const key of required) if (!process.env[key]) throw new Error(`${key} is required`);
@@ -21,10 +22,10 @@ const file = path.resolve(process.env.RELEASE_ASSET);
 const bytes = await readFile(file);
 const info = await stat(file);
 const assetName = path.basename(file);
-const releaseUrl = `${process.env.RELEASE_BASE_URL}/releases/tag/${encodeURIComponent(process.env.RELEASE_TAG)}`;
-const assetUrl = `${process.env.RELEASE_BASE_URL}/releases/download/${encodeURIComponent(
+const publicReleaseUrl = `${process.env.RELEASE_DOWNLOAD_BASE_URL}/releases/${encodeURIComponent(
     process.env.RELEASE_TAG
-)}/${encodeURIComponent(assetName)}`;
+)}`;
+const assetUrl = `${publicReleaseUrl}/${encodeURIComponent(assetName)}`;
 const manifest = {
     schemaVersion: 1,
     product: "ch5-auth",
@@ -33,7 +34,7 @@ const manifest = {
     sourceSha: process.env.RELEASE_SHA,
     publishedAt: process.env.RELEASE_PUBLISHED_AT || new Date().toISOString(),
     build: { number: process.env.RELEASE_BUILD || "0", toolchain: `node-${process.version}`, dependenciesLocked: true },
-    releaseNotesUrl: `${releaseUrl}#release-notes`,
+    releaseNotesUrl: `${publicReleaseUrl}/RELEASE_NOTES.md`,
     provenance: {
         repository: process.env.RELEASE_BASE_URL,
         commitUrl: `${process.env.RELEASE_BASE_URL}/commit/${process.env.RELEASE_SHA}`,

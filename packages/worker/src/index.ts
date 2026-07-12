@@ -88,6 +88,10 @@ export default {
             });
         }
 
+        if (request.method === "GET" && url.pathname.startsWith("/public-releases/")) {
+            return publicRelease(request, env);
+        }
+
         if (!cachedServer) {
             cachedServer = createServer(env);
         }
@@ -120,6 +124,36 @@ export default {
         });
     },
 };
+
+async function publicRelease(request: Request, env: Env): Promise<Response> {
+    if (!env.ATTACHMENTS) return new Response("Not found", { status: 404 });
+    const pathname = new URL(request.url).pathname;
+    let key: string;
+    try {
+        key = decodeURIComponent(pathname.slice("/public-releases/".length));
+    } catch {
+        return new Response("Not found", { status: 404 });
+    }
+    if (!key || key.includes("..") || key.includes("\\") || key.startsWith("/"))
+        return new Response("Not found", { status: 404 });
+
+    const object = await env.ATTACHMENTS.get(`public-releases/${key}`);
+    if (!object) return new Response("Not found", { status: 404 });
+    const immutable = key.startsWith("releases/");
+    const headers = responseHeaders({ allowOrigin: "*", allowMethods: ["GET", "OPTIONS"] }, undefined, {
+        "Content-Type": releaseContentType(key),
+        "Cache-Control": immutable ? "public, max-age=31536000, immutable" : "public, max-age=60",
+        ETag: object.httpEtag,
+    });
+    return new Response(object.body, { headers });
+}
+
+function releaseContentType(key: string): string {
+    if (key.endsWith(".json")) return "application/json; charset=utf-8";
+    if (key.endsWith(".md")) return "text/markdown; charset=utf-8";
+    if (key.endsWith(".zip")) return "application/zip";
+    return "application/octet-stream";
+}
 
 function requestAttributes(request: Request): Record<string, unknown> {
     const url = new URL(request.url);

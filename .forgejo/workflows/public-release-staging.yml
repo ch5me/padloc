@@ -62,6 +62,7 @@ jobs:
                   RELEASE_TAG: release-v${{ vars.CH5_AUTH_RELEASE_VERSION || '4.3.0' }}-${{ github.sha }}
                   RELEASE_ASSET: ch5-auth-${{ vars.CH5_AUTH_RELEASE_VERSION || '4.3.0' }}-web-extension-unsigned.zip
                   RELEASE_BASE_URL: ${{ github.server_url }}/${{ github.repository }}
+                  RELEASE_DOWNLOAD_BASE_URL: https://api-pad-staging.ch5.me/public-releases
                   RELEASE_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
                   RELEASE_BUILD: ${{ github.run_number }}
               run: |
@@ -78,7 +79,20 @@ jobs:
               env:
                   FORGEJO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: bash scripts/release/publish-forgejo.sh pointer manifest.json
-            - name: Public download canary
+            - name: Setup Hush (hush-in-CI)
+              run: bash scripts/ci-setup-hush.sh wrangler-deploy-staging
+              env:
+                  SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+            - name: Ensure the anonymous release endpoint is deployed
+              env:
+                  PADLOC_DEPLOY_SHA: ${{ github.sha }}
+              run: |
+                  hush run --target wrangler-deploy-staging -- npm run worker:deploy:staging -- --var "VERSION:${PADLOC_DEPLOY_SHA}" --var "HQ_RELEASE:padloc-worker@${PADLOC_DEPLOY_SHA}"
+            - name: Publish anonymous staging downloads
               env:
                   TAG: release-v${{ vars.CH5_AUTH_RELEASE_VERSION || '4.3.0' }}-${{ github.sha }}
-              run: npm run release:canary -- "${{ github.server_url }}/${{ github.repository }}/releases/download/${TAG}/manifest.json"
+              run: |
+                  hush run --target wrangler-deploy-staging -- bash scripts/release/publish-public-r2.sh immutable manifest.json RELEASE_NOTES.md "ch5-auth-${{ vars.CH5_AUTH_RELEASE_VERSION || '4.3.0' }}-web-extension-unsigned.zip"
+                  hush run --target wrangler-deploy-staging -- bash scripts/release/publish-public-r2.sh pointer manifest.json
+            - name: Public download canary
+              run: npm run release:canary -- "https://api-pad-staging.ch5.me/public-releases/channels/staging/latest.json"

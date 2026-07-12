@@ -4,6 +4,8 @@ const manifestUrl = process.argv[2];
 if (!manifestUrl) throw new Error("usage: canary.mjs <manifest-url>");
 const manifestResponse = await fetch(manifestUrl, { redirect: "follow" });
 if (!manifestResponse.ok) throw new Error(`manifest HTTP ${manifestResponse.status}`);
+if (!manifestResponse.headers.get("content-type")?.toLowerCase().includes("application/json"))
+    throw new Error(`manifest returned non-JSON content from ${new URL(manifestResponse.url).origin}`);
 const manifest = await manifestResponse.json();
 for (const artifact of manifest.artifacts) {
     const response = await fetch(artifact.url, { redirect: "follow" });

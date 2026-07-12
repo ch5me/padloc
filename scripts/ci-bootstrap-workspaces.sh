@@ -6,6 +6,9 @@ node_executable="${npm_node_execpath:-$(command -v node)}"
 export PATH="$(dirname "$node_executable"):$PATH"
 hash -r
 npm_executable="$(dirname "$node_executable")/npm"
+if [ ! -x "$npm_executable" ]; then
+  npm_executable="$(command -v npm)"
+fi
 
 for ((attempt = 1; attempt <= max_attempts; attempt += 1)); do
   if "$node_executable" node_modules/lerna/cli.js bootstrap --npm-client "$npm_executable"; then
@@ -17,6 +20,7 @@ for ((attempt = 1; attempt <= max_attempts; attempt += 1)); do
   fi
 
   echo "workspace bootstrap attempt ${attempt} failed; retrying" >&2
-  rm -rf packages/extension/node_modules/sharp
+  # Legacy Sharp installs can be left incomplete in any bootstrapped workspace.
+  find packages -mindepth 3 -maxdepth 3 -type d -path '*/node_modules/sharp' -prune -exec rm -rf {} +
   sleep $((attempt * 2))
 done

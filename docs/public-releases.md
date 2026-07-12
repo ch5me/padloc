@@ -1,9 +1,10 @@
 # Public Releases
 
 CH5 Auth separates CI proof, staging downloads, stable downloads, and store
-distribution. The authoritative machine-readable records are Forgejo release
-assets; website/catalog consumers must read those manifests rather than copy
-artifact URLs.
+distribution. Forgejo is the private release ledger. Anonymous artifacts and
+machine-readable channel pointers are served from the stage's Worker-backed R2
+release namespace; website/catalog consumers must read those manifests rather
+than copy artifact URLs.
 
 ## Channels and immutability
 
@@ -48,3 +49,6 @@ passkey release readiness are not claimed. Gate 7 in
 
 Stable publication and the existing Cloudflare production deployment are
 separate human-gated actions. Neither may be inferred from a green staging job.
+The production Worker version that serves `/public-releases/` must be deployed
+through the separate production gate before stable promotion can pass its
+anonymous download canary.

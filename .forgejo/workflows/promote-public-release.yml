@@ -55,7 +55,7 @@ jobs:
                   STAGING_TAG: ${{ github.event.inputs.staging_tag }}
               run: |
                   set -euo pipefail
-                  base="${{ github.server_url }}/${{ github.repository }}/releases/download/${STAGING_TAG}"
+                  base="https://api-pad-staging.ch5.me/public-releases/releases/${STAGING_TAG}"
                   curl -fsSLO "$base/manifest.json"
                   node scripts/release/validate-manifest.mjs manifest.json
                   SHA="${{ github.event.inputs.candidate_sha }}" node -e 'const m=require("./manifest.json"); if(m.channel!=="staging"||m.sourceSha!==process.env.SHA) process.exit(1)'
@@ -75,10 +75,11 @@ jobs:
                   m.channel = 'stable';
                   m.version = process.env.VERSION;
                   m.publishedAt = new Date().toISOString();
-                  m.releaseNotesUrl = `${m.provenance.repository}/releases/tag/${process.env.TAG}#release-notes`;
+                  const publicRelease = `https://api-pad.ch5.me/public-releases/releases/${process.env.TAG}`;
+                  m.releaseNotesUrl = `${publicRelease}/RELEASE_NOTES.md`;
                   m.provenance.runUrl = process.env.RUN_URL;
                   m.provenance.workflow = 'promote-public-release.yml';
-                  for (const a of m.artifacts) a.url = `${m.provenance.repository}/releases/download/${process.env.TAG}/${encodeURIComponent(a.file)}`;
+                  for (const a of m.artifacts) a.url = `${publicRelease}/${encodeURIComponent(a.file)}`;
                   fs.writeFileSync('manifest.json', JSON.stringify(m, null, 2) + '\n');
                   NODE
                   node scripts/release/validate-manifest.mjs manifest.json
@@ -92,7 +93,21 @@ jobs:
                   # shellcheck disable=SC2086
                   bash scripts/release/publish-forgejo.sh immutable manifest.json RELEASE_NOTES.md $assets
                   RELEASE_POINTER_CHANNEL=stable bash scripts/release/publish-forgejo.sh pointer manifest.json
-            - name: Stable download canary
+            - name: Setup production Hush publishing authority
+              run: bash scripts/ci-setup-hush.sh wrangler-deploy-production
+              env:
+                  SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+            - name: Publish anonymous stable downloads
               env:
                   TAG: v${{ github.event.inputs.version }}
-              run: node scripts/release/canary.mjs "${{ github.server_url }}/${{ github.repository }}/releases/download/${TAG}/manifest.json"
+                  PADLOC_RELEASE_STAGE: production
+                  PADLOC_RELEASE_BUCKET: padloc-attachments-prod
+                  PADLOC_RELEASE_ORIGIN: https://api-pad.ch5.me/public-releases
+                  RELEASE_POINTER_CHANNEL: stable
+              run: |
+                  assets=$(node -e 'const m=require("./manifest.json"); process.stdout.write(m.artifacts.map(a=>a.file).join(" "))')
+                  # shellcheck disable=SC2086
+                  hush run --target wrangler-deploy-production -- bash scripts/release/publish-public-r2.sh immutable manifest.json RELEASE_NOTES.md $assets
+                  hush run --target wrangler-deploy-production -- bash scripts/release/publish-public-r2.sh pointer manifest.json
+            - name: Stable download canary
+              run: node scripts/release/canary.mjs "https://api-pad.ch5.me/public-releases/channels/stable/latest.json"

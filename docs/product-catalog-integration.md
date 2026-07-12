@@ -7,9 +7,9 @@ is the strict manifest, not copied download links.
 The Firefly product page should consume:
 
 -   staging pointer:
-    `https://git.ch5.me/ch5/padloc/releases/download/staging-latest/latest.json`
+    `https://api-pad-staging.ch5.me/public-releases/channels/staging/latest.json`
 -   stable pointer:
-    `https://git.ch5.me/ch5/padloc/releases/download/stable-latest/latest.json`
+    `https://api-pad.ch5.me/public-releases/channels/stable/latest.json`
 -   immutable release manifests and artifact URLs discovered from either
     pointer.
 

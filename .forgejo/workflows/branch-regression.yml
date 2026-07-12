@@ -77,7 +77,9 @@ jobs:
             - name: Install Gradle
               run: scripts/ci-install-gradle.sh
             - name: Install dependencies
-              run: env -u ESBUILD_BINARY_PATH npm ci
+              run: |
+                  env -u ESBUILD_BINARY_PATH npm ci --ignore-scripts
+                  bash scripts/ci-bootstrap-workspaces.sh
             - name: Build unsigned debug APK
               env:
                   PL_SERVER_URL: https://api-pad-staging.ch5.me
@@ -98,7 +100,9 @@ jobs:
                   curl -fsSf --proto '=https' --tlsv1.2 https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.79.0
                   echo "$HOME/.cargo/bin" >> "${FORGEJO_PATH:-${GITHUB_PATH}}"
             - name: Install dependencies
-              run: env -u ESBUILD_BINARY_PATH npm ci
+              run: |
+                  env -u ESBUILD_BINARY_PATH npm ci --ignore-scripts
+                  bash scripts/ci-bootstrap-workspaces.sh
             - name: Build unsigned unpacked Electron app
               env:
                   CSC_IDENTITY_AUTO_DISCOVERY: "false"
