@@ -1,6 +1,9 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
+    "cache-proof": {
+      "outputs": [".cache-proof/**"]
+    },
     "web-extension:build:raw": {
       "outputs": ["packages/extension/dist/**"]
     }

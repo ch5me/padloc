@@ -21,7 +21,6 @@ jobs:
         with:
           node-version: '24'
       - run: npm ci --ignore-scripts
-      - run: npm --prefix packages/extension ci
-      - run: npx turbo run web-extension:build:raw --cache=remote:rw
-      - run: find . -type d -name .turbo -prune -exec rm -rf {} +; rm -rf packages/extension/dist
-      - run: npx turbo run web-extension:build:raw --cache=remote:r
+      - run: npx turbo run cache-proof --cache=remote:rw
+      - run: find . -type d -name .turbo -prune -exec rm -rf {} +; rm -rf .cache-proof
+      - run: npx turbo run cache-proof --cache=remote:r
