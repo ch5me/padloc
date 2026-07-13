@@ -71,6 +71,7 @@ export default {
             maxRequests: Number(env.RATE_LIMIT_MAX_REQUESTS || 100),
             windowMs: Number(env.RATE_LIMIT_WINDOW_MS || 60000),
         });
+        config.metricsPath = "/metrics";
         const receiver = new WorkerReceiver(config);
 
         const url = new URL(request.url);

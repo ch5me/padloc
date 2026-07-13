@@ -6,6 +6,7 @@ import { sanitizeError } from "./error";
 import { RateLimiter } from "./rate-limiter";
 import { responseHeaders } from "./observability/security-headers";
 import { captureHqException } from "./hq-instrumentation";
+import { incrementMetric, renderMetrics } from "./metrics";
 
 const DEFAULT_MAX_REQUEST_SIZE = 25 * 1024 * 1024;
 const DEFAULT_MAX_REQUEST_AGE_MS = 5 * 60 * 1000;
@@ -49,6 +50,7 @@ export class WorkerReceiverConfig {
     maxRequestAgeMs: number = DEFAULT_MAX_REQUEST_AGE_MS;
     clockSkewToleranceMs: number = DEFAULT_CLOCK_SKEW_TOLERANCE_MS;
     healthCheckPath: string = "/healthcheck";
+    metricsPath: string = "/metrics";
     idempotencyStore?: IdempotencyStore;
     rateLimiter?: RateLimiter;
 }
@@ -90,6 +92,15 @@ export class WorkerReceiver implements Receiver {
             });
         }
 
+        if (request.method === "GET" && url.pathname === this.config.metricsPath) {
+            return new Response(renderMetrics(), {
+                status: 200,
+                headers: responseHeaders({ allowOrigin: allowOrigin || "*" }, undefined, {
+                    "Content-Type": "text/plain; version=0.0.4; charset=utf-8",
+                }),
+            });
+        }
+
         if (request.method === "POST" && url.pathname === "/") {
             return this._handlePost(request, handler);
         }
@@ -113,13 +124,10 @@ export class WorkerReceiver implements Receiver {
         if (this.config.rateLimiter) {
             const rateResult = await this.config.rateLimiter.check(identity);
             if (!rateResult.allowed) {
+                incrementMetric("padloc_rpc_total", { method: "unknown" });
+                incrementMetric("padloc_rpc_error_total", { method: "unknown", code: String(ErrorCode.BAD_REQUEST) });
                 return new Response(
-                    JSON.stringify({
-                        error: {
-                            code: ErrorCode.BAD_REQUEST,
-                            message: "Too many requests. Please try again later.",
-                        },
-                    }),
+                    JSON.stringify({ error: { code: ErrorCode.BAD_REQUEST, message: "Too many requests. Please try again later." } }),
                     {
                         status: 429,
                         headers: responseHeaders({ allowOrigin: allowOrigin || "*" }, undefined, {
@@ -132,14 +140,16 @@ export class WorkerReceiver implements Receiver {
         }
 
         const bodyText = await request.text();
-
-        const byteLength = new TextEncoder().encode(bodyText).byteLength;
-        if (byteLength > this.config.maxRequestSize) {
-            const err = new Err(
-                ErrorCode.MAX_REQUEST_SIZE_EXCEEDED,
-                `Request body exceeds maximum size of ${this.config.maxRequestSize} bytes`
+        if (new TextEncoder().encode(bodyText).byteLength > this.config.maxRequestSize) {
+            incrementMetric("padloc_rpc_total", { method: "unknown" });
+            return metricErrorResponse(
+                new Err(
+                    ErrorCode.MAX_REQUEST_SIZE_EXCEEDED,
+                    `Request body exceeds maximum size of ${this.config.maxRequestSize} bytes`
+                ),
+                allowOrigin,
+                "unknown"
             );
-            return errorResponse(err, allowOrigin);
         }
 
         let req: Request;
@@ -148,23 +158,27 @@ export class WorkerReceiver implements Receiver {
             rawRequest = unmarshal(bodyText);
             req = new Request().fromRaw(rawRequest);
         } catch {
-            return errorResponse(new Err(ErrorCode.INVALID_REQUEST, "Failed to parse request body"), allowOrigin);
+            incrementMetric("padloc_rpc_total", { method: "unknown" });
+            return metricErrorResponse(new Err(ErrorCode.INVALID_REQUEST, "Failed to parse request body"), allowOrigin, "unknown");
         }
 
-        const cfConnectingIp = request.headers.get("cf-connecting-ip");
-        const forwardedFor = request.headers.get("x-forwarded-for");
-        req.ipAddress = cfConnectingIp || forwardedFor || undefined;
+        const method = req.method || "unknown";
+        incrementMetric("padloc_rpc_total", { method });
+        req.ipAddress =
+            request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || undefined;
 
         if (!validateRequestAge(rawRequest, this.config)) {
-            return errorResponse(
+            return metricErrorResponse(
                 new Err(ErrorCode.MAX_REQUEST_AGE_EXCEEDED, "Request timestamp outside acceptable window"),
-                allowOrigin
+                allowOrigin,
+                method
             );
         }
 
         const bodyHash = await hashRequestBody(bodyText);
         const existing = await this.config.idempotencyStore?.lookup(bodyHash);
         if (existing) {
+            if (existing.code) incrementMetric("padloc_rpc_error_total", { method, code: String(existing.code) });
             return new Response(JSON.stringify({ error: existing }), {
                 status: (existing.status as number) ?? 200,
                 headers: {
@@ -186,7 +200,7 @@ export class WorkerReceiver implements Receiver {
                         "padloc.error.report": true,
                     });
                 }
-                return errorResponse(unknown, allowOrigin);
+                return metricErrorResponse(unknown, allowOrigin, method);
             }
             const sanitized = sanitizeError(unknown);
             if (sanitized.report) {
@@ -195,11 +209,15 @@ export class WorkerReceiver implements Receiver {
                     "padloc.error.report": true,
                 });
             }
-            return errorResponse(sanitized, allowOrigin);
+            return metricErrorResponse(sanitized, allowOrigin, method);
         }
 
-        const clientVersion = req.device?.appVersion;
-        const raw = res.toRaw(clientVersion);
+        const raw = res.toRaw(req.device?.appVersion);
+        if (raw.error !== undefined && raw.error !== null) {
+            incrementMetric("padloc_rpc_error_total", { method, code: String(raw.error) });
+        } else if (method === "getVault" || method === "updateVault") {
+            incrementMetric("padloc_vault_sync_success_total");
+        }
 
         await this.config.idempotencyStore?.store(bodyHash, {
             code: raw.error,
@@ -208,7 +226,6 @@ export class WorkerReceiver implements Receiver {
         });
 
         const resBody = marshal(raw);
-
         return new Response(resBody, {
             status: 200,
             headers: responseHeaders({ allowOrigin: allowOrigin || "*" }, undefined, {
@@ -218,6 +235,12 @@ export class WorkerReceiver implements Receiver {
         });
     }
 }
+
+function metricErrorResponse(err: Err, allowOrigin: string, method: string): Response {
+    incrementMetric("padloc_rpc_error_total", { method, code: String(err.code) });
+    return errorResponse(err, allowOrigin);
+}
+
 
 function validateRequestAge(rawRequest: Record<string, unknown>, config: WorkerReceiverConfig): boolean {
     const requestTime = rawRequest.time as number | undefined;

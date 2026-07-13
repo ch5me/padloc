@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { EmailAuthMessage } from "@padloc/core/src/messenger";
 import { ResendMessenger } from "../src/email/resend";
+import { redact, structuredLog } from "../src/observability/log-redaction";
 import { PersonalProvisioner } from "../src/provisioner/personal";
 
 export async function run() {
     await testPersonalProvisionerLogs();
+    await testVaultBodyRedaction();
     await testResendFailureLogs();
     console.log("Worker logging redaction: PASS");
 }
@@ -106,4 +108,24 @@ async function testResendFailureLogs() {
         assert.equal(output.includes(sentinel), false, `Resend failure exposed sentinel: ${sentinel}`);
     }
     assert.deepEqual(captured, [["Resend send failed", { status: 400, template: "email-auth" }]]);
+}
+async function testVaultBodyRedaction() {
+    const sentinels = {
+        encryptedData: "vault-body-sentinel",
+        attachmentData: "attachment-body-sentinel",
+        password: "vault-password-sentinel",
+    };
+    const payload = {
+        method: "getVault",
+        params: [{ id: "vault-id" }],
+        vault: { encryptedData: sentinels.encryptedData, items: [{ password: sentinels.password }] },
+        attachment: { attachmentData: sentinels.attachmentData },
+    };
+    const output = JSON.stringify(structuredLog("rpc", payload));
+    for (const sentinel of Object.values(sentinels)) {
+        assert.equal(output.includes(sentinel), false, `vault sink leaked sentinel: ${sentinel}`);
+    }
+    const redacted = redact(payload);
+    assert.equal(redacted.vault, "[REDACTED]");
+    assert.equal(redacted.attachment, "[REDACTED]");
 }

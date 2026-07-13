@@ -30,6 +30,7 @@
         "migrate:staging": "wrangler d1 migrations apply DB --remote --env=staging",
         "migrate:production": "wrangler d1 migrations apply DB --remote --env=production",
         "test:logging-redaction": "node test/run-worker-logging-redaction.mjs",
+        "test:metrics": "node test/run-metrics.mjs",
         "test:session-contract": "node test/session-contract.test.mjs",
         "test:transport-roundtrip": "node test/run-transport-roundtrip.mjs",
         "test:vault-crud": "node test/run-vault-crud-e2e.mjs",
