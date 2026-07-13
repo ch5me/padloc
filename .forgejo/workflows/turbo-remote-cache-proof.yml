@@ -1,0 +1,24 @@
+name: turbo-remote-cache-proof
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["turbo.json", ".turbo/config.json", "package.json", "package-lock.json", "packages/extension/**", "scripts/build-web-extension.cjs"]
+
+env:
+  TURBO_API: https://turbo.ch5.me
+  TURBO_TEAM: ch5
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
+
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci --ignore-scripts
+      - run: npm --prefix packages/extension ci
+      - run: npx turbo run web-extension:build:raw --cache=remote:rw
+      - run: find . -type d -name .turbo -prune -exec rm -rf {} +; rm -rf packages/extension/dist
+      - run: npx turbo run web-extension:build:raw --cache=remote:r

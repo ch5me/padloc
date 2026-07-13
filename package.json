@@ -1,5 +1,6 @@
 {
     "name": "padloc",
+    "packageManager": "npm@11.4.2",
     "private": true,
     "version": "4.3.0",
     "description": "A minimalist password manager",
@@ -24,6 +25,7 @@
         "maildev": "git+https://github.com/padloc/maildev.git#master",
         "prettier": "2.8.4",
         "ts-node": "10.0.0",
+        "turbo": "2.10.5",
         "typescript": "4.4.3",
         "wait-on": "7.0.1",
         "wrangler": "4.59.2"
@@ -47,7 +49,8 @@
         "electron:build": "lerna run build --scope @padloc/electron",
         "electron:build:flatpak": "lerna run build:flatpak --scope @padloc/electron",
         "web-extension:preflight": "npm --prefix packages/extension run check:source && if [ -f packages/extension/dist/manifest.json ]; then npm --prefix packages/extension run preflight:dist; fi",
-        "web-extension:build": "node scripts/build-web-extension.cjs",
+    "web-extension:build": "turbo run web-extension:build:raw",
+    "web-extension:build:raw": "node scripts/build-web-extension.cjs",
         "cordova:start:android": "lerna run start:android",
         "cordova:start:ios": "lerna run start:ios",
         "cordova:build": "lerna run build:android && lerna run build:ios",
