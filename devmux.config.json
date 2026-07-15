@@ -39,7 +39,7 @@
         },
         "v3": {
             "cwd": ".",
-            "command": "http-server cypress/fixtures/v3-client -s -p \"$PORT\" --proxy \"http://0.0.0.0:$PORT?\"",
+            "command": "./node_modules/.bin/http-server cypress/fixtures/v3-client -s -p \"$PORT\" --proxy \"http://0.0.0.0:$PORT?\"",
             "health": {
                 "type": "port",
                 "port": 8081
@@ -48,7 +48,11 @@
         },
         "maildev": {
             "cwd": ".",
-            "command": "maildev --web \"$PORT\" --smtp \"$DEVMUX_PORT_SMTP\"",
+            "command": "mise exec node@16.13.1 -- node scripts/start-maildev.cjs",
+            "env": {
+                "MAILDEV_WEB_PORT": "{{PORT}}",
+                "MAILDEV_SMTP_PORT": "{{PORT_SMTP}}"
+            },
             "ports": {
                 "smtp": 1025
             },

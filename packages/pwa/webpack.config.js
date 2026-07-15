@@ -18,13 +18,14 @@ const pwaPort = process.env.PL_PWA_PORT || process.env.DEVMUX_PORT || process.en
 if (!process.env.PL_SERVER_URL && !workerPort) {
     throw new Error("PL_SERVER_URL or DevMux API port required");
 }
-if (!pwaPort) {
-    throw new Error("PL_PWA_PORT or DevMux web port required");
+if (!process.env.PL_PWA_URL && !pwaPort) {
+    throw new Error("PL_PWA_URL or DevMux web port required");
 }
 const serverUrl = removeTrailingSlash(
     process.env.PL_SERVER_URL || `http://127.0.0.1:${workerPort}`
 );
 const pwaUrl = removeTrailingSlash(process.env.PL_PWA_URL || `http://localhost:${pwaPort}`);
+const pwaHost = new URL(pwaUrl).hostname;
 const rootDir = resolve(__dirname, "../..");
 const assetsDir = resolve(rootDir, process.env.PL_ASSETS_DIR || "assets");
 const disableCsp = process.env.PL_PWA_DISABLE_CSP === "true";
@@ -32,7 +33,9 @@ const disableCsp = process.env.PL_PWA_DISABLE_CSP === "true";
 const { name, terms_of_service } = require(join(assetsDir, "manifest.json"));
 
 const isBuildingLocally = pwaUrl.includes(".localhost") || pwaUrl.startsWith("http://localhost");
-const pwaWebSocketUrl = pwaUrl.replace(/^http/, "ws");
+const pwaWebSocket = new URL(pwaUrl);
+if (!pwaWebSocket.port && pwaPort) pwaWebSocket.port = String(pwaPort);
+const pwaWebSocketUrl = pwaWebSocket.toString().replace(/^http/, "ws").replace(/\/$/, "");
 
 const htmlMetaTags = disableCsp
     ? {}
@@ -268,7 +271,8 @@ module.exports = {
     devServer: {
         historyApiFallback: true,
         host: "0.0.0.0",
-        port: pwaPort,
+        allowedHosts: [pwaHost],
+        ...(pwaPort ? { port: pwaPort } : {}),
         // hot: false,
         // liveReload: false,
         client: { overlay: false },

@@ -44,7 +44,7 @@
         "worker:migrate:preview": "npm --prefix packages/worker run migrate:preview",
         "worker:migrate:staging": "npm --prefix packages/worker run migrate:staging",
         "worker:migrate:production": "npm --prefix packages/worker run migrate:production",
-        "pwa:build": "PL_SERVER_URL=${PL_SERVER_URL:?set PL_SERVER_URL} lerna run build --scope @padloc/pwa",
+        "pwa:build": "PL_SERVER_URL=${PL_SERVER_URL:?set PL_SERVER_URL} PL_PWA_URL=${PL_PWA_URL:?set PL_PWA_URL} lerna run build --scope @padloc/pwa",
         "pwa:start": "devmux ensure web",
         "electron:start": "lerna run start --scope @padloc/electron",
         "electron:build": "lerna run build --scope @padloc/electron",
