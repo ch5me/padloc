@@ -42,8 +42,5 @@ packages/extension/test-harness/.playwright-results.json
 packages/worker/.wrangler
 packages/macos/.build
 packages/macos/.signed-build
-
-.turbo/*
-**/.turbo/*
-!.turbo/
-!.turbo/config.json
+.turbo/
+.ch5/state/

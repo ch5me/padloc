@@ -1,0 +1,17 @@
+schemaVersion = 1
+
+[repo]
+id = "padloc"
+kind = "node-app"
+packageManager = "npm"
+lockfiles = ["package-lock.json", "package.json"]
+
+[[verify]]
+name = "repository structure: package.json"
+command = "test -f package.json"
+
+[deps]
+install = "npm ci"
+
+[warm]
+command = "npm ci"
