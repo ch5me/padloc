@@ -10,6 +10,10 @@ lockfiles = ["package-lock.json", "package.json", "packages/admin/package-lock.j
 name = "repository structure: package.json"
 command = "test -f package.json"
 
+[[verify]]
+name = "native build Python"
+command = "bash scripts/check-native-build-python.sh"
+
 [deps]
 install = "npm ci --ignore-scripts && bash scripts/ci-bootstrap-workspaces.sh"
 

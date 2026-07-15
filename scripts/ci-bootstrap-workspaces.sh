@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+source "$(dirname "$0")/check-native-build-python.sh"
+
 max_attempts="${CI_BOOTSTRAP_ATTEMPTS:-3}"
 node_executable="${npm_node_execpath:-$(command -v node)}"
 export PATH="$(dirname "$node_executable"):$PATH"
