@@ -18,8 +18,8 @@
     },
     "scripts": {
         "test": "npm run test:ci",
-        "dev": "wrangler dev --local --env=dev --ip 127.0.0.1 --port ${PL_WORKER_PORT:-8787}",
-        "dev:remote": "wrangler dev --remote --env=dev --ip 127.0.0.1 --port ${PL_WORKER_PORT:-8787}",
+        "dev": "wrangler dev --local --env=dev --ip 127.0.0.1 --port ${PL_WORKER_PORT:-${PORT:?DevMux must provide PORT}}",
+        "dev:remote": "wrangler dev --remote --env=dev --ip 127.0.0.1 --port ${PL_WORKER_PORT:-${PORT:?DevMux must provide PORT}}",
         "start": "npm run dev",
         "deploy:dry-run": "wrangler deploy --dry-run --env=dev",
         "deploy:preview": "wrangler deploy --env=preview",

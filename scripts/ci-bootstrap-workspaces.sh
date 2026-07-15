@@ -11,7 +11,7 @@ if [ ! -x "$npm_executable" ]; then
 fi
 
 for ((attempt = 1; attempt <= max_attempts; attempt += 1)); do
-  if "$node_executable" node_modules/lerna/cli.js bootstrap --npm-client "$npm_executable"; then
+  if "$node_executable" node_modules/lerna/cli.js bootstrap --no-ci --npm-client "$npm_executable" -- --no-save; then
     exit 0
   fi
   if ((attempt == max_attempts)); then

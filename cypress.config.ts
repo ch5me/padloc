@@ -1,5 +1,10 @@
 import { defineConfig } from "cypress";
 
+const baseUrl = process.env.CYPRESS_BASE_URL;
+if (!baseUrl) {
+    throw new Error("CYPRESS_BASE_URL required; run `npm run test:e2e`");
+}
+
 export default defineConfig({
     includeShadowDom: true,
     video: false,
@@ -13,6 +18,6 @@ export default defineConfig({
         setupNodeEvents(on, config) {
             return require("./cypress/plugins/index.ts")(on, config);
         },
-        baseUrl: "http://localhost:8080",
+        baseUrl,
     },
 });

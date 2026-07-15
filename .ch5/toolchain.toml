@@ -4,14 +4,19 @@ schemaVersion = 1
 id = "padloc"
 kind = "node-app"
 packageManager = "npm"
-lockfiles = ["package-lock.json", "package.json"]
+lockfiles = ["package-lock.json", "package.json", "packages/admin/package-lock.json", "packages/app/package-lock.json", "packages/cordova/package-lock.json", "packages/core/package-lock.json", "packages/electron/package-lock.json", "packages/extension/package-lock.json", "packages/pwa/package-lock.json", "packages/server/package-lock.json", "packages/tauri/package-lock.json", "packages/worker/package-lock.json"]
 
 [[verify]]
 name = "repository structure: package.json"
 command = "test -f package.json"
 
 [deps]
-install = "npm ci"
+install = "npm ci --ignore-scripts && bash scripts/ci-bootstrap-workspaces.sh"
 
 [warm]
-command = "npm ci"
+command = "npm ci --ignore-scripts && bash scripts/ci-bootstrap-workspaces.sh"
+
+[[hushTarget]]
+target = "root"
+root = "global"
+requiredFor = ["install"]

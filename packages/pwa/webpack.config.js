@@ -13,17 +13,26 @@ function removeTrailingSlash(url) {
 }
 
 const out = process.env.PL_PWA_DIR || resolve(__dirname, "dist");
+const workerPort = process.env.PL_WORKER_PORT || process.env.DEVMUX_PORT_API || process.env.DEVMUX_PORT;
+const pwaPort = process.env.PL_PWA_PORT || process.env.DEVMUX_PORT || process.env.PORT;
+if (!process.env.PL_SERVER_URL && !workerPort) {
+    throw new Error("PL_SERVER_URL or DevMux API port required");
+}
+if (!pwaPort) {
+    throw new Error("PL_PWA_PORT or DevMux web port required");
+}
 const serverUrl = removeTrailingSlash(
-    process.env.PL_SERVER_URL || `http://127.0.0.1:${process.env.PL_WORKER_PORT || 8787}`
+    process.env.PL_SERVER_URL || `http://127.0.0.1:${workerPort}`
 );
-const pwaUrl = removeTrailingSlash(process.env.PL_PWA_URL || `http://localhost:${process.env.PL_PWA_PORT || 8080}`);
+const pwaUrl = removeTrailingSlash(process.env.PL_PWA_URL || `http://localhost:${pwaPort}`);
 const rootDir = resolve(__dirname, "../..");
 const assetsDir = resolve(rootDir, process.env.PL_ASSETS_DIR || "assets");
 const disableCsp = process.env.PL_PWA_DISABLE_CSP === "true";
 
 const { name, terms_of_service } = require(join(assetsDir, "manifest.json"));
 
-const isBuildingLocally = pwaUrl.startsWith("http://localhost");
+const isBuildingLocally = pwaUrl.includes(".localhost") || pwaUrl.startsWith("http://localhost");
+const pwaWebSocketUrl = pwaUrl.replace(/^http/, "ws");
 
 const htmlMetaTags = disableCsp
     ? {}
@@ -127,7 +136,7 @@ module.exports = {
                             }
 
                             // Add the websocket URL + PWA URL of webpack-dev-server to connect-src when building locally, or nothing otherwise
-                            const connectReplacement = `ws://localhost:${process.env.PL_PWA_PORT || 8080}/ws ${pwaUrl}`;
+                            const connectReplacement = `${pwaWebSocketUrl}/ws ${pwaUrl}`;
                             data.html = data.html.replace("[REPLACE_CONNECT]", connectReplacement);
 
                             callback(null, data);
@@ -259,7 +268,7 @@ module.exports = {
     devServer: {
         historyApiFallback: true,
         host: "0.0.0.0",
-        port: process.env.PL_PWA_PORT || 8080,
+        port: pwaPort,
         // hot: false,
         // liveReload: false,
         client: { overlay: false },

@@ -12,12 +12,12 @@ Cypress.Commands.add("clearIndexedDb", () => {
 });
 
 Cypress.Commands.add("clearEmails", () => {
-    return cy.request("DELETE", "http://localhost:1080/email/all");
+    return cy.request("DELETE", `${Cypress.env("MAILDEV_URL")}/email/all`);
 });
 
 Cypress.Commands.add("getCodeFromEmail", (options: any = {}) => {
     const getCode = () => {
-        return cy.request("http://localhost:1080/email").then((res) => {
+        return cy.request(`${Cypress.env("MAILDEV_URL")}/email`).then((res) => {
             const latest = res.body.sort((a, b) => (a.time > b.time ? -1 : 1))[0];
             if (!latest) {
                 return null;

@@ -67,8 +67,9 @@
 -   Production API: `https://api-pad.ch5.me`
 -   Staging web: `https://pad-staging.ch5.me`
 -   Staging API: `https://api-pad-staging.ch5.me`
--   Local worker: `http://127.0.0.1:8787`
--   Local web: `http://localhost:3000`
+-   Local services: `npm run svc:ensure -- api` / `npm run svc:ensure -- web`
+-   Local URL truth: `npm run svc:status -- --json`; use reported `proxyUrl` or
+    `resolvedPort`, never guess a port.
 
 ## Rules
 
@@ -86,6 +87,9 @@
     never the API host.
 -   The PWA must always be built with an explicit `PL_SERVER_URL`; do not rely
     on runtime mutation.
+-   DevMux `^1.13.0` owns local process lifetime, health, proxy URLs, and
+    Grove-isolated ports. Do not use `concurrently`, fixed service ports, raw
+    persistent server commands, or hardwired local service URLs.
 -   If email auth breaks, first verify the live Worker secret values and sender
     domain before changing app logic.
 -   For user-authorized local Chrome testing, hand off between the Chrome
