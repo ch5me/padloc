@@ -44,3 +44,4 @@ packages/macos/.build
 packages/macos/.signed-build
 .turbo/
 .ch5/state/
+.ch5/shadow/
