@@ -41,7 +41,7 @@ export class ExtensionApp extends App {
         ...App.styles,
         css`
             .save-prompt-overlay {
-                position: absolute;
+                position: fixed;
                 inset: 0;
                 z-index: 1000;
                 display: flex;
@@ -496,8 +496,6 @@ export class ExtensionApp extends App {
     }
 
     private async _checkForAgenticAutofillApproval() {
-        if (this.app.state.locked || !this.app.state.loggedIn) return;
-
         try {
             const response = await browser.runtime.sendMessage({ type: "getAgenticAutofillApprovalPrompt" });
             if (response?.type === "getAgenticAutofillApprovalPromptResponse" && response.prompt) {
@@ -562,6 +560,9 @@ export class ExtensionApp extends App {
 
         this._wrapper.insertAdjacentHTML("beforeend", overlayHtml);
         this._autofillApprovalOverlay = this._wrapper.querySelector(".save-prompt-overlay:last-child");
+        if (this._autofillApprovalOverlay && this.shadowRoot) {
+            this.shadowRoot.appendChild(this._autofillApprovalOverlay);
+        }
         this._autofillApprovalOverlay?.querySelector("#agentic-autofill-approve")?.addEventListener("click", () => {
             void this._handleAgenticAutofillApproval();
         });

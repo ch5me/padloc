@@ -2,7 +2,7 @@ import { browser, Menus, Runtime } from "webextension-polyfill-ts";
 import { setPlatform } from "@padloc/core/src/platform";
 import { App } from "@padloc/core/src/app";
 import { debounce, uuid } from "@padloc/core/src/util";
-import { FieldType, Field, VaultItem } from "@padloc/core/src/item";
+import { AutofillFieldRole, FieldType, Field, VaultItem } from "@padloc/core/src/item";
 import { PasskeyCredential } from "@padloc/core/src/passkey";
 import { bytesToBase64 } from "@padloc/core/src/encoding";
 import { ExtensionWorkerPlatform } from "./worker-platform";
@@ -44,6 +44,7 @@ setPlatform(new ExtensionWorkerPlatform());
 
 const API_BASE_URL = process.env.PL_SERVER_URL!;
 const PASSKEY_DIAGNOSTICS_ENABLED = process.env.PL_PASSKEY_DIAGNOSTICS === "true";
+const AGENTIC_AUTOFILL_FIXTURES_ENABLED = process.env.PL_AGENTIC_AUTOFILL_FIXTURES === "true";
 
 // MV3 service worker - state must be persisted to storage
 let app: App;
@@ -60,6 +61,17 @@ const pendingAutofillPlans = new Map<string, PendingBrokerPlan>();
 const pendingAutofillApprovals = new Map<string, BrokerApproval>();
 const pendingAutofillBundles = new Map<string, AutofillBrokerResponse>();
 const pendingAutofillPromptNonces = new Map<string, { nonce: string; senderUrl: string }>();
+let fixtureAutofillItems: Array<{ item: VaultItem }> = [];
+const FIXTURE_CIPHERTEXT_KEY = "pl_agenticAutofillFixtureCiphertext";
+const FIXTURE_SESSION_KEY = "pl_agenticAutofillFixtureKey";
+type FixtureSessionStorage = {
+    set(items: Record<string, unknown>): Promise<void>;
+    remove(keys: string | string[]): Promise<void>;
+};
+
+function fixtureSessionStorage(): FixtureSessionStorage {
+    return (chrome as typeof chrome & { storage: { session: FixtureSessionStorage } }).storage.session;
+}
 
 // Suppression map: url -> timestamp when prompt can be shown again
 const dismissedUrls = new Map<string, number>();
@@ -480,6 +492,13 @@ async function handleRuntimeMessage(msg: Message, sender: Runtime.MessageSender)
     switch (msg.type) {
         case "loggedOut":
         case "locked":
+            fixtureAutofillItems = [];
+            pendingAutofillPlans.clear();
+            pendingAutofillApprovals.clear();
+            pendingAutofillBundles.clear();
+            pendingAutofillPromptNonces.clear();
+            await fixtureSessionStorage().remove(FIXTURE_SESSION_KEY);
+            await browser.storage.local.remove(FIXTURE_CIPHERTEXT_KEY);
             await clearSessionMasterKey();
             await application.load();
             await cancelAutoLock();
@@ -511,6 +530,12 @@ async function handleRuntimeMessage(msg: Message, sender: Runtime.MessageSender)
             return handleApproveAgenticAutofill(msg.planId, msg.promptNonce, sender);
         case "dismissAgenticAutofill":
             return handleDismissAgenticAutofill(msg.planId);
+        case "seedAgenticAutofillFixtures":
+            if (!AGENTIC_AUTOFILL_FIXTURES_ENABLED) {
+                throw new Error("Agentic autofill fixtures are disabled in this build");
+            }
+            requireExtensionUiSender(sender);
+            return seedAgenticAutofillFixtures();
         case "getPasskeyApprovalPrompt":
             return {
                 type: "getPasskeyApprovalPromptResponse",
@@ -802,9 +827,9 @@ async function updateBadgeAndContextMenu() {
     }
 }
 
-function dedupeMatchedItems(items: MatchedVaultItem[]): MatchedVaultItem[] {
+function dedupeMatchedItems<T extends { item: VaultItem }>(items: T[]): T[] {
     const seen = new Set<string>();
-    const deduped: MatchedVaultItem[] = [];
+    const deduped: T[] = [];
     for (const item of items) {
         if (seen.has(item.item.id)) continue;
         seen.add(item.item.id);
@@ -837,10 +862,13 @@ async function getActiveTab() {
     return tab || null;
 }
 
-async function getItemsForActiveTab() {
+async function getItemsForActiveTab(): Promise<Array<{ item: VaultItem }>> {
+    if (fixtureAutofillItems.length) return fixtureAutofillItems;
     const tab = await getActiveTab();
     const application = await getApp();
-    return tab && tab.url ? application.getItemsForUrl(tab.url) : [];
+    return tab && tab.url
+        ? application.getItemsForUrl(tab.url).map(({ item }) => ({ item }))
+        : [];
 }
 
 async function getCountForActiveTab() {
@@ -1066,7 +1094,7 @@ function requireExtensionUiSender(sender: Runtime.MessageSender): string {
 }
 
 async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, application: App) {
-    if (application.state.locked || !application.state.loggedIn) {
+    if ((application.state.locked || !application.state.loggedIn) && fixtureAutofillItems.length === 0) {
         return {
             type: "agenticAutofillBrokerResponse",
             response: buildLockedBrokerResponse(request),
@@ -1122,6 +1150,69 @@ async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, appli
     return {
         type: "agenticAutofillBrokerResponse",
         response: buildLockedBrokerResponse(request),
+    };
+}
+
+async function seedAgenticAutofillFixtures() {
+    const encoder = new TextEncoder();
+    const keyBytes = crypto.getRandomValues(new Uint8Array(32));
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const fixture = {
+        itemName: "Firecracker Login",
+        username: `fixture-${await uuid()}@example.invalid`,
+        password: Array.from(crypto.getRandomValues(new Uint8Array(24)), (byte) =>
+            byte.toString(16).padStart(2, "0")
+        ).join(""),
+        url: "http://172.16.0.2:8080/fake-login",
+    };
+    const key = await crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["encrypt"]);
+    const ciphertext = new Uint8Array(
+        await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encoder.encode(JSON.stringify(fixture)))
+    );
+    await browser.storage.local.set({
+        [FIXTURE_CIPHERTEXT_KEY]: {
+            iv: Array.from(iv),
+            ciphertext: Array.from(ciphertext),
+        },
+    });
+    await fixtureSessionStorage().set({ [FIXTURE_SESSION_KEY]: Array.from(keyBytes) });
+    fixtureAutofillItems = [fixtureBrokerItem(fixture)];
+    return {
+        ok: true,
+        vaultState: "unlocked",
+        itemCount: fixtureAutofillItems.length,
+        itemNames: fixtureAutofillItems.map(({ item }) => item.name),
+        encryptedAtRest: true,
+        valuePolicy: "fake values remain encrypted at rest and memory-only while unlocked",
+    };
+}
+
+function fixtureBrokerItem(fixture: {
+    itemName: string;
+    username: string;
+    password: string;
+    url: string;
+}) {
+    return {
+        item: new VaultItem({
+            id: "fixture-firecracker-login",
+            name: fixture.itemName,
+            fields: [
+                new Field({
+                    name: "username",
+                    type: FieldType.Username,
+                    autofillRole: AutofillFieldRole.Username,
+                    value: fixture.username,
+                }),
+                new Field({
+                    name: "password",
+                    type: FieldType.Password,
+                    autofillRole: AutofillFieldRole.Password,
+                    value: fixture.password,
+                }),
+                new Field({ name: "url", type: FieldType.Url, value: fixture.url }),
+            ],
+        }),
     };
 }
 

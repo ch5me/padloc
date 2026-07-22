@@ -10,6 +10,7 @@ const { version } = require("./package.json");
 const serverUrl = process.env.PL_SERVER_URL || `http://127.0.0.1:${process.env.PL_WORKER_PORT || 8787}`;
 const buildEnvironment = process.env.PL_BUILD_ENV || "development";
 const passkeyDiagnostics = process.env.PL_PASSKEY_DIAGNOSTICS || (buildEnvironment === "production" ? "false" : "true");
+const agenticAutofillFixtures = process.env.PL_AGENTIC_AUTOFILL_FIXTURES || "false";
 const rootDir = resolve(__dirname, "../..");
 const assetsDir = resolve(rootDir, process.env.PL_ASSETS_DIR || "assets");
 
@@ -89,6 +90,7 @@ module.exports = {
             PL_SERVER_URL: serverUrl,
             PL_BUILD_ENV: buildEnvironment,
             PL_PASSKEY_DIAGNOSTICS: passkeyDiagnostics,
+            PL_AGENTIC_AUTOFILL_FIXTURES: agenticAutofillFixtures,
             PL_BILLING_ENABLED: null,
             PL_BILLING_DISABLE_PAYMENT: null,
             PL_BILLING_STRIPE_PUBLIC_KEY: null,

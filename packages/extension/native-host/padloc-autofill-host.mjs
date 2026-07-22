@@ -11,25 +11,24 @@ const STATE_DIR =
 const LATEST_RESPONSE_PATH = join(STATE_DIR, "latest-redacted-response.json");
 const PENDING_REQUEST_PATH = join(STATE_DIR, "pending-broker-request.json");
 const AUDIT_LOG_PATH = join(STATE_DIR, "broker-audit.jsonl");
+const MAX_MESSAGE_BYTES = 1024 * 1024;
 
-const input = await readAllStdin();
-const request = parseNativeMessage(input);
-const response = handleRequest(request);
-process.stdout.write(encodeNativeMessage(response));
-
-async function readAllStdin() {
-    const chunks = [];
-    for await (const chunk of process.stdin) chunks.push(chunk);
-    return Buffer.concat(chunks);
+for await (const request of readNativeMessages(process.stdin)) {
+    process.stdout.write(encodeNativeMessage(handleRequest(request)));
 }
 
-function parseNativeMessage(buffer) {
-    if (buffer.length < 4) {
-        return { type: "status", protocolVersion: PROTOCOL_VERSION };
+async function* readNativeMessages(stream) {
+    let buffered = Buffer.alloc(0);
+    for await (const chunk of stream) {
+        buffered = buffered.length ? Buffer.concat([buffered, chunk]) : Buffer.from(chunk);
+        while (buffered.length >= 4) {
+            const length = buffered.readUInt32LE(0);
+            if (length > MAX_MESSAGE_BYTES) throw new Error("native message exceeds 1 MiB");
+            if (buffered.length < 4 + length) break;
+            yield JSON.parse(buffered.subarray(4, 4 + length).toString("utf8"));
+            buffered = buffered.subarray(4 + length);
+        }
     }
-    const length = buffer.readUInt32LE(0);
-    const payload = buffer.subarray(4, 4 + length).toString("utf8");
-    return JSON.parse(payload);
 }
 
 function encodeNativeMessage(payload) {

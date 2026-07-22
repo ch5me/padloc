@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { spawnSync } from "child_process";
+import { spawn, spawnSync } from "child_process";
 import { resolve } from "path";
 import { mkdtempSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
@@ -44,6 +44,46 @@ suite("Autofill broker protocol", () => {
         expect(response.ok).to.equal(true);
         expect(response.vaultState).to.equal("locked");
         expect(response.audit.valuePolicy).to.equal("redacted audit only; no raw autofill values or passkey secrets");
+    });
+
+    test("native host replies before Chrome closes the native messaging pipe", async () => {
+        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const child = spawn(process.execPath, [hostPath], { stdio: ["pipe", "pipe", "pipe"] });
+        const request = Buffer.from(JSON.stringify({ type: "status", protocolVersion: 1 }));
+        const header = Buffer.alloc(4);
+        header.writeUInt32LE(request.length, 0);
+        child.stdin.write(Buffer.concat([header, request]));
+
+        const response = await new Promise<Record<string, unknown>>((resolveResponse, reject) => {
+            let buffered = Buffer.alloc(0);
+            const timeout = setTimeout(() => reject(new Error("native host response timed out")), 2_000);
+            child.stdout.on("data", (chunk) => {
+                buffered = Buffer.concat([buffered, chunk]);
+                if (buffered.length < 4) return;
+                const length = buffered.readUInt32LE(0);
+                if (buffered.length < 4 + length) return;
+                clearTimeout(timeout);
+                resolveResponse(JSON.parse(buffered.subarray(4, 4 + length).toString("utf8")));
+            });
+            child.once("error", reject);
+        });
+
+        expect(response.ok).to.equal(true);
+        child.stdin.end();
+        child.kill();
+    });
+
+    test("native host handles multiple messages on one Chrome pipe", async () => {
+        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const child = spawn(process.execPath, [hostPath], { stdio: ["pipe", "pipe", "pipe"] });
+        const request = nativeMessageFrame({ type: "status", protocolVersion: 1 });
+        child.stdin.write(Buffer.concat([request, request]));
+
+        const responses = await readNativeResponses(child, 2);
+
+        expect(responses.map((response) => response.ok)).to.deep.equal([true, true]);
+        child.stdin.end();
+        child.kill();
     });
 
     test("native host caches only redacted broker responses", () => {
@@ -342,4 +382,37 @@ function nativeHostRequest(hostPath: string, request: unknown, stateDir: string)
     expect(result.status).to.equal(0);
     const length = result.stdout.readUInt32LE(0);
     return JSON.parse(result.stdout.subarray(4, 4 + length).toString("utf8"));
+}
+
+function nativeMessageFrame(request: Record<string, unknown>) {
+    const payload = Buffer.from(JSON.stringify(request));
+    const header = Buffer.alloc(4);
+    header.writeUInt32LE(payload.length, 0);
+    return Buffer.concat([header, payload]);
+}
+
+function readNativeResponses(
+    child: ReturnType<typeof spawn>,
+    count: number
+): Promise<Array<Record<string, unknown>>> {
+    return new Promise((resolveResponses, reject) => {
+        let buffered = Buffer.alloc(0);
+        const responses: Array<Record<string, unknown>> = [];
+        const timeout = setTimeout(() => reject(new Error("native host responses timed out")), 2_000);
+        child.stdout.on("data", (chunk) => {
+            buffered = Buffer.concat([buffered, chunk]);
+            while (buffered.length >= 4) {
+                const length = buffered.readUInt32LE(0);
+                if (buffered.length < 4 + length) return;
+                responses.push(JSON.parse(buffered.subarray(4, 4 + length).toString("utf8")));
+                buffered = buffered.subarray(4 + length);
+                if (responses.length === count) {
+                    clearTimeout(timeout);
+                    resolveResponses(responses);
+                    return;
+                }
+            }
+        });
+        child.once("error", reject);
+    });
 }

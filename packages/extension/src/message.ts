@@ -118,6 +118,7 @@ export type Message =
     | { type: "getAgenticAutofillApprovalPromptResponse"; prompt: AgenticAutofillApprovalPrompt | null }
     | { type: "approveAgenticAutofill"; planId: string; promptNonce: string }
     | { type: "dismissAgenticAutofill"; planId: string }
+    | { type: "seedAgenticAutofillFixtures" }
     | { type: "getPasskeyApprovalPrompt" }
     | { type: "getPasskeyApprovalPromptResponse"; prompt: PasskeyApprovalPrompt | null }
     | { type: "approvePasskey"; requestId: string; promptNonce: string; userVerified: boolean }
