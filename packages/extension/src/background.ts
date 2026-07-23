@@ -492,13 +492,7 @@ async function handleRuntimeMessage(msg: Message, sender: Runtime.MessageSender)
     switch (msg.type) {
         case "loggedOut":
         case "locked":
-            fixtureAutofillItems = [];
-            pendingAutofillPlans.clear();
-            pendingAutofillApprovals.clear();
-            pendingAutofillBundles.clear();
-            pendingAutofillPromptNonces.clear();
-            await fixtureSessionStorage().remove(FIXTURE_SESSION_KEY);
-            await browser.storage.local.remove(FIXTURE_CIPHERTEXT_KEY);
+            await clearAgenticAutofillState();
             await clearSessionMasterKey();
             await application.load();
             await cancelAutoLock();
@@ -535,6 +529,9 @@ async function handleRuntimeMessage(msg: Message, sender: Runtime.MessageSender)
                 throw new Error("Agentic autofill fixtures are disabled in this build");
             }
             requireExtensionUiSender(sender);
+            if (application.state.locked || !application.state.loggedIn) {
+                throw new Error("Agentic autofill fixtures require an unlocked signed-in Padloc vault");
+            }
             return seedAgenticAutofillFixtures();
         case "getPasskeyApprovalPrompt":
             return {
@@ -692,7 +689,6 @@ function enqueueBadgeAndContextMenuUpdate() {
         .then(() => updateBadgeAndContextMenu());
     return badgeAndContextMenuUpdateChain;
 }
-
 
 async function handleContextMenuClick(menuItemId: string) {
     if (menuItemId === "openPopup") {
@@ -866,9 +862,7 @@ async function getItemsForActiveTab(): Promise<Array<{ item: VaultItem }>> {
     if (fixtureAutofillItems.length) return fixtureAutofillItems;
     const tab = await getActiveTab();
     const application = await getApp();
-    return tab && tab.url
-        ? application.getItemsForUrl(tab.url).map(({ item }) => ({ item }))
-        : [];
+    return tab && tab.url ? application.getItemsForUrl(tab.url).map(({ item }) => ({ item })) : [];
 }
 
 async function getCountForActiveTab() {
@@ -887,6 +881,7 @@ async function doLock() {
         await startAutoLockTimer();
         return;
     }
+    await clearAgenticAutofillState();
     await application.lock();
     await clearSessionMasterKey();
     await application.reload();
@@ -1094,7 +1089,7 @@ function requireExtensionUiSender(sender: Runtime.MessageSender): string {
 }
 
 async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, application: App) {
-    if ((application.state.locked || !application.state.loggedIn) && fixtureAutofillItems.length === 0) {
+    if (application.state.locked || !application.state.loggedIn) {
         return {
             type: "agenticAutofillBrokerResponse",
             response: buildLockedBrokerResponse(request),
@@ -1187,12 +1182,17 @@ async function seedAgenticAutofillFixtures() {
     };
 }
 
-function fixtureBrokerItem(fixture: {
-    itemName: string;
-    username: string;
-    password: string;
-    url: string;
-}) {
+async function clearAgenticAutofillState(): Promise<void> {
+    fixtureAutofillItems = [];
+    pendingAutofillPlans.clear();
+    pendingAutofillApprovals.clear();
+    pendingAutofillBundles.clear();
+    pendingAutofillPromptNonces.clear();
+    await fixtureSessionStorage().remove(FIXTURE_SESSION_KEY);
+    await browser.storage.local.remove(FIXTURE_CIPHERTEXT_KEY);
+}
+
+function fixtureBrokerItem(fixture: { itemName: string; username: string; password: string; url: string }) {
     return {
         item: new VaultItem({
             id: "fixture-firecracker-login",

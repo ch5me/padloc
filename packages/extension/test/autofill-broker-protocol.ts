@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { spawn, spawnSync } from "child_process";
 import { resolve } from "path";
-import { mkdtempSync, writeFileSync } from "fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { suite, test } from "mocha";
 
@@ -84,6 +84,90 @@ suite("Autofill broker protocol", () => {
         expect(responses.map((response) => response.ok)).to.deep.equal([true, true]);
         child.stdin.end();
         child.kill();
+    });
+
+    test("native host reads a fragmented message frame", async () => {
+        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const child = spawn(process.execPath, [hostPath], { stdio: ["pipe", "pipe", "pipe"] });
+        const request = nativeMessageFrame({ type: "status", protocolVersion: 1 });
+
+        child.stdin.write(request.subarray(0, 2));
+        child.stdin.write(request.subarray(2, 7));
+        child.stdin.write(request.subarray(7));
+        const [response] = await readNativeResponses(child, 1);
+
+        expect(response.ok).to.equal(true);
+        child.stdin.end();
+        child.kill();
+    });
+
+    test("native host rejects oversized input frames", () => {
+        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const header = Buffer.alloc(4);
+        header.writeUInt32LE(1024 * 1024 + 1, 0);
+        const result = spawnSync(process.execPath, [hostPath], { input: header });
+
+        expect(result.status).not.to.equal(0);
+        expect(result.stderr.toString("utf8")).to.contain("native message exceeds 1 MiB");
+    });
+
+    test("native host replaces oversized responses with a bounded error", () => {
+        const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-oversized-response-`);
+        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        writeFileSync(
+            resolve(stateDir, "latest-redacted-response.json"),
+            JSON.stringify({
+                cachedAt: "2026-07-23T00:00:00.000Z",
+                response: { fields: [{ itemName: "x".repeat(1024 * 1024) }] },
+            })
+        );
+
+        const response = nativeHostRequest(
+            hostPath,
+            { type: "latest-redacted-response", protocolVersion: 1 },
+            stateDir
+        );
+
+        expect(response.ok).to.equal(false);
+        expect(response.reason).to.equal("native response exceeds 1 MiB");
+    });
+
+    test("native host drains stdout before accepting more pipe output", async () => {
+        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const child = spawn(process.execPath, [hostPath], { stdio: ["pipe", "pipe", "pipe"] });
+        const frame = nativeMessageFrame({ type: "status", protocolVersion: 1 });
+        child.stdout.pause();
+        child.stdin.write(Buffer.concat(Array.from({ length: 5_000 }, () => frame)));
+
+        await new Promise((resolveDelay) => setTimeout(resolveDelay, 25));
+        child.stdout.resume();
+        const responses = await readNativeResponses(child, 5_000, 10_000);
+
+        expect(responses).to.have.length(5_000);
+        expect(responses.every((response) => response.ok === true)).to.equal(true);
+        child.stdin.end();
+        child.kill();
+    });
+
+    test("fixture seeding remains disabled, lock-gated, and auto-lock cleanup is shared", () => {
+        const source = readFileSync(resolve(currentDir, "../src/background.ts"), "utf8");
+
+        expect(source).to.contain(
+            'const AGENTIC_AUTOFILL_FIXTURES_ENABLED = process.env.PL_AGENTIC_AUTOFILL_FIXTURES === "true";'
+        );
+        expect(source).to.match(
+            /case "seedAgenticAutofillFixtures":[\s\S]*?if \(!AGENTIC_AUTOFILL_FIXTURES_ENABLED\)[\s\S]*?if \(application\.state\.locked \|\| !application\.state\.loggedIn\)/
+        );
+        expect(source).to.match(
+            /async function handleAgenticAutofillBroker[\s\S]*?if \(application\.state\.locked \|\| !application\.state\.loggedIn\) \{/
+        );
+        expect(source).to.match(/case "loggedOut":[\s\S]*?case "locked":[\s\S]*?await clearAgenticAutofillState\(\)/);
+        expect(source).to.match(
+            /async function doLock\(\)[\s\S]*?await clearAgenticAutofillState\(\)[\s\S]*?await application\.lock\(\)/
+        );
+        expect(source).to.match(
+            /async function clearAgenticAutofillState\(\)[\s\S]*?fixtureAutofillItems = \[\][\s\S]*?pendingAutofillPlans\.clear\(\)[\s\S]*?pendingAutofillApprovals\.clear\(\)[\s\S]*?pendingAutofillBundles\.clear\(\)[\s\S]*?pendingAutofillPromptNonces\.clear\(\)[\s\S]*?FIXTURE_SESSION_KEY[\s\S]*?FIXTURE_CIPHERTEXT_KEY/
+        );
     });
 
     test("native host caches only redacted broker responses", () => {
@@ -393,12 +477,13 @@ function nativeMessageFrame(request: Record<string, unknown>) {
 
 function readNativeResponses(
     child: ReturnType<typeof spawn>,
-    count: number
+    count: number,
+    timeoutMs = 2_000
 ): Promise<Array<Record<string, unknown>>> {
     return new Promise((resolveResponses, reject) => {
         let buffered = Buffer.alloc(0);
         const responses: Array<Record<string, unknown>> = [];
-        const timeout = setTimeout(() => reject(new Error("native host responses timed out")), 2_000);
+        const timeout = setTimeout(() => reject(new Error("native host responses timed out")), timeoutMs);
         child.stdout.on("data", (chunk) => {
             buffered = Buffer.concat([buffered, chunk]);
             while (buffered.length >= 4) {

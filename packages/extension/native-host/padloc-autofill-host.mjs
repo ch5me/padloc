@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { once } from "node:events";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -12,9 +13,10 @@ const LATEST_RESPONSE_PATH = join(STATE_DIR, "latest-redacted-response.json");
 const PENDING_REQUEST_PATH = join(STATE_DIR, "pending-broker-request.json");
 const AUDIT_LOG_PATH = join(STATE_DIR, "broker-audit.jsonl");
 const MAX_MESSAGE_BYTES = 1024 * 1024;
+const MAX_OUTPUT_BYTES = 1024 * 1024;
 
 for await (const request of readNativeMessages(process.stdin)) {
-    process.stdout.write(encodeNativeMessage(handleRequest(request)));
+    await writeNativeMessage(handleRequest(request));
 }
 
 async function* readNativeMessages(stream) {
@@ -32,10 +34,19 @@ async function* readNativeMessages(stream) {
 }
 
 function encodeNativeMessage(payload) {
-    const body = Buffer.from(JSON.stringify(payload), "utf8");
+    let body = Buffer.from(JSON.stringify(payload), "utf8");
+    if (body.length > MAX_OUTPUT_BYTES) {
+        body = Buffer.from(JSON.stringify(statusResponse(false, "native response exceeds 1 MiB")), "utf8");
+    }
     const header = Buffer.alloc(4);
     header.writeUInt32LE(body.length, 0);
     return Buffer.concat([header, body]);
+}
+
+async function writeNativeMessage(payload) {
+    if (!process.stdout.write(encodeNativeMessage(payload))) {
+        await once(process.stdout, "drain");
+    }
 }
 
 function handleRequest(request) {
