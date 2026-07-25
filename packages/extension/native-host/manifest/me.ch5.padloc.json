@@ -1,0 +1,7 @@
+{
+  "name": "me.ch5.padloc",
+  "description": "Padloc autofill broker",
+  "path": "/usr/local/bin/me.ch5.padloc",
+  "type": "stdio",
+  "allowed_origins": ["chrome-extension://gncmiloofnlojbhlckjniipiglejppho/"]
+}
