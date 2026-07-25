@@ -113,6 +113,20 @@ failIfMissing("passkey-content-bridge.js", passkeyContentBridge, [
     { pattern: /padloc-passkey-extension/, reason: "missing extension bridge source marker" },
 ]);
 
+{
+    const aaguidPresent = readBuiltJavaScriptFiles().some(([, source]) =>
+        source.includes("7a46cc38-26d9-47fe-9f3b-b52837c6020d")
+    );
+    if (!aaguidPresent) {
+        failures.push(
+            "dist/*.js: none of the built bundles contain the product AAGUID " +
+                "7a46cc38-26d9-47fe-9f3b-b52837c6020d (packages/core/src/webauthn-authenticator.ts " +
+                "PADLOC_AGENTIC_VAULT_AAGUID) — the shipped authenticator would emit an unidentified " +
+                "all-zero AAGUID instead of the product identity"
+        );
+    }
+}
+
 if (process.env.PL_BUILD_ENV === "production") {
     for (const [file, source] of readBuiltJavaScriptFiles()) {
         failIf(file, source, [

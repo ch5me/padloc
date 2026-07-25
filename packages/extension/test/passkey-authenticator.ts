@@ -8,6 +8,7 @@ import {
     PasskeyEs256PublicJwk,
 } from "@padloc/core/src/passkey";
 import {
+    PADLOC_AGENTIC_VAULT_AAGUID,
     buildPasskeyAssertionResponse,
     buildPasskeyRegistrationResponse,
     derEcdsaSignatureToWebCrypto,
@@ -16,7 +17,7 @@ import {
     validateRpIdForOrigin,
     webCryptoEcdsaSignatureToDer,
 } from "@padloc/core/src/webauthn-authenticator";
-import { bytesToBase64, bytesToString } from "@padloc/core/src/encoding";
+import { bytesToBase64, bytesToString, hexToBytes } from "@padloc/core/src/encoding";
 
 const publicKeyJwk: PasskeyEs256PublicJwk = {
     kty: "EC",
@@ -146,7 +147,12 @@ suite("Passkey authenticator foundation", () => {
         expect(result.id).to.equal(bytesToBase64(credential.credentialId));
         expect(Array.from(result.authenticatorData.slice(0, 32))).to.deep.equal(Array.from(expectedRpHash));
         expect(result.authenticatorData[32]).to.equal(0x45);
-        expect(result.authenticatorData.slice(37, 53)).to.deep.equal(new Uint8Array(16));
+        // AAGUID must be the product-owned identity, not an unidentified all-zero value —
+        // an all-zero AAGUID reads as a bare security key to relying parties (Google labeled
+        // it "iCloud Keychain" before this was fixed).
+        expect(result.authenticatorData.slice(37, 53)).to.deep.equal(
+            hexToBytes(PADLOC_AGENTIC_VAULT_AAGUID.replace(/-/g, ""))
+        );
         expect(result.publicKeyCose[0]).to.equal(0xa5);
         expect(result.attestationObject[0]).to.equal(0xa3);
         expect(Array.from(result.publicKeyCose)).to.deep.equal(Array.from(encodeEs256CosePublicKey(publicKeyJwk)));
