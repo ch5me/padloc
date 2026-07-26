@@ -8,6 +8,7 @@ import { Server } from "@padloc/core/src/server";
 import { responseHeaders } from "./observability/security-headers";
 import { RateLimiter } from "./rate-limiter";
 import { captureHqException, initializeHqInstrumentationFromEnv, withHqSpan } from "./hq-instrumentation";
+import { handleFireflySsoVerifyRoute } from "./firefly-sso";
 
 let cachedServer: Server | undefined;
 
@@ -91,6 +92,10 @@ export default {
 
         if (request.method === "GET" && url.pathname.startsWith("/public-releases/")) {
             return publicRelease(request, env);
+        }
+
+        if (request.method === "POST" && url.pathname === "/v1/firefly-sso/verify") {
+            return handleFireflySsoVerifyRoute(request, env);
         }
 
         if (!cachedServer) {

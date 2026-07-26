@@ -19,4 +19,8 @@ export interface Env {
     HQ_RELEASE?: string;
     HQ_SERVICE_NAME?: string;
     HQ_ALLOW_LOCAL_ENDPOINTS?: string;
+    /** Firefly SSO verification — see src/firefly-sso.ts. All three required to enable the route. */
+    FIREFLY_JWKS_URL?: string;
+    FIREFLY_ISSUER?: string;
+    FIREFLY_AUDIENCE?: string;
 }

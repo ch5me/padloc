@@ -8,7 +8,8 @@
         "types": ["@cloudflare/workers-types", "@types/node"],
         "paths": {
             "@padloc/core/*": ["../core/*"],
-            "@padloc/locale/*": ["../locale/*"]
+            "@padloc/locale/*": ["../locale/*"],
+            "@ch5me/elf-auth-client": ["./src/types/elf-auth-client.d.ts"]
         }
     },
     "include": ["src/**/*.ts", "test/**/*.ts", "test/**/*.d.ts", "global.d.ts"],

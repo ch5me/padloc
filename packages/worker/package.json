@@ -5,6 +5,7 @@
     "private": true,
     "license": "GPLv3",
     "dependencies": {
+        "@ch5me/elf-auth-client": "0.3.2",
         "@padloc/core": "4.3.0",
         "@padloc/locale": "4.3.0",
         "drizzle-orm": "^0.38.0"
