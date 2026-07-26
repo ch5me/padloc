@@ -9,6 +9,7 @@ import { responseHeaders } from "./observability/security-headers";
 import { RateLimiter } from "./rate-limiter";
 import { captureHqException, initializeHqInstrumentationFromEnv, withHqSpan } from "./hq-instrumentation";
 import { handleFireflySsoVerifyRoute } from "./firefly-sso";
+import { handleSetOrgSeatsRoute } from "./firefly-seat-sync";
 
 let cachedServer: Server | undefined;
 
@@ -96,6 +97,10 @@ export default {
 
         if (request.method === "POST" && url.pathname === "/v1/firefly-sso/verify") {
             return handleFireflySsoVerifyRoute(request, env);
+        }
+
+        if (request.method === "POST" && url.pathname === "/admin/vault-org-seats") {
+            return handleSetOrgSeatsRoute(request, env);
         }
 
         if (!cachedServer) {

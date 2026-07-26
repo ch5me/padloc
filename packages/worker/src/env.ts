@@ -23,4 +23,6 @@ export interface Env {
     FIREFLY_JWKS_URL?: string;
     FIREFLY_ISSUER?: string;
     FIREFLY_AUDIENCE?: string;
+    /** Firefly seat-sync admin route — see src/firefly-seat-sync.ts. G020. */
+    FIREFLY_SEAT_SYNC_SECRET?: string;
 }
