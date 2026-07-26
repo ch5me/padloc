@@ -2,16 +2,16 @@ import assert from "node:assert/strict";
 import { EmailAuthMessage } from "@padloc/core/src/messenger";
 import { ResendMessenger } from "../src/email/resend";
 import { redact, structuredLog } from "../src/observability/log-redaction";
-import { PersonalProvisioner } from "../src/provisioner/personal";
+import { OrgAwareProvisioner } from "../src/provisioner/org-aware";
 
 export async function run() {
-    await testPersonalProvisionerLogs();
+    await testOrgAwareProvisionerLogs();
     await testVaultBodyRedaction();
     await testResendFailureLogs();
     console.log("Worker logging redaction: PASS");
 }
 
-async function testPersonalProvisionerLogs() {
+async function testOrgAwareProvisionerLogs() {
     const sentinels = {
         email: "sensitive-email-sentinel@example.invalid",
         password: "sensitive-password-sentinel",
@@ -25,7 +25,7 @@ async function testPersonalProvisionerLogs() {
     try {
         console.debug = (...args: unknown[]) => captured.push(args);
 
-        const provisioner = new PersonalProvisioner();
+        const provisioner = new OrgAwareProvisioner();
         await provisioner.getProvisioning({
             email: sentinels.email,
             accountId,
@@ -63,7 +63,7 @@ async function testPersonalProvisionerLogs() {
         );
     }
 
-    assert.deepEqual(captured[0], ["[PersonalProvisioner]", "getProvisioning", { hasAccountId: true, orgCount: 0 }]);
+    assert.deepEqual(captured[0], ["[OrgAwareProvisioner]", "getProvisioning", { hasAccountId: true, orgCount: 0 }]);
 }
 
 async function testResendFailureLogs() {

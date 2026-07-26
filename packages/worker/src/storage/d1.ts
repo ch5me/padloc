@@ -32,6 +32,7 @@ import {
     emailVerifications,
     changeLog,
     requestLog,
+    orgSeatAllocations,
 } from "./schema";
 
 // ──────────────────────────────────────────────────────────────
@@ -51,6 +52,7 @@ const TABLES = {
     auth: auth,
     changelog: changeLog,
     requestlog: requestLog,
+    orgseatallocation: orgSeatAllocations,
 } as const;
 
 type KnownKind = keyof typeof TABLES;
@@ -363,6 +365,7 @@ export class D1Storage implements Storage {
             "attachment",
             "emailverification",
             "auth",
+            "orgseatallocation",
         ];
 
         await this.db.batch(domainKinds.map((kind) => this.db.delete(TABLES[kind])) as any);

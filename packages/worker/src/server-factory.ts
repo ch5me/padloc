@@ -13,7 +13,7 @@ import { ChangeLoggerConfig } from "@padloc/core/src/logging";
 import { RequestLoggerConfig } from "@padloc/core/src/logging";
 import { setPlatform } from "@padloc/core/src/platform";
 import { D1Storage } from "./storage/d1";
-import { PersonalProvisioner } from "./provisioner/personal";
+import { OrgAwareProvisioner } from "./provisioner/org-aware";
 import { R2AttachmentStorage } from "./attachments/r2";
 import { ResendMessenger, MockMessenger } from "./email/resend";
 import { WorkerPlatform } from "./platform";
@@ -49,7 +49,7 @@ export function createServer(env: Env): Server {
         logger,
         authServers,
         attachmentStorage,
-        new PersonalProvisioner(storage),
+        new OrgAwareProvisioner(storage),
         changeLogger,
         requestLogger
     );

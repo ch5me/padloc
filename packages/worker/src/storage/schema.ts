@@ -247,6 +247,17 @@ export const emailVerifications = sqliteTable(
 );
 
 /**
+ * org_seat_allocations — persisted seat cap per org (the "plan" half of G010's plan/seat
+ * layer; see packages/core/src/provisioning.ts's OrgSeatAllocation). Generic id/data shape,
+ * same as the other provisioning-adjacent tables — no denormalized columns needed since the
+ * only lookup is by org id (== row id).
+ */
+export const orgSeatAllocations = sqliteTable("org_seat_allocations", {
+    id: text("id").primaryKey(),
+    data: text("data").notNull(),
+});
+
+/**
  * change_log — Append-only audit trail for storage mutations.
  */
 export const changeLog = sqliteTable("change_log", {

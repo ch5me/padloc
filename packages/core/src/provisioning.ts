@@ -37,6 +37,29 @@ export class AccountQuota extends Serializable {
     storage = -1;
 }
 
+/**
+ * Persisted seat allocation for an org — the *plan* half of the plan/seat layer
+ * (G010 of magic-browser-multitenant-cloud-ralplan.md). An org-aware [[Provisioner]] reads this
+ * to populate [[OrgProvisioning.quota]].members; a caller with plan authority (an admin surface
+ * today, the Firefly Teams/Enterprise seat-billing integration in a later goal) writes it.
+ *
+ * Deliberately padloc-internal: this class has no knowledge of billing, Stripe, or Firefly. It is
+ * the seam a later goal wires up, not the wiring itself.
+ */
+export class OrgSeatAllocation extends Storable {
+    constructor(vals: Partial<OrgSeatAllocation> = {}) {
+        super();
+        Object.assign(this, vals);
+    }
+
+    id: string = "";
+
+    orgId: OrgID = "";
+
+    /** Number of members allowed in this org. -1 (the default, i.e. no allocation on record) means unlimited. */
+    seats: number = -1;
+}
+
 export type RichContent = {
     type: "plain" | "markdown" | "html";
     content: string;

@@ -62,6 +62,7 @@ wrangler d1 migrations apply --remote DB --env=production
 | `email_verifications` | Verification codes    | Email flow                       |
 | `change_log`          | Audit events          | Append-only                      |
 | `request_log`         | HTTP request audit    | Append-only                      |
+| `org_seat_allocations` | `OrgSeatAllocation`   | `packages/core/src/provisioning.ts` |
 
 ## Naming Convention
 
