@@ -1,0 +1,37 @@
+[settings.proxy]
+enable = true
+
+[daemons.api]
+run = "export PL_WORKER_PORT=\"$PORT\"; npm run dev"
+dir = "packages/worker"
+port = 8787
+ready_http = { url = "http://127.0.0.1:8787/healthcheck", status = [200], timeout = "120s" }
+
+[daemons.web]
+run = "export PL_PWA_PORT=\"$PORT\"; export PL_PWA_URL=\"http://127.0.0.1:$PORT\"; npm --prefix packages/pwa run dev"
+dir = "."
+port = 3000
+depends = ["api"]
+ready_port = { port = 3000, timeout = "120s" }
+
+[daemons.web.env]
+PL_SERVER_URL = "http://127.0.0.1:{{ daemons.api.port }}"
+
+[daemons.v3]
+run = "./node_modules/.bin/http-server cypress/fixtures/v3-client -s -p \"$PORT\" --proxy \"http://0.0.0.0:$PORT?\""
+dir = "."
+port = 8081
+ready_port = { port = 8081, timeout = "120s" }
+
+[daemons.maildev]
+run = "export MAILDEV_WEB_PORT=\"$PORT\"; mise exec node@16.13.1 -- node scripts/start-maildev.cjs"
+dir = "."
+port = 1080
+env = { MAILDEV_SMTP_PORT = "1025", SMTP_PORT = "1025" }
+ready_http = { url = "http://127.0.0.1:1080/email", status = [200], timeout = "120s" }
+
+[daemons.tauri]
+run = "npm --prefix packages/tauri run dev"
+dir = "."
+depends = ["api"]
+env = { PL_SERVER_URL = "http://127.0.0.1:{{ daemons.api.port }}" }

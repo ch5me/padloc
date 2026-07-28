@@ -13,13 +13,13 @@ function removeTrailingSlash(url) {
 }
 
 const out = process.env.PL_PWA_DIR || resolve(__dirname, "dist");
-const workerPort = process.env.PL_WORKER_PORT || process.env.DEVMUX_PORT_API || process.env.DEVMUX_PORT;
-const pwaPort = process.env.PL_PWA_PORT || process.env.DEVMUX_PORT || process.env.PORT;
+const workerPort = process.env.PL_WORKER_PORT;
+const pwaPort = process.env.PL_PWA_PORT || process.env.PORT;
 if (!process.env.PL_SERVER_URL && !workerPort) {
-    throw new Error("PL_SERVER_URL or DevMux API port required");
+    throw new Error("PL_SERVER_URL or PL_WORKER_PORT required");
 }
 if (!process.env.PL_PWA_URL && !pwaPort) {
-    throw new Error("PL_PWA_URL or DevMux web port required");
+    throw new Error("PL_PWA_URL or PL_PWA_PORT required");
 }
 const serverUrl = removeTrailingSlash(
     process.env.PL_SERVER_URL || `http://127.0.0.1:${workerPort}`

@@ -1,9 +1,9 @@
 const MailDev = require("maildev");
 
 const web = Number(process.env.MAILDEV_WEB_PORT || process.env.PORT);
-const smtp = Number(process.env.MAILDEV_SMTP_PORT || process.env.DEVMUX_PORT_SMTP);
+const smtp = Number(process.env.MAILDEV_SMTP_PORT);
 if (!Number.isInteger(web) || !Number.isInteger(smtp)) {
-    throw new Error("DevMux must provide PORT and DEVMUX_PORT_SMTP");
+    throw new Error("MAILDEV_WEB_PORT/PORT and MAILDEV_SMTP_PORT are required");
 }
 
 const maildev = MailDev({ ip: "0.0.0.0", web, smtp });
