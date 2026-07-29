@@ -47,9 +47,8 @@ has a button that starts it. Never `pitchfork stop --all` (box-wide) and never a
 ## Commands
 
 -   Install deps: `npm ci`
--   Local worker only: `npm run worker:dev`
--   Local web only: `npm run pwa:start`
--   Legacy local stack: `npm run start`
+-   Foreground one-off debug only, NOT the dev-service path (use `ch5-svc`):
+    `npm run worker:dev`, `npm run pwa:start`, `npm run start`
 -   Changed-only tests/proofs: `npm run test:changed -- --since <ref>` or
     `npm run test:changed -- --files <csv>`; this wraps `ch5 plan padloc` and
     refuses broad fallback tasks unless `--allow-fallback` is explicit.
@@ -162,7 +161,7 @@ single response, alongside a repeating
 `ENOENT ... packages/pwa/dist/index.html`. So:
 
 - the readiness port check is satisfied — the supervisor calls it ready.
-- the suspect-daemon check clears it — its verdict is a TCP connect, and the
+- `pitchfork-suspect-daemons` clears it — its verdict is a TCP connect, and the
   connect succeeds.
 - `curl` returns `000` on a 40s timeout, ten times running.
 
