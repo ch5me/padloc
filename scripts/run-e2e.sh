@@ -3,32 +3,22 @@ set -euo pipefail
 
 mode="${1:-run}"
 shift || true
-urls="$(devmux status --json | node -e '
-let input = "";
-process.stdin.on("data", (chunk) => input += chunk);
-process.stdin.on("end", () => {
-  const status = JSON.parse(input);
-  const services = new Map(status.services.map((service) => [service.name, service]));
-  const web = services.get("web");
-  const api = services.get("api");
-  const v3 = services.get("v3");
-  const maildev = services.get("maildev");
-  if (!web?.proxyUrl || !api?.proxyUrl || !v3?.resolvedPort || !maildev?.proxyUrl) process.exit(1);
-  process.stdout.write(`${web.proxyUrl}\n${api.proxyUrl}\nhttp://127.0.0.1:${v3.resolvedPort}\n${maildev.proxyUrl}`);
-});
-')"
+# Ports are pinned literals in pitchfork.toml and no proxy slug is registered,
+# so every service is reached at 127.0.0.1:<port>. These are NOT read from
+# `pitchfork list --json`: it reports an empty `port` array for v3 and maildev
+# even though pitchfork.toml pins both, so it is not a usable port source here.
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+for port in 3000 8787 8081 1080; do
+  grep -qE "^port = $port$" "$repo_root/pitchfork.toml" || {
+    echo "run-e2e.sh port $port is no longer pinned in pitchfork.toml" >&2
+    exit 1
+  }
+done
+base_url="http://127.0.0.1:3000"     # daemons.web
+server_url="http://127.0.0.1:8787"   # daemons.api
+v3_url="http://127.0.0.1:8081"       # daemons.v3
+maildev_url="http://127.0.0.1:1080"  # daemons.maildev
 
-[ -n "$urls" ] || {
-  echo "DevMux web, api, v3, or maildev URL missing" >&2
-  exit 1
-}
-
-base_url="${urls%%$'\n'*}"
-rest="${urls#*$'\n'}"
-server_url="${rest%%$'\n'*}"
-rest="${rest#*$'\n'}"
-v3_url="${rest%%$'\n'*}"
-maildev_url="${rest#*$'\n'}"
 exec env \
   CYPRESS_BASE_URL="$base_url" \
   CYPRESS_SERVER_URL="$server_url" \

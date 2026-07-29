@@ -39,7 +39,7 @@
     },
     "scripts": {
         "build": "webpack --config webpack.config.js",
-        "start": "port=\"${PL_PWA_PORT:-${PORT:?DevMux must provide PORT}}\"; http-server ${PL_PWA_DIR:-./dist} -p \"$port\"",
+        "start": "port=\"${PL_PWA_PORT:-${PORT:?pitchfork must provide PORT}}\"; http-server ${PL_PWA_DIR:-./dist} -p \"$port\"",
         "build_and_start": "npm run build && npm run start",
         "dev": "webpack serve --config webpack.config.js"
     },

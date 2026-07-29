@@ -30,7 +30,7 @@
     refuses broad fallback tasks unless `--allow-fallback` is explicit.
 -   Extension harness is headless by default. Use `PADLOC_EXTENSION_HEADFUL=1`
     or `npm run test:extension:headful` only for visual debugging.
--   DevMux local status: `npm run svc:status`
+-   Local service status: `npm run svc:status`
 -   Runtime contract check: `npm run runtime-config:check`
 -   Worker dry-run: `npm run worker:deploy:dry-run`
 -   Staging deploy: `npm run deploy:staging`
@@ -87,9 +87,10 @@
     never the API host.
 -   The PWA must always be built with an explicit `PL_SERVER_URL`; do not rely
     on runtime mutation.
--   DevMux `^1.13.0` owns local process lifetime, health, proxy URLs, and
-    Grove-isolated ports. Do not use `concurrently`, fixed service ports, raw
-    persistent server commands, or hardwired local service URLs.
+-   pitchfork (`pitchfork.toml`) owns local process lifetime and health. Do not
+    use `concurrently` or raw persistent server commands. Ports ARE pinned
+    literals and no proxy slug is registered, so only one Grove Tree can run the
+    stack at a time; a second Tree failing with `EADDRINUSE` is expected.
 -   If email auth breaks, first verify the live Worker secret values and sender
     domain before changing app logic.
 -   For user-authorized local Chrome testing, hand off between the Chrome
