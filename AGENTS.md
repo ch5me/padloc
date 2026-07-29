@@ -114,3 +114,37 @@
     regenerate after changing email copy.
 -   Cordova platform plugin fixes applied under `packages/cordova/platforms/`
     are generated-state only and will be lost if the platform is re-added.
+
+## Local services on pitchfork — first runtime pass (2026-07-29)
+
+`npm run svc:ensure` in a clean Grove Tree, after `npm install`.
+
+| daemon | port | result |
+|---|---|---|
+| api | 8787 | `GET /healthcheck` **200** |
+| web | 3000 | **binds but never serves** — see below |
+| v3 | 8081 | EADDRINUSE — sprite-foundry's vite (another repo's Tree) holds it |
+| maildev | 1080 | EADDRINUSE — a long-lived `ssh -N -D 127.0.0.1:1080` SOCKS tunnel holds it |
+| tauri | — | not started (desktop shell) |
+
+**`web` is the sharpest false green found in the whole fleet pass, and no
+automated check catches it.** webpack-dev-middleware accepts the TCP connection
+on 3000 immediately and then answers every request with
+`wait until bundle finished: /` forever — measured for **11 minutes** without a
+single response, alongside a repeating
+`ENOENT ... packages/pwa/dist/index.html`. So:
+
+- `ready_port = 3000` is satisfied — pitchfork calls it ready.
+- `pitchfork-suspect-daemons` clears it — its verdict is a TCP connect, and the
+  connect succeeds.
+- `curl` returns `000` on a 40s timeout, ten times running.
+
+A TCP connect proves a listener exists, not that anything is served. For this
+daemon the only honest check is an HTTP response, and it does not currently
+produce one. That bundle failure is pre-existing and unrelated to pitchfork.
+
+Two ports are held by processes outside this repo. Those are collisions, not
+defects — pitchfork refuses loudly and names the holding PID. Note it names the
+wrong *daemon*: it reported `maildev` blocked on 8081 (v3's port) and `v3` blocked
+on 1080 (maildev's). Never trust `pitchfork start`'s console output; read
+`pitchfork list --json`.
