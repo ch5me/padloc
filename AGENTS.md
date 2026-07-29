@@ -7,6 +7,31 @@
 -   Primary shipped surfaces today: `pad.ch5.me`, `api-pad.ch5.me`, and the
     iPhone app `CH5 Auth`.
 
+## Running this repo's dev services
+
+`ch5-svc` is the one front door. `pitchfork.toml` in this repo declares the
+services; you do not choose ports and you do not launch dev servers in a harness
+pane.
+
+```bash
+ch5-svc up            # start this repo's services (serialized) and print URLs
+ch5-svc status        # status, resolved port, measured liveness, URL
+ch5-svc logs <name>   # tail one service
+ch5-svc down          # stop this repo's services only
+```
+
+Services here: `api`, `web`, `v3`, `maildev`, `tauri`
+
+URLs are `http://<service>.<tree>.localhost:7300/`, where `<tree>` is the
+directory basename — the repo name in the canonical checkout, the Grove Tree name
+in a Tree. So two Grove Trees of this repo are reachable at once, each at its own
+hostname, and nobody types a port. `ch5-svc status` prints the exact URLs; do not
+guess or hardcode them.
+
+If a URL shows a "not answering" page, the service is declared but down — the page
+has a button that starts it. Never `pitchfork stop --all` (box-wide) and never add
+`--force` (`start` is already idempotent).
+
 ## Repo Layout
 
 -   `packages/worker` - Cloudflare Worker API, D1/R2/KV/DO bindings, auth/email
@@ -30,7 +55,8 @@
     refuses broad fallback tasks unless `--allow-fallback` is explicit.
 -   Extension harness is headless by default. Use `PADLOC_EXTENSION_HEADFUL=1`
     or `npm run test:extension:headful` only for visual debugging.
--   Local service status: `npm run svc:status`
+-   Local dev services: `ch5-svc up` / `ch5-svc status` — see *Running this
+    repo's dev services* above.
 -   Runtime contract check: `npm run runtime-config:check`
 -   Worker dry-run: `npm run worker:deploy:dry-run`
 -   Staging deploy: `npm run deploy:staging`
@@ -67,9 +93,8 @@
 -   Production API: `https://api-pad.ch5.me`
 -   Staging web: `https://pad-staging.ch5.me`
 -   Staging API: `https://api-pad-staging.ch5.me`
--   Local services: `npm run svc:ensure -- api` / `npm run svc:ensure -- web`
--   Local URL truth: `npm run svc:status -- --json`; use reported `proxyUrl` or
-    `resolvedPort`, never guess a port.
+-   Local web/API: `ch5-svc up`, then the hostnames `ch5-svc status` prints —
+    never a guessed port. See *Running this repo's dev services* above.
 
 ## Rules
 
@@ -87,10 +112,9 @@
     never the API host.
 -   The PWA must always be built with an explicit `PL_SERVER_URL`; do not rely
     on runtime mutation.
--   pitchfork (`pitchfork.toml`) owns local process lifetime and health. Do not
-    use `concurrently` or raw persistent server commands. Ports ARE pinned
-    literals and no proxy slug is registered, so only one Grove Tree can run the
-    stack at a time; a second Tree failing with `EADDRINUSE` is expected.
+-   `pitchfork.toml` declares local services and `ch5-svc` drives them. Do not
+    use `concurrently`, raw persistent server commands, or a dev server started
+    by hand in a harness pane.
 -   If email auth breaks, first verify the live Worker secret values and sender
     domain before changing app logic.
 -   For user-authorized local Chrome testing, hand off between the Chrome
@@ -116,16 +140,18 @@
 -   Cordova platform plugin fixes applied under `packages/cordova/platforms/`
     are generated-state only and will be lost if the platform is re-added.
 
-## Local services on pitchfork — first runtime pass (2026-07-29)
+## Local services — first runtime pass (2026-07-29)
 
-`npm run svc:ensure` in a clean Grove Tree, after `npm install`.
+Measured in a clean Grove Tree after `npm install`, in the pinned-port era that
+preceded `ch5-svc`. The port column is what was measured then; ports are no
+longer pinned or typed, but the findings below still hold.
 
-| daemon | port | result |
+| daemon | port then | result |
 |---|---|---|
 | api | 8787 | `GET /healthcheck` **200** |
 | web | 3000 | **binds but never serves** — see below |
-| v3 | 8081 | EADDRINUSE — sprite-foundry's vite (another repo's Tree) holds it |
-| maildev | 1080 | EADDRINUSE — a long-lived `ssh -N -D 127.0.0.1:1080` SOCKS tunnel holds it |
+| v3 | 8081 | EADDRINUSE — sprite-foundry's vite (another repo's Tree) held it |
+| maildev | 1080 | EADDRINUSE — a long-lived `ssh -N -D 127.0.0.1:1080` SOCKS tunnel held it |
 | tauri | — | not started (desktop shell) |
 
 **`web` is the sharpest false green found in the whole fleet pass, and no
@@ -135,17 +161,17 @@ on 3000 immediately and then answers every request with
 single response, alongside a repeating
 `ENOENT ... packages/pwa/dist/index.html`. So:
 
-- `ready_port = 3000` is satisfied — pitchfork calls it ready.
-- `pitchfork-suspect-daemons` clears it — its verdict is a TCP connect, and the
+- the readiness port check is satisfied — the supervisor calls it ready.
+- the suspect-daemon check clears it — its verdict is a TCP connect, and the
   connect succeeds.
 - `curl` returns `000` on a 40s timeout, ten times running.
 
 A TCP connect proves a listener exists, not that anything is served. For this
 daemon the only honest check is an HTTP response, and it does not currently
-produce one. That bundle failure is pre-existing and unrelated to pitchfork.
+produce one. That bundle failure is pre-existing and unrelated to the supervisor.
 
-Two ports are held by processes outside this repo. Those are collisions, not
-defects — pitchfork refuses loudly and names the holding PID. Note it names the
-wrong *daemon*: it reported `maildev` blocked on 8081 (v3's port) and `v3` blocked
-on 1080 (maildev's). Never trust `pitchfork start`'s console output; read
-`pitchfork list --json`.
+Two ports were held by processes outside this repo. Those were collisions, not
+defects — the supervisor refused loudly and named the holding PID — but it named
+the wrong *daemon*: it reported `maildev` blocked on 8081 (v3's port) and `v3`
+blocked on 1080 (maildev's). So never diagnose from start-time console output;
+read `ch5-svc status`, which reports resolved port and measured liveness.
