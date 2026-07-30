@@ -1,3 +1,19 @@
+# Every listening daemon here is per-Grove-Tree. A `{{ daemons.X.port }}` reference is
+# only resolvable when X is a declared `depends` of the referring daemon -- without it
+# pitchfork fails the daemon at render time with "Field `X` is not defined", so the
+# web -> api and tauri -> api templates below rely on their `depends` entries.
+#
+# KNOWN RESIDUAL, pre-existing and NOT introduced here: three static declarations still
+# name the old fixed ports, and they already fail to track the long-bumped `api`:
+#   - config/environment-targets.json  local.appUrl/allowedOrigin http://localhost:3000
+#                                      local.apiBaseUrl http://127.0.0.1:8787
+#   - packages/worker/wrangler.toml:29,61  CLIENT_URL = "http://localhost:3000"
+# environment-targets.json is read only by scripts/check-runtime-config.mjs (a config
+# validator, not a dev-time consumer), and the dev worker sets ALLOW_ORIGIN = "*", so
+# CORS is unaffected. CLIENT_URL only shapes outbound links and the dev EMAIL_BACKEND is
+# "mock". wrangler `[vars]` are Worker bindings, not process env, so pitchfork cannot
+# template CLIENT_URL; fixing it needs `wrangler dev --var`.
+
 [settings.proxy]
 enable = true
 
@@ -8,9 +24,14 @@ port = { expect = [8787], bump = 20 }
 ready_port = { port = 8787, timeout = "120s" }
 
 [daemons.web]
+# Per-Grove-Tree port. packages/pwa/webpack.config.js:17 takes the port from
+# PL_PWA_PORT || PORT and throws when neither is set, so $PORT fully drives it; the
+# run line also derives PL_PWA_URL from the same $PORT, leaving no second literal.
+# The ready_port literal MUST equal expect[0] -- pitchfork substitutes the assigned
+# port only for a matching literal, and takes a non-matching one at face value.
 run = "export PL_PWA_PORT=\"$PORT\"; export PL_PWA_URL=\"http://127.0.0.1:$PORT\"; npm --prefix packages/pwa run dev"
 dir = "."
-port = 3000
+port = { expect = [3000], bump = 20 }
 depends = ["api"]
 ready_port = { port = 3000, timeout = "120s" }
 
@@ -18,9 +39,11 @@ ready_port = { port = 3000, timeout = "120s" }
 PL_SERVER_URL = "http://127.0.0.1:{{ daemons.api.port }}"
 
 [daemons.v3]
+# Per-Grove-Tree port. Both the listen port and the self-proxy target come from the same
+# $PORT, so there is no second literal to keep in step. ready_port literal == expect[0].
 run = "./node_modules/.bin/http-server cypress/fixtures/v3-client -s -p \"$PORT\" --proxy \"http://0.0.0.0:$PORT?\""
 dir = "."
-port = 8081
+port = { expect = [8081], bump = 20 }
 ready_port = { port = 8081, timeout = "120s" }
 
 [daemons.maildev]
