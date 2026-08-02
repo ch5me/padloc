@@ -11,15 +11,36 @@ project:
         - ch5me
         - cloud
     branding:
-        visual_summary: "CH5 project: CH5 Auth, project, runtime cloud"
-        icon_prompt: "Create a clean square app icon for CH5 Auth. Use the CH5 design system,
-            one dominant accent color anchored on #8B5CF6, bold geometry, no text, app-store
-            safe."
-        cover_prompt: "Create a wide cover image for CH5 Auth. Use the CH5 design system,
-            one dominant accent color anchored on #8B5CF6, brand-forward composition, text-free,
-            safe to crop."
+        visual_summary: "CH5 Auth is an encrypted credential and passkey vault; its mark is a single solid padlock body, calm and vault-grade."
+        icon_prompt: >-
+            A single closed padlock body — the solid rounded rectangle with its integral
+            shackle loop, drawn as one unified solid shape, fills the whole square edge to
+            edge; it IS the icon background; no page behind it, no empty margin. Solid deep
+            violet-blue fill (#7B4DFF) on a plain deep navy (#1C2550) background, with a
+            single thin teal (#18CFC4) seam marking where the shackle meets the body. Sized
+            to fill about 65% of the square, centered. A drawing of an object, NOT a written
+            character, NOT calligraphy, no writing of any script anywhere in the image. No
+            shield, no fingerprint, no key by itself, no rainbow gradient, no outline-only
+            wireframe padlock, no shading gradients beyond the single seam line, no text.
+        cover_prompt: >-
+            A single closed padlock body, solid deep violet-blue (#7B4DFF), fills most of a
+            wide banner on a plain deep navy (#1C2550) background with a thin teal (#18CFC4)
+            seam at the shackle. The padlock sits left-of-center, large and confident, with
+            calm negative space to its right; no text, no UI chrome, no gradient blobs, safe
+            to crop tighter on any side.
+        splash_prompt: >-
+            A single solid deep violet-blue (#7B4DFF) padlock body centered on a plain deep
+            navy (#1C2550) field, small relative to the frame, static and calm — no motion
+            lines, no text, no UI chrome, safe as a loading-screen mark.
         colors:
-            primary: "#8B5CF6"
+            primary: "#7B4DFF"
+            accent: "#18CFC4"
+            neutral: "#1C2550"
         assets:
             icon_source: .ch5/assets/master/icon.png
-            icon_variant_profile: ch5-master-icon-v1
+            icon_variant_profile: ch5-master-icon-v2
+        anti_goals:
+            - "No generic purple-AI-SaaS gradient blob; no #A855F7."
+            - "No rainbow nested-outline padlock (the legacy Padloc assets/app-icon.svg look) — one shape, one solid fill."
+            - "No shield, no fingerprint, no abstract lock-adjacent geometry standing in for an actual padlock."
+            - "No key-only mark — this product's story is staying shut, not opening."
