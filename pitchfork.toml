@@ -57,3 +57,12 @@ run = "npm --prefix packages/tauri run dev"
 dir = "."
 depends = ["api"]
 env = { PL_SERVER_URL = "http://127.0.0.1:{{ daemons.api.port }}" }
+
+# Serves the generated `openwiki/` wiki as an interactive graph + reader at
+# http://openwiki.<tree>.localhost:7300/. Read-only: it never calls a model.
+# Managed by `ch5-openwiki install`.
+[daemons.openwiki]
+run = "export PATH=\"$HOME/.local/bin:/opt/homebrew/bin:$HOME/.local/share/mise/shims:$PATH\"; exec node \"$(npm root -g)/openwiki/dist/cli.js\" visualize openwiki --port \"$PORT\" --no-open"
+dir = "."
+port = { expect = [11300], bump = 99 }
+ready_port = { port = 11300, timeout = "30s" }

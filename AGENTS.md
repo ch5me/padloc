@@ -174,3 +174,16 @@ defects — the supervisor refused loudly and named the holding PID — but it n
 the wrong *daemon*: it reported `maildev` blocked on 8081 (v3's port) and `v3`
 blocked on 1080 (maildev's). So never diagnose from start-time console output;
 read `ch5-svc status`, which reports resolved port and measured liveness.
+
+<!-- OPENWIKI:START -->
+
+## OpenWiki
+
+This repository has an OpenWiki companion at `openwiki/`. Start with
+`openwiki/quickstart.md`, then follow its links.
+
+Refresh it with `ch5-openwiki refresh padloc`. Cadence lives in
+`ch5-devtools/config/openwiki.json`. This repo uses Forgejo and lands directly
+on `main`; do not add the upstream OpenWiki GitHub/PR workflow.
+
+<!-- OPENWIKI:END -->
