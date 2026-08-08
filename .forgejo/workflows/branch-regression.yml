@@ -3,6 +3,12 @@ name: Branch Regression
 on:
     workflow_dispatch:
     push:
+        # `salvage/*` branches are archival snapshots of dirty Grove trees, never
+        # a base anyone builds on. Each snapshot push started a full five-job
+        # regression run, and at a fleet-wide capacity of two concurrent jobs
+        # that starved every other repo for hours. Regress real branches only.
+        branches-ignore:
+            - "salvage/**"
 
 concurrency:
     group: branch-regression-${{ github.ref }}
