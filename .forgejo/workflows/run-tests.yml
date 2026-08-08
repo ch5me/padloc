@@ -2,6 +2,11 @@ name: Run Tests
 
 on:
     push:
+        # `salvage/*` branches are archival snapshots of dirty Grove trees, never
+        # a base anyone builds on. Snapshot pushes started full runs here and
+        # starved the two-slot CI fleet; test real branches only.
+        branches-ignore:
+            - "salvage/**"
         paths:
             - ".forgejo/workflows/**"
             - "Dockerfile*"
