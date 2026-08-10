@@ -157,11 +157,14 @@ module.exports = {
                 if (!isProductionBuild) return;
 
                 compiler.hooks.emit.tap("Secure production PWA artifact", (compilation) => {
+                    compilation.assets["_worker.js"] = {
+                        source: () => `export default { async fetch(request, env) {\n    if (new URL(request.url).pathname.endsWith(".map")) return new Response("Not Found", { status: 404 });\n    return env.ASSETS.fetch(request);\n} };\n`,
+                        size: () => 224,
+                    };
                     compilation.assets["_redirects"] = {
                         source: () => "/*.map /404 404\n",
                         size: () => 18,
                     };
-
                     for (const [name, asset] of Object.entries(compilation.assets)) {
                         if (!name.endsWith(".js")) continue;
                         const source = asset.source().toString();
