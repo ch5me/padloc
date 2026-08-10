@@ -34,11 +34,16 @@ export PADLOC_DEPLOY_SHA="$deploy_sha"
 # Runtime contract gate (no Cloudflare auth needed).
 npm run runtime-config:check
 
+
+# Build and gate the exact Pages artifact before any remote migration or Worker mutation.
+PL_BUILD_ENV=production PL_SERVER_URL="https://api-pad-staging.ch5.me" PL_PWA_URL="https://pad-staging.ch5.me" npm run pwa:build
+npm run pwa:check
+
 # All Cloudflare-authenticated steps run under the governed ch5-padloc-staging token.
 # The token env vars propagate to every wrangler subprocess (migrate, worker, Pages).
 hush run --target wrangler-deploy-staging -- bash -euo pipefail -c '
   npm run worker:migrate:staging
   npm --prefix packages/worker exec -- wrangler deploy --config packages/worker/wrangler.toml --env=staging --var "VERSION:${PADLOC_DEPLOY_SHA}" --var "HQ_RELEASE:padloc-worker@${PADLOC_DEPLOY_SHA}"
-  PL_SERVER_URL="https://api-pad-staging.ch5.me" PL_PWA_URL="https://pad-staging.ch5.me" npm run pwa:build
+  npm run pwa:check
   ./node_modules/.bin/wrangler pages deploy packages/pwa/dist --project-name padloc-pwa-staging --branch main
 '

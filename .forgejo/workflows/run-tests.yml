@@ -64,8 +64,10 @@ jobs:
                   fi
             - name: Validate runtime contract
               run: npm run runtime-config:check
-            - name: Run pwa test build
-              run: npm run pwa:build
+            - name: Run pwa production artifact build
+              run: |
+                  PL_BUILD_ENV=production npm run pwa:build
+                  npm run pwa:check
             - name: Run web extension test build
               run: npm run web-extension:build
               env:

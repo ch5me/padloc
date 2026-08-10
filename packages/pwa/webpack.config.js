@@ -13,6 +13,8 @@ function removeTrailingSlash(url) {
 }
 
 const out = process.env.PL_PWA_DIR || resolve(__dirname, "dist");
+const buildEnvironment = process.env.PL_BUILD_ENV || process.env.NODE_ENV || "development";
+const isProductionBuild = buildEnvironment === "production";
 const workerPort = process.env.PL_WORKER_PORT;
 const pwaPort = process.env.PL_PWA_PORT || process.env.PORT;
 if (!process.env.PL_SERVER_URL && !workerPort) {
@@ -55,8 +57,8 @@ module.exports = {
         publicPath: "/",
         hashFunction: "sha256",
     },
-    mode: "development",
-    devtool: "source-map",
+    mode: isProductionBuild ? "production" : "development",
+    devtool: isProductionBuild ? false : "source-map",
     stats: "minimal",
     resolve: {
         extensions: [".ts", ".js", ".css", ".svg", ".png", ".jpg"],
@@ -147,6 +149,25 @@ module.exports = {
                     );
 
                     return true;
+                });
+            },
+        },
+        {
+            apply(compiler) {
+                if (!isProductionBuild) return;
+
+                compiler.hooks.emit.tap("Remove production source-map markers", (compilation) => {
+                    for (const [name, asset] of Object.entries(compilation.assets)) {
+                        if (!name.endsWith(".js")) continue;
+                        const source = asset.source().toString();
+                        const sanitized = source.replace(/sourceMappingURL/g, "source-map");
+                        if (sanitized !== source) {
+                            compilation.assets[name] = {
+                                source: () => sanitized,
+                                size: () => Buffer.byteLength(sanitized),
+                            };
+                        }
+                    }
                 });
             },
         },

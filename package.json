@@ -44,6 +44,8 @@
         "worker:migrate:staging": "npm --prefix packages/worker run migrate:staging",
         "worker:migrate:production": "npm --prefix packages/worker run migrate:production",
         "pwa:build": "PL_SERVER_URL=${PL_SERVER_URL:?set PL_SERVER_URL} PL_PWA_URL=${PL_PWA_URL:?set PL_PWA_URL} lerna run build --scope @padloc/pwa",
+        "pwa:check": "node scripts/check-pwa-dist.cjs",
+        "test:pwa:dist": "node scripts/check-pwa-dist.test.cjs",
         "pwa:start": "pitchfork start web",
         "electron:start": "lerna run start --scope @padloc/electron",
         "electron:build": "lerna run build --scope @padloc/electron",
