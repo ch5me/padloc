@@ -156,7 +156,12 @@ module.exports = {
             apply(compiler) {
                 if (!isProductionBuild) return;
 
-                compiler.hooks.emit.tap("Remove production source-map markers", (compilation) => {
+                compiler.hooks.emit.tap("Secure production PWA artifact", (compilation) => {
+                    compilation.assets["_redirects"] = {
+                        source: () => "/*.map /404 404\n",
+                        size: () => 18,
+                    };
+
                     for (const [name, asset] of Object.entries(compilation.assets)) {
                         if (!name.endsWith(".js")) continue;
                         const source = asset.source().toString();
