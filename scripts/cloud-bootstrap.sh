@@ -63,6 +63,13 @@ if [[ -z "${NPM_TOKEN:-}" ]]; then
     exit 78
 fi
 
+if command -v mise >/dev/null 2>&1; then
+    mise trust "$root/.mise.toml" >/dev/null
+    mise install python@3.11.15
+    export npm_config_python
+    npm_config_python="$(mise which python)"
+fi
+
 export CI=1
 export NPM_CONFIG_USERCONFIG="$root/.npmrc"
 run_stage dependencies 1200s env -u ESBUILD_BINARY_PATH npm ci --ignore-scripts
