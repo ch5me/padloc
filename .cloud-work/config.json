@@ -1,0 +1,6 @@
+{
+    "$comment": "Non-secret Codex Cloud contract. Forgejo origin remains canonical; github is transport only.",
+    "bootstrapCommand": "./scripts/cloud-bootstrap.sh",
+    "verifyCommand": "./scripts/cloud-verify.sh",
+    "cloudRemote": "github"
+}

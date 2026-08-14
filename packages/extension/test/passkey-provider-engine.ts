@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { base64ToBytes, bytesToBase64, bytesToString } from "@padloc/core/src/encoding";
 import { PasskeyCredential } from "@padloc/core/src/passkey";
-import { derEcdsaSignatureToWebCrypto } from "@padloc/core/src/webauthn-authenticator";
+import { derEcdsaSignatureToWebCrypto, PADLOC_AGENTIC_VAULT_AAGUID } from "@padloc/core/src/webauthn-authenticator";
 import {
     describePasskeyOperation,
     executePasskeyOperation,
@@ -239,7 +239,11 @@ suite("Passkey provider engine", () => {
         const registrationAuthData = base64ToBytes((registration.response.authenticatorData as any).base64url);
         expect(registrationAuthData[32] & 0x5d).to.equal(0x5d);
         expect(Array.from(registrationAuthData.slice(33, 37))).to.deep.equal([0, 0, 0, 0]);
-        expect(Array.from(registrationAuthData.slice(37, 53))).to.deep.equal(new Array(16).fill(0));
+        expect(Array.from(registrationAuthData.slice(37, 53))).to.deep.equal(
+            PADLOC_AGENTIC_VAULT_AAGUID.replace(/-/g, "")
+                .match(/../g)!
+                .map((byte) => Number.parseInt(byte, 16))
+        );
 
         const assertion = await executePasskeyOperation({
             request: {
