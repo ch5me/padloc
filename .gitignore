@@ -44,7 +44,10 @@ packages/macos/.build
 packages/macos/.signed-build
 .turbo/
 .ch5/state/
-.ch5/shadow/
+
+# ch5 shadow state: local runtime, durable trust decisions
+.ch5/shadow/*
+!.ch5/shadow/trust.json
 
 # Hush materializes DECRYPTED secrets here at runtime. Two salvage branches in
 # ch5-company carried this path to origin on 2026-07-09 with seven live credentials
