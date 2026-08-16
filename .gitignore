@@ -54,3 +54,9 @@ packages/macos/.signed-build
 # in plaintext; firefly-cloud had this rule and nobody generalized it. Never commit
 # this directory.
 /.hush-materialized/
+
+# Hush materializes DECRYPTED secrets here at runtime. Two salvage branches in
+# ch5-company carried this path to origin on 2026-07-09 with seven live credentials
+# in plaintext; firefly-cloud had this rule and nobody generalized it. Never commit
+# this directory.
+/.hush-materialized/
