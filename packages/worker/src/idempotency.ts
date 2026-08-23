@@ -1,7 +1,7 @@
 /**
  * Simple idempotency store backed by KVNamespace (hint-only, non-blocking).
  *
- * Key format: `idem:<requestHash>`  → `{ code, message, status }`
+ * Key format: `idem:v2:<requestHash>` → complete marshalled response
  * TTL: 3600 seconds (1 hour) — long enough for retry windows.
  *
  * Idempotency is contract-level: the hash covers the full request body so
@@ -16,12 +16,12 @@ export class IdempotencyStore {
 
     async lookup(requestHash: string): Promise<Record<string, unknown> | null> {
         if (!this.kv) return null;
-        return this.kv.get<Record<string, unknown>>(`idem:${requestHash}`, "json");
+        return this.kv.get<Record<string, unknown>>(`idem:v2:${requestHash}`, "json");
     }
 
-    async store(requestHash: string, result: { code: string; message: string; status: number }): Promise<void> {
+    async store(requestHash: string, response: Record<string, unknown>): Promise<void> {
         if (!this.kv) return;
-        await this.kv.put(`idem:${requestHash}`, JSON.stringify(result), {
+        await this.kv.put(`idem:v2:${requestHash}`, JSON.stringify(response), {
             expirationTtl: 3600,
         });
     }

@@ -73,7 +73,7 @@ test("a stored response is replayed and receives the one-hour TTL", async () => 
 
     assert.deepEqual(await store.lookup("request"), response);
     assert.deepEqual(kv.puts[0], {
-        key: "idem:request",
+        key: "idem:v2:request",
         value: JSON.stringify(response),
         options: { expirationTtl: 3600 },
     });
@@ -108,23 +108,25 @@ test("same-key collisions share one scoped slot rather than duplicating entries"
     await Promise.all([store.store("collision", result("first")), store.store("collision", result("second"))]);
 
     assert.equal(kv.entries.size, 1);
-    assert.equal(kv.entries.has("idem:collision"), true);
+    assert.equal(kv.entries.has("idem:v2:collision"), true);
     assert.ok(["first", "second"].includes((await store.lookup("collision")).message));
 });
 
-test("idempotency keys cannot collide with unscoped KV data", async () => {
+test("idempotency keys cannot collide with unscoped or legacy KV data", async () => {
     const kv = new FakeKV();
     kv.entries.set("shared", { value: JSON.stringify(result("other subsystem")), expiresAt: Infinity });
+    kv.entries.set("idem:shared", { value: JSON.stringify(result("legacy idempotency")), expiresAt: Infinity });
     const store = new IdempotencyStore(kv);
     await store.store("shared", result("idempotency"));
 
     assert.equal(JSON.parse(await kv.get("shared")).message, "other subsystem");
+    assert.equal(JSON.parse(await kv.get("idem:shared")).message, "legacy idempotency");
     assert.equal((await store.lookup("shared")).message, "idempotency");
 });
 
 test("malformed cached JSON is rejected instead of being replayed", async () => {
     const kv = new FakeKV();
-    kv.entries.set("idem:broken", { value: "{not-json", expiresAt: Infinity });
+    kv.entries.set("idem:v2:broken", { value: "{not-json", expiresAt: Infinity });
 
     await assert.rejects(() => new IdempotencyStore(kv).lookup("broken"), SyntaxError);
 });

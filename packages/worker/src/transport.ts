@@ -178,9 +178,9 @@ export class WorkerReceiver implements Receiver {
         const bodyHash = await hashRequestBody(bodyText);
         const existing = await this.config.idempotencyStore?.lookup(bodyHash);
         if (existing) {
-            if (existing.code) incrementMetric("padloc_rpc_error_total", { method, code: String(existing.code) });
-            return new Response(JSON.stringify({ error: existing }), {
-                status: (existing.status as number) ?? 200,
+            if (existing.error) incrementMetric("padloc_rpc_error_total", { method, code: String(existing.error) });
+            return new Response(JSON.stringify(existing), {
+                status: 200,
                 headers: {
                     "Content-Type": "application/json; charset=utf-8",
                     "Idempotency-Replayed": "true",
@@ -219,11 +219,7 @@ export class WorkerReceiver implements Receiver {
             incrementMetric("padloc_vault_sync_success_total");
         }
 
-        await this.config.idempotencyStore?.store(bodyHash, {
-            code: raw.error,
-            message: raw.message || "",
-            status: 200,
-        });
+        await this.config.idempotencyStore?.store(bodyHash, raw);
 
         const resBody = marshal(raw);
         return new Response(resBody, {

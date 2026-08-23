@@ -164,7 +164,7 @@ try {
         assert.match(result.response.headers.get("access-control-allow-headers") || "", /Content-Type/i);
     });
 
-    await vector("duplicate request bodies replay the stored idempotent error", async () => {
+    await vector("duplicate request bodies replay the complete stored response", async () => {
         const body = valid("duplicate");
         const first = await request(body, { headers: { "idempotency-key": "same-key" } });
         const second = await request(body, { headers: { "idempotency-key": "same-key" } });
@@ -172,11 +172,16 @@ try {
         assert.equal(first.response.headers.get("idempotency-replayed"), null);
         assert.equal(second.response.status, 200);
         assert.equal(second.response.headers.get("idempotency-replayed"), "true");
-        assert.deepEqual(second.json.error, {
-            code: first.json.error,
-            message: first.json.message,
-            status: 200,
-        });
+        assert.deepEqual(second.json, first.json);
+    });
+
+    await vector("duplicate successful request bodies remain successful", async () => {
+        const body = valid("successfulDuplicate");
+        const first = await request(body);
+        const second = await request(body);
+        assert.equal(first.response.headers.get("idempotency-replayed"), null);
+        assert.equal(second.response.headers.get("idempotency-replayed"), "true");
+        assert.deepEqual(second.json, first.json);
     });
 
     await vector("known handler rejection preserves its public error", async () => {
