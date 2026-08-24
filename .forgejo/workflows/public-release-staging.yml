@@ -22,6 +22,9 @@ concurrency:
     group: public-release-staging
     cancel-in-progress: false
 
+env:
+    NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
 jobs:
     publish:
         runs-on: ubuntu-latest

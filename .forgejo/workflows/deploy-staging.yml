@@ -30,6 +30,9 @@ concurrency:
     group: padloc-staging
     cancel-in-progress: false
 
+env:
+    NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
 jobs:
     verify:
         runs-on: ubuntu-latest

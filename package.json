@@ -33,6 +33,8 @@
   "scripts": {
     "postinstall": "bash scripts/ci-bootstrap-workspaces.sh",
     "bootstrap": "bash scripts/ci-bootstrap-workspaces.sh",
+    "ci-private-registry:check": "node scripts/check-ci-private-registry.mjs",
+    "ci-private-registry:test": "node scripts/check-ci-private-registry.test.mjs",
     "worker:dev": "ch5-svc up api",
     "worker:dev:remote": "npm --prefix packages/worker run dev:remote",
     "worker:deploy:dry-run": "npm --prefix packages/worker run deploy:dry-run",

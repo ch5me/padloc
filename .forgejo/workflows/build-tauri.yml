@@ -7,6 +7,9 @@ on:
                 type: environment
                 default: "Local"
 
+env:
+    NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
 jobs:
     build:
         environment: ${{ github.event.inputs.environment || 'Local' }}

@@ -7,6 +7,7 @@ on:
     paths: ["turbo.json", ".turbo/config.json", "package.json", "package-lock.json", "packages/extension/**", "scripts/build-web-extension.cjs"]
 
 env:
+  NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
   TURBO_API: https://turbo.ch5.me
   TURBO_TEAM: ch5
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}

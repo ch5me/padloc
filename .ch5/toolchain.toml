@@ -21,6 +21,7 @@ install = "npm ci --ignore-scripts && bash scripts/ci-bootstrap-workspaces.sh"
 command = "npm ci --ignore-scripts && bash scripts/ci-bootstrap-workspaces.sh"
 
 [[hushTarget]]
-target = "root"
-root = "global"
+target = "runtime"
+root = "project"
+exports = ["NPM_TOKEN"]
 requiredFor = ["install"]

@@ -16,6 +16,9 @@ on:
                     - "Linux"
                     - "macOS"
 
+env:
+    NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
 jobs:
     linux:
         if: ${{ !github.event.inputs.targets || github.event.inputs.targets == 'All' || github.event.inputs.targets == 'Linux' }}

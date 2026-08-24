@@ -16,6 +16,9 @@ on:
                     - "Android"
                     - "iOS"
 
+env:
+    NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
 jobs:
     android:
         if: ${{ github.event.inputs.targets != 'iOS' }}
