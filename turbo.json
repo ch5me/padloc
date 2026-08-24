@@ -5,6 +5,15 @@
       "outputs": [".cache-proof/**"]
     },
     "web-extension:build:raw": {
+      "env": [
+        "PL_AGENTIC_AUTOFILL_FIXTURES",
+        "PL_ASSETS_DIR",
+        "PL_BUILD_ENV",
+        "PL_PASSKEY_DIAGNOSTICS",
+        "PL_SERVER_URL",
+        "PL_VENDOR_VERSION",
+        "RELEASE_BUILD"
+      ],
       "outputs": ["packages/extension/dist/**"]
     }
   }

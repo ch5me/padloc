@@ -69,6 +69,9 @@ jobs:
             - name: Validate runtime contract
               run: npm run runtime-config:check
             - name: Run pwa production artifact build
+              env:
+                  PL_SERVER_URL: https://api-pad-staging.ch5.me
+                  PL_PWA_URL: https://pad-staging.ch5.me
               run: |
                   PL_BUILD_ENV=production npm run pwa:build
                   npm run pwa:check

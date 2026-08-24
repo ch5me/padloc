@@ -123,7 +123,7 @@ async function main() {
     runNpm(["run", "worker:migrate:local"]);
     cleanupLocalCanaries();
     if (!npmCli) throw new Error("npm_execpath is required for deterministic child npm execution");
-    worker = spawn(nodeExecutable, [npmCli, "run", "worker:dev"], {
+    worker = spawn(nodeExecutable, [npmCli, "--prefix", "packages/worker", "run", "dev"], {
         cwd: repo,
         env: {
             ...process.env,
