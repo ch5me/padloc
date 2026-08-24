@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM node:24-bookworm
 
 EXPOSE 8080
@@ -10,14 +11,15 @@ WORKDIR /padloc
 # Only copy over the packages files of all required packages.
 # This will ensure that we don't have to install all dependencies
 # again if any source files change.
-COPY package*.json lerna.json tsconfig.json ./
+COPY package*.json lerna.json tsconfig.json .npmrc ./
+COPY scripts/ci-bootstrap-workspaces.sh scripts/check-native-build-python.sh ./scripts/
 COPY packages/pwa/package*.json ./packages/pwa/
 COPY packages/app/package*.json ./packages/app/
 COPY packages/core/package*.json ./packages/core/
 COPY packages/locale/package*.json ./packages/locale/
 
 # Install dependencies and bootstrap packages
-RUN npm ci --unsafe-perm
+RUN --mount=type=secret,id=npm_token,env=NPM_TOKEN npm ci --unsafe-perm
 
 # Now copy over source files and assets
 COPY packages/pwa/src ./packages/pwa/src

@@ -3,6 +3,9 @@ set -euo pipefail
 
 source "$(dirname "$0")/check-native-build-python.sh"
 
+repository_root="$(cd "$(dirname "$0")/.." && pwd)"
+export NPM_CONFIG_USERCONFIG="$repository_root/.npmrc"
+
 max_attempts="${CI_BOOTSTRAP_ATTEMPTS:-3}"
 node_executable="${npm_node_execpath:-$(command -v node)}"
 export PATH="$(dirname "$node_executable"):$PATH"

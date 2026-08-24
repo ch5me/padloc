@@ -3,6 +3,9 @@ name: Update Dockerhub
 on:
     workflow_dispatch:
 
+env:
+    NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
 jobs:
     update_dockerhub:
         runs-on: ubuntu-latest
@@ -19,6 +22,8 @@ jobs:
             - name: Build and push Docker image (server)
               uses: docker/build-push-action@v6
               with:
+                  secrets: |
+                      npm_token=${{ secrets.NPM_TOKEN }}
                   push: true
                   tags: padloc/server:latest
                   file: Dockerfile-server
@@ -26,6 +31,8 @@ jobs:
             - name: Build and push Docker image (pwa)
               uses: docker/build-push-action@v6
               with:
+                  secrets: |
+                      npm_token=${{ secrets.NPM_TOKEN }}
                   push: true
                   tags: padloc/pwa:latest
                   file: Dockerfile-pwa
