@@ -175,12 +175,12 @@ try {
         assert.deepEqual(second.json, first.json);
     });
 
-    await vector("duplicate successful request bodies remain successful", async () => {
+    await vector("duplicate request bodies without an idempotency key execute independently", async () => {
         const body = valid("successfulDuplicate");
         const first = await request(body);
         const second = await request(body);
         assert.equal(first.response.headers.get("idempotency-replayed"), null);
-        assert.equal(second.response.headers.get("idempotency-replayed"), "true");
+        assert.equal(second.response.headers.get("idempotency-replayed"), null);
         assert.deepEqual(second.json, first.json);
     });
 

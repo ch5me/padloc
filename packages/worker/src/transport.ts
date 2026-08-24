@@ -127,7 +127,9 @@ export class WorkerReceiver implements Receiver {
                 incrementMetric("padloc_rpc_total", { method: "unknown" });
                 incrementMetric("padloc_rpc_error_total", { method: "unknown", code: String(ErrorCode.BAD_REQUEST) });
                 return new Response(
-                    JSON.stringify({ error: { code: ErrorCode.BAD_REQUEST, message: "Too many requests. Please try again later." } }),
+                    JSON.stringify({
+                        error: { code: ErrorCode.BAD_REQUEST, message: "Too many requests. Please try again later." },
+                    }),
                     {
                         status: 429,
                         headers: responseHeaders({ allowOrigin: allowOrigin || "*" }, undefined, {
@@ -159,13 +161,16 @@ export class WorkerReceiver implements Receiver {
             req = new Request().fromRaw(rawRequest);
         } catch {
             incrementMetric("padloc_rpc_total", { method: "unknown" });
-            return metricErrorResponse(new Err(ErrorCode.INVALID_REQUEST, "Failed to parse request body"), allowOrigin, "unknown");
+            return metricErrorResponse(
+                new Err(ErrorCode.INVALID_REQUEST, "Failed to parse request body"),
+                allowOrigin,
+                "unknown"
+            );
         }
 
         const method = req.method || "unknown";
         incrementMetric("padloc_rpc_total", { method });
-        req.ipAddress =
-            request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || undefined;
+        req.ipAddress = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || undefined;
 
         if (!validateRequestAge(rawRequest, this.config)) {
             return metricErrorResponse(
@@ -175,8 +180,9 @@ export class WorkerReceiver implements Receiver {
             );
         }
 
-        const bodyHash = await hashRequestBody(bodyText);
-        const existing = await this.config.idempotencyStore?.lookup(bodyHash);
+        const idempotencyKey = request.headers.get("idempotency-key");
+        const requestHash = idempotencyKey ? await hashRequestBody(`${idempotencyKey}\n${bodyText}`) : null;
+        const existing = requestHash ? await this.config.idempotencyStore?.lookup(requestHash) : null;
         if (existing) {
             if (existing.error) incrementMetric("padloc_rpc_error_total", { method, code: String(existing.error) });
             return new Response(JSON.stringify(existing), {
@@ -219,7 +225,9 @@ export class WorkerReceiver implements Receiver {
             incrementMetric("padloc_vault_sync_success_total");
         }
 
-        await this.config.idempotencyStore?.store(bodyHash, raw);
+        if (requestHash) {
+            await this.config.idempotencyStore?.store(requestHash, raw);
+        }
 
         const resBody = marshal(raw);
         return new Response(resBody, {
@@ -236,7 +244,6 @@ function metricErrorResponse(err: Err, allowOrigin: string, method: string): Res
     incrementMetric("padloc_rpc_error_total", { method, code: String(err.code) });
     return errorResponse(err, allowOrigin);
 }
-
 
 function validateRequestAge(rawRequest: Record<string, unknown>, config: WorkerReceiverConfig): boolean {
     const requestTime = rawRequest.time as number | undefined;

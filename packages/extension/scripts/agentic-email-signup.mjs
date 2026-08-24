@@ -25,6 +25,7 @@ let extensionId = args.get("extension-id") || "";
 const email = args.get("email") || "";
 const code = args.get("code") || "";
 const displayName = args.get("name") || "Agent";
+const masterPassword = process.env.PADLOC_AGENT_MASTER_PASSWORD || "";
 
 class Cdp {
     nextId = 1;
@@ -242,6 +243,47 @@ function assertOk(result, label) {
     return result;
 }
 
+async function persistAndReportUnlocked(sessionId) {
+    await evalPage(
+        sessionId,
+        `(async () => {
+            const appEl = document.querySelector("pl-extension-app");
+            if (appEl?.app?.settings) {
+                appEl.app.settings.autoLock = false;
+                await appEl.app.save();
+            }
+            if (appEl && typeof appEl._persistUnlockedState === "function") {
+                await appEl._persistUnlockedState();
+            }
+            await chrome.runtime.sendMessage({ type: "unlocked" }).catch(() => undefined);
+            return { ok: true };
+        })()`
+    );
+    const status = await waitFor(
+        sessionId,
+        `(() => {
+            const app = document.querySelector("pl-extension-app");
+            return {
+                ok: Boolean(app?.app?.state?.loggedIn && !app?.app?.state?.locked),
+                loggedIn: Boolean(app?.app?.state?.loggedIn),
+                locked: Boolean(app?.app?.state?.locked),
+                accountEmail: app?.app?.account?.email || null,
+                href: location.href
+            };
+        })()`,
+        30000,
+        "unlocked extension account"
+    );
+    console.log(
+        JSON.stringify({
+            status: "ok",
+            email: status.accountEmail || email,
+            loggedIn: status.loggedIn,
+            locked: status.locked,
+        })
+    );
+}
+
 async function start() {
     if (!email) throw new Error("--email is required for start");
     const sessionId = await getPopupSession();
@@ -393,7 +435,51 @@ async function complete() {
         );
     }
     if (signupReady.state?.page === "login") {
-        throw new Error("account already exists; signup helper expected an unregistered disposable email");
+        if (!masterPassword) {
+            throw new Error("PADLOC_AGENT_MASTER_PASSWORD is required to log in to an existing account");
+        }
+        const loggedIn = await evalPage(
+            sessionId,
+            `(async () => {
+                ${domHelpers}
+                const login = await loginSignup();
+                if (!login || typeof login._login !== "function") {
+                    return { ok: false, reason: "login method missing", state: signupState(login) };
+                }
+                const emailInput =
+                    login._emailInput || login.renderRoot?.querySelector("#emailInput") || bySelector("#emailInput");
+                const passwordInput =
+                    login._loginPasswordInput ||
+                    login.renderRoot?.querySelector("#loginPasswordInput") ||
+                    bySelector("#loginPasswordInput");
+                if (!emailInput || !passwordInput) {
+                    return { ok: false, reason: "login inputs missing", state: signupState(login) };
+                }
+                setValue(emailInput, ${JSON.stringify(email)});
+                setValue(passwordInput, ${JSON.stringify(masterPassword)});
+                login._deviceTrusted = true;
+                await settle(login);
+                await login._login();
+                return { ok: true, state: signupState(login) };
+            })()`
+        );
+        assertOk(loggedIn, "existing account login");
+        await waitFor(
+            sessionId,
+            `(() => {
+                const app = document.querySelector("pl-extension-app");
+                return {
+                    ok: Boolean(app?.app?.state?.loggedIn && !app?.app?.state?.locked),
+                    loggedIn: Boolean(app?.app?.state?.loggedIn),
+                    locked: Boolean(app?.app?.state?.locked),
+                    accountEmail: app?.app?.account?.email || null
+                };
+            })()`,
+            60000,
+            "existing account login"
+        );
+        await persistAndReportUnlocked(sessionId);
+        return;
     }
     const nameSubmitted = await evalPage(
         sessionId,
@@ -431,7 +517,12 @@ async function complete() {
             ${domHelpers}
             const login = await loginSignup();
             if (!login) return { ok: false, reason: "login signup component missing" };
-            if (!login._password) {
+            const configuredPassword = ${JSON.stringify(masterPassword)};
+            if (configuredPassword) {
+                login._password = configuredPassword;
+                login.requestUpdate?.();
+                await settle(login);
+            } else if (!login._password) {
                 const bytes = Array.from(crypto.getRandomValues(new Uint8Array(18)));
                 login._password = bytes.map((byte) => byte.toString(16).padStart(2, "0")).join("");
                 login.requestUpdate?.();
@@ -511,36 +602,7 @@ async function complete() {
             return { ok: true };
         })()`
     );
-    await evalPage(
-        sessionId,
-        `(async () => {
-            const appEl = document.querySelector("pl-extension-app");
-            if (appEl?.app?.settings) {
-                appEl.app.settings.autoLock = false;
-                await appEl.app.save();
-            }
-            if (appEl && typeof appEl._persistUnlockedState === "function") {
-                await appEl._persistUnlockedState();
-            }
-            await chrome.runtime.sendMessage({ type: "unlocked" }).catch(() => undefined);
-            return { ok: true };
-        })()`
-    );
-    const status = await waitFor(
-        sessionId,
-        `(() => {
-            const app = document.querySelector("pl-extension-app");
-            return {
-                ok: Boolean(app?.app?.state?.loggedIn && !app?.app?.state?.locked),
-                loggedIn: Boolean(app?.app?.state?.loggedIn),
-                locked: Boolean(app?.app?.state?.locked),
-                href: location.href
-            };
-        })()`,
-        30000,
-        "unlocked extension account"
-    );
-    console.log(JSON.stringify({ status: "ok", email, loggedIn: status.loggedIn, locked: status.locked }));
+    await persistAndReportUnlocked(sessionId);
 }
 
 async function status() {

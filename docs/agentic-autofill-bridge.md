@@ -13,6 +13,31 @@ explicit, redacted, origin-bound, and approval-gated.
 -   Hush owns runtime/vendor/operator secrets only. It is not the personal
     autofill record store.
 
+## Account Separation
+
+Autonomous service tests use stage-specific identities backed by repo-local Hush
+targets:
+
+-   `runtime-staging`: `agent+padloc-staging-e2e@elf.dance`
+-   `runtime-production`: `agent+padloc-production-e2e@elf.dance`
+
+Each target provides `PADLOC_AGENT_EMAIL` and `PADLOC_AGENT_MASTER_PASSWORD`.
+These no-forward inboxes and their test vaults contain synthetic fixtures only.
+Run a complete fresh-profile registration or login proof with:
+
+```bash
+hush run -t runtime-staging -- npm run agent:test-identity -- staging
+hush run -t runtime-production -- npm run agent:test-identity -- production
+```
+
+The production Crown account is `crownhassencs@gmail.com`. Its vault is the
+canonical store for real third-party vendor passwords, passkeys, and OTPs used
+by agentic workflows. Its master password enters only through the approved human
+secret handoff and remains outside repo-local test targets.
+
+Never copy Crown records or credentials into agent test accounts, Hush test
+targets, fixtures, logs, CI output, or redacted proof artifacts.
+
 ## Current Padloc Roles
 
 Core item metadata lives in `packages/core/src/item.ts`:

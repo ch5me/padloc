@@ -4,8 +4,8 @@
  * Key format: `idem:v2:<requestHash>` → complete marshalled response
  * TTL: 3600 seconds (1 hour) — long enough for retry windows.
  *
- * Idempotency is contract-level: the hash covers the full request body so
- * duplicate sends of the same marshalled request yield the cached response.
+ * Callers opt in with an Idempotency-Key header. The stored hash covers the
+ * caller key and full request body so one key cannot replay a different RPC.
  */
 export class IdempotencyStore {
     private kv?: KVNamespace;

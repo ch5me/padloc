@@ -244,7 +244,9 @@ function checkManifestSource() {
         if (contentBridge.world !== "ISOLATED")
             failures.push("packages/extension/src/manifest.json: passkey-content-bridge.js must run isolated");
         if (contentBridge.all_frames !== false)
-            failures.push("packages/extension/src/manifest.json: passkey-content-bridge.js must run only in the top frame");
+            failures.push(
+                "packages/extension/src/manifest.json: passkey-content-bridge.js must run only in the top frame"
+            );
     }
 }
 
@@ -345,6 +347,20 @@ function checkExtensionUiSource() {
     if (!signupHelperSource.includes('replace(/\\\\D/g, "")')) {
         failures.push(
             "packages/extension/scripts/agentic-email-signup.mjs: OTP consume helper must normalize extracted codes before UI validation"
+        );
+    }
+    if (
+        !signupHelperSource.includes("process.env.PADLOC_AGENT_MASTER_PASSWORD") ||
+        !signupHelperSource.includes("PADLOC_AGENT_MASTER_PASSWORD is required to log in to an existing account") ||
+        !signupHelperSource.includes("await login._login()")
+    ) {
+        failures.push(
+            "packages/extension/scripts/agentic-email-signup.mjs: reusable identity flow must read its password from the environment and support existing-account login"
+        );
+    }
+    if (/args\.get\(["'](?:password|master-password)["']\)/.test(signupHelperSource)) {
+        failures.push(
+            "packages/extension/scripts/agentic-email-signup.mjs: master password must never be accepted through process arguments"
         );
     }
 
