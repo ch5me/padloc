@@ -123,7 +123,13 @@ export class HMACParams extends Serializable {
     }
 
     validate() {
-        return this.algorithm === "HMAC" && this.hash === "SHA-256" && this.keySize === 256;
+        return (
+            this.algorithm === "HMAC" &&
+            ["SHA-1", "SHA-256"].includes(this.hash) &&
+            Number.isInteger(this.keySize) &&
+            this.keySize > 0 &&
+            this.keySize % 8 === 0
+        );
     }
 }
 

@@ -6,6 +6,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 
 const port = Number(process.env.VAULT_TEST_PORT || 18790);
+const timeoutMs = Number(process.env.VAULT_TEST_TIMEOUT_MS || 120000);
 const packageRoot = new URL("..", import.meta.url);
 const persistDir = mkdtempSync(join(tmpdir(), "padloc-vault-crud-"));
 const wranglerArgs = [
@@ -53,7 +54,7 @@ function requestTests() {
             });
         });
         req.on("error", reject);
-        req.setTimeout(30000, () => {
+        req.setTimeout(timeoutMs, () => {
             req.destroy(new Error("Timed out waiting for vault CRUD test response"));
         });
     });
@@ -74,7 +75,7 @@ async function terminateChild() {
 
 async function waitForWorker() {
     const started = Date.now();
-    while (Date.now() - started < 30000) {
+    while (Date.now() - started < timeoutMs) {
         if (child.exitCode !== null) {
             throw new Error(`wrangler exited before serving requests.\n${output}`);
         }

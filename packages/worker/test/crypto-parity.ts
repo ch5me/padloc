@@ -353,6 +353,15 @@ const vectors: CryptoParityVector[] = [
                 await provider.verify(key, tamper(signature), messageBytes, params),
                 "tampered request HMAC must fail"
             );
+
+            const shortSessionKey = key.subarray(1);
+            const shortKeyParams = new HMACParams({ keySize: shortSessionKey.length * 8 });
+            assertTrue(shortKeyParams.validate(), "unpadded SRP session HMAC params must validate");
+            const shortKeySignature = await provider.sign(shortSessionKey, messageBytes, shortKeyParams);
+            assertTrue(
+                await provider.verify(shortSessionKey, shortKeySignature, messageBytes, shortKeyParams),
+                "unpadded SRP session HMAC must verify"
+            );
         },
     },
     {

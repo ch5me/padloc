@@ -166,7 +166,11 @@ export class Session extends Serializable implements Storable {
         const time = new Date();
         const session = this.id;
         const message = `${session}_${time.toISOString()}_${marshal(data)}`;
-        const signature = await getProvider().sign(this.key!, stringToBytes(message), new HMACParams());
+        const signature = await getProvider().sign(
+            this.key!,
+            stringToBytes(message),
+            new HMACParams({ keySize: this.key!.length * 8 })
+        );
         return new RequestAuthentication({
             session,
             time,
@@ -177,6 +181,11 @@ export class Session extends Serializable implements Storable {
     private async _verify(auth: RequestAuthentication, data: any): Promise<boolean> {
         const { signature, time } = auth;
         const message = `${this.id}_${time.toISOString()}_${marshal(data)}`;
-        return await getProvider().verify(this.key!, signature, stringToBytes(message), new HMACParams());
+        return await getProvider().verify(
+            this.key!,
+            signature,
+            stringToBytes(message),
+            new HMACParams({ keySize: this.key!.length * 8 })
+        );
     }
 }
