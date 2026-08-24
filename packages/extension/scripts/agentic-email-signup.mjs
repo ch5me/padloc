@@ -442,9 +442,11 @@ async function complete() {
             sessionId,
             `(async () => {
                 ${domHelpers}
+                window.__padlocAgenticSignupError = "";
+                window.__padlocAgenticLoginStage = "preparing";
                 const login = await loginSignup();
-                if (!login || typeof login._login !== "function") {
-                    return { ok: false, reason: "login method missing", state: signupState(login) };
+                if (!login || typeof login.app?.login !== "function") {
+                    return { ok: false, reason: "app login method missing", state: signupState(login) };
                 }
                 const emailInput =
                     login._emailInput || login.renderRoot?.querySelector("#emailInput") || bySelector("#emailInput");
@@ -457,9 +459,24 @@ async function complete() {
                 }
                 setValue(emailInput, ${JSON.stringify(email)});
                 setValue(passwordInput, ${JSON.stringify(masterPassword)});
-                login._deviceTrusted = true;
                 await settle(login);
-                await login._login();
+                void (async () => {
+                    try {
+                        window.__padlocAgenticLoginStage = "logging_in";
+                        await login.app.login({
+                            email: ${JSON.stringify(email)},
+                            password: ${JSON.stringify(masterPassword)},
+                            authToken: login._authToken,
+                            addTrustedDevice: false,
+                            asAdmin: login.asAdmin
+                        });
+                        window.__padlocAgenticLoginStage = "complete";
+                    } catch (error) {
+                        window.__padlocAgenticLoginStage = "failed";
+                        window.__padlocAgenticSignupError =
+                            error && error.message ? error.message : String(error);
+                    }
+                })();
                 return { ok: true, state: signupState(login) };
             })()`
         );
@@ -468,16 +485,32 @@ async function complete() {
             sessionId,
             `(() => {
                 const app = document.querySelector("pl-extension-app");
+                const error = window.__padlocAgenticSignupError || "";
                 return {
-                    ok: Boolean(app?.app?.state?.loggedIn && !app?.app?.state?.locked),
+                    ok: Boolean(app?.app?.state?.loggedIn && !app?.app?.state?.locked) || Boolean(error),
+                    error,
+                    stage: window.__padlocAgenticLoginStage || "",
                     loggedIn: Boolean(app?.app?.state?.loggedIn),
                     locked: Boolean(app?.app?.state?.locked),
-                    accountEmail: app?.app?.account?.email || null
+                    accountEmail: app?.app?.account?.email || null,
+                    hasSession: Boolean(app?.app?.state?.session),
+                    syncing: Boolean(app?.app?.state?.syncing)
                 };
             })()`,
-            60000,
+            300000,
             "existing account login"
         );
+        const loginStatus = await evalPage(
+            sessionId,
+            `(() => ({
+                error: window.__padlocAgenticSignupError || "",
+                loggedIn: Boolean(document.querySelector("pl-extension-app")?.app?.state?.loggedIn),
+                locked: Boolean(document.querySelector("pl-extension-app")?.app?.state?.locked)
+            }))()`
+        );
+        if (loginStatus.error || !loginStatus.loggedIn || loginStatus.locked) {
+            throw new Error(loginStatus.error || "existing account did not unlock");
+        }
         await persistAndReportUnlocked(sessionId);
         return;
     }

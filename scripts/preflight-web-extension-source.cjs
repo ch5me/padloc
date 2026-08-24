@@ -352,7 +352,7 @@ function checkExtensionUiSource() {
     if (
         !signupHelperSource.includes("process.env.PADLOC_AGENT_MASTER_PASSWORD") ||
         !signupHelperSource.includes("PADLOC_AGENT_MASTER_PASSWORD is required to log in to an existing account") ||
-        !signupHelperSource.includes("await login._login()")
+        !signupHelperSource.includes("await login.app.login({")
     ) {
         failures.push(
             "packages/extension/scripts/agentic-email-signup.mjs: reusable identity flow must read its password from the environment and support existing-account login"

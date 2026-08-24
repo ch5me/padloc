@@ -40,15 +40,17 @@ const port = await availablePort();
 let chrome;
 
 try {
-    run(
-        process.execPath,
-        [join(rootDir, "scripts/build-web-extension.cjs")],
-        {
-            ...process.env,
-            PL_SERVER_URL: target.apiBaseUrl,
-        },
-        rootDir
-    );
+    if (process.env.PADLOC_AGENT_SKIP_BUILD !== "1") {
+        run(
+            process.execPath,
+            [join(rootDir, "scripts/build-web-extension.cjs")],
+            {
+                ...process.env,
+                PL_SERVER_URL: target.apiBaseUrl,
+            },
+            rootDir
+        );
+    }
 
     chrome = spawn(
         chromePath,
@@ -113,7 +115,7 @@ try {
             "--since-s",
             "30",
             "--command-timeout-s",
-            "180",
+            "420",
             "--cwd",
             rootDir,
             "--trigger-command",
