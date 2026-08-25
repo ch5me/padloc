@@ -123,6 +123,14 @@ export function buildLockedBrokerResponse(request: AutofillBrokerRequest): Autof
     };
 }
 
+export function buildUnlockedBrokerStatusResponse(request: AutofillBrokerRequest): AutofillBrokerResponse {
+    return {
+        ...buildLockedBrokerResponse(request),
+        vaultState: "unlocked",
+        reason: null,
+    };
+}
+
 export function hasSensitivePayloadValue(payload: unknown): boolean {
     return findSensitivePayloadPath(payload) !== null;
 }

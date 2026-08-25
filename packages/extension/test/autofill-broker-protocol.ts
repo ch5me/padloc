@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { suite, test } from "mocha";
 
-const { buildLockedBrokerResponse } = require("../src/autofill-broker-protocol");
+const { buildLockedBrokerResponse, buildUnlockedBrokerStatusResponse } = require("../src/autofill-broker-protocol");
 const currentDir = __dirname;
 
 suite("Autofill broker protocol", () => {
@@ -44,6 +44,23 @@ suite("Autofill broker protocol", () => {
         expect(response.ok).to.equal(true);
         expect(response.vaultState).to.equal("locked");
         expect(response.audit.valuePolicy).to.equal("redacted audit only; no raw autofill values or passkey secrets");
+    });
+
+    test("unlocked broker status reports the live vault state", () => {
+        const response = buildUnlockedBrokerStatusResponse({
+            type: "status",
+            protocolVersion: 1,
+            requestId: "req-unlocked",
+        });
+
+        expect(response).to.deep.include({
+            ok: true,
+            protocolVersion: 1,
+            requestId: "req-unlocked",
+            vaultState: "unlocked",
+            reason: null,
+        });
+        expect(response.audit.valuePolicy).to.contain("redacted");
     });
 
     test("native host replies before Chrome closes the native messaging pipe", async () => {

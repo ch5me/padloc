@@ -20,6 +20,7 @@ import { AutofillBrokerRequest, AutofillBrokerResponse, buildLockedBrokerRespons
 import {
     applyBrokerBundleResponse,
     approveBrokerPlanResponse,
+    buildBrokerStatusResponse,
     buildUnlockedBrokerPlanResponse,
     BrokerApproval,
     mintBrokerBundleResponse,
@@ -1089,6 +1090,16 @@ function requireExtensionUiSender(sender: Runtime.MessageSender): string {
 }
 
 async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, application: App) {
+    if (request.type === "status") {
+        return {
+            type: "agenticAutofillBrokerResponse",
+            response: buildBrokerStatusResponse(request, {
+                locked: application.state.locked,
+                loggedIn: application.state.loggedIn,
+            }),
+        };
+    }
+
     if (application.state.locked || !application.state.loggedIn) {
         return {
             type: "agenticAutofillBrokerResponse",

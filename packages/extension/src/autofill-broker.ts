@@ -4,6 +4,8 @@ import {
     AutofillBrokerPlanField,
     AutofillBrokerRequest,
     AutofillBrokerResponse,
+    buildLockedBrokerResponse,
+    buildUnlockedBrokerStatusResponse,
 } from "./autofill-broker-protocol";
 
 export interface BrokerItemSource {
@@ -22,6 +24,16 @@ export interface BrokerApproval {
     planId: string;
     approvedAt: number;
     expiresAt: number;
+}
+
+export function buildBrokerStatusResponse(
+    request: AutofillBrokerRequest,
+    state: { locked: boolean; loggedIn: boolean }
+): AutofillBrokerResponse {
+    if (state.locked || !state.loggedIn) {
+        return buildLockedBrokerResponse(request);
+    }
+    return buildUnlockedBrokerStatusResponse(request);
 }
 
 export function buildUnlockedBrokerPlanResponse(

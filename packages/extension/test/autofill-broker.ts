@@ -5,6 +5,7 @@ const requireModule = require;
 const {
     applyBrokerBundleResponse,
     approveBrokerPlanResponse,
+    buildBrokerStatusResponse,
     buildUnlockedBrokerPlanResponse,
     mintBrokerBundleResponse,
     redactBrokerResponse,
@@ -12,6 +13,34 @@ const {
 } = requireModule("../src/autofill-broker");
 
 mochaSuite("Autofill broker", () => {
+    mochaTest("reports unlocked status only for a logged-in unlocked app", () => {
+        const response = buildBrokerStatusResponse(
+            { type: "status", protocolVersion: 1, requestId: "req-status-unlocked" },
+            { locked: false, loggedIn: true }
+        );
+
+        expect(response.ok).to.equal(true);
+        expect(response.vaultState).to.equal("unlocked");
+        expect(response.reason).to.equal(null);
+        expect(response.audit.operation).to.equal("status");
+    });
+
+    mochaTest("keeps status locked for locked or logged-out apps", () => {
+        for (const state of [
+            { locked: true, loggedIn: true },
+            { locked: false, loggedIn: false },
+        ]) {
+            const response = buildBrokerStatusResponse(
+                { type: "status", protocolVersion: 1, requestId: "req-status-locked" },
+                state
+            );
+
+            expect(response.ok).to.equal(true);
+            expect(response.vaultState).to.equal("locked");
+            expect(response.reason).to.equal(null);
+        }
+    });
+
     const request = {
         type: "plan-fill",
         protocolVersion: 1,
