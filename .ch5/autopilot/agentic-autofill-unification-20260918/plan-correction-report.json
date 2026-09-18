@@ -20,9 +20,9 @@
   },
   "artifactHashes": {
     "docs/specs/agentic-personal-data-vault.md": "sha256:81db3a3c5f4a14611adf04364bdbb3ae9beb3a4214e0860d2d94e0c71608c9ca",
-    ".ch5/autopilot/agentic-autofill-unification-20260918/plan.md": "sha256:b123f6c6112842bcfbd48cb204b6f1f90c4376bf2e45511510e0a56c7f90ebcf",
+    ".ch5/autopilot/agentic-autofill-unification-20260918/plan.md": "sha256:927b4269fa54adacb74bbb26ae71dc0f2110c11e78f0a9b69dda379687079d95",
     ".ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md": "sha256:e7bc8dcf8b1ac834e880a55847afc3008a82cee86818931e3f9c9e844b45b42b",
-    ".ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json": "sha256:7c38985248d4273704c51117f66d99514773af5e364b6528a7e8c3b1448de130"
+    ".ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json": "sha256:7dd8d982bf4f495720588c4bcd5d9b4e9c99e7463876b58aea5a1d979d93730f"
   },
   "findingResolutions": [
     {
