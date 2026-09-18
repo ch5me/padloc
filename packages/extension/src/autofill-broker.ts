@@ -62,6 +62,7 @@ export interface BrokerApproval {
     policyRevision: number;
     revocationGeneration: number;
     confirmedRequestDigest: string;
+    authorityPolicyId?: string;
 }
 
 export interface PendingBrokerBundleField extends PendingBrokerPlanField {}
@@ -120,7 +121,11 @@ export function buildUnlockedBrokerPlanResponse(
 export function approveBrokerPlanResponse(
     request: AutofillBrokerRequest,
     pendingPlan: PendingBrokerPlan,
-    now = Date.now()
+    now = Date.now(),
+    authority: { policyRevision: number; revocationGeneration: number; policyId?: string } = {
+        policyRevision: 1,
+        revocationGeneration: 0,
+    }
 ): { response: AutofillBrokerResponse; approval: BrokerApproval } {
     if (request.planId !== pendingPlan.planId) throw new Error("Autofill approval plan mismatch");
     if (request.approved !== true) throw new Error("Autofill approval requires user approval");
@@ -131,12 +136,13 @@ export function approveBrokerPlanResponse(
         planId: pendingPlan.planId,
         approvedAt: now,
         expiresAt,
-        policyRevision: 1,
-        revocationGeneration: 0,
+        policyRevision: authority.policyRevision,
+        revocationGeneration: authority.revocationGeneration,
         confirmedRequestDigest: permissionRequestDigest({
             ...pendingPlan.permissionRequest,
             expiresAt: new Date(expiresAt).toISOString(),
         }),
+        authorityPolicyId: authority.policyId,
     };
     return {
         approval,
@@ -226,7 +232,12 @@ export function reserveBrokerBundleFieldUse(
     bundle: PendingBrokerBundle,
     fieldRef: string,
     attemptId: string,
-    now = Date.now()
+    now = Date.now(),
+    authority: { policyRevision: number; revocationGeneration: number; onlineAuthorityCurrent: boolean } = {
+        policyRevision: bundle.grantRecord.grant.policyRevision,
+        revocationGeneration: bundle.grantRecord.grant.revocationGeneration,
+        onlineAuthorityCurrent: true,
+    }
 ): PendingBrokerBundle {
     if (!bundle.fields.some((field) => field.fieldRef === fieldRef))
         throw new Error("Autofill field reference not found");
@@ -235,9 +246,9 @@ export function reserveBrokerBundleFieldUse(
         grantRecord: beginAgentGrantUse(
             reserveAgentGrantUse(bundle.grantRecord, attemptId, {
                 now,
-                currentPolicyRevision: bundle.grantRecord.grant.policyRevision,
-                currentRevocationGeneration: bundle.grantRecord.grant.revocationGeneration,
-                onlineAuthorityCurrent: true,
+                currentPolicyRevision: authority.policyRevision,
+                currentRevocationGeneration: authority.revocationGeneration,
+                onlineAuthorityCurrent: authority.onlineAuthorityCurrent,
             }),
             attemptId
         ),
@@ -412,7 +423,7 @@ function buildFillPermissionRequest(
 function approvalPolicy(plan: PendingBrokerPlan, approval: BrokerApproval): AgentStandingPolicy {
     const permission = plan.permissionRequest;
     return {
-        id: approval.approvalId,
+        id: approval.authorityPolicyId || approval.approvalId,
         revision: approval.policyRevision,
         revocationGeneration: approval.revocationGeneration,
         status: "active",

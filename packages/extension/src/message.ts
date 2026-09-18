@@ -7,6 +7,7 @@ import {
     AutofillBrokerTarget,
 } from "./autofill-broker-protocol";
 import { PasskeyRuntimeRequest } from "./passkey-protocol";
+import { AgentApprovalMode } from "./agent-permission-engine";
 
 /**
  * Mapping of field role to value for multi-field fill orchestration.
@@ -65,6 +66,7 @@ export interface AgenticAutofillApprovalPrompt {
     transactionOnlyCount: number;
     paymentFieldCount: number;
     finalSubmitWarning: boolean;
+    mode: AgentApprovalMode;
     fields: Array<{
         role: string;
         itemName: string;
@@ -148,8 +150,12 @@ export type Message =
     | { type: "dismissPrompt"; promptId: string }
     | { type: "getAgenticAutofillApprovalPrompt" }
     | { type: "getAgenticAutofillApprovalPromptResponse"; prompt: AgenticAutofillApprovalPrompt | null }
-    | { type: "approveAgenticAutofill"; planId: string; promptNonce: string }
-    | { type: "dismissAgenticAutofill"; planId: string }
+    | { type: "approveAgenticAutofill"; planId: string; promptNonce: string; duration?: "once" | "standing" }
+    | { type: "dismissAgenticAutofill"; planId: string; promptNonce: string; rememberDeny?: boolean }
+    | { type: "getAgenticAutofillPermissions" }
+    | { type: "setAgenticAutofillMode"; mode: AgentApprovalMode }
+    | { type: "revokeAgenticAutofillPolicy"; policyId: string }
+    | { type: "revokeAllAgenticAutofillPolicies" }
     | { type: "seedAgenticAutofillFixtures" }
     | { type: "getPasskeyApprovalPrompt" }
     | { type: "getPasskeyApprovalPromptResponse"; prompt: PasskeyApprovalPrompt | null }

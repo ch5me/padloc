@@ -43,6 +43,15 @@ import {
 } from "./passkey-provider-engine";
 import { approvePasskeyRpSuffix, isPasskeyProviderOriginEnabled } from "./passkey-rp-policy";
 import { bindPasskeyRequest, isPasskeyRequestBindingCurrent, PasskeyRequestBinding } from "./passkey-request-binding";
+import {
+    AutofillPermissionRepository,
+    addAutofillStandingPolicy,
+    matchAutofillStandingPolicy,
+    publicAutofillPermissionState,
+    revokeAllAutofillPolicies,
+    revokeAutofillPolicy,
+    setAutofillApprovalMode,
+} from "./autofill-permission-store";
 
 setPlatform(new ExtensionWorkerPlatform());
 
@@ -65,6 +74,8 @@ const pendingAutofillPlans = new Map<string, PendingBrokerPlan>();
 const pendingAutofillApprovals = new Map<string, BrokerApproval>();
 const pendingAutofillBundles = new Map<string, PendingBrokerBundle>();
 const pendingAutofillPromptNonces = new Map<string, { nonce: string; senderUrl: string }>();
+const pendingAutofillPromptPlanIds = new Set<string>();
+const autofillPermissionRepository = new AutofillPermissionRepository(browser.storage.local);
 let fixtureAutofillItems: Array<{ item: VaultItem }> = [];
 const FIXTURE_CIPHERTEXT_KEY = "pl_agenticAutofillFixtureCiphertext";
 const FIXTURE_SESSION_KEY = "pl_agenticAutofillFixtureKey";
@@ -523,11 +534,31 @@ async function handleRuntimeMessage(msg: Message, sender: Runtime.MessageSender)
         case "dismissPrompt":
             return handleDismissPrompt(msg.promptId);
         case "getAgenticAutofillApprovalPrompt":
-            return handleGetAgenticAutofillApprovalPrompt(sender);
+            return handleGetAgenticAutofillApprovalPrompt(sender, application);
         case "approveAgenticAutofill":
-            return handleApproveAgenticAutofill(msg.planId, msg.promptNonce, sender);
+            return handleApproveAgenticAutofill(
+                msg.planId,
+                msg.promptNonce,
+                msg.duration || "once",
+                sender,
+                application
+            );
         case "dismissAgenticAutofill":
-            return handleDismissAgenticAutofill(msg.planId);
+            return handleDismissAgenticAutofill(
+                msg.planId,
+                msg.promptNonce,
+                Boolean(msg.rememberDeny),
+                sender,
+                application
+            );
+        case "getAgenticAutofillPermissions":
+            return handleGetAgenticAutofillPermissions(sender, application);
+        case "setAgenticAutofillMode":
+            return handleSetAgenticAutofillMode(msg.mode, sender, application);
+        case "revokeAgenticAutofillPolicy":
+            return handleRevokeAgenticAutofillPolicy(msg.policyId, sender, application);
+        case "revokeAllAgenticAutofillPolicies":
+            return handleRevokeAllAgenticAutofillPolicies(sender, application);
         case "seedAgenticAutofillFixtures":
             if (!AGENTIC_AUTOFILL_FIXTURES_ENABLED) {
                 throw new Error("Agentic autofill fixtures are disabled in this build");
@@ -1010,12 +1041,19 @@ function handleDismissPrompt(promptId: string): null {
     return null;
 }
 
-function handleGetAgenticAutofillApprovalPrompt(sender: Runtime.MessageSender): {
+async function handleGetAgenticAutofillApprovalPrompt(
+    sender: Runtime.MessageSender,
+    application: App
+): Promise<{
     type: "getAgenticAutofillApprovalPromptResponse";
     prompt: AgenticAutofillApprovalPrompt | null;
-} {
-    const latest = Array.from(pendingAutofillPlans.values()).pop();
+}> {
+    if (!application.account) return { type: "getAgenticAutofillApprovalPromptResponse", prompt: null };
+    const latest = Array.from(pendingAutofillPlans.values())
+        .reverse()
+        .find((plan) => pendingAutofillPromptPlanIds.has(plan.planId));
     if (!latest) return { type: "getAgenticAutofillApprovalPromptResponse", prompt: null };
+    const permissionState = await autofillPermissionRepository.load(application.account.id);
     const senderUrl = requireExtensionUiSender(sender);
     const promptNonce = randomApprovalPromptNonce();
     pendingAutofillPromptNonces.set(latest.planId, { nonce: promptNonce, senderUrl });
@@ -1028,6 +1066,7 @@ function handleGetAgenticAutofillApprovalPrompt(sender: Runtime.MessageSender): 
             fieldCount: latest.fields.length,
             transactionOnlyCount: latest.fields.filter((field) => field.transactionOnly).length,
             paymentFieldCount: latest.fields.filter((field) => field.role.startsWith("payment.")).length,
+            mode: permissionState.mode,
             finalSubmitWarning:
                 latest.request.fields?.some(
                     (field) => field.finalSubmit === true || (field.role || "").startsWith("purchase.final_submit")
@@ -1043,15 +1082,25 @@ function handleGetAgenticAutofillApprovalPrompt(sender: Runtime.MessageSender): 
     };
 }
 
-function handleApproveAgenticAutofill(planId: string, promptNonce: string, sender: Runtime.MessageSender) {
+async function handleApproveAgenticAutofill(
+    planId: string,
+    promptNonce: string,
+    duration: "once" | "standing",
+    sender: Runtime.MessageSender,
+    application: App
+) {
     const plan = pendingAutofillPlans.get(planId);
     if (!plan) throw new Error("Autofill approval plan not found");
-    const senderUrl = requireExtensionUiSender(sender);
-    const expected = pendingAutofillPromptNonces.get(planId);
-    if (!expected || promptNonce !== expected.nonce || senderUrl !== expected.senderUrl) {
-        throw new Error("Autofill approval requires active approval UI nonce");
+    if (!application.account) throw new Error("Autofill approval account unavailable");
+    consumeAutofillPromptNonce(planId, promptNonce, sender);
+    let permissionState = await autofillPermissionRepository.load(application.account.id);
+    let policyId: string | undefined;
+    if (duration === "standing") {
+        policyId = `policy_${randomApprovalPromptNonce()}`;
+        permissionState = addAutofillStandingPolicy(permissionState, plan, "allow", policyId);
+        await autofillPermissionRepository.save(permissionState);
     }
-    pendingAutofillPromptNonces.delete(planId);
+    pendingAutofillPromptPlanIds.delete(planId);
     const { response, approval } = approveBrokerPlanResponse(
         {
             type: "approve",
@@ -1061,20 +1110,100 @@ function handleApproveAgenticAutofill(planId: string, promptNonce: string, sende
             approved: true,
             binding: plan.request.binding,
         },
-        plan
+        plan,
+        Date.now(),
+        {
+            policyRevision: permissionState.revision,
+            revocationGeneration: permissionState.revocationGeneration,
+            policyId,
+        }
     );
     pendingAutofillApprovals.set(approval.approvalId, approval);
     void publishRedactedBrokerResponse(response);
     return { type: "agenticAutofillBrokerResponse", response };
 }
 
-function handleDismissAgenticAutofill(planId: string): null {
+async function handleDismissAgenticAutofill(
+    planId: string,
+    promptNonce: string,
+    rememberDeny: boolean,
+    sender: Runtime.MessageSender,
+    application: App
+): Promise<null> {
+    const plan = pendingAutofillPlans.get(planId);
+    if (!plan) return null;
+    if (!application.account) throw new Error("Autofill approval account unavailable");
+    consumeAutofillPromptNonce(planId, promptNonce, sender);
+    if (rememberDeny) {
+        let permissionState = await autofillPermissionRepository.load(application.account.id);
+        permissionState = addAutofillStandingPolicy(
+            permissionState,
+            plan,
+            "deny",
+            `policy_${randomApprovalPromptNonce()}`
+        );
+        await autofillPermissionRepository.save(permissionState);
+    }
     pendingAutofillPlans.delete(planId);
+    pendingAutofillPromptPlanIds.delete(planId);
     pendingAutofillPromptNonces.delete(planId);
     for (const [approvalId, approval] of pendingAutofillApprovals.entries()) {
         if (approval.planId === planId) pendingAutofillApprovals.delete(approvalId);
     }
     return null;
+}
+
+async function handleGetAgenticAutofillPermissions(sender: Runtime.MessageSender, application: App) {
+    requireExtensionUiSender(sender);
+    if (!application.account) throw new Error("Autofill permission account unavailable");
+    return publicAutofillPermissionState(await autofillPermissionRepository.load(application.account.id));
+}
+
+async function handleSetAgenticAutofillMode(
+    mode: Parameters<typeof setAutofillApprovalMode>[1],
+    sender: Runtime.MessageSender,
+    application: App
+) {
+    requireExtensionUiSender(sender);
+    if (!application.account) throw new Error("Autofill permission account unavailable");
+    let state = await autofillPermissionRepository.load(application.account.id);
+    state = setAutofillApprovalMode(state, mode);
+    await autofillPermissionRepository.save(state);
+    pendingAutofillApprovals.clear();
+    pendingAutofillBundles.clear();
+    return publicAutofillPermissionState(state);
+}
+
+async function handleRevokeAgenticAutofillPolicy(policyId: string, sender: Runtime.MessageSender, application: App) {
+    requireExtensionUiSender(sender);
+    if (!application.account) throw new Error("Autofill permission account unavailable");
+    let state = await autofillPermissionRepository.load(application.account.id);
+    state = revokeAutofillPolicy(state, policyId);
+    await autofillPermissionRepository.save(state);
+    for (const [bundleId, bundle] of pendingAutofillBundles.entries()) {
+        if (bundle.grantRecord.grant.policyId === policyId) pendingAutofillBundles.delete(bundleId);
+    }
+    return publicAutofillPermissionState(state);
+}
+
+async function handleRevokeAllAgenticAutofillPolicies(sender: Runtime.MessageSender, application: App) {
+    requireExtensionUiSender(sender);
+    if (!application.account) throw new Error("Autofill permission account unavailable");
+    let state = await autofillPermissionRepository.load(application.account.id);
+    state = revokeAllAutofillPolicies(state);
+    await autofillPermissionRepository.save(state);
+    pendingAutofillApprovals.clear();
+    pendingAutofillBundles.clear();
+    return publicAutofillPermissionState(state);
+}
+
+function consumeAutofillPromptNonce(planId: string, promptNonce: string, sender: Runtime.MessageSender): void {
+    const senderUrl = requireExtensionUiSender(sender);
+    const expected = pendingAutofillPromptNonces.get(planId);
+    if (!expected || promptNonce !== expected.nonce || senderUrl !== expected.senderUrl) {
+        throw new Error("Autofill approval requires active approval UI nonce");
+    }
+    pendingAutofillPromptNonces.delete(planId);
 }
 
 function randomApprovalPromptNonce(): string {
@@ -1122,6 +1251,59 @@ async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, appli
             { userId: application.account.id, sessionId: application.session.id }
         );
         pendingAutofillPlans.set(pendingPlan.planId, pendingPlan);
+        const permissionState = await autofillPermissionRepository.load(application.account.id);
+        const standingMatch = matchAutofillStandingPolicy(permissionState, pendingPlan);
+        if (standingMatch?.effect === "deny") {
+            pendingAutofillPlans.delete(pendingPlan.planId);
+            const denied = buildAutofillPolicyDecisionResponse(
+                pendingPlan,
+                request,
+                "Autofill denied by standing policy",
+                "DENY_HARD_POLICY",
+                standingMatch.policy.id
+            );
+            void publishRedactedBrokerResponse(denied);
+            return { type: "agenticAutofillBrokerResponse", response: denied };
+        }
+        if (permissionState.mode === "plan") {
+            void publishRedactedBrokerResponse(response);
+            return { type: "agenticAutofillBrokerResponse", response };
+        }
+        if (standingMatch?.effect === "allow") {
+            const { response: approvalResponse, approval } = approveBrokerPlanResponse(
+                {
+                    type: "approve",
+                    protocolVersion: 1,
+                    requestId: `policy-${pendingPlan.planId}`,
+                    planId: pendingPlan.planId,
+                    approved: true,
+                    binding: pendingPlan.request.binding,
+                },
+                pendingPlan,
+                Date.now(),
+                {
+                    policyRevision: permissionState.revision,
+                    revocationGeneration: permissionState.revocationGeneration,
+                    policyId: standingMatch.policy.id,
+                }
+            );
+            pendingAutofillApprovals.set(approval.approvalId, approval);
+            const authorized = { ...response, approvalId: approval.approvalId, expiresAt: approvalResponse.expiresAt };
+            void publishRedactedBrokerResponse(authorized);
+            return { type: "agenticAutofillBrokerResponse", response: authorized };
+        }
+        if (permissionState.mode === "dontAsk" || permissionState.mode === "bypassPrompts") {
+            pendingAutofillPlans.delete(pendingPlan.planId);
+            const denied = buildAutofillPolicyDecisionResponse(
+                pendingPlan,
+                request,
+                "Autofill has no matching standing authority",
+                "DENY_MISSING_AUTHORITY"
+            );
+            void publishRedactedBrokerResponse(denied);
+            return { type: "agenticAutofillBrokerResponse", response: denied };
+        }
+        pendingAutofillPromptPlanIds.add(pendingPlan.planId);
         void publishRedactedBrokerResponse(response);
         return { type: "agenticAutofillBrokerResponse", response };
     }
@@ -1169,6 +1351,40 @@ async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, appli
     };
 }
 
+function buildAutofillPolicyDecisionResponse(
+    plan: PendingBrokerPlan,
+    request: AutofillBrokerRequest,
+    reason: string,
+    reasonCode: string,
+    policyId?: string
+): AutofillBrokerResponse {
+    return {
+        ok: false,
+        protocolVersion: 1,
+        requestId: request.requestId,
+        vaultState: "unlocked",
+        reason,
+        planId: plan.planId,
+        target: plan.target,
+        fields: plan.fields.map(({ fieldRef, role, sourceRef, transactionOnly }) => ({
+            fieldRef,
+            role,
+            sourceRef,
+            transactionOnly,
+        })),
+        audit: {
+            operation: request.type,
+            sessionId: request.binding?.sessionId || null,
+            origin: plan.target.topOrigin,
+            fieldCount: plan.fields.length,
+            valuePolicy: "reference-only agent transport; values resolve inside the trusted extension executor",
+            decision: "deny",
+            reasonCode,
+            reason: policyId ? `${reasonCode}:${policyId}` : reasonCode,
+        },
+    };
+}
+
 async function seedAgenticAutofillFixtures() {
     const encoder = new TextEncoder();
     const keyBytes = crypto.getRandomValues(new Uint8Array(32));
@@ -1209,6 +1425,7 @@ async function clearAgenticAutofillState(): Promise<void> {
     pendingAutofillApprovals.clear();
     pendingAutofillBundles.clear();
     pendingAutofillPromptNonces.clear();
+    pendingAutofillPromptPlanIds.clear();
     await fixtureSessionStorage().remove(FIXTURE_SESSION_KEY);
     await browser.storage.local.remove(FIXTURE_CIPHERTEXT_KEY);
 }
@@ -1278,6 +1495,8 @@ async function executeBrokerBundle(
 ): Promise<AutofillBrokerResponse> {
     const startedAt = Date.now();
     let bundle = initialBundle;
+    if (!application.account) throw new Error("Autofill permission account unavailable");
+    const permissionState = await autofillPermissionRepository.load(application.account.id);
     const filledFieldRefs: string[] = [];
     const approvedFields = bundle.fields.map(({ selector, role, fieldRef }) => ({ selector, role, fieldRef }));
     const items = brokerItemsForBundle(application, bundle);
@@ -1285,7 +1504,11 @@ async function executeBrokerBundle(
         const attemptId = `${bundle.bundleId}:${field.fieldRef}`;
         try {
             await assertBrokerTargetCurrent(bundle, approvedFields);
-            bundle = reserveBrokerBundleFieldUse(bundle, field.fieldRef, attemptId);
+            bundle = reserveBrokerBundleFieldUse(bundle, field.fieldRef, attemptId, Date.now(), {
+                policyRevision: permissionState.revision,
+                revocationGeneration: permissionState.revocationGeneration,
+                onlineAuthorityCurrent: true,
+            });
             pendingAutofillBundles.set(bundle.bundleId, bundle);
             const value = await resolveBrokerBundleFieldValue(bundle, field.fieldRef, items);
             const applied = await browser.tabs.sendMessage(

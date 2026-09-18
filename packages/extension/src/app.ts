@@ -101,7 +101,24 @@ export class ExtensionApp extends App {
 
             .save-prompt-actions {
                 justify-content: flex-end;
+                flex-wrap: wrap;
                 margin-top: calc(var(--spacing) * 1.25);
+            }
+
+            .agentic-permission-button {
+                position: fixed;
+                right: calc(var(--spacing) * 0.75);
+                bottom: calc(var(--spacing) * 0.75);
+                z-index: 900;
+                min-height: 2.5em;
+                padding: 0.5em 0.85em;
+                border: 1px solid var(--color-foreground-dimmed);
+                border-radius: 999px;
+                color: var(--color-foreground);
+                background: var(--color-background);
+                box-shadow: 0 0.35em 1.2em rgba(0, 0, 0, 0.18);
+                cursor: pointer;
+                font: inherit;
             }
 
             .save-prompt-btn {
@@ -148,6 +165,8 @@ export class ExtensionApp extends App {
     private _savePromptOverlay: HTMLElement | null = null;
     private _pendingAutofillApproval: AgenticAutofillApprovalPrompt | null = null;
     private _autofillApprovalOverlay: HTMLElement | null = null;
+    private _autofillPermissionsOverlay: HTMLElement | null = null;
+    private _autofillPermissionsButton: HTMLButtonElement | null = null;
     private _pendingPasskeyApproval: PasskeyApprovalPrompt | null = null;
     private _passkeyApprovalOverlay: HTMLElement | null = null;
     private _pendingPasskeySelection: PasskeyCredentialSelectionPrompt | null = null;
@@ -316,6 +335,7 @@ export class ExtensionApp extends App {
         }
         void this._persistUnlockedState();
         this._wrapper.classList.toggle("active", true);
+        this._ensureAgenticPermissionControls();
         void this._checkForSavePrompt();
         void this._checkForAgenticAutofillApproval();
         void this._checkForPasskeyApproval();
@@ -323,6 +343,7 @@ export class ExtensionApp extends App {
     }
 
     async _locked() {
+        this._removeAgenticPermissionControls();
         await this._syncLockedState("locked");
     }
 
@@ -343,6 +364,7 @@ export class ExtensionApp extends App {
     }
 
     async _loggedOut() {
+        this._removeAgenticPermissionControls();
         await this._syncLockedState("loggedOut");
     }
 
@@ -532,6 +554,10 @@ export class ExtensionApp extends App {
                     </div>
                     <div class="save-prompt-body">
                         <div class="save-prompt-host">${this._escapeHtml(prompt.origin)}</div>
+                        <div class="save-prompt-password">
+                            <span class="save-prompt-label">Approval mode</span>
+                            <span class="save-prompt-value">${this._escapeHtml(prompt.mode)}</span>
+                        </div>
                         ${fieldRows}
                         <div class="save-prompt-password">
                             <span class="save-prompt-label">Payment fields</span>
@@ -551,8 +577,10 @@ export class ExtensionApp extends App {
                         }
                     </div>
                     <div class="save-prompt-actions">
-                        <button class="save-prompt-btn save-prompt-btn-primary" id="agentic-autofill-approve">Approve</button>
-                        <button class="save-prompt-btn save-prompt-btn-dismiss" id="agentic-autofill-dismiss">Not Now</button>
+                        <button class="save-prompt-btn save-prompt-btn-primary" id="agentic-autofill-approve-once">Allow Once</button>
+                        <button class="save-prompt-btn save-prompt-btn-primary" id="agentic-autofill-approve-standing">Allow Until Revoked</button>
+                        <button class="save-prompt-btn save-prompt-btn-dismiss" id="agentic-autofill-dismiss">Deny Once</button>
+                        <button class="save-prompt-btn save-prompt-btn-dismiss" id="agentic-autofill-deny-standing">Always Deny</button>
                     </div>
                 </div>
             </div>
@@ -563,12 +591,24 @@ export class ExtensionApp extends App {
         if (this._autofillApprovalOverlay && this.shadowRoot) {
             this.shadowRoot.appendChild(this._autofillApprovalOverlay);
         }
-        this._autofillApprovalOverlay?.querySelector("#agentic-autofill-approve")?.addEventListener("click", () => {
-            void this._handleAgenticAutofillApproval();
-        });
+        this._autofillApprovalOverlay
+            ?.querySelector("#agentic-autofill-approve-once")
+            ?.addEventListener("click", () => {
+                void this._handleAgenticAutofillApproval("once");
+            });
+        this._autofillApprovalOverlay
+            ?.querySelector("#agentic-autofill-approve-standing")
+            ?.addEventListener("click", () => {
+                void this._handleAgenticAutofillApproval("standing");
+            });
         this._autofillApprovalOverlay?.querySelector("#agentic-autofill-dismiss")?.addEventListener("click", () => {
-            void this._handleAgenticAutofillDismiss();
+            void this._handleAgenticAutofillDismiss(false);
         });
+        this._autofillApprovalOverlay
+            ?.querySelector("#agentic-autofill-deny-standing")
+            ?.addEventListener("click", () => {
+                void this._handleAgenticAutofillDismiss(true);
+            });
     }
 
     private _dismissAgenticAutofillApprovalOverlay() {
@@ -579,19 +619,148 @@ export class ExtensionApp extends App {
         this._pendingAutofillApproval = null;
     }
 
-    private async _handleAgenticAutofillApproval() {
+    private async _handleAgenticAutofillApproval(duration: "once" | "standing") {
         if (!this._pendingAutofillApproval) return;
         const planId = this._pendingAutofillApproval.planId;
         const promptNonce = this._pendingAutofillApproval.promptNonce;
         this._dismissAgenticAutofillApprovalOverlay();
-        await browser.runtime.sendMessage({ type: "approveAgenticAutofill", planId, promptNonce });
+        await browser.runtime.sendMessage({ type: "approveAgenticAutofill", planId, promptNonce, duration });
     }
 
-    private async _handleAgenticAutofillDismiss() {
+    private async _handleAgenticAutofillDismiss(rememberDeny: boolean) {
         if (!this._pendingAutofillApproval) return;
         const planId = this._pendingAutofillApproval.planId;
+        const promptNonce = this._pendingAutofillApproval.promptNonce;
         this._dismissAgenticAutofillApprovalOverlay();
-        await browser.runtime.sendMessage({ type: "dismissAgenticAutofill", planId });
+        await browser.runtime.sendMessage({ type: "dismissAgenticAutofill", planId, promptNonce, rememberDeny });
+    }
+
+    private _ensureAgenticPermissionControls() {
+        if (this._autofillPermissionsButton) return;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "agentic-permission-button";
+        button.textContent = "AI Permissions";
+        button.addEventListener("click", () => void this._showAgenticPermissionControls());
+        this._wrapper.appendChild(button);
+        this._autofillPermissionsButton = button;
+    }
+
+    private _removeAgenticPermissionControls() {
+        this._autofillPermissionsOverlay?.remove();
+        this._autofillPermissionsOverlay = null;
+        this._autofillPermissionsButton?.remove();
+        this._autofillPermissionsButton = null;
+    }
+
+    private async _showAgenticPermissionControls() {
+        this._autofillPermissionsOverlay?.remove();
+        const state = (await browser.runtime.sendMessage({ type: "getAgenticAutofillPermissions" })) as {
+            mode: string;
+            revision: number;
+            revocationGeneration: number;
+            policies: Array<{
+                id: string;
+                status: string;
+                effect: string;
+                topOrigin: string;
+                roles: string[];
+                itemCount: number;
+                expiresAt?: string;
+            }>;
+        };
+        const modes = ["plan", "manual", "auto", "dontAsk", "bypassPrompts"];
+        const policyRows = state.policies.length
+            ? state.policies
+                  .map(
+                      (policy) => `
+                        <div class="save-prompt-password">
+                            <span class="save-prompt-label">${this._escapeHtml(policy.effect)}</span>
+                            <span class="save-prompt-value">
+                                ${this._escapeHtml(policy.topOrigin)} · ${this._escapeHtml(policy.roles.join(", "))}
+                                · ${policy.itemCount} item${policy.itemCount === 1 ? "" : "s"} · ${this._escapeHtml(
+                          policy.status
+                      )}
+                            </span>
+                            ${
+                                policy.status === "active"
+                                    ? `<button class="save-prompt-btn save-prompt-btn-dismiss" data-revoke-policy="${this._escapeHtml(
+                                          policy.id
+                                      )}">Revoke</button>`
+                                    : ""
+                            }
+                        </div>`
+                  )
+                  .join("")
+            : `<div class="save-prompt-password"><span class="save-prompt-value">No standing policies.</span></div>`;
+        this._wrapper.insertAdjacentHTML(
+            "beforeend",
+            `<div class="save-prompt-overlay">
+                <div class="save-prompt-card">
+                    <div class="save-prompt-header">
+                        <pl-icon icon="lock" class="save-prompt-icon"></pl-icon>
+                        <span class="save-prompt-title">AI Permissions</span>
+                    </div>
+                    <div class="save-prompt-body">
+                        <label class="save-prompt-password">
+                            <span class="save-prompt-label">Mode</span>
+                            <select id="agentic-permission-mode">
+                                ${modes
+                                    .map(
+                                        (mode) =>
+                                            `<option value="${mode}" ${
+                                                mode === state.mode ? "selected" : ""
+                                            }>${mode}</option>`
+                                    )
+                                    .join("")}
+                            </select>
+                        </label>
+                        <div class="save-prompt-password">
+                            <span class="save-prompt-label">Revision</span>
+                            <span class="save-prompt-value">${state.revision} / revocation ${
+                state.revocationGeneration
+            }</span>
+                        </div>
+                        ${policyRows}
+                    </div>
+                    <div class="save-prompt-actions">
+                        <button class="save-prompt-btn save-prompt-btn-dismiss" id="agentic-permission-revoke-all">Revoke All</button>
+                        <button class="save-prompt-btn save-prompt-btn-primary" id="agentic-permission-close">Done</button>
+                    </div>
+                </div>
+            </div>`
+        );
+        this._autofillPermissionsOverlay = this._wrapper.querySelector(".save-prompt-overlay:last-child");
+        this._autofillPermissionsOverlay
+            ?.querySelector("#agentic-permission-mode")
+            ?.addEventListener("change", (event) => {
+                const mode = (event.target as HTMLSelectElement).value;
+                void browser.runtime
+                    .sendMessage({ type: "setAgenticAutofillMode", mode })
+                    .then(() => this._showAgenticPermissionControls());
+            });
+        for (const button of Array.from(
+            this._autofillPermissionsOverlay?.querySelectorAll<HTMLButtonElement>("[data-revoke-policy]") || []
+        )) {
+            button.addEventListener("click", () => {
+                const policyId = button.dataset["revokePolicy"];
+                if (!policyId) return;
+                void browser.runtime
+                    .sendMessage({ type: "revokeAgenticAutofillPolicy", policyId })
+                    .then(() => this._showAgenticPermissionControls());
+            });
+        }
+        this._autofillPermissionsOverlay
+            ?.querySelector("#agentic-permission-revoke-all")
+            ?.addEventListener("click", () => {
+                void browser.runtime
+                    .sendMessage({ type: "revokeAllAgenticAutofillPolicies" })
+                    .then(() => this._showAgenticPermissionControls());
+            });
+        this._autofillPermissionsOverlay?.querySelector("#agentic-permission-close")?.addEventListener("click", () => {
+            this._autofillPermissionsOverlay?.remove();
+            this._autofillPermissionsOverlay = null;
+        });
     }
 
     private async _checkForPasskeyApproval() {
