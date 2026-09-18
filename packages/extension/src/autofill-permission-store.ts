@@ -39,6 +39,19 @@ export interface AutofillPolicyMatch {
     policy: StoredAutofillPolicy;
 }
 
+export interface AutofillAuthorityDecision {
+    outcome: "allow" | "ask" | "deny" | "plan";
+    reasonCode:
+        | "ALLOW_MATCHED_POLICY"
+        | "ASK_ALWAYS"
+        | "ASK_MISSING_AUTHORITY"
+        | "DENY_HARD_POLICY"
+        | "DENY_CONFIRMATION_REQUIRED"
+        | "DENY_MISSING_AUTHORITY"
+        | "PLAN_ONLY";
+    policy?: StoredAutofillPolicy;
+}
+
 const STORAGE_KEY_PREFIX = "pl_agenticAutofillPermissions_v1_";
 
 export class AutofillPermissionRepository {
@@ -166,6 +179,29 @@ export function matchAutofillStandingPolicy(
     if (alwaysAsk) return { effect: "alwaysAsk", policy: alwaysAsk };
     const allow = matches.find((policy) => policy.effect === "allow");
     return allow ? { effect: "allow", policy: allow } : null;
+}
+
+export function decideAutofillPlanAuthority(
+    state: AutofillPermissionState,
+    plan: PendingBrokerPlan,
+    now = Date.now()
+): AutofillAuthorityDecision {
+    const match = matchAutofillStandingPolicy(state, plan, now);
+    if (match?.effect === "deny") return { outcome: "deny", reasonCode: "DENY_HARD_POLICY", policy: match.policy };
+    if (state.mode === "plan") return { outcome: "plan", reasonCode: "PLAN_ONLY" };
+    if (match?.effect === "allow") {
+        return { outcome: "allow", reasonCode: "ALLOW_MATCHED_POLICY", policy: match.policy };
+    }
+    if (match?.effect === "alwaysAsk") {
+        if (state.mode === "dontAsk") {
+            return { outcome: "deny", reasonCode: "DENY_CONFIRMATION_REQUIRED", policy: match.policy };
+        }
+        return { outcome: "ask", reasonCode: "ASK_ALWAYS", policy: match.policy };
+    }
+    if (state.mode === "manual" || state.mode === "auto") {
+        return { outcome: "ask", reasonCode: "ASK_MISSING_AUTHORITY" };
+    }
+    return { outcome: "deny", reasonCode: "DENY_MISSING_AUTHORITY" };
 }
 
 export function publicAutofillPermissionState(state: AutofillPermissionState) {

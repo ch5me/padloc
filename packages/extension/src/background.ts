@@ -11,6 +11,7 @@ import { AgenticAutofillApprovalPrompt, CredentialData, Message, SavePrompt, mes
 import { clearSessionMasterKey, configureSessionStorage, getSessionMasterKey } from "./storage";
 import {
     AutofillBrokerInspectedField,
+    AutofillBrokerObservationState,
     AutofillBrokerRequest,
     AutofillBrokerResponse,
     AutofillBrokerTarget,
@@ -20,6 +21,7 @@ import {
     applyBrokerBundleResponse,
     approveBrokerPlanResponse,
     buildBrokerStatusResponse,
+    buildUnsupportedBrokerOperationResponse,
     buildUnlockedBrokerPlanResponse,
     BrokerApproval,
     completeBrokerBundleFieldUse,
@@ -46,12 +48,13 @@ import { bindPasskeyRequest, isPasskeyRequestBindingCurrent, PasskeyRequestBindi
 import {
     AutofillPermissionRepository,
     addAutofillStandingPolicy,
-    matchAutofillStandingPolicy,
+    decideAutofillPlanAuthority,
     publicAutofillPermissionState,
     revokeAllAutofillPolicies,
     revokeAutofillPolicy,
     setAutofillApprovalMode,
 } from "./autofill-permission-store";
+import { AutofillObservationLedger } from "./autofill-observation-policy";
 
 setPlatform(new ExtensionWorkerPlatform());
 
@@ -76,10 +79,12 @@ const pendingAutofillBundles = new Map<string, PendingBrokerBundle>();
 const pendingAutofillPromptNonces = new Map<string, { nonce: string; senderUrl: string }>();
 const pendingAutofillPromptPlanIds = new Set<string>();
 const autofillPermissionRepository = new AutofillPermissionRepository(browser.storage.local);
+const autofillObservationLedger = new AutofillObservationLedger(fixtureSessionStorage());
 let fixtureAutofillItems: Array<{ item: VaultItem }> = [];
 const FIXTURE_CIPHERTEXT_KEY = "pl_agenticAutofillFixtureCiphertext";
 const FIXTURE_SESSION_KEY = "pl_agenticAutofillFixtureKey";
 type FixtureSessionStorage = {
+    get(key: string): Promise<Record<string, unknown>>;
     set(items: Record<string, unknown>): Promise<void>;
     remove(keys: string | string[]): Promise<void>;
 };
@@ -1232,6 +1237,10 @@ async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, appli
         };
     }
 
+    if (request.type === "privacy-status") {
+        return { type: "agenticAutofillBrokerResponse", response: await buildPrivacyStatusResponse(request) };
+    }
+
     if (application.state.locked || !application.state.loggedIn) {
         return {
             type: "agenticAutofillBrokerResponse",
@@ -1239,7 +1248,13 @@ async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, appli
         };
     }
 
-    if (request.type === "plan-fill" || request.type === "classify") {
+    if (request.type === "request-reveal" || request.type === "read-approved" || request.type === "submit") {
+        const response = buildUnsupportedBrokerOperationResponse(request);
+        void publishRedactedBrokerResponse(response);
+        return { type: "agenticAutofillBrokerResponse", response };
+    }
+
+    if (request.type === "plan-fill" || request.type === "classify" || request.type === "permissions-explain") {
         if (!application.account || !application.session) throw new Error("Autofill vault principal unavailable");
         const inspection = await inspectAgenticBrowserTarget(request);
         const items = await getItemsForActiveTab();
@@ -1252,24 +1267,47 @@ async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, appli
         );
         pendingAutofillPlans.set(pendingPlan.planId, pendingPlan);
         const permissionState = await autofillPermissionRepository.load(application.account.id);
-        const standingMatch = matchAutofillStandingPolicy(permissionState, pendingPlan);
-        if (standingMatch?.effect === "deny") {
+        const authorityDecision = decideAutofillPlanAuthority(permissionState, pendingPlan);
+        if (request.type === "permissions-explain") {
+            pendingAutofillPlans.delete(pendingPlan.planId);
+            const explained: AutofillBrokerResponse = {
+                ...response,
+                ok: authorityDecision.outcome === "allow" || authorityDecision.outcome === "plan",
+                reason: authorityDecision.reasonCode,
+                audit: {
+                    ...response.audit,
+                    decision:
+                        authorityDecision.outcome === "allow"
+                            ? "allow"
+                            : authorityDecision.outcome === "deny"
+                            ? "deny"
+                            : null,
+                    reasonCode: authorityDecision.reasonCode,
+                    reason: authorityDecision.policy?.id || null,
+                },
+            };
+            void publishRedactedBrokerResponse(explained);
+            return { type: "agenticAutofillBrokerResponse", response: explained };
+        }
+        if (authorityDecision.outcome === "deny") {
             pendingAutofillPlans.delete(pendingPlan.planId);
             const denied = buildAutofillPolicyDecisionResponse(
                 pendingPlan,
                 request,
-                "Autofill denied by standing policy",
-                "DENY_HARD_POLICY",
-                standingMatch.policy.id
+                authorityDecision.reasonCode === "DENY_HARD_POLICY"
+                    ? "Autofill denied by standing policy"
+                    : "Autofill has no matching standing authority",
+                authorityDecision.reasonCode,
+                authorityDecision.policy?.id
             );
             void publishRedactedBrokerResponse(denied);
             return { type: "agenticAutofillBrokerResponse", response: denied };
         }
-        if (permissionState.mode === "plan") {
+        if (authorityDecision.outcome === "plan") {
             void publishRedactedBrokerResponse(response);
             return { type: "agenticAutofillBrokerResponse", response };
         }
-        if (standingMatch?.effect === "allow") {
+        if (authorityDecision.outcome === "allow" && authorityDecision.policy) {
             const { response: approvalResponse, approval } = approveBrokerPlanResponse(
                 {
                     type: "approve",
@@ -1284,24 +1322,13 @@ async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, appli
                 {
                     policyRevision: permissionState.revision,
                     revocationGeneration: permissionState.revocationGeneration,
-                    policyId: standingMatch.policy.id,
+                    policyId: authorityDecision.policy.id,
                 }
             );
             pendingAutofillApprovals.set(approval.approvalId, approval);
             const authorized = { ...response, approvalId: approval.approvalId, expiresAt: approvalResponse.expiresAt };
             void publishRedactedBrokerResponse(authorized);
             return { type: "agenticAutofillBrokerResponse", response: authorized };
-        }
-        if (permissionState.mode === "dontAsk" || permissionState.mode === "bypassPrompts") {
-            pendingAutofillPlans.delete(pendingPlan.planId);
-            const denied = buildAutofillPolicyDecisionResponse(
-                pendingPlan,
-                request,
-                "Autofill has no matching standing authority",
-                "DENY_MISSING_AUTHORITY"
-            );
-            void publishRedactedBrokerResponse(denied);
-            return { type: "agenticAutofillBrokerResponse", response: denied };
         }
         pendingAutofillPromptPlanIds.add(pendingPlan.planId);
         void publishRedactedBrokerResponse(response);
@@ -1381,6 +1408,41 @@ function buildAutofillPolicyDecisionResponse(
             decision: "deny",
             reasonCode,
             reason: policyId ? `${reasonCode}:${policyId}` : reasonCode,
+        },
+    };
+}
+
+async function buildPrivacyStatusResponse(request: AutofillBrokerRequest): Promise<AutofillBrokerResponse> {
+    const tab = await getActiveTab();
+    const topOrigin = tab?.url ? exactHttpOrigin(tab.url) : null;
+    const frameId = parseBrokerFrameId(request.binding?.frameId);
+    const documentId = request.binding?.documentId || "unknown";
+    const targetMatches = tab?.id !== undefined && topOrigin && request.binding?.origin === topOrigin;
+    const observation: AutofillBrokerObservationState = targetMatches
+        ? await autofillObservationLedger.status(tab.id!, frameId, documentId)
+        : {
+              documentId,
+              state: "unknown",
+              genericObservation: "requires-separate-disclosure",
+              reason: "No current trusted cleanliness proof exists for this document",
+          };
+    return {
+        ok: true,
+        protocolVersion: 1,
+        requestId: request.requestId,
+        vaultState: "unknown",
+        reason: null,
+        observation,
+        audit: {
+            operation: "privacy-status",
+            sessionId: request.binding?.sessionId || null,
+            origin: topOrigin,
+            fieldCount: 0,
+            valuePolicy: "document sensitivity metadata only; no page or vault values",
+            reasonCode:
+                observation.state === "potentially-private"
+                    ? "STRICT_OBSERVATION_BLOCKED"
+                    : "OBSERVATION_STATE_UNKNOWN",
         },
     };
 }
@@ -1511,6 +1573,7 @@ async function executeBrokerBundle(
             });
             pendingAutofillBundles.set(bundle.bundleId, bundle);
             const value = await resolveBrokerBundleFieldValue(bundle, field.fieldRef, items);
+            await autofillObservationLedger.markPotentiallyPrivate(bundle.target, field.fieldRef);
             const applied = await browser.tabs.sendMessage(
                 bundle.target.tabId,
                 {
@@ -1539,7 +1602,15 @@ async function executeBrokerBundle(
             : filledFieldRefs.length > 0
             ? "partial"
             : "outcome-unknown";
-    return applyBrokerBundleResponse(request, bundle, filledFieldRefs, status, startedAt);
+    const observation = await autofillObservationLedger.status(
+        bundle.target.tabId,
+        bundle.target.frameId,
+        bundle.target.documentId
+    );
+    return {
+        ...applyBrokerBundleResponse(request, bundle, filledFieldRefs, status, startedAt),
+        observation,
+    };
 }
 
 async function assertBrokerTargetCurrent(
@@ -1690,6 +1761,10 @@ function startBackgroundInitialization() {
         console.error(error);
     });
 }
+
+browser.tabs.onRemoved.addListener((tabId) => {
+    void autofillObservationLedger.clearTab(tabId);
+});
 
 // Initialize on install
 browser.runtime.onInstalled.addListener(startBackgroundInitialization);

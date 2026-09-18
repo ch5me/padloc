@@ -7,7 +7,12 @@ export type AutofillBrokerOperation =
     | "approve"
     | "mint-fill-bundle"
     | "apply-fill-bundle"
-    | "revoke-fill-bundle";
+    | "revoke-fill-bundle"
+    | "privacy-status"
+    | "permissions-explain"
+    | "request-reveal"
+    | "read-approved"
+    | "submit";
 
 export interface AutofillBrokerBinding {
     sessionId: string;
@@ -22,6 +27,7 @@ export interface AutofillBrokerBinding {
     profileId?: string;
     accountId?: string;
     vendor?: string;
+    documentId?: string;
 }
 
 export interface AutofillBrokerRequest {
@@ -70,6 +76,14 @@ export interface AutofillBrokerReceipt {
     submittedByExecutor: boolean;
 }
 
+export interface AutofillBrokerObservationState {
+    documentId: string;
+    state: "clean" | "potentially-private" | "unknown";
+    genericObservation: "allowed" | "blocked" | "requires-separate-disclosure";
+    reason: string;
+    contaminatedAt?: string;
+}
+
 export interface AutofillBrokerInspectedField {
     selector: string;
     role: string;
@@ -111,6 +125,7 @@ export interface AutofillBrokerResponse {
     fields?: AutofillBrokerPlanField[];
     target?: AutofillBrokerTarget;
     receipt?: AutofillBrokerReceipt;
+    observation?: AutofillBrokerObservationState;
     audit: BrokerAudit;
 }
 

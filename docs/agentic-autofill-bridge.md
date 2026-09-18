@@ -112,14 +112,37 @@ The host supports `status`, `latest-redacted-response`, `broker-request`,
 broker requests through the native host. The extension background claims pending
 requests with `sendNativeMessage`, handles them against the unlocked vault, and
 publishes redacted responses back to the host cache. The extension background
-owns the unlocked broker path: `plan-fill` matches requested field roles to
-unlocked Padloc item fields, stores a pending plan, popup approval converts that
-plan into a short-lived approval, and `mint-fill-bundle` creates a short-lived
-bundle. Raw bundle values stay in extension service-worker memory only and are
-consumed by `apply-fill-bundle` through the content script.
-UI/status/audit/native responses stay redacted. The host refuses any cached
-response or queued request with any non-empty nested `value`, `secret`, or
-`privateKey` property.
+owns the unlocked broker path. `plan-fill` first asks the bound content frame to
+validate each proposed selector and role, then binds the plan to the
+browser-reported tab, frame, document, form, target revision, and
+SHA-256-derived field references. Its model-facing response contains only opaque
+field/source references, roles, recipient origins, and target identity; item
+ids, item names, field names, selectors, previews, and values remain in the
+trusted extension path.
+
+Popup approval can allow or deny once or create an exact origin/item/role
+standing policy. The owner UI exposes `plan`, `manual`, `auto`, `dontAsk`, and
+`bypassPrompts` modes plus policy listing and revocation. Policies persist only
+authorization metadata with monotonic policy/revocation revisions. Hard denies,
+`alwaysAsk`, target checks, vault lock, and revocation remain effective in
+`bypassPrompts`; missing authority fails closed in `dontAsk` and
+`bypassPrompts`.
+
+`mint-fill-bundle` creates a short-lived execution grant but does not resolve
+values. `apply-fill-bundle` revalidates the exact browser target and reserves a
+grant use for each field before resolving that one value inside the extension.
+The content script revalidates the complete approved field set immediately
+before each exact DOM write. Agent/native responses contain only receipts and
+never bundle values.
+
+Before a value-bearing content-script write is attempted, Padloc persists a
+session-scoped `potentially-private` document marker. Receipts and
+`privacy-status` report `genericObservation: blocked`; unknown documents do not
+claim to be clean. `request-reveal`, `read-approved`, and `submit` currently
+fail closed because their separate disclosure/action grants are not yet
+implemented. UI/status/audit/native responses stay redacted. The host refuses
+any cached response or queued request with any non-empty nested `value`,
+`secret`, or `privateKey` property.
 
 For fake-data dogfood, unlock Padloc and seed fixture items from extension UI:
 
@@ -139,7 +162,13 @@ Use `--tier chromium` for Magic Browser's downloaded Chrome for Testing profile.
 Use `--tier canary` only when the live session is actually Chrome Canary.
 
 Magic Browser consumer code must reject any Padloc broker response that contains
-any non-empty nested `value` property in a printable/status path.
+any non-empty nested `value` property in a printable/status path. After a fill
+receipt or `privacy-status` returns `genericObservation: blocked`, it must stop
+generic screenshots, accessibility/page-text snapshots, script evaluation,
+network/body capture, and equivalent model-facing observation for that exact
+document until a separate disclosure grant exists. Padloc now emits and persists
+this boundary, but enforcement in Magic Browser is **UNKNOWN** in this
+repository because its consumer implementation lives outside this checkout.
 
 Magic Browser should call the extension-owned broker through the native host for
 redacted plan/status requests. The extension service-worker CDP target is
@@ -169,6 +198,7 @@ TS_NODE_TRANSPILE_ONLY=1 TS_NODE_COMPILER_OPTIONS='{"module":"commonjs"}' ./node
 ./node_modules/.bin/tsc --noEmit --target es2020 --module commonjs --strict --skipLibCheck test/autofill-broker.ts
 ```
 
-Remaining production step: run live unlocked fake-checkout dogfood through the
-native queue, popup approval, bundle mint, content-script apply, and redacted
-Magic Browser proof.
+Remaining proof step: run live unlocked synthetic checkout dogfood through the
+native queue, popup approval/standing-policy paths, grant mint, exact
+content-script apply, revocation, worker restart, and redacted Magic Browser
+proof. Until that is captured, live end-to-end browser behavior is **UNKNOWN**.

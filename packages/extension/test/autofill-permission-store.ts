@@ -3,6 +3,7 @@ import {
     AutofillPermissionRepository,
     addAutofillStandingPolicy,
     createAutofillPermissionState,
+    decideAutofillPlanAuthority,
     isAutofillPermissionState,
     matchAutofillStandingPolicy,
     publicAutofillPermissionState,
@@ -49,6 +50,26 @@ suite("Autofill permission store", () => {
         expect(matchAutofillStandingPolicy(state, plan(), now + 2)?.effect).to.equal("alwaysAsk");
         state = addAutofillStandingPolicy(state, plan(), "deny", "deny", now + 3);
         expect(matchAutofillStandingPolicy(state, plan(), now + 4)?.effect).to.equal("deny");
+    });
+
+    test("keeps always-ask mandatory in bypass mode and denies it in dontAsk", () => {
+        let state = addAutofillStandingPolicy(
+            createAutofillPermissionState("account-1"),
+            plan(),
+            "alwaysAsk",
+            "ask",
+            now
+        );
+        state = setAutofillApprovalMode(state, "bypassPrompts");
+        expect(decideAutofillPlanAuthority(state, plan(), now + 1)).to.include({
+            outcome: "ask",
+            reasonCode: "ASK_ALWAYS",
+        });
+        state = setAutofillApprovalMode(state, "dontAsk");
+        expect(decideAutofillPlanAuthority(state, plan(), now + 1)).to.include({
+            outcome: "deny",
+            reasonCode: "DENY_CONFIRMATION_REQUIRED",
+        });
     });
 
     test("increments monotonic revisions and revocation generations", () => {

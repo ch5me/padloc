@@ -6,6 +6,7 @@ const {
     applyBrokerBundleResponse,
     approveBrokerPlanResponse,
     buildBrokerStatusResponse,
+    buildUnsupportedBrokerOperationResponse,
     buildUnlockedBrokerPlanResponse,
     completeBrokerBundleFieldUse,
     mintBrokerBundleResponse,
@@ -41,6 +42,25 @@ mochaSuite("Autofill broker", () => {
             expect(response.vaultState).to.equal("locked");
             expect(response.reason).to.equal(null);
         }
+    });
+
+    mochaTest("fails closed for reveal and submit until separate grants exist", () => {
+        const reveal = buildUnsupportedBrokerOperationResponse({
+            type: "request-reveal",
+            protocolVersion: 1,
+            requestId: "reveal-1",
+            binding: { sessionId: "session-1", origin: "https://checkout.example.test" },
+        });
+        const submit = buildUnsupportedBrokerOperationResponse({
+            type: "submit",
+            protocolVersion: 1,
+            requestId: "submit-1",
+            binding: { sessionId: "session-1", origin: "https://checkout.example.test" },
+        });
+        expect(reveal).to.include({ ok: false });
+        expect(reveal.audit.reasonCode).to.equal("DENY_REVEAL_UNSUPPORTED");
+        expect(submit.audit.reasonCode).to.equal("DENY_SUBMIT_REQUIRES_SEPARATE_GRANT");
+        expect(JSON.stringify({ reveal, submit })).not.to.contain("sentinel@example.test");
     });
 
     mochaTest("plans with opaque references and no vault or selector metadata", () => {

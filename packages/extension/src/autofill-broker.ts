@@ -87,6 +87,29 @@ export function buildBrokerStatusResponse(
     return buildUnlockedBrokerStatusResponse(request);
 }
 
+export function buildUnsupportedBrokerOperationResponse(request: AutofillBrokerRequest): AutofillBrokerResponse {
+    const isSubmit = request.type === "submit";
+    const reasonCode = isSubmit ? "DENY_SUBMIT_REQUIRES_SEPARATE_GRANT" : "DENY_REVEAL_UNSUPPORTED";
+    return {
+        ok: false,
+        protocolVersion: AUTOFILL_BROKER_PROTOCOL_VERSION,
+        requestId: request.requestId,
+        vaultState: "unlocked",
+        reason: isSubmit
+            ? "Submission requires a separately implemented and approved action grant"
+            : "Model disclosure is not enabled by the secret-blind autofill profile",
+        audit: {
+            operation: request.type,
+            sessionId: request.binding?.sessionId || null,
+            origin: request.binding?.origin || null,
+            fieldCount: 0,
+            valuePolicy: "fail closed; no vault values resolved or released",
+            decision: "deny",
+            reasonCode,
+        },
+    };
+}
+
 export function buildUnlockedBrokerPlanResponse(
     request: AutofillBrokerRequest,
     items: BrokerItemSource[],
@@ -113,7 +136,7 @@ export function buildUnlockedBrokerPlanResponse(
             planId,
             target,
             fields: fields.map(publicPlanField),
-            audit: audit("plan-fill", request, fields.length, { reasonCode: "ASK_MISSING_AUTHORITY" }),
+            audit: audit(request.type, request, fields.length, { reasonCode: "ASK_MISSING_AUTHORITY" }),
         },
     };
 }
