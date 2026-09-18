@@ -1,0 +1,427 @@
+{
+  "schema": "agent.workflow.plan.v1",
+  "planId": "agentic-autofill-unification-20260918",
+  "objective": "Make Elf Vault the only personal credential and autofill authority used by Magic Browser while keeping raw values inside the trusted extension executor and enforcing fail-closed privacy after fill.",
+  "revision": 2,
+  "createdAt": "2026-09-18T18:28:07Z",
+  "updatedAt": "2026-09-18T19:21:57Z",
+  "nodes": [
+    {
+      "id": "G001",
+      "title": "Semantic vault model",
+      "objective": "Persist semantic item kinds, creation-path metadata, provenance, the shared ImportResult contract, and complete login, identity, address, payment, government, and financial roles with backward-compatible serialization and conservative risk metadata.",
+      "status": "pending",
+      "dependsOn": [],
+      "parallelWith": [],
+      "intent": {
+        "schema": "agent.workflow.intent.v1",
+        "kind": "implementation",
+        "effort": 4,
+        "risk": "high",
+        "qualityFloor": "work"
+      },
+      "ownsPaths": [
+        "padloc/packages/core/src/item.ts",
+        "padloc/packages/core/src/import-result.ts",
+        "padloc/packages/core/src/app.ts#createItem",
+        "padloc/packages/app/src/elements/create-item-dialog.ts",
+        "padloc/packages/core/test/agentic-autofill-item.ts",
+        "padloc/packages/core/test/agentic-import-result.ts",
+        "padloc/packages/app/test/agentic-create-item-semantics.ts"
+      ],
+      "writeExclusions": [
+        "padloc/packages/app/src/lib/**",
+        "padloc/packages/app/src/lib/import.ts",
+        "padloc/packages/extension/**",
+        "magic-browser/**"
+      ],
+      "deliverable": "Old records still deserialize; new and template-created records persist kind, roles, transaction-only markers, provenance, and role-derived release class; the shared ImportResult contract contains counts and loss entries without raw-value disclosure.",
+      "proof": [
+        "padloc changed-only core model round trips",
+        "compatibility fixture for missing item kind",
+        "createItem/template propagation fixtures",
+        "ImportResult/provenance contract fixtures",
+        "role and risk table has no secret-bearing output"
+      ]
+    },
+    {
+      "id": "G002",
+      "title": "1PUX migration",
+      "objective": "Consume the shared ImportProvenance/ImportResult contract, normalize 1PUX records into semantic roles, and return an exact loss report for unsupported data.",
+      "status": "pending",
+      "dependsOn": [
+        "G001"
+      ],
+      "parallelWith": [
+        "G003",
+        "G004"
+      ],
+      "intent": {
+        "schema": "agent.workflow.intent.v1",
+        "kind": "implementation",
+        "effort": 4,
+        "risk": "high",
+        "qualityFloor": "work"
+      },
+      "ownsPaths": [
+        "padloc/packages/app/src/lib/1pux-parser.ts",
+        "padloc/packages/app/src/lib/import.ts",
+        "padloc/packages/app/test/agentic-1pux-import.ts"
+      ],
+      "writeExclusions": [
+        "padloc/packages/core/src/item.ts",
+        "padloc/packages/core/src/import-result.ts",
+        "padloc/packages/core/src/app.ts",
+        "padloc/packages/app/src/elements/create-item-dialog.ts",
+        "padloc/packages/extension/**",
+        "magic-browser/**"
+      ],
+      "deliverable": "Synthetic 1PUX fixtures consume the shared contract, produce normalized items with persisted provenance, imported/normalized/skipped/lossy counts, and explicit unsupported-category warnings without claiming passkey migration.",
+      "proof": [
+        "deterministic loss-report fixture snapshots",
+        "persisted provenance contract fixture",
+        "unsupported passkey/document/attachment/history/sharing/TOTP fixtures",
+        "no real export or secret fixture"
+      ]
+    },
+    {
+      "id": "G003",
+      "title": "Passkey migration contract",
+      "objective": "Implement explicit relying-party re-enrollment and verified assertion flow without copying or removing working credentials, including the passkey-owned background orchestration region before the G005 handoff.",
+      "status": "pending",
+      "dependsOn": [
+        "G001"
+      ],
+      "parallelWith": [
+        "G002",
+        "G004"
+      ],
+      "intent": {
+        "schema": "agent.workflow.intent.v1",
+        "kind": "implementation",
+        "effort": 4,
+        "risk": "high",
+        "qualityFloor": "work"
+      },
+      "ownsPaths": [
+        "padloc/packages/core/src/passkey.ts",
+        "padloc/packages/extension/src/passkey-protocol.ts",
+        "padloc/packages/extension/src/passkey-content-bridge.ts",
+        "padloc/packages/extension/src/passkey-page.ts",
+        "padloc/packages/extension/src/passkey-rp-policy.ts",
+        "padloc/packages/extension/src/passkey-approval-coordinator.ts",
+        "padloc/packages/extension/src/passkey-selection-coordinator.ts",
+        "padloc/packages/extension/src/passkey-provider-engine.ts",
+        "padloc/packages/extension/src/passkey-request-binding.ts",
+        "padloc/packages/extension/src/passkey-user-verification.ts",
+        "padloc/packages/extension/src/background.ts#passkey-region",
+        "padloc/packages/extension/test/passkey-protocol.ts",
+        "padloc/packages/extension/test/passkey-rp-policy.ts",
+        "padloc/packages/extension/test/passkey-approval-coordinator.ts",
+        "padloc/packages/extension/test/passkey-selection-coordinator.ts",
+        "padloc/packages/extension/test/passkey-migration-contract.ts"
+      ],
+      "writeExclusions": [
+        "padloc/packages/app/src/lib/**",
+        "padloc/packages/extension/src/autofill-broker*.ts",
+        "padloc/packages/extension/src/background.ts#autofill-region",
+        "magic-browser/**"
+      ],
+      "deliverable": "Re-enrollment and assertion use exact RP/origin/flow/TTL bindings and recent verification; the passkey background region is frozen for a serial G005 handoff; 1PUX never reports passkeys migrated and existing factors remain untouched.",
+      "proof": [
+        "synthetic relying-party registration/assertion test",
+        "binding, expiry, lock, stale-verification, and wrong-RP negative cases",
+        "passkey background-region handoff and regression fixture",
+        "no credential mutation"
+      ]
+    },
+    {
+      "id": "G004",
+      "title": "Approval and unlock policy",
+      "objective": "Complete conservative approval modes, exact standing policies, revocation, lock behavior, and fresh verification for high-risk roles.",
+      "status": "pending",
+      "dependsOn": [
+        "G001"
+      ],
+      "parallelWith": [
+        "G002",
+        "G003"
+      ],
+      "intent": {
+        "schema": "agent.workflow.intent.v1",
+        "kind": "implementation",
+        "effort": 5,
+        "risk": "high",
+        "qualityFloor": "work"
+      },
+      "ownsPaths": [
+        "padloc/packages/extension/src/agent-permission-engine.ts",
+        "padloc/packages/extension/src/autofill-permission-store.ts",
+        "padloc/packages/extension/test/agent-permission-engine.ts",
+        "padloc/packages/extension/test/autofill-permission-store.ts"
+      ],
+      "writeExclusions": [
+        "padloc/packages/extension/src/background.ts",
+        "padloc/packages/extension/src/autofill-broker*.ts",
+        "magic-browser/**"
+      ],
+      "deliverable": "Plan/manual/auto/dontAsk/bypassPrompts, hard deny, always-ask, missing authority, revisioned revocation, lock, expiry, online authority, and high-risk fresh verification all fail closed correctly.",
+      "proof": [
+        "every approval mode and reason code",
+        "policy revision/revocation/lock/restart invalidation",
+        "payment, CVV, government, financial, passkey, new-origin, and policy-change step-up cases"
+      ]
+    },
+    {
+      "id": "G005",
+      "title": "Trusted extension execution",
+      "objective": "Keep values inside Elf Vault, strengthen the native broker and trusted executor, own the exact privacy-status state machine/reset, and return only closed redacted plans, privacy state, and receipts.",
+      "status": "pending",
+      "dependsOn": [
+        "G001",
+        "G002",
+        "G003",
+        "G004"
+      ],
+      "parallelWith": [],
+      "intent": {
+        "schema": "agent.workflow.intent.v1",
+        "kind": "implementation",
+        "effort": 5,
+        "risk": "high",
+        "qualityFloor": "work"
+      },
+      "ownsPaths": [
+        "padloc/packages/extension/src/autofill-broker-protocol.ts",
+        "padloc/packages/extension/src/autofill-broker.ts",
+        "padloc/packages/extension/src/autofill-classifier.ts",
+        "padloc/packages/extension/src/autofill-observation-policy.ts",
+        "padloc/packages/extension/src/autofill-compatibility-migration.ts",
+        "padloc/packages/extension/src/background.ts#autofill-region",
+        "padloc/packages/extension/src/content.ts",
+        "padloc/packages/extension/native-host/padloc-autofill-host.mjs",
+        "padloc/packages/extension/test/autofill-broker.ts",
+        "padloc/packages/extension/test/autofill-broker-protocol.ts",
+        "padloc/packages/extension/test/autofill-classifier.ts",
+        "padloc/packages/extension/test/autofill-observation-policy.ts",
+        "padloc/packages/extension/test/autofill-compatibility-migration.ts"
+      ],
+      "writeExclusions": [
+        "padloc/packages/core/src/item.ts",
+        "padloc/packages/core/src/import-result.ts",
+        "padloc/packages/app/src/lib/**",
+        "padloc/packages/extension/src/agent-permission-engine.ts",
+        "padloc/packages/extension/src/background.ts#passkey-region",
+        "magic-browser/**"
+      ],
+      "deliverable": "Classify, plan, approve, mint, apply, revoke, and privacy-status operate through the extension-owned executor with exact target revalidation, one-value-at-a-time resolution, a trusted reset, an exact target descriptor, ciphertext-only compatibility import, and closed redacted responses.",
+      "proof": [
+        "broker protocol and native-host redaction tests",
+        "target/frame/document/form/field hash mismatch negatives",
+        "privacy state/reset and descriptor mismatch negatives",
+        "encrypted-profile envelope no-plaintext/no-grant negatives",
+        "TTL, nonce, revocation, lock, worker restart, and nested secret-key rejection"
+      ]
+    },
+    {
+      "id": "G006",
+      "title": "Magic Browser broker cutover",
+      "objective": "Make the Padloc native broker the standard personal autofill path, constrain the local vault to an opaque encrypted-profile migration or synthetic fixtures, and enforce closed response parsing.",
+      "status": "pending",
+      "dependsOn": [
+        "G005",
+        "G007"
+      ],
+      "parallelWith": [],
+      "intent": {
+        "schema": "agent.workflow.intent.v1",
+        "kind": "implementation",
+        "effort": 4,
+        "risk": "high",
+        "qualityFloor": "work"
+      },
+      "ownsPaths": [
+        "magic-browser/src/runtime/padloc-broker.ts",
+        "magic-browser/src/runtime/autofill-vault.ts",
+        "magic-browser/src/runtime/autofill-broker.ts",
+        "magic-browser/src/runtime/agentic-chromium-setup.ts",
+        "magic-browser/src/cli.ts",
+        "magic-browser/src/cli/session.ts",
+        "magic-browser/src/runtime/padloc-broker.test.ts",
+        "magic-browser/src/runtime/autofill-vault.test.ts",
+        "magic-browser/src/runtime/autofill-broker.test.ts"
+      ],
+      "writeExclusions": [
+        "magic-browser/src/worker/**",
+        "magic-browser/src/runtime/browser-evidence.ts",
+        "magic-browser/src/runtime/network-inspect.ts",
+        "magic-browser/src/runtime/autofill-observation-gate.ts",
+        "padloc/**"
+      ],
+      "deliverable": "Standard autofill plan/apply/proof commands call Padloc native broker and never mint local authority; compatibility migration sends only the encrypted envelope, closed response parsing rejects unknown keys, and direct CLI screenshots use the already-proven shared gate.",
+      "proof": [
+        "CLI call-site tests prove no standard command loads local vault authority",
+        "native/CDP closed-schema response redaction and protocol-v1 compatibility tests",
+        "ciphertext-only compatibility migration and unavailable-key negative fixtures"
+      ]
+    },
+    {
+      "id": "G007",
+      "title": "Magic Browser privacy gate",
+      "objective": "Own a named shared observation gate, make snapshots metadata-only, and centrally block every generic model-observation primitive after a document becomes potentially private while preserving redacted proof.",
+      "status": "pending",
+      "dependsOn": [
+        "G005"
+      ],
+      "parallelWith": [],
+      "intent": {
+        "schema": "agent.workflow.intent.v1",
+        "kind": "implementation",
+        "effort": 5,
+        "risk": "high",
+        "qualityFloor": "work"
+      },
+      "ownsPaths": [
+        "magic-browser/src/worker/typed-tools.ts",
+        "magic-browser/src/runtime/browser-evidence.ts",
+        "magic-browser/src/runtime/network-inspect.ts",
+        "magic-browser/src/runtime/browser-capability-gateway.ts",
+        "magic-browser/src/runtime/autofill-observation-gate.ts",
+        "magic-browser/src/runtime/cdp.ts",
+        "magic-browser/src/policy/guarded-eval.ts",
+        "magic-browser/src/session/extension-bridge.ts",
+        "magic-browser/packages/extension-app/src/content/index.tsx",
+        "magic-browser/packages/extension-app/src/background/service-worker.ts",
+        "magic-browser/packages/extension-app/src/background/screenshot.ts",
+        "magic-browser/src/worker/typed-tools.test.ts",
+        "magic-browser/src/runtime/browser-evidence.test.ts",
+        "magic-browser/src/runtime/browser-capability-gateway.test.ts",
+        "magic-browser/src/policy/guarded-eval.test.ts",
+        "magic-browser/packages/extension-app/src/background/screenshot.test.ts"
+      ],
+      "writeExclusions": [
+        "magic-browser/src/runtime/autofill-vault.ts",
+        "magic-browser/src/runtime/autofill-broker.ts",
+        "magic-browser/src/runtime/padloc-broker.ts",
+        "padloc/**"
+      ],
+      "deliverable": "The named shared gate checks exact Padloc tab/frame/document/form/revision state before snapshots, evidence, page text/accessibility, screenshots, image reads, eval, and network/body capture; input values are absent from snapshots before and after fill; unknown and private states fail closed.",
+      "proof": [
+        "shared gate and metadata-only snapshot unit tests for clean, unknown, private, new-document, tab-close, and reset",
+        "pre-fill and post-fill open_snapshot/compact snapshot redaction cases",
+        "typed-worker, bridge, screenshot, network, body, and guarded-eval integration cases",
+        "redacted role/count/receipt proof remains allowed"
+      ]
+    },
+    {
+      "id": "G008",
+      "title": "Cross-repository contract proof",
+      "objective": "Align role vocabulary, protocol-v1 compatibility, privacy state, redaction, and proof authority across both repositories.",
+      "status": "pending",
+      "dependsOn": [
+        "G006",
+        "G007"
+      ],
+      "parallelWith": [],
+      "intent": {
+        "schema": "agent.workflow.intent.v1",
+        "kind": "implementation",
+        "effort": 4,
+        "risk": "medium",
+        "qualityFloor": "work"
+      },
+      "ownsPaths": [
+        "padloc/packages/extension/test/agentic-contract-fixtures.ts",
+        "padloc/.ch5/proof.yaml",
+        "magic-browser/src/runtime/agentic-contract-fixtures.test.ts"
+      ],
+      "writeExclusions": [
+        "padloc/packages/core/src/**",
+        "padloc/packages/app/src/**",
+        "padloc/packages/extension/src/**",
+        "magic-browser/src/runtime/autofill-*.ts",
+        "magic-browser/src/worker/**"
+      ],
+      "deliverable": "Both repositories consume the same synthetic contract fixtures and the existing proof authority has exact command keys or an explicit UNKNOWN result.",
+      "proof": [
+        "fixture parse and redaction parity",
+        "privacy-status exact-target and state-transition parity",
+        "ImportResult/provenance and encrypted-profile envelope parity",
+        "closed-schema arbitrary-key and malformed-v1 rejection",
+        "legacy protocol-v1 read compatibility",
+        "proof authority check with exact candidate SHA recorded at execution time"
+      ]
+    },
+    {
+      "id": "G009",
+      "title": "Synthetic end-to-end proof",
+      "objective": "Exercise the complete fake-data native-host and browser flow, including privacy enforcement, revocation, lock, and service-worker restart.",
+      "status": "pending",
+      "dependsOn": [
+        "G008"
+      ],
+      "parallelWith": [],
+      "intent": {
+        "schema": "agent.workflow.intent.v1",
+        "kind": "implementation",
+        "effort": 5,
+        "risk": "high",
+        "qualityFloor": "work"
+      },
+      "ownsPaths": [
+        "padloc/scripts/synthetic-agentic-autofill-e2e.mjs",
+        "padloc/scripts/check-agentic-autofill-artifacts.mjs",
+        "padloc/scripts/fixtures/agentic-autofill/**",
+        "magic-browser/scripts/synthetic-agentic-autofill-e2e.mjs",
+        "magic-browser/scripts/check-agentic-autofill-artifacts.mjs",
+        "magic-browser/scripts/fixtures/agentic-autofill/**",
+        "padloc/.ch5/autopilot/agentic-autofill-unification-20260918/synthetic-e2e/**"
+      ],
+      "writeExclusions": [
+        "padloc/packages/**",
+        "magic-browser/src/**",
+        "padloc/docs/**",
+        "magic-browser/docs/**"
+      ],
+      "deliverable": "One deterministic smoke exits non-zero on any raw-value leak, target mismatch, privacy bypass, stale grant, or restart failure and stores redacted evidence only.",
+      "proof": [
+        "extension install/setup with synthetic fixture",
+        "unlock/classify/plan/approval-or-policy/mint/apply/privacy-proof/revoke/lock/restart",
+        "stdout, logs, argv, screenshots, and artifacts contain no raw values"
+      ]
+    },
+    {
+      "id": "G010",
+      "title": "Operator and pilot documentation",
+      "objective": "Publish exact diagnostics, migration warnings, security boundaries, and a synthetic-first limited real-data pilot sequence.",
+      "status": "pending",
+      "dependsOn": [
+        "G009"
+      ],
+      "parallelWith": [],
+      "intent": {
+        "schema": "agent.workflow.intent.v1",
+        "kind": "implementation",
+        "effort": 3,
+        "risk": "medium",
+        "qualityFloor": "work"
+      },
+      "ownsPaths": [
+        "padloc/docs/agentic-autofill-operator.md",
+        "magic-browser/docs/agentic-autofill-cutover.md"
+      ],
+      "writeExclusions": [
+        "padloc/packages/**",
+        "magic-browser/src/**",
+        "padloc/scripts/**",
+        "magic-browser/scripts/**"
+      ],
+      "deliverable": "Operator diagnostics and pilot runbook match the proven command surface, list unsupported migration categories, and keep real-data entry gated after synthetic proof.",
+      "proof": [
+        "docs link/command check",
+        "migration-warning checklist",
+        "pilot order and deferred-feature checklist"
+      ]
+    }
+  ]
+}

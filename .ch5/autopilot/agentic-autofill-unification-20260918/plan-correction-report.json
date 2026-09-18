@@ -1,0 +1,156 @@
+{
+  "schema": "agent.workflow.plan-correction-report.v1",
+  "reportId": "agentic-autofill-plan-correction-v1",
+  "planId": "agentic-autofill-unification-20260918",
+  "reviewSource": ".ch5/autopilot/agentic-autofill-unification-20260918/architect-review-independent.json",
+  "reviewVerdict": "iterate",
+  "correctedRevision": 2,
+  "correctedAt": "2026-09-18T19:34:42Z",
+  "scope": {
+    "productSourceEdited": false,
+    "realDataAccessed": false,
+    "credentialsAccessed": false,
+    "deploymentAttempted": false,
+    "invariantsPreserved": [
+      "no raw personal value enters model-visible output, logs, argv, receipts, screenshots, generic observations, or portable artifacts",
+      "no working credential or passkey is rotated, revoked, reissued, superseded, removed, or autonomously migrated",
+      "no real 1Password export or personal record is used",
+      "production and public extension publication remain out of scope"
+    ]
+  },
+  "artifactHashes": {
+    "docs/specs/agentic-personal-data-vault.md": "sha256:81db3a3c5f4a14611adf04364bdbb3ae9beb3a4214e0860d2d94e0c71608c9ca",
+    ".ch5/autopilot/agentic-autofill-unification-20260918/plan.md": "sha256:b123f6c6112842bcfbd48cb204b6f1f90c4376bf2e45511510e0a56c7f90ebcf",
+    ".ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md": "sha256:e7bc8dcf8b1ac834e880a55847afc3008a82cee86818931e3f9c9e844b45b42b",
+    ".ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json": "sha256:7c38985248d4273704c51117f66d99514773af5e364b6528a7e8c3b1448de130"
+  },
+  "findingResolutions": [
+    {
+      "id": "A1",
+      "status": "resolved_in_plan",
+      "artifacts": [
+        "docs/specs/agentic-personal-data-vault.md#Contract-Corrections-Before-Implementation-Snapshot-boundary",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/plan.md#Observed-seams",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/plan.md#Ownership-and-write-boundaries",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md#G007-Magic-Browser-privacy-gate",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json#G007"
+      ],
+      "decision": "CDP and typed snapshots omit input values before and after fill; G007 owns the serializer and regression tests before the later privacy gate."
+    },
+    {
+      "id": "A2",
+      "status": "resolved_in_plan",
+      "artifacts": [
+        "docs/specs/agentic-personal-data-vault.md#Contract-Corrections-Before-Implementation-Privacy-state-authority",
+        "docs/specs/agentic-personal-data-vault.md#Privacy-state-transitions",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/plan.md#Frozen-decisions",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md#G005-Trusted-extension-executor",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md#G007-Magic-Browser-privacy-gate",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json#G005",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json#G007"
+      ],
+      "decision": "Padloc is the sole privacy-state producer; unknown/clean/potentially-private transitions and trusted exact-target reset are explicit."
+    },
+    {
+      "id": "A3",
+      "status": "resolved_in_plan",
+      "artifacts": [
+        "docs/specs/agentic-personal-data-vault.md#Contract-Corrections-Before-Implementation-Privacy-state-authority",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md#G005-Trusted-extension-executor",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md#G008-cross-repository-contract-proof",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json#G005",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json#G008"
+      ],
+      "decision": "privacy-status.v2 echoes tab, frame, origin, document, form, revision, and session; v1 without target identity is non-authorizing only and active-tab substitution is rejected."
+    },
+    {
+      "id": "A4",
+      "status": "resolved_in_plan",
+      "artifacts": [
+        "docs/specs/agentic-personal-data-vault.md#Contract-Corrections-Before-Implementation-Creation-and-import-ownership",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/plan.md#Ownership-and-write-boundaries",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md#G001-semantic-vault-model",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md#G002-1PUX-migration",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json#G001",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json#G002"
+      ],
+      "decision": "G001 owns shared ImportProvenance/ImportResult types and persisted item provenance; G002 consumes the contract and returns exact counts/loss entries."
+    },
+    {
+      "id": "A5",
+      "status": "resolved_in_plan",
+      "artifacts": [
+        "docs/specs/agentic-personal-data-vault.md#Contract-Corrections-Before-Implementation-Compatibility-migration-custody",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/plan.md#Ownership-and-write-boundaries",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md#G005-Trusted-extension-executor",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md#G006-Magic-Browser-broker-cutover",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json#G005",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json#G006"
+      ],
+      "decision": "A one-time Padloc import key and opaque encrypted-profile envelope cross the transport; plaintext/key material never does, and the adapter cannot mint/apply a grant."
+    },
+    {
+      "id": "A6",
+      "status": "resolved_in_plan",
+      "artifacts": [
+        ".ch5/autopilot/agentic-autofill-unification-20260918/plan.md#Ownership-and-write-boundaries",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md#G003-passkey-migration-contract",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json#G003",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json#G005"
+      ],
+      "decision": "G003 owns passkey background symbols and hands off serially; G005 owns only the autofill region after the handoff."
+    },
+    {
+      "id": "A7",
+      "status": "resolved_in_plan",
+      "artifacts": [
+        "docs/specs/agentic-personal-data-vault.md#Contract-Corrections-Before-Implementation-Closed-broker-response",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/plan.md#Ownership-and-write-boundaries",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md#G006-Magic-Browser-broker-cutover",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md#G008-cross-repository-contract-proof",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json#G006"
+      ],
+      "decision": "Closed per-operation response schemas reject unknown top-level/nested keys, arbitrary names, arrays, and malformed payloads before queue/cache/output while preserving readable protocol-v1 fields."
+    },
+    {
+      "id": "A8",
+      "status": "resolved_in_plan",
+      "artifacts": [
+        "docs/specs/agentic-personal-data-vault.md#Contract-Corrections-Before-Implementation-Creation-and-import-ownership",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/plan.md#Ownership-and-write-boundaries",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md#G001-semantic-vault-model",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json#G001"
+      ],
+      "decision": "G001 explicitly owns CreateItemDialog template propagation and createItem derivation for newly created records."
+    },
+    {
+      "id": "A9",
+      "status": "resolved_in_plan",
+      "artifacts": [
+        ".ch5/autopilot/agentic-autofill-unification-20260918/plan.md#Graph",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md#G009-synthetic-native-host-end-to-end",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json#G009"
+      ],
+      "decision": "The shared run artifact is padloc-owned and repository-prefixed; validation rejects unprefixed, absolute, and traversal paths."
+    }
+  ],
+  "additionalGraphRepairs": [
+    "G002 is now a prerequisite of G005, so migration contracts cannot be bypassed.",
+    "G007 is serialized before G006 because direct CLI screenshots consume the shared gate.",
+    "G007 owns a named autofill-observation-gate module.",
+    "G003/G005 background ownership is region-qualified and serial."
+  ],
+  "validation": {
+    "graphJsonParse": "pass",
+    "reportJsonParse": "pass",
+    "dag": "pass",
+    "dependencyReachability": "pass",
+    "parallelSymmetry": "pass",
+    "parallelOwnershipDisjoint": "pass",
+    "repositoryPrefixedPaths": "pass",
+    "unsafePathRejection": "pass",
+    "productRuntimeProof": "UNKNOWN",
+    "nextGate": "Independent architect re-review before implementation dispatch."
+  },
+  "selfHash": "omitted: self-referential hash would change the report bytes"
+}
