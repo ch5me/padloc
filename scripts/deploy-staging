@@ -51,24 +51,10 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
   git status --short >&2
   exit 2
 fi
-safe_generated_path() {
-  case "$1" in
-    node_modules/*|packages/*/node_modules/*|packages/pwa/dist/*|.ch5/state/*|.hush-materialized/*)
-      return 0
-      ;;
-  esac
-  return 1
-}
-
 unsafe_untracked_files=()
 while IFS= read -r -d '' path; do
   unsafe_untracked_files+=("$path")
 done < <(git ls-files --others --exclude-standard -z)
-while IFS= read -r -d '' path; do
-  if ! safe_generated_path "$path"; then
-    unsafe_untracked_files+=("$path")
-  fi
-done < <(git ls-files --others --ignored --exclude-standard -z)
 
 if [ "${#unsafe_untracked_files[@]}" -gt 0 ]; then
   echo "staging deploy permits only known runtime-generated untracked paths" >&2

@@ -43,7 +43,7 @@ test("production deploy rejects dirty tracked or untracked source before build a
     const build = deploy.indexOf("npm run pwa:build");
     assert.ok(cleanGate >= 0 && cleanGate < auth && cleanGate < build);
     assert.match(deploy, /git ls-files --others --exclude-standard -z/);
-    assert.match(deploy, /git ls-files --others --ignored --exclude-standard -z/);
+    assert.doesNotMatch(deploy, /git ls-files --others --ignored/);
     assert.match(deploy, /production deploy requires a clean tracked index and worktree/);
 });
 
