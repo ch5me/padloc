@@ -544,7 +544,8 @@ async function ensureFixtureAndSync(cdp, fixtureName) {
 
 async function runEmailCodeFlow(browser, stage, sessionId, email) {
     const devtoolsRoot = resolveProjectPath("ch5-devtools");
-    const trigger = shellCommand(process.execPath, scriptPath, [
+    const trigger = shellCommand(process.execPath, [
+        scriptPath,
         "--mode",
         "request-email",
         "--stage",
@@ -554,8 +555,7 @@ async function runEmailCodeFlow(browser, stage, sessionId, email) {
     ]);
     const consume = `${shellCommand("printf", ["%s", "{code}"])} | ${shellCommand(
         process.execPath,
-        scriptPath,
-        ["--mode", "complete-email", "--stage", stage, "--session-id", sessionId, "--code-stdin"]
+        [scriptPath, "--mode", "complete-email", "--stage", stage, "--session-id", sessionId, "--code-stdin"]
     )}`;
     const result = spawnSync(
         "hush",
