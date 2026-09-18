@@ -1,0 +1,146 @@
+{
+  "contractVersion": "ch5.agent-handoff.v1.1",
+  "handoffId": "agentic-autofill-plan-correction-v1",
+  "workstream": "agentic-autofill-unification-plan-correction",
+  "lead": false,
+  "pinState": "unpinned",
+  "role": "worker",
+  "root": {
+    "threadId": "01a0b4ec-b81f-7491-b80b-97f373c67d39",
+    "identity": "codex-autopilot-root"
+  },
+  "parent": {
+    "threadId": "01a0b4ec-b81f-7491-b80b-97f373c67d39",
+    "identity": "codex-autopilot-root"
+  },
+  "child": {
+    "threadId": "agentic-autofill-plan-correction",
+    "identity": "luna-max-plan-correction-writer"
+  },
+  "scope": {
+    "goal": "Patch the frozen spec, plan, test spec, and graph exactly once to resolve independent Architect findings A1-A9 without widening the product objective.",
+    "includes": [
+      "A1 input-value redaction at observation boundary",
+      "A2 explicit privacy state machine and trusted reset",
+      "A3 exact tab/document privacy-status binding",
+      "A4 complete observation primitive inventory and central guard",
+      "A5 user-mediated opaque legacy-vault import contract",
+      "A6 passkey/background ownership seam",
+      "A7 closed broker response schema",
+      "A8 item creation semantics",
+      "A9 repository-prefixed evidence ownership"
+    ],
+    "excludes": [
+      "product source edits",
+      "new features beyond findings",
+      "credential access",
+      "deployment"
+    ],
+    "acceptance": [
+      "All A1-A9 have explicit decisions, owned paths, tests, and graph nodes or narrowed acceptance",
+      "Graph remains valid agent.workflow.plan.v1 DAG with disjoint executable ownership",
+      "Write plan-correction-report.json mapping every finding to exact artifact changes",
+      "Do not edit product source"
+    ]
+  },
+  "ownership": {
+    "paths": [
+      "docs/specs/agentic-personal-data-vault.md",
+      ".ch5/autopilot/agentic-autofill-unification-20260918/plan.md",
+      ".ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md",
+      ".ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json",
+      ".ch5/autopilot/agentic-autofill-unification-20260918/plan-correction-report.json"
+    ],
+    "interfaces": [
+      "frozen execution spec",
+      "deliberate plan revision",
+      "agent.workflow.plan.v1 candidate"
+    ],
+    "resultDestination": {
+      "threadId": "01a0b4ec-b81f-7491-b80b-97f373c67d39",
+      "channel": "thread-result"
+    }
+  },
+  "authority": {
+    "allowedDecisions": [
+      "patch only the listed artifacts to satisfy A1-A9",
+      "choose narrow ownership splits and dependency edges"
+    ],
+    "gates": [
+      "credential",
+      "spend",
+      "production",
+      "external-trust",
+      "product-source-edit",
+      "scope-expansion"
+    ],
+    "resources": [
+      "/Users/hassoncs/worktrees/ch5/padloc/agentic-autofill-unification-20260918",
+      "/Users/hassoncs/worktrees/ch5/magic-browser/agentic-autofill-unification-20260918",
+      ".ch5/autopilot/agentic-autofill-unification-20260918/architect-review-independent.json",
+      "docs/specs/agentic-personal-data-vault.md",
+      ".ch5/autopilot/agentic-autofill-unification-20260918/plan.md",
+      ".ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md",
+      ".ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json"
+    ],
+    "maySubdivide": false
+  },
+  "route": {
+    "dispatchClass": "standard",
+    "requestedHost": "local",
+    "effectiveHost": "local",
+    "localExceptionReason": "User explicitly requested local Codex Luna Max workers; bounded same-host plan correction in the Grove Tree.",
+    "executionSurface": {
+      "requestedApp": "bb-nightly",
+      "effectiveApp": "bb-nightly",
+      "requestedPermissionMode": "full",
+      "effectivePermissionMode": "full",
+      "preflightEvidence": "BB Nightly healthy; exact Grove Tree supplied"
+    },
+    "remoteAdmission": {
+      "status": "not-requested"
+    },
+    "provider": "codex",
+    "model": "gpt-5.6-luna",
+    "reasoningLevel": "max",
+    "account": "default",
+    "priority": "normal"
+  },
+  "missionFit": {
+    "sessionShape": "bounded-worker",
+    "rationale": "Nine explicit findings against four frozen artifacts; one writer avoids plan conflicts.",
+    "phases": [
+      "read findings",
+      "patch artifacts",
+      "validate",
+      "report"
+    ],
+    "evidenceVolume": {
+      "class": "bounded-medium",
+      "basis": "one review artifact and four plan artifacts"
+    },
+    "verificationBounds": [
+      "JSON parse graph and report",
+      "DAG and ownership audit",
+      "Map every A1-A9 finding"
+    ],
+    "contextEstimate": {
+      "status": "unknown",
+      "reason": "No measured estimate"
+    },
+    "compaction": {
+      "enabled": true,
+      "fallbackOnly": true
+    }
+  },
+  "continuation": {
+    "kind": "initial",
+    "disposition": "accept",
+    "basis": "initial-dispatch"
+  },
+  "lifecycle": {
+    "state": "dispatched",
+    "firstAction": "Read architect-review-independent.json, patch the four owned artifacts once, validate them, write the correction report, and stop.",
+    "dispatchedAt": "2026-09-18T19:16:36.455+00:00"
+  }
+}

@@ -1,0 +1,4 @@
+Continue this mission now. Do not restate the transcript.
+Workspace: /Users/hassoncs/worktrees/ch5/padloc/agentic-autofill-unification-20260918
+Edit only: docs/specs/agentic-personal-data-vault.md, .ch5/autopilot/agentic-autofill-unification-20260918/plan.md, .ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md, .ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json, .ch5/autopilot/agentic-autofill-unification-20260918/plan-correction-report.json.
+Read `.ch5/autopilot/agentic-autofill-unification-20260918/architect-review-independent.json`. Resolve every A1-A9 in one coherent correction. Preserve original scope and no-real-data/no-credential-mutation invariants. Do not edit product source. Validate JSON and DAG/ownership, write the correction report, then stop with terminal RETURN.

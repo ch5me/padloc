@@ -1,0 +1,141 @@
+{
+  "contractVersion": "ch5.agent-handoff.v1.1",
+  "handoffId": "agentic-autofill-plan-writer-v1",
+  "workstream": "agentic-autofill-unification",
+  "lead": false,
+  "pinState": "unpinned",
+  "role": "worker",
+  "root": {
+    "threadId": "01a0b4ec-b81f-7491-b80b-97f373c67d39",
+    "identity": "codex-autopilot-root"
+  },
+  "parent": {
+    "threadId": "01a0b4ec-b81f-7491-b80b-97f373c67d39",
+    "identity": "codex-autopilot-root"
+  },
+  "child": {
+    "threadId": "agentic-autofill-plan-writer",
+    "identity": "luna-max-plan-writer"
+  },
+  "scope": {
+    "goal": "Produce the smallest complete deliberate consensus-plan candidate for the Elf Vault and Magic Browser agentic personal-data program.",
+    "includes": [
+      "Ultragoal brief",
+      "durable specification",
+      "padloc current architecture",
+      "magic-browser current architecture",
+      "implementation graph",
+      "test plan",
+      "ownership seams",
+      "runtime proof plan"
+    ],
+    "excludes": [
+      "product source edits",
+      "credential access or mutation",
+      "real personal data",
+      "deployment",
+      "provider or model substitutions"
+    ],
+    "acceptance": [
+      "Write plan.md, test-spec.md, and graph-candidate.json under the assigned autopilot run directory",
+      "Graph has disjoint ownership, explicit dependencies, acceptance, cheapest proof, and both repository paths",
+      "Plan preserves all architecture invariants and names unresolved facts as UNKNOWN",
+      "Return a compact terminal result with artifact paths"
+    ]
+  },
+  "ownership": {
+    "paths": [
+      ".ch5/autopilot/agentic-autofill-unification-20260918/plan.md",
+      ".ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md",
+      ".ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json"
+    ],
+    "interfaces": [
+      "agent.workflow.plan.v1 candidate",
+      "deliberate Ralplan plan and test evidence"
+    ],
+    "resultDestination": {
+      "threadId": "01a0b4ec-b81f-7491-b80b-97f373c67d39",
+      "channel": "thread-result"
+    }
+  },
+  "authority": {
+    "allowedDecisions": [
+      "decompose the accepted spec into bounded implementation nodes",
+      "select dependency order and disjoint path ownership",
+      "define focused proof and integration sequence"
+    ],
+    "gates": [
+      "credential",
+      "spend",
+      "production",
+      "external-trust",
+      "source-edit"
+    ],
+    "resources": [
+      "/Users/hassoncs/worktrees/ch5/padloc/agentic-autofill-unification-20260918",
+      "/Users/hassoncs/worktrees/ch5/magic-browser/agentic-autofill-unification-20260918",
+      ".ch5/autopilot/agentic-autofill-unification-20260918/brief.md",
+      "docs/specs/agentic-personal-data-vault.md",
+      ".omx/ultragoal/goals.json"
+    ],
+    "maySubdivide": false
+  },
+  "route": {
+    "dispatchClass": "standard",
+    "requestedHost": "local",
+    "effectiveHost": "local",
+    "executionSurface": {
+      "requestedApp": "bb-nightly",
+      "effectiveApp": "bb-nightly",
+      "requestedPermissionMode": "full",
+      "effectivePermissionMode": "full",
+      "preflightEvidence": "BB Nightly healthy at http://127.0.0.1:8396; explicit local Grove workspace supplied"
+    },
+    "remoteAdmission": {
+      "status": "not-requested"
+    },
+    "provider": "codex",
+    "model": "gpt-5.6-luna",
+    "reasoningLevel": "max",
+    "account": "default",
+    "priority": "normal",
+    "localExceptionReason": "User explicitly requested local Codex Luna Max workers; same-host BB Nightly executes in the prepared Grove Tree without a managed Hub route."
+  },
+  "missionFit": {
+    "sessionShape": "bounded-worker",
+    "rationale": "One bounded planning pass over two known repositories and frozen spec; one session fits.",
+    "phases": [
+      "inspect",
+      "plan",
+      "write",
+      "validate"
+    ],
+    "evidenceVolume": {
+      "class": "bounded-medium",
+      "basis": "frozen brief/spec plus targeted current code and tests"
+    },
+    "verificationBounds": [
+      "Validate JSON shape locally",
+      "Do not run broad tests or edit product source",
+      "Limit returned evidence to artifact paths and key plan decisions"
+    ],
+    "contextEstimate": {
+      "status": "unknown",
+      "reason": "No measured context estimate"
+    },
+    "compaction": {
+      "enabled": true,
+      "fallbackOnly": true
+    }
+  },
+  "continuation": {
+    "kind": "initial",
+    "disposition": "accept",
+    "basis": "initial-dispatch"
+  },
+  "lifecycle": {
+    "state": "dispatched",
+    "firstAction": "Read the brief, spec, Ultragoal goals, and current broker/import/privacy seams, then write the deliberate plan artifacts.",
+    "dispatchedAt": "2026-09-18T18:05:48.647146Z"
+  }
+}

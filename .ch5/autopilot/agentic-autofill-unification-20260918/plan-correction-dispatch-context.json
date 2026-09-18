@@ -1,0 +1,121 @@
+{
+  "schema": "agent.workflow.dispatch-context.v1",
+  "contextId": "agentic-autofill-plan-correction-v1",
+  "taskClass": "planning",
+  "objective": "Patch the frozen spec, plan, test spec, and graph exactly once to resolve independent Architect findings A1-A9 without widening the product objective.",
+  "authority": {
+    "principal": "operator",
+    "grants": [
+      "write only assigned spec/plan artifacts"
+    ],
+    "provenance": "TYPED_CONTRACT",
+    "source": "Independent Architect ITERATE verdict"
+  },
+  "requirements": [
+    {
+      "id": "r1",
+      "statement": "Resolve all A1-A9 without product edits",
+      "provenance": "TYPED_CONTRACT",
+      "gating": true,
+      "source": ".ch5/autopilot/agentic-autofill-unification-20260918/architect-review-independent.json"
+    },
+    {
+      "id": "r2",
+      "statement": "Preserve original Ultragoal invariants and exclusions",
+      "provenance": "USER",
+      "gating": true,
+      "source": ".ch5/autopilot/agentic-autofill-unification-20260918/brief.md"
+    }
+  ],
+  "conflicts": [],
+  "nonGoals": [
+    "implementation",
+    "credential access",
+    "deployment"
+  ],
+  "owners": [
+    {
+      "seam": "plan correction",
+      "repository": "padloc",
+      "owner": "agentic-autofill-plan-correction",
+      "files": [
+        "docs/specs/agentic-personal-data-vault.md",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/plan.md",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/plan-correction-report.json"
+      ],
+      "symbols": [
+        "spec",
+        "PlanGraph",
+        "test plan"
+      ]
+    }
+  ],
+  "workspace": {
+    "schema": "agent.workflow.prepared-workspace.v1",
+    "receiptId": "grove-agentic-autofill-unification-20260918",
+    "workspaceId": "agentic-autofill-unification-20260918",
+    "preparedAt": "2026-09-18T19:16:36.455+00:00",
+    "repositories": [
+      {
+        "repository": "padloc",
+        "workspacePath": "/Users/hassoncs/worktrees/ch5/padloc/agentic-autofill-unification-20260918",
+        "branch": "grove/agentic-autofill-unification-20260918/padloc",
+        "sourceCommit": "83a55325623a13115c873b67795ec7c442766f5f",
+        "readiness": "ready"
+      },
+      {
+        "repository": "magic-browser",
+        "workspacePath": "/Users/hassoncs/worktrees/ch5/magic-browser/agentic-autofill-unification-20260918",
+        "branch": "grove/agentic-autofill-unification-20260918/magic-browser",
+        "sourceCommit": "213896cdaf0cbdde9366767ec0febbd8cd42acd2",
+        "readiness": "ready"
+      }
+    ]
+  },
+  "targets": [
+    {
+      "repository": "padloc",
+      "files": [
+        "docs/specs/agentic-personal-data-vault.md",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/plan.md",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/plan-correction-report.json"
+      ],
+      "symbols": [
+        "PlanGraph"
+      ],
+      "sourceCommit": "83a55325623a13115c873b67795ec7c442766f5f",
+      "diff": []
+    }
+  ],
+  "consumedEvidence": [
+    {
+      "kind": "artifact",
+      "reference": ".ch5/autopilot/agentic-autofill-unification-20260918/architect-review-independent.json"
+    },
+    {
+      "kind": "artifact",
+      "reference": ".ch5/autopilot/agentic-autofill-unification-20260918/brief.md"
+    }
+  ],
+  "acceptance": [
+    {
+      "id": "a1",
+      "statement": "All A1-A9 are resolved in the plan artifacts",
+      "provenance": "TYPED_CONTRACT",
+      "gating": true,
+      "state": "remaining",
+      "evidence": []
+    }
+  ],
+  "cheapestProof": [
+    "python3 -m json.tool .ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json",
+    "python3 -m json.tool .ch5/autopilot/agentic-autofill-unification-20260918/plan-correction-report.json"
+  ],
+  "resultDestination": "thread://01a0b4ec-b81f-7491-b80b-97f373c67d39",
+  "skills": [],
+  "createdAt": "2026-09-18T19:16:36.455+00:00"
+}

@@ -1,0 +1,180 @@
+{
+  "schema": "agent.workflow.review.v1",
+  "role": "architect",
+  "verdict": "iterate",
+  "verdictLabel": "ITERATE",
+  "planRevision": "sha256:2170971ee47cf87f186632f0d65468b1b2e829edea51404c910f510ad9f1105e",
+  "reviewedInputs": {
+    "brief": "sha256:db58160710524f1d4e36556df6eac08458c683113fa86bbd0c10ab634b455b3b",
+    "spec": "sha256:e120a4624da1c310fcfc9505afa4b79bf59a7cb1acfa9fcfe79c6baeea9879f9",
+    "plan": "sha256:2170971ee47cf87f186632f0d65468b1b2e829edea51404c910f510ad9f1105e",
+    "testSpec": "sha256:36c9632c3ab802321ccabcfd373a38d4f75c11e55accf05b6414c32e311f8bff",
+    "graph": "sha256:4d8436d56af859d110354230c3da4a457f2742d0865f0d4f918e30a39bfa6d52"
+  },
+  "reviewerRelation": "independent",
+  "reviewerIdentity": "codex-architect-review-independent-v1",
+  "source": "Read-only review of the frozen brief, spec, plan, test spec, graph, and both prepared Grove Trees.",
+  "completedAt": "2026-09-18T19:12:42Z",
+  "assurance": "local",
+  "sourceCommits": {
+    "padloc": "83a55325623a13115c873b67795ec7c442766f5f",
+    "magic-browser": "213896cdaf0cbdde9366767ec0febbd8cd42acd2"
+  },
+  "checks": {
+    "briefSpecPlanTestSpecGraphRead": "pass",
+    "graphJsonParse": "pass",
+    "graphDagAndSymmetricParallelEdges": "pass",
+    "padlocSourceSeamsConfirmed": "pass",
+    "magicBrowserSourceSeamsConfirmed": "pass",
+    "productSourceEdited": false,
+    "planEdited": false,
+    "credentialsAccessed": false,
+    "realDataAccessed": false
+  },
+  "confirmedSeams": [
+    {
+      "repository": "padloc",
+      "evidence": [
+        "packages/core/src/item.ts:40-69 defines partial autofill kind and role enums; VaultItem at :354-418 has no persisted autofillKind or provenance field.",
+        "packages/app/src/lib/1pux-parser.ts:189-283 flattens 1PUX data and skips document-only items without a loss-report result.",
+        "packages/app/src/lib/import.ts:435-515 returns VaultItem[] without provenance or structured loss data.",
+        "packages/extension/src/autofill-broker.ts:113-291 keeps plan metadata public and resolves field values only in the extension executor.",
+        "packages/extension/src/background.ts:1355-1613 revalidates targets, marks privacy before writes, and returns redacted receipts.",
+        "packages/extension/src/autofill-observation-policy.ts:35-51 has no producer for clean/allowed privacy state; no reset operation exists."
+      ]
+    },
+    {
+      "repository": "magic-browser",
+      "evidence": [
+        "src/runtime/autofill-vault.ts:181-192 decrypts the parallel local vault in the Magic Browser process.",
+        "src/runtime/autofill-broker.ts:104-205 builds local plans/bundles and returns raw values to apply callers.",
+        "src/cli/session.ts:5367-5559 standard autofill-plan/apply/bundle/proof commands still load the local vault.",
+        "src/runtime/padloc-broker.ts:14-62 checks redaction, but PadlocBrokerResponse at :1-12 is open-ended and the guard only recognizes value/secret/privateKey keys.",
+        "src/runtime/cdp.ts:1775-1800 includes input.value in pageSnapshot; src/worker/typed-tools.ts:1025-1082 returns that snapshot and compactTypedSnapshot at :1128-1141 does not redact inputs.",
+        "packages/extension-app/src/background/service-worker.ts:853-968 dispatches page.fetch, page.screenshot, and page.observe without a Padloc privacy-status gate."
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "A1",
+      "severity": "critical",
+      "category": "security",
+      "title": "pageSnapshot leaks input values before the planned privacy gate",
+      "evidence": [
+        "magic-browser/src/runtime/cdp.ts:1788-1793 serializes input and textarea value fields.",
+        "magic-browser/src/worker/typed-tools.ts:1065-1079 returns the snapshot from open_snapshot; compactTypedSnapshot only truncates bodyText."
+      ],
+      "impact": "Raw credentials or personal data can cross the model-observation boundary even when no fill has happened, and the G007 matrix does not explicitly prove input-value redaction.",
+      "requiredChange": "Make snapshots metadata-only or redact input values at the CDP boundary, then add pre-fill and post-fill open_snapshot regression tests. Do not rely only on a later Padloc privacy-status check."
+    },
+    {
+      "id": "A2",
+      "severity": "high",
+      "category": "architecture",
+      "title": "Privacy state has no clean producer or trusted reset contract",
+      "evidence": [
+        "padloc/packages/extension/src/autofill-observation-policy.ts:35-51 returns potentially-private when an entry exists and unknown otherwise; clean/allowed is never returned.",
+        "padloc/packages/extension/src/background.ts:1415-1447 maps an unknown document to requires-separate-disclosure and only checks the active tab.",
+        "test-spec.md:115-129 requires unknown fail-closed plus navigation, new-document, tab-close, and explicit trusted reset transitions, but no reset operation or owner is in the plan."
+      ],
+      "impact": "A literal G007 implementation blocks normal observation on every document and has no defined way to regain an allowed state; the end-to-end flow cannot reach ordinary classify/plan steps.",
+      "requiredChange": "Define the privacy-state state machine, clean-state authority, reset operation, and exact owner before implementation. Add the wire contract and cross-repository tests to G005/G007/G008."
+    },
+    {
+      "id": "A3",
+      "severity": "high",
+      "category": "security",
+      "title": "Privacy-status binding cannot prove the requested tab",
+      "evidence": [
+        "padloc/packages/extension/src/autofill-broker-protocol.ts:17-31 has session/origin/frame/document fields but no tabId, formRef, or targetRevision.",
+        "padloc/packages/extension/src/background.ts:1416-1423 resolves getActiveTab() and uses only origin plus frame/document to query the ledger."
+      ],
+      "impact": "A non-active session target cannot be positively identified; the broker may return an unrelated active-tab state or only an unhelpful unknown, and exact tab/frame/document binding promised by the brief is not represented on the privacy-status wire.",
+      "requiredChange": "Add an exact target descriptor to privacy-status (or a versioned equivalent), reject active-tab mismatches, and fixture cross-tab, frame, document, and target-revision negatives."
+    },
+    {
+      "id": "A4",
+      "severity": "high",
+      "category": "ownership",
+      "title": "Importer provenance and loss-report ownership crosses a forbidden seam",
+      "evidence": [
+        "plan.md:99-105 gives G001 only item.ts/core model and gives G002 only 1PUX parser/import while excluding the core model.",
+        "padloc/packages/core/src/item.ts:354-418 has no provenance field.",
+        "padloc/packages/app/src/lib/import.ts:435-515 returns VaultItem[] and has no ImportResult contract."
+      ],
+      "impact": "G002 cannot preserve provenance on a VaultItem or return the required imported/normalized/skipped/lossy result without either violating G001's boundary or inventing an unowned side channel.",
+      "requiredChange": "Land an explicit shared ImportResult/provenance contract first, assign the model/API owner, and make G002 depend on that contract. State whether provenance is persisted on VaultItem or returned as a separate durable migration record."
+    },
+    {
+      "id": "A5",
+      "severity": "high",
+      "category": "security",
+      "title": "Local-vault compatibility migration has no safe transport or key-custody seam",
+      "evidence": [
+        "magic-browser/src/runtime/autofill-vault.ts:181-192 decrypts the local profile with a macOS keychain key inside Magic Browser.",
+        "magic-browser/src/runtime/autofill-broker.ts:104-205 can construct raw fill bundles from that profile.",
+        "plan.md:116-125 places the compatibility adapter in Padloc/G005 and the local-vault cutover in Magic Browser/G006, but assigns no encrypted-profile handoff, key custody, or no-fill-authority protocol."
+      ],
+      "impact": "The proposed adapter cannot read the existing keychain-backed file from the Padloc extension without either crossing raw values over CDP/native transport or silently retaining the local vault as an authority.",
+      "requiredChange": "Specify a user-mediated, opaque encrypted-profile import contract with provenance/loss-only output and an explicit prohibition on decrypted profile values in transport. Add exact owner paths and negative tests before G005/G006 execution."
+    },
+    {
+      "id": "A6",
+      "severity": "high",
+      "category": "ownership",
+      "title": "Passkey migration and broker dispatch both need background.ts",
+      "evidence": [
+        "padloc/packages/extension/src/background.ts:150-500 contains passkey request binding, approval, selection, provider, and vault-sync orchestration.",
+        "plan.md:105-115 scopes G003 to passkey seams but omits background.ts; plan.md:116-121 gives all of background.ts to G005."
+      ],
+      "impact": "G003 cannot complete an explicit re-enrollment/verification flow if it needs background orchestration, while G005 can change the same file after G003 without a region-level contract or handoff.",
+      "requiredChange": "Assign passkey regions explicitly, split the file into owned modules, or add a non-parallel handoff with exact symbols and tests. Do not leave whole-file G005 ownership alongside implicit G003 edits."
+    },
+    {
+      "id": "A7",
+      "severity": "high",
+      "category": "security",
+      "title": "Padloc broker redaction is open-schema and key-pattern based",
+      "evidence": [
+        "magic-browser/src/runtime/padloc-broker.ts:1-12 permits arbitrary response keys.",
+        "magic-browser/src/runtime/padloc-broker.ts:19-36 rejects only a non-empty key named value; :42-62 only validates audit.valuePolicy."
+      ],
+      "impact": "A raw username, password, token, body, or personal value under another key can pass the consumer guard and reach CLI/model-visible output, despite the plan's no-raw-value invariant.",
+      "requiredChange": "Use a closed response schema with deny-by-default unknown keys, or an exhaustive sensitive-field policy plus fixtures for arbitrary nested key names. Keep protocol-v1 compatibility explicit."
+    },
+    {
+      "id": "A8",
+      "severity": "medium",
+      "category": "compatibility",
+      "title": "Newly created item semantics are not connected to the creation API",
+      "evidence": [
+        "padloc/packages/core/src/item.ts:475-484 puts autofillKind on ItemTemplate, not VaultItem.",
+        "padloc/packages/app/src/elements/create-item-dialog.ts:142-147 passes fields/icon but not template.autofillKind.",
+        "padloc/packages/core/src/app.ts:1569-1584 createItem has no autofillKind or provenance parameter."
+      ],
+      "impact": "The required normalization of newly created records is not guaranteed for template-created items, especially login, government, and financial records.",
+      "requiredChange": "Define whether createVaultItem derives kind/roles from fields or extend the createItem/template boundary; assign the exact app/core seam and compatibility tests to G001."
+    },
+    {
+      "id": "A9",
+      "severity": "medium",
+      "category": "execution",
+      "title": "G009 has an unprefixed cross-repository ownership path",
+      "evidence": [
+        "graph-candidate.json:348-355 lists .ch5/autopilot/agentic-autofill-unification-20260918/synthetic-e2e/** without a padloc/ or magic-browser/ repository prefix.",
+        "plan.md:80-82 states graph ownership is repository-prefixed."
+      ],
+      "impact": "The coordinator cannot determine which Grove Tree owns the artifact or enforce the declared disjoint-path contract.",
+      "requiredChange": "Prefix the path with its owning repository or split the run artifact into explicit per-repository paths, then rerun graph ownership validation."
+    }
+  ],
+  "positiveEvidence": [
+    "The dependency graph is acyclic and parallelWith relations are symmetric.",
+    "Padloc already has exact target revalidation, short-lived grant state, revocation generations, pre-write privacy marking, and redacted native responses.",
+    "Magic Browser already has a Padloc broker transport and rejects printable raw bundle values on native/CDP responses.",
+    "The brief/spec preserve legacy identifiers, protocol-v1 readability, synthetic-only implementation, and no working-credential mutation."
+  ],
+  "executionDecision": "Do not dispatch implementation from this frozen plan. Resolve A1-A6 first; resolve A7-A9 in the same plan/spec/graph correction pass, then rerun independent architecture review.",
+  "nextGate": "Return to plan review after the required contract, ownership, and privacy-state corrections. This artifact records no product or plan edits."
+}

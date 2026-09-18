@@ -1,0 +1,127 @@
+{
+  "schema": "agent.workflow.dispatch-context.v1",
+  "contextId": "agentic-autofill-plan-writer-v1",
+  "taskClass": "planning",
+  "objective": "Produce the smallest complete deliberate consensus-plan candidate for the Elf Vault and Magic Browser agentic personal-data program.",
+  "authority": {
+    "principal": "operator",
+    "grants": [
+      "read both Grove Trees and write only assigned planning artifacts"
+    ],
+    "provenance": "USER",
+    "source": "Chris explicitly requested Autopilot, an Ultragoal brief, and Luna Max worker fan-out"
+  },
+  "requirements": [
+    {
+      "id": "req-spec",
+      "statement": "Preserve the frozen specification and architecture invariants",
+      "provenance": "TYPED_CONTRACT",
+      "gating": true,
+      "source": "docs/specs/agentic-personal-data-vault.md"
+    },
+    {
+      "id": "req-model",
+      "statement": "Use Codex gpt-5.6-luna at max reasoning",
+      "provenance": "USER",
+      "gating": true,
+      "source": "accepted user request"
+    },
+    {
+      "id": "req-no-real-data",
+      "statement": "Do not access or move real personal data or working credentials",
+      "provenance": "USER",
+      "gating": true,
+      "source": "Ultragoal brief"
+    }
+  ],
+  "conflicts": [],
+  "nonGoals": [
+    "implement product source",
+    "access credentials",
+    "deploy"
+  ],
+  "owners": [
+    {
+      "seam": "planning artifacts",
+      "repository": "padloc",
+      "owner": "agentic-autofill-plan-writer",
+      "files": [
+        ".ch5/autopilot/agentic-autofill-unification-20260918/plan.md",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json"
+      ],
+      "symbols": [
+        "PlanGraph",
+        "test plan",
+        "ownership map"
+      ]
+    }
+  ],
+  "workspace": {
+    "schema": "agent.workflow.prepared-workspace.v1",
+    "receiptId": "grove-agentic-autofill-unification-20260918",
+    "workspaceId": "agentic-autofill-unification-20260918",
+    "preparedAt": "2026-09-18T18:05:48.647+00:00",
+    "repositories": [
+      {
+        "repository": "padloc",
+        "workspacePath": "/Users/hassoncs/worktrees/ch5/padloc/agentic-autofill-unification-20260918",
+        "branch": "grove/agentic-autofill-unification-20260918/padloc",
+        "sourceCommit": "83a55325623a13115c873b67795ec7c442766f5f",
+        "readiness": "ready"
+      },
+      {
+        "repository": "magic-browser",
+        "workspacePath": "/Users/hassoncs/worktrees/ch5/magic-browser/agentic-autofill-unification-20260918",
+        "branch": "grove/agentic-autofill-unification-20260918/magic-browser",
+        "sourceCommit": "213896cdaf0cbdde9366767ec0febbd8cd42acd2",
+        "readiness": "ready"
+      }
+    ]
+  },
+  "targets": [
+    {
+      "repository": "padloc",
+      "files": [
+        ".ch5/autopilot/agentic-autofill-unification-20260918/plan.md",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md",
+        ".ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json"
+      ],
+      "symbols": [
+        "PlanGraph"
+      ],
+      "sourceCommit": "83a55325623a13115c873b67795ec7c442766f5f",
+      "diff": []
+    }
+  ],
+  "consumedEvidence": [
+    {
+      "kind": "artifact",
+      "reference": ".ch5/autopilot/agentic-autofill-unification-20260918/brief.md"
+    },
+    {
+      "kind": "artifact",
+      "reference": "docs/specs/agentic-personal-data-vault.md"
+    },
+    {
+      "kind": "artifact",
+      "reference": ".omx/ultragoal/goals.json"
+    }
+  ],
+  "acceptance": [
+    {
+      "id": "accept-plan",
+      "statement": "Plan artifacts are complete, executable, deliberate, and preserve all frozen invariants",
+      "provenance": "TYPED_CONTRACT",
+      "gating": true,
+      "state": "remaining",
+      "evidence": []
+    }
+  ],
+  "cheapestProof": [
+    "python3 -m json.tool .ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json"
+  ],
+  "resultDestination": "thread://01a0b4ec-b81f-7491-b80b-97f373c67d39",
+  "skills": [],
+  "createdAt": "2026-09-18T18:05:48.647+00:00"
+}
