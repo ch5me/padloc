@@ -401,12 +401,13 @@ function runMagicJson(command, args) {
 async function connectSession(browser, sessionId) {
     const status = runMagicJson(browser, ["session", "status", sessionId]);
     const session = status.session || status;
-    const webSocketUrl = session.webSocketDebuggerUrl || session.provider?.cdp?.webSocketDebuggerUrl;
+    const provider = status.provider || session.provider;
+    const webSocketUrl = session.webSocketDebuggerUrl || provider?.cdp?.webSocketDebuggerUrl;
     if (!webSocketUrl) {
         throw new SmokeError("BROWSER_CDP_UNAVAILABLE", "Magic Browser session has no CDP endpoint");
     }
     const cdp = new Cdp(webSocketUrl);
-    await cdp.connect(session.targetId || session.provider?.cdp?.targetId);
+    await cdp.connect(session.targetId || provider?.cdp?.targetId);
     return cdp;
 }
 
