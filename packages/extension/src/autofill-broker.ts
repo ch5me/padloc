@@ -1,9 +1,25 @@
 import type { Field, VaultItem } from "@padloc/core/src/item";
 import {
+    AgentDataClass,
+    AgentExecutionGrantRecord,
+    AgentPermissionRequest,
+    AgentStandingPolicy,
+    beginAgentGrantUse,
+    completeAgentGrantUse,
+    createAgentGrantRecord,
+    evaluateAgentPermission,
+    mintAgentExecutionGrant,
+    permissionRequestDigest,
+    reserveAgentGrantUse,
+    revokeAgentGrant,
+} from "./agent-permission-engine";
+import {
     AUTOFILL_BROKER_PROTOCOL_VERSION,
+    AutofillBrokerInspectedField,
     AutofillBrokerPlanField,
     AutofillBrokerRequest,
     AutofillBrokerResponse,
+    AutofillBrokerTarget,
     buildLockedBrokerResponse,
     buildUnlockedBrokerStatusResponse,
 } from "./autofill-broker-protocol";
@@ -12,10 +28,29 @@ export interface BrokerItemSource {
     item: VaultItem;
 }
 
+export interface BrokerPrincipal {
+    userId: string;
+    sessionId: string;
+    agentId?: string;
+    runtimeId?: string;
+}
+
+export interface PendingBrokerPlanField extends AutofillBrokerPlanField {
+    selector: string;
+    itemId: string;
+    itemName: string;
+    fieldIndex: number;
+    fieldName: string;
+    valuePreview: string;
+    dataClass: AgentDataClass;
+}
+
 export interface PendingBrokerPlan {
     planId: string;
     request: AutofillBrokerRequest;
-    fields: AutofillBrokerPlanField[];
+    target: AutofillBrokerTarget;
+    fields: PendingBrokerPlanField[];
+    permissionRequest: AgentPermissionRequest;
     createdAt: number;
 }
 
@@ -24,6 +59,21 @@ export interface BrokerApproval {
     planId: string;
     approvedAt: number;
     expiresAt: number;
+    policyRevision: number;
+    revocationGeneration: number;
+    confirmedRequestDigest: string;
+}
+
+export interface PendingBrokerBundleField extends PendingBrokerPlanField {}
+
+export interface PendingBrokerBundle {
+    bundleId: string;
+    planId: string;
+    approvalId: string;
+    target: AutofillBrokerTarget;
+    expiresAt: number;
+    fields: PendingBrokerBundleField[];
+    grantRecord: AgentExecutionGrantRecord;
 }
 
 export function buildBrokerStatusResponse(
@@ -39,12 +89,18 @@ export function buildBrokerStatusResponse(
 export function buildUnlockedBrokerPlanResponse(
     request: AutofillBrokerRequest,
     items: BrokerItemSource[],
+    target: AutofillBrokerTarget,
+    inspectedFields: AutofillBrokerInspectedField[],
+    principal: BrokerPrincipal,
     now = Date.now()
 ): { response: AutofillBrokerResponse; pendingPlan: PendingBrokerPlan } {
     const binding = requireBinding(request);
-    const fields = collectMatchingFields(request, items);
-    const planId = makeId("plan", binding.sessionId, binding.origin, fields.map((field) => field.fieldHash).join("|"));
-    const pendingPlan = { planId, request, fields, createdAt: now };
+    assertRequestMatchesTarget(binding.origin, binding.frameId, target);
+    const fields = collectMatchingFields(items, inspectedFields);
+    if (fields.length === 0) throw new Error("Autofill plan has no authorized field matches");
+    const planId = opaqueId("plan");
+    const permissionRequest = buildFillPermissionRequest(request, target, fields, principal, now);
+    const pendingPlan = { planId, request, target, fields, permissionRequest, createdAt: now };
     return {
         pendingPlan,
         response: {
@@ -54,8 +110,9 @@ export function buildUnlockedBrokerPlanResponse(
             vaultState: "unlocked",
             reason: null,
             planId,
-            fields,
-            audit: audit("plan-fill", request, fields.length),
+            target,
+            fields: fields.map(publicPlanField),
+            audit: audit("plan-fill", request, fields.length, { reasonCode: "ASK_MISSING_AUTHORITY" }),
         },
     };
 }
@@ -68,11 +125,18 @@ export function approveBrokerPlanResponse(
     if (request.planId !== pendingPlan.planId) throw new Error("Autofill approval plan mismatch");
     if (request.approved !== true) throw new Error("Autofill approval requires user approval");
     const ttlMs = Math.max(1, request.ttlSeconds || 120) * 1000;
+    const expiresAt = Math.min(now + ttlMs, Date.parse(pendingPlan.permissionRequest.expiresAt));
     const approval = {
-        approvalId: makeId("approval", pendingPlan.planId, String(now)),
+        approvalId: opaqueId("approval"),
         planId: pendingPlan.planId,
         approvedAt: now,
-        expiresAt: now + ttlMs,
+        expiresAt,
+        policyRevision: 1,
+        revocationGeneration: 0,
+        confirmedRequestDigest: permissionRequestDigest({
+            ...pendingPlan.permissionRequest,
+            expiresAt: new Date(expiresAt).toISOString(),
+        }),
     };
     return {
         approval,
@@ -85,123 +149,293 @@ export function approveBrokerPlanResponse(
             planId: pendingPlan.planId,
             approvalId: approval.approvalId,
             expiresAt: new Date(approval.expiresAt).toISOString(),
-            audit: audit("approve", pendingPlan.request, pendingPlan.fields.length),
+            audit: audit("approve", pendingPlan.request, pendingPlan.fields.length, {
+                decision: "allow",
+                approvalId: approval.approvalId,
+            }),
         },
     };
 }
 
-export async function mintBrokerBundleResponse(
+export function mintBrokerBundleResponse(
     request: AutofillBrokerRequest,
     pendingPlan: PendingBrokerPlan,
     approval: BrokerApproval,
-    items: BrokerItemSource[],
     now = Date.now()
-): Promise<AutofillBrokerResponse> {
+): { response: AutofillBrokerResponse; bundle: PendingBrokerBundle } {
     if (request.planId !== pendingPlan.planId) throw new Error("Autofill bundle plan mismatch");
     if (request.approvalId !== approval.approvalId) throw new Error("Autofill bundle approval mismatch");
     if (approval.expiresAt <= now) throw new Error("Autofill approval expired");
-    const values = await resolveBundleValues(pendingPlan, items);
-    const bundleId = makeId("bundle", approval.approvalId, String(now));
-    return {
-        ok: true,
-        protocolVersion: AUTOFILL_BROKER_PROTOCOL_VERSION,
-        requestId: request.requestId,
-        vaultState: "unlocked",
-        reason: null,
+
+    const permissionRequest: AgentPermissionRequest = {
+        ...pendingPlan.permissionRequest,
+        expiresAt: new Date(approval.expiresAt).toISOString(),
+    };
+    const policy = approvalPolicy(pendingPlan, approval);
+    const evaluationInput = {
+        mode: "manual" as const,
+        request: permissionRequest,
+        policies: [policy],
+        now,
+        currentPolicyRevision: approval.policyRevision,
+        currentRevocationGeneration: approval.revocationGeneration,
+        onlineAuthorityCurrent: true,
+        confirmedRequestDigest: approval.confirmedRequestDigest,
+    };
+    if (permissionRequestDigest(permissionRequest) !== approval.confirmedRequestDigest) {
+        throw new Error("Autofill approval does not match the execution request");
+    }
+    const decision = evaluateAgentPermission(evaluationInput);
+    if (decision.outcome !== "allow") throw new Error(`Autofill permission denied: ${decision.reasonCode}`);
+    const grant = mintAgentExecutionGrant(evaluationInput, decision, opaqueId("grant"));
+    const bundleId = opaqueId("bundle");
+    const bundle: PendingBrokerBundle = {
+        bundleId,
         planId: pendingPlan.planId,
         approvalId: approval.approvalId,
-        bundleId,
-        expiresAt: new Date(approval.expiresAt).toISOString(),
-        bundleFields: values,
-        audit: audit("mint-fill-bundle", pendingPlan.request, values.length),
+        target: pendingPlan.target,
+        expiresAt: approval.expiresAt,
+        fields: pendingPlan.fields.map((field) => ({ ...field })),
+        grantRecord: createAgentGrantRecord(grant),
     };
+    return {
+        bundle,
+        response: {
+            ok: true,
+            protocolVersion: AUTOFILL_BROKER_PROTOCOL_VERSION,
+            requestId: request.requestId,
+            vaultState: "unlocked",
+            reason: null,
+            planId: pendingPlan.planId,
+            approvalId: approval.approvalId,
+            bundleId,
+            grantId: grant.id,
+            expiresAt: new Date(approval.expiresAt).toISOString(),
+            target: pendingPlan.target,
+            audit: audit("mint-fill-bundle", pendingPlan.request, pendingPlan.fields.length, {
+                decision: "allow",
+                approvalId: approval.approvalId,
+                grantId: grant.id,
+                reasonCode: decision.reasonCode,
+            }),
+        },
+    };
+}
+
+export function reserveBrokerBundleFieldUse(
+    bundle: PendingBrokerBundle,
+    fieldRef: string,
+    attemptId: string,
+    now = Date.now()
+): PendingBrokerBundle {
+    if (!bundle.fields.some((field) => field.fieldRef === fieldRef))
+        throw new Error("Autofill field reference not found");
+    return {
+        ...bundle,
+        grantRecord: beginAgentGrantUse(
+            reserveAgentGrantUse(bundle.grantRecord, attemptId, {
+                now,
+                currentPolicyRevision: bundle.grantRecord.grant.policyRevision,
+                currentRevocationGeneration: bundle.grantRecord.grant.revocationGeneration,
+                onlineAuthorityCurrent: true,
+            }),
+            attemptId
+        ),
+    };
+}
+
+export async function resolveBrokerBundleFieldValue(
+    bundle: PendingBrokerBundle,
+    fieldRef: string,
+    items: BrokerItemSource[]
+): Promise<string> {
+    const planned = bundle.fields.find((field) => field.fieldRef === fieldRef);
+    if (!planned) throw new Error("Autofill field reference not found");
+    const source = items.find(({ item }) => item.id === planned.itemId)?.item.fields[planned.fieldIndex];
+    if (!source) throw new Error("Autofill field source missing");
+    return source.transform();
+}
+
+export function completeBrokerBundleFieldUse(
+    bundle: PendingBrokerBundle,
+    attemptId: string,
+    outcome: "completed" | "partial" | "outcome-unknown"
+): PendingBrokerBundle {
+    return { ...bundle, grantRecord: completeAgentGrantUse(bundle.grantRecord, attemptId, outcome) };
 }
 
 export function applyBrokerBundleResponse(
     request: AutofillBrokerRequest,
-    bundle: AutofillBrokerResponse,
+    bundle: PendingBrokerBundle,
+    filledFieldRefs: string[],
+    status: "completed" | "partial" | "outcome-unknown",
     now = Date.now()
 ): AutofillBrokerResponse {
-    if (request.planId !== bundle.planId) throw new Error("Autofill apply plan mismatch");
-    if (request.bundleId !== bundle.bundleId) throw new Error("Autofill apply bundle mismatch");
-    if (bundle.expiresAt && Date.parse(bundle.expiresAt) <= now) throw new Error("Autofill bundle expired");
+    assertBundleRequest(request, bundle, now);
+    const receiptId = opaqueId("receipt");
     return {
-        ok: true,
+        ok: status === "completed",
         protocolVersion: AUTOFILL_BROKER_PROTOCOL_VERSION,
         requestId: request.requestId,
         vaultState: "unlocked",
-        reason: null,
+        reason: status === "completed" ? null : "Autofill execution did not complete every approved field",
         planId: bundle.planId,
         approvalId: bundle.approvalId,
         bundleId: bundle.bundleId,
-        audit: audit("apply-fill-bundle", request, bundle.bundleFields ? bundle.bundleFields.length : 0),
+        grantId: bundle.grantRecord.grant.id,
+        target: bundle.target,
+        receipt: {
+            receiptId,
+            status,
+            filledFieldRefs: [...filledFieldRefs],
+            modelDisclosure: "none",
+            submittedByExecutor: false,
+        },
+        audit: audit("apply-fill-bundle", request, filledFieldRefs.length, {
+            grantId: bundle.grantRecord.grant.id,
+            receiptId,
+        }),
     };
 }
 
 export function revokeBrokerBundleResponse(
     request: AutofillBrokerRequest,
-    bundle: AutofillBrokerResponse
-): AutofillBrokerResponse {
+    bundle: PendingBrokerBundle
+): { response: AutofillBrokerResponse; bundle: PendingBrokerBundle } {
     if (request.planId !== bundle.planId) throw new Error("Autofill revoke plan mismatch");
     if (request.bundleId !== bundle.bundleId) throw new Error("Autofill revoke bundle mismatch");
+    const revokedBundle = { ...bundle, grantRecord: revokeAgentGrant(bundle.grantRecord) };
+    const receiptId = opaqueId("receipt");
     return {
-        ok: true,
-        protocolVersion: AUTOFILL_BROKER_PROTOCOL_VERSION,
-        requestId: request.requestId,
-        vaultState: "unlocked",
-        reason: null,
-        planId: bundle.planId,
-        approvalId: bundle.approvalId,
-        bundleId: bundle.bundleId,
-        audit: audit("revoke-fill-bundle", request, bundle.bundleFields ? bundle.bundleFields.length : 0),
+        bundle: revokedBundle,
+        response: {
+            ok: true,
+            protocolVersion: AUTOFILL_BROKER_PROTOCOL_VERSION,
+            requestId: request.requestId,
+            vaultState: "unlocked",
+            reason: null,
+            planId: bundle.planId,
+            approvalId: bundle.approvalId,
+            bundleId: bundle.bundleId,
+            grantId: bundle.grantRecord.grant.id,
+            target: bundle.target,
+            receipt: {
+                receiptId,
+                status: "revoked",
+                filledFieldRefs: [],
+                modelDisclosure: "none",
+                submittedByExecutor: false,
+            },
+            audit: audit("revoke-fill-bundle", request, 0, {
+                grantId: bundle.grantRecord.grant.id,
+                receiptId,
+            }),
+        },
     };
 }
 
 export function redactBrokerResponse(response: AutofillBrokerResponse): AutofillBrokerResponse {
-    if (!response.bundleFields) return response;
-    return {
-        ...response,
-        bundleFields: response.bundleFields.map(({ value: _value, ...field }) => ({ ...field, value: "" })),
-    };
+    return JSON.parse(JSON.stringify(response)) as AutofillBrokerResponse;
 }
 
-function collectMatchingFields(request: AutofillBrokerRequest, items: BrokerItemSource[]): AutofillBrokerPlanField[] {
-    const requestFields = request.fields || [];
-    const matches: AutofillBrokerPlanField[] = [];
-    for (const requestField of requestFields) {
-        const requestedRole = normalizeRole(requestField.role || "");
-        if (!requestedRole || !requestField.selector) continue;
+function collectMatchingFields(
+    items: BrokerItemSource[],
+    inspectedFields: AutofillBrokerInspectedField[]
+): PendingBrokerPlanField[] {
+    const matches: PendingBrokerPlanField[] = [];
+    const seenFieldRefs = new Set<string>();
+    for (const inspected of inspectedFields) {
+        const requestedRole = normalizeRole(inspected.role);
+        if (!requestedRole || !inspected.selector || !inspected.fieldRef || seenFieldRefs.has(inspected.fieldRef))
+            continue;
         const match = findFirstFieldForRole(items, requestedRole);
         if (!match) continue;
+        seenFieldRefs.add(inspected.fieldRef);
         matches.push({
-            selector: requestField.selector,
-            role: requestField.role || requestedRole,
-            fieldHash: requestField.fieldHash || hashField(requestField.selector, requestedRole),
+            selector: inspected.selector,
+            role: inspected.role || requestedRole,
+            fieldRef: inspected.fieldRef,
+            sourceRef: opaqueId("source"),
             itemId: match.item.id,
             itemName: match.item.name,
             fieldIndex: match.index,
             fieldName: match.field.name,
             valuePreview: previewValue(match.field, requestedRole),
             transactionOnly: Boolean(match.field.transactionOnly),
+            dataClass: dataClassForRole(requestedRole),
         });
     }
     return matches;
 }
 
-async function resolveBundleValues(pendingPlan: PendingBrokerPlan, items: BrokerItemSource[]) {
-    const values = [];
-    for (const planned of pendingPlan.fields) {
-        const source = items.find(({ item }) => item.id === planned.itemId)?.item.fields[planned.fieldIndex];
-        if (!source) throw new Error(`Autofill field source missing: ${planned.itemId}/${planned.fieldIndex}`);
-        values.push({
-            selector: planned.selector,
-            role: planned.role,
-            fieldHash: planned.fieldHash,
-            value: await source.transform(),
-            transactionOnly: planned.transactionOnly,
-        });
-    }
-    return values;
+function buildFillPermissionRequest(
+    request: AutofillBrokerRequest,
+    target: AutofillBrokerTarget,
+    fields: PendingBrokerPlanField[],
+    principal: BrokerPrincipal,
+    now: number
+): AgentPermissionRequest {
+    return {
+        principal: {
+            userId: principal.userId,
+            initiatingOrigin: target.topOrigin,
+            sessionId: request.binding?.sessionId || principal.sessionId,
+            agentId: principal.agentId,
+            runtimeId: principal.runtimeId,
+        },
+        operation: "fill",
+        bindings: fields.map((field) => ({
+            sourceRef: field.sourceRef,
+            fieldRef: field.fieldRef,
+            dataClass: field.dataClass,
+        })),
+        recipient: { kind: "page", topOrigin: target.topOrigin, frameOrigin: target.frameOrigin },
+        target: {
+            tabId: target.tabId,
+            frameId: target.frameId,
+            documentId: target.documentId,
+            formRef: target.formRef,
+            targetRevision: target.targetRevision,
+        },
+        representation: "action-only",
+        expiresAt: new Date(now + 2 * 60 * 1000).toISOString(),
+        maxUses: fields.length,
+        enforcement: {
+            localExecutorOnly: true,
+            allowModelDisclosure: false,
+            requiresFreshUserConfirmation: true,
+            revocationMode: "online-required",
+        },
+    };
+}
+
+function approvalPolicy(plan: PendingBrokerPlan, approval: BrokerApproval): AgentStandingPolicy {
+    const permission = plan.permissionRequest;
+    return {
+        id: approval.approvalId,
+        revision: approval.policyRevision,
+        revocationGeneration: approval.revocationGeneration,
+        status: "active",
+        effect: "allow",
+        operations: ["fill"],
+        initiatingOrigins: [permission.principal.initiatingOrigin],
+        sourceRefs: permission.bindings.map((binding) => binding.sourceRef),
+        fieldRefs: permission.bindings.map((binding) => binding.fieldRef || ""),
+        recipients: [permission.recipient],
+        representations: ["action-only"],
+        approvalModes: ["manual", "auto", "bypassPrompts"],
+        expiresAt: new Date(approval.expiresAt).toISOString(),
+        requiresFreshUserConfirmation: true,
+    };
+}
+
+function publicPlanField(field: PendingBrokerPlanField): AutofillBrokerPlanField {
+    return {
+        fieldRef: field.fieldRef,
+        role: field.role,
+        sourceRef: field.sourceRef,
+        transactionOnly: field.transactionOnly,
+    };
 }
 
 function findFirstFieldForRole(
@@ -220,20 +454,42 @@ function findFirstFieldForRole(
 
 function requireBinding(request: AutofillBrokerRequest) {
     if (!request.binding) throw new Error("Autofill broker request missing binding");
+    if (!request.binding.sessionId) throw new Error("Autofill broker request missing session binding");
     return request.binding;
+}
+
+function assertRequestMatchesTarget(
+    origin: string,
+    frameId: number | string | undefined,
+    target: AutofillBrokerTarget
+) {
+    if (origin !== target.topOrigin) throw new Error("Autofill request origin does not match browser target");
+    if (target.topOrigin !== target.frameOrigin)
+        throw new Error("Cross-origin autofill frames require a separate recipient grant");
+    if (frameId !== undefined && frameId !== "main" && Number(frameId) !== target.frameId) {
+        throw new Error("Autofill request frame does not match browser target");
+    }
+}
+
+function assertBundleRequest(request: AutofillBrokerRequest, bundle: PendingBrokerBundle, now: number) {
+    if (request.planId !== bundle.planId) throw new Error("Autofill apply plan mismatch");
+    if (request.bundleId !== bundle.bundleId) throw new Error("Autofill apply bundle mismatch");
+    if (bundle.expiresAt <= now) throw new Error("Autofill bundle expired");
 }
 
 function audit(
     operation: AutofillBrokerResponse["audit"]["operation"],
     request: AutofillBrokerRequest,
-    fieldCount: number
+    fieldCount: number,
+    extra: Partial<AutofillBrokerResponse["audit"]> = {}
 ) {
     return {
         operation,
         sessionId: request.binding ? request.binding.sessionId : null,
         origin: request.binding ? request.binding.origin : null,
         fieldCount,
-        valuePolicy: "redacted audit only; no raw autofill values or passkey secrets",
+        valuePolicy: "reference-only agent transport; values resolve inside the trusted extension executor",
+        ...extra,
     };
 }
 
@@ -244,21 +500,23 @@ function normalizeRole(role: string): string {
     return normalized;
 }
 
+function dataClassForRole(role: string): AgentDataClass {
+    if (role === "password" || role === "totp" || role.startsWith("authentication.")) {
+        return "authentication-secret";
+    }
+    if (role.startsWith("payment.")) return "payment";
+    return "profile";
+}
+
 function previewValue(field: Field, role: string): string {
     if (role === "payment.card.pan") return `card:${field.value.replace(/\D/g, "").slice(-4) || "unknown"}`;
     if (field.transactionOnly) return "transaction-only";
     return "stored";
 }
 
-function hashField(selector: string, role: string): string {
-    let hash = 0;
-    const input = `${selector}\0${role}`;
-    for (let i = 0; i < input.length; i += 1) {
-        hash = (hash * 31 + input.charCodeAt(i)) >>> 0;
-    }
-    return `field_${hash.toString(16)}`;
-}
-
-function makeId(prefix: string, ...parts: string[]): string {
-    return `${prefix}_${hashField(parts.join("|"), prefix).replace(/^field_/, "")}`;
+function opaqueId(prefix: string): string {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    const value = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    return `${prefix}_${value}`;
 }

@@ -12,7 +12,7 @@ export type AutofillBrokerOperation =
 export interface AutofillBrokerBinding {
     sessionId: string;
     origin: string;
-    frameId?: string;
+    frameId?: number | string;
     fieldHashes?: string[];
     flowId?: string;
     nonce?: string;
@@ -46,23 +46,34 @@ export interface AutofillBrokerRequest {
 }
 
 export interface AutofillBrokerPlanField {
-    selector: string;
+    fieldRef: string;
     role: string;
-    fieldHash: string;
-    itemId: string;
-    itemName: string;
-    fieldIndex: number;
-    fieldName: string;
-    valuePreview: string;
+    sourceRef: string;
     transactionOnly: boolean;
 }
 
-export interface AutofillBrokerBundleField {
+export interface AutofillBrokerTarget {
+    tabId: number;
+    frameId: number;
+    documentId: string;
+    formRef: string;
+    targetRevision: string;
+    topOrigin: string;
+    frameOrigin: string;
+}
+
+export interface AutofillBrokerReceipt {
+    receiptId: string;
+    status: "completed" | "partial" | "revoked" | "outcome-unknown";
+    filledFieldRefs: string[];
+    modelDisclosure: "none" | "approved";
+    submittedByExecutor: boolean;
+}
+
+export interface AutofillBrokerInspectedField {
     selector: string;
     role: string;
-    fieldHash: string;
-    value: string;
-    transactionOnly: boolean;
+    fieldRef: string;
 }
 
 export interface BrokerAudit {
@@ -79,6 +90,9 @@ export interface BrokerAudit {
     decision?: "allow" | "deny" | null;
     reason?: string | null;
     approvalId?: string | null;
+    grantId?: string | null;
+    receiptId?: string | null;
+    reasonCode?: string | null;
     flowId?: string | null;
     nonce?: string | null;
 }
@@ -92,9 +106,11 @@ export interface AutofillBrokerResponse {
     planId?: string;
     approvalId?: string;
     bundleId?: string;
+    grantId?: string;
     expiresAt?: string;
     fields?: AutofillBrokerPlanField[];
-    bundleFields?: AutofillBrokerBundleField[];
+    target?: AutofillBrokerTarget;
+    receipt?: AutofillBrokerReceipt;
     audit: BrokerAudit;
 }
 

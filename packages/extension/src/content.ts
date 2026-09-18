@@ -1,7 +1,8 @@
 import { browser } from "webextension-polyfill-ts";
 // import { throttle } from "@padloc/core/src/util";
-import { FieldMappings, Message, CredentialData } from "./message";
+import { AgenticFieldProposal, AgenticFieldWrite, FieldMappings, Message, CredentialData } from "./message";
 import { AutofillFieldRole, classifyAutofillField, isFillableInputType } from "./autofill-classifier";
+import { AutofillBrokerInspectedField, AutofillBrokerTarget } from "./autofill-broker-protocol";
 
 const css = `
     @font-face {
@@ -101,6 +102,8 @@ class ExtensionContent {
     //
     // private _highlightElement: HTMLDivElement;
 
+    private readonly _agenticDocumentId = randomAgenticId("document");
+
     async init() {
         const style = document.createElement("style");
         style.type = "text/css";
@@ -120,6 +123,10 @@ class ExtensionContent {
                 return Promise.resolve(this._fill(msg.value));
             case "fillFields":
                 return Promise.resolve(this._fillFields(msg.mappings));
+            case "inspectAgenticFields":
+                return Promise.resolve(this._inspectAgenticFields(msg.fields));
+            case "applyAgenticField":
+                return Promise.resolve(this._applyAgenticField(msg.target, msg.approvedFields, msg.field));
             // case "fillOnDrop":
             //     // console.log("autofill", msg);
             //     return new Promise(resolve => {
@@ -343,6 +350,109 @@ class ExtensionContent {
             pattern: input.getAttribute("pattern"),
             inputmode: input.getAttribute("inputmode"),
         });
+    }
+
+    private async _inspectAgenticFields(fields: AgenticFieldProposal[]) {
+        if (!Array.isArray(fields) || fields.length === 0 || location.origin === "null") return null;
+        const inspected: AutofillBrokerInspectedField[] = [];
+        const formIdentities = new Set<string>();
+        for (const proposal of fields) {
+            const resolved = await this._resolveAgenticField(proposal);
+            if (!resolved) return null;
+            inspected.push({ selector: proposal.selector, role: proposal.role, fieldRef: resolved.fieldRef });
+            formIdentities.add(resolved.formIdentity);
+        }
+        if (formIdentities.size !== 1) return null;
+        const formIdentity = Array.from(formIdentities)[0];
+        const formRef = await agenticHash(`${this._agenticDocumentId}\0${formIdentity}`);
+        const targetRevision = await agenticHash(
+            `${this._agenticDocumentId}\0${formRef}\0${inspected
+                .map((field) => field.fieldRef)
+                .sort()
+                .join("|")}`
+        );
+        return {
+            documentId: this._agenticDocumentId,
+            formRef,
+            targetRevision,
+            frameOrigin: location.origin,
+            fields: inspected,
+        };
+    }
+
+    private async _applyAgenticField(
+        target: AutofillBrokerTarget,
+        approvedFields: AutofillBrokerInspectedField[],
+        field: AgenticFieldWrite
+    ): Promise<boolean> {
+        if (target.documentId !== this._agenticDocumentId || target.frameOrigin !== location.origin) return false;
+        const inspection = await this._inspectAgenticFields(
+            approvedFields.map(({ selector, role }) => ({ selector, role }))
+        );
+        if (
+            !inspection ||
+            inspection.documentId !== target.documentId ||
+            inspection.formRef !== target.formRef ||
+            inspection.targetRevision !== target.targetRevision
+        ) {
+            return false;
+        }
+        const inspected = inspection.fields.find((candidate) => candidate.fieldRef === field.fieldRef);
+        if (
+            !inspected ||
+            inspected.selector !== field.selector ||
+            normalizeAgenticRole(inspected.role) !== normalizeAgenticRole(field.role)
+        ) {
+            return false;
+        }
+        const resolved = await this._resolveAgenticField(field);
+        if (!resolved || resolved.fieldRef !== field.fieldRef) return false;
+        return this._fill(field.value, resolved.input);
+    }
+
+    private async _resolveAgenticField(proposal: AgenticFieldProposal): Promise<{
+        input: HTMLInputElement;
+        fieldRef: string;
+        formIdentity: string;
+    } | null> {
+        if (!proposal || !proposal.selector || !proposal.role) return null;
+        let matches: NodeListOf<Element>;
+        try {
+            matches = document.querySelectorAll(proposal.selector);
+        } catch {
+            return null;
+        }
+        if (matches.length !== 1) return null;
+        const input = matches[0];
+        if (
+            !(input instanceof HTMLInputElement) ||
+            !this._isElementFillable(input) ||
+            input.disabled ||
+            input.readOnly
+        ) {
+            return null;
+        }
+        const actualRole = this._classifyField(input);
+        if (!actualRole || normalizeAgenticRole(actualRole) !== normalizeAgenticRole(proposal.role)) return null;
+        const formIdentity = agenticFormIdentity(input.form);
+        const descriptor = [
+            proposal.selector,
+            normalizeAgenticRole(proposal.role),
+            input.type,
+            input.name,
+            input.id,
+            input.getAttribute("autocomplete") || "",
+            input.getAttribute("aria-label") || "",
+            input.required ? "required" : "optional",
+            String(input.maxLength),
+            input.getAttribute("pattern") || "",
+            formIdentity,
+        ].join("\0");
+        return {
+            input,
+            formIdentity,
+            fieldRef: await agenticHash(`${this._agenticDocumentId}\0${descriptor}`),
+        };
     }
 
     /**
@@ -618,6 +728,37 @@ class ExtensionContent {
     //         this._hoveredInput = input;
     //     }
     // }, 50);
+}
+
+function normalizeAgenticRole(role: string): string {
+    const normalized = role.replace(/^billing\./, "");
+    if (normalized === "payment.cardholder_name") return "payment.card.cardholder_name";
+    if (normalized === "payment.card.expiry_mm_yy") return "payment.card.expiry";
+    return normalized;
+}
+
+function agenticFormIdentity(form: HTMLFormElement | null): string {
+    if (!form) return "document";
+    const forms = Array.from(document.forms);
+    return [
+        "form",
+        String(forms.indexOf(form)),
+        form.id,
+        form.getAttribute("name") || "",
+        form.getAttribute("method") || "",
+        form.getAttribute("action") || "",
+    ].join("\0");
+}
+
+function randomAgenticId(prefix: string): string {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return `${prefix}_${Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+}
+
+async function agenticHash(value: string): Promise<string> {
+    const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)));
+    return `ref_${Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
 }
 
 function hasFillMappings(mappings: FieldMappings): boolean {

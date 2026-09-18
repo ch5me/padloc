@@ -1,6 +1,11 @@
 import { browser } from "webextension-polyfill-ts";
 import { VaultItem } from "@padloc/core/src/item";
-import { AutofillBrokerRequest, AutofillBrokerResponse } from "./autofill-broker-protocol";
+import {
+    AutofillBrokerInspectedField,
+    AutofillBrokerRequest,
+    AutofillBrokerResponse,
+    AutofillBrokerTarget,
+} from "./autofill-broker-protocol";
 import { PasskeyRuntimeRequest } from "./passkey-protocol";
 
 /**
@@ -69,6 +74,26 @@ export interface AgenticAutofillApprovalPrompt {
     }>;
 }
 
+export interface AgenticFieldProposal {
+    selector: string;
+    role: string;
+}
+
+export interface AgenticFieldInspectionResult {
+    documentId: string;
+    formRef: string;
+    targetRevision: string;
+    frameOrigin: string;
+    fields: AutofillBrokerInspectedField[];
+}
+
+export interface AgenticFieldWrite {
+    selector: string;
+    role: string;
+    fieldRef: string;
+    value: string;
+}
+
 export interface PasskeyApprovalPrompt {
     requestId: string;
     promptNonce: string;
@@ -101,6 +126,13 @@ export type Message =
     | { type: "unlocked" }
     | { type: "fillActive"; value: string }
     | { type: "fillFields"; mappings: FieldMappings }
+    | { type: "inspectAgenticFields"; fields: AgenticFieldProposal[] }
+    | {
+          type: "applyAgenticField";
+          target: AutofillBrokerTarget;
+          approvedFields: AutofillBrokerInspectedField[];
+          field: AgenticFieldWrite;
+      }
     | { type: "fillOnDrop"; value: string }
     | { type: "calcTOTP"; secret: string }
     | { type: "isContentReady" }

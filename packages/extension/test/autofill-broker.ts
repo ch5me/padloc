@@ -7,8 +7,10 @@ const {
     approveBrokerPlanResponse,
     buildBrokerStatusResponse,
     buildUnlockedBrokerPlanResponse,
+    completeBrokerBundleFieldUse,
     mintBrokerBundleResponse,
-    redactBrokerResponse,
+    reserveBrokerBundleFieldUse,
+    resolveBrokerBundleFieldValue,
     revokeBrokerBundleResponse,
 } = requireModule("../src/autofill-broker");
 
@@ -41,49 +43,33 @@ mochaSuite("Autofill broker", () => {
         }
     });
 
-    const request = {
-        type: "plan-fill",
-        protocolVersion: 1,
-        requestId: "req-1",
-        binding: {
-            sessionId: "session-1",
-            origin: "https://checkout.example.test",
-            frameId: "main",
-            fieldHashes: ["hash-email", "hash-card", "hash-cvv"],
-        },
-        fields: [
-            { selector: "#email", role: "contact.email", fieldHash: "hash-email" },
-            { selector: "#card", role: "payment.card.pan", fieldHash: "hash-card" },
-            { selector: "#cvv", role: "payment.card.cvv_transient", fieldHash: "hash-cvv" },
-        ],
-    };
-
-    mochaTest("plans matching unlocked Padloc fields without raw values", () => {
-        const { response } = buildUnlockedBrokerPlanResponse(request, items());
-        const roles = response.fields.map(readRole);
+    mochaTest("plans with opaque references and no vault or selector metadata", () => {
+        const { response, pendingPlan } = makePlan();
+        const serialized = JSON.stringify(response);
 
         expect(response.ok).to.equal(true);
         expect(response.vaultState).to.equal("unlocked");
-        expect(roles).to.deep.equal(["contact.email", "payment.card.pan", "payment.card.cvv_transient"]);
-        expect(response.fields[1].valuePreview).to.equal("card:1111");
+        expect(response.fields.map(readRole)).to.deep.equal([
+            "contact.email",
+            "payment.card.pan",
+            "payment.card.cvv_transient",
+        ]);
+        expect(response.fields[0].fieldRef).to.match(/^field-/);
+        expect(response.fields[0].sourceRef).to.match(/^source_/);
         expect(response.fields[2].transactionOnly).to.equal(true);
-        expect(JSON.stringify(response)).not.to.contain("sentinel@example.test");
-        expect(JSON.stringify(response)).not.to.contain("4111111111111111");
-        expect(JSON.stringify(response)).not.to.contain("123");
+        expect(serialized).not.to.contain("#email");
+        expect(serialized).not.to.contain("Person");
+        expect(serialized).not.to.contain("Email");
+        expect(serialized).not.to.contain("sentinel@example.test");
+        expect(serialized).not.to.contain("4111111111111111");
+        expect(serialized).not.to.contain("123");
+        expect(pendingPlan.fields[1].valuePreview).to.equal("card:1111");
     });
 
-    mochaTest("approves and mints a short-lived bundle, then redacts returned values", async () => {
-        const { pendingPlan } = buildUnlockedBrokerPlanResponse(
-            request,
-            items(),
-            Date.parse("2026-06-17T12:00:00.000Z")
-        );
-        const { approval, response: approvalResponse } = approveBrokerPlanResponse(
-            { type: "approve", protocolVersion: 1, planId: pendingPlan.planId, approved: true, ttlSeconds: 60 },
-            pendingPlan,
-            Date.parse("2026-06-17T12:00:01.000Z")
-        );
-        const bundleResponse = await mintBrokerBundleResponse(
+    mochaTest("mints a grant without resolving values, then resolves one reserved field locally", async () => {
+        const { pendingPlan } = makePlan();
+        const { approval } = approve(pendingPlan);
+        const { response, bundle: minted } = mintBrokerBundleResponse(
             {
                 type: "mint-fill-bundle",
                 protocolVersion: 1,
@@ -92,33 +78,91 @@ mochaSuite("Autofill broker", () => {
             },
             pendingPlan,
             approval,
-            items(),
-            Date.parse("2026-06-17T12:00:02.000Z")
+            time("12:00:02")
         );
-        const redacted = redactBrokerResponse(bundleResponse);
+        const field = minted.fields[0];
+        const bundle = reserveBrokerBundleFieldUse(minted, field.fieldRef, "attempt-1", time("12:00:03"));
+        const value = await resolveBrokerBundleFieldValue(bundle, field.fieldRef, items());
 
-        expect(approvalResponse.approvalId).to.equal(approval.approvalId);
-        expect(bundleResponse.bundleFields[0].value).to.equal("sentinel@example.test");
-        expect(redacted.bundleFields[0].value).to.equal("");
-        expect(JSON.stringify(redacted)).not.to.contain("sentinel@example.test");
-        expect(JSON.stringify(redacted)).not.to.contain("4111111111111111");
-        expect(JSON.stringify(redacted)).not.to.contain("123");
+        expect(response.grantId).to.match(/^grant_/);
+        expect(response.bundleId).to.equal(minted.bundleId);
+        expect(JSON.stringify(response)).not.to.contain("sentinel@example.test");
+        expect(JSON.stringify(response)).not.to.contain("#email");
+        expect(value).to.equal("sentinel@example.test");
+        expect(bundle.grantRecord.reservations["attempt-1"]).to.equal("executing");
     });
 
-    mochaTest("rejects minting after approval expiry", async () => {
-        const { pendingPlan } = buildUnlockedBrokerPlanResponse(
-            request,
-            items(),
-            Date.parse("2026-06-17T12:00:00.000Z")
+    mochaTest("rechecks use limits for every field and returns receipt-only completion", async () => {
+        const { pendingPlan } = makePlan();
+        const { approval } = approve(pendingPlan);
+        let { bundle } = mintBrokerBundleResponse(
+            {
+                type: "mint-fill-bundle",
+                protocolVersion: 1,
+                planId: pendingPlan.planId,
+                approvalId: approval.approvalId,
+            },
+            pendingPlan,
+            approval,
+            time("12:00:02")
         );
+        const filled = [];
+        for (const [index, field] of bundle.fields.entries()) {
+            const attemptId = `attempt-${index}`;
+            bundle = reserveBrokerBundleFieldUse(bundle, field.fieldRef, attemptId, time("12:00:03"));
+            await resolveBrokerBundleFieldValue(bundle, field.fieldRef, items());
+            bundle = completeBrokerBundleFieldUse(bundle, attemptId, "completed");
+            filled.push(field.fieldRef);
+        }
+        const response = applyBrokerBundleResponse(
+            { type: "apply-fill-bundle", protocolVersion: 1, planId: pendingPlan.planId, bundleId: bundle.bundleId },
+            bundle,
+            filled,
+            "completed",
+            time("12:00:04")
+        );
+
+        expect(bundle.grantRecord.status).to.equal("completed");
+        expect(bundle.grantRecord.completedUses).to.equal(3);
+        expect(response.receipt.status).to.equal("completed");
+        expect(response.receipt.filledFieldRefs).to.deep.equal(filled);
+        expect(response.receipt.modelDisclosure).to.equal("none");
+        expect(response.receipt.submittedByExecutor).to.equal(false);
+        expect(JSON.stringify(response)).not.to.contain("sentinel@example.test");
+    });
+
+    mochaTest("rejects the wrong browser origin or frame binding", () => {
+        expect(() =>
+            buildUnlockedBrokerPlanResponse(
+                { ...request, binding: { ...request.binding, origin: "https://evil.example.test" } },
+                items(),
+                target,
+                inspectedFields,
+                principal,
+                time("12:00:00")
+            )
+        ).to.throw("origin");
+        expect(() =>
+            buildUnlockedBrokerPlanResponse(
+                { ...request, binding: { ...request.binding, frameId: 3 } },
+                items(),
+                target,
+                inspectedFields,
+                principal,
+                time("12:00:00")
+            )
+        ).to.throw("frame");
+    });
+
+    mochaTest("rejects minting after approval expiry", () => {
+        const { pendingPlan } = makePlan();
         const { approval } = approveBrokerPlanResponse(
             { type: "approve", protocolVersion: 1, planId: pendingPlan.planId, approved: true, ttlSeconds: 1 },
             pendingPlan,
-            Date.parse("2026-06-17T12:00:01.000Z")
+            time("12:00:01")
         );
-
-        try {
-            await mintBrokerBundleResponse(
+        expect(() =>
+            mintBrokerBundleResponse(
                 {
                     type: "mint-fill-bundle",
                     protocolVersion: 1,
@@ -127,27 +171,15 @@ mochaSuite("Autofill broker", () => {
                 },
                 pendingPlan,
                 approval,
-                items(),
-                Date.parse("2026-06-17T12:00:03.000Z")
-            );
-            throw new Error("expected failure");
-        } catch (error) {
-            expect(String(error)).to.contain("expired");
-        }
+                time("12:00:03")
+            )
+        ).to.throw("expired");
     });
 
-    mochaTest("acknowledges apply and revoke without returning raw bundle values", async () => {
-        const { pendingPlan } = buildUnlockedBrokerPlanResponse(
-            request,
-            items(),
-            Date.parse("2026-06-17T12:00:00.000Z")
-        );
-        const { approval } = approveBrokerPlanResponse(
-            { type: "approve", protocolVersion: 1, planId: pendingPlan.planId, approved: true, ttlSeconds: 60 },
-            pendingPlan,
-            Date.parse("2026-06-17T12:00:01.000Z")
-        );
-        const bundleResponse = await mintBrokerBundleResponse(
+    mochaTest("revokes an unused grant without returning values", () => {
+        const { pendingPlan } = makePlan();
+        const { approval } = approve(pendingPlan);
+        const { bundle } = mintBrokerBundleResponse(
             {
                 type: "mint-fill-bundle",
                 protocolVersion: 1,
@@ -156,40 +188,25 @@ mochaSuite("Autofill broker", () => {
             },
             pendingPlan,
             approval,
-            items(),
-            Date.parse("2026-06-17T12:00:02.000Z")
+            time("12:00:02")
         );
-        const redacted = redactBrokerResponse(bundleResponse);
-        const applyResponse = applyBrokerBundleResponse(
-            { type: "apply-fill-bundle", protocolVersion: 1, planId: pendingPlan.planId, bundleId: redacted.bundleId },
-            redacted,
-            Date.parse("2026-06-17T12:00:03.000Z")
+        const revoked = revokeBrokerBundleResponse(
+            { type: "revoke-fill-bundle", protocolVersion: 1, planId: pendingPlan.planId, bundleId: bundle.bundleId },
+            bundle
         );
-        const revokeResponse = revokeBrokerBundleResponse(
-            { type: "revoke-fill-bundle", protocolVersion: 1, planId: pendingPlan.planId, bundleId: redacted.bundleId },
-            redacted
-        );
-
-        expect(applyResponse.ok).to.equal(true);
-        expect(applyResponse.audit.operation).to.equal("apply-fill-bundle");
-        expect(revokeResponse.ok).to.equal(true);
-        expect(revokeResponse.audit.operation).to.equal("revoke-fill-bundle");
-        expect(JSON.stringify(applyResponse)).not.to.contain("sentinel@example.test");
-        expect(JSON.stringify(revokeResponse)).not.to.contain("4111111111111111");
+        expect(revoked.bundle.grantRecord.status).to.equal("revoked");
+        expect(revoked.response.receipt.status).to.equal("revoked");
+        expect(JSON.stringify(revoked.response)).not.to.contain("4111111111111111");
     });
 
-    mochaTest("rejects applying after bundle expiry", async () => {
-        const { pendingPlan } = buildUnlockedBrokerPlanResponse(
-            request,
-            items(),
-            Date.parse("2026-06-17T12:00:00.000Z")
-        );
+    mochaTest("rejects applying after bundle expiry", () => {
+        const { pendingPlan } = makePlan();
         const { approval } = approveBrokerPlanResponse(
             { type: "approve", protocolVersion: 1, planId: pendingPlan.planId, approved: true, ttlSeconds: 1 },
             pendingPlan,
-            Date.parse("2026-06-17T12:00:00.000Z")
+            time("12:00:00")
         );
-        const bundleResponse = await mintBrokerBundleResponse(
+        const { bundle } = mintBrokerBundleResponse(
             {
                 type: "mint-fill-bundle",
                 protocolVersion: 1,
@@ -198,24 +215,74 @@ mochaSuite("Autofill broker", () => {
             },
             pendingPlan,
             approval,
-            items(),
-            Date.parse("2026-06-17T12:00:00.000Z")
+            time("12:00:00")
         );
-
         expect(() =>
             applyBrokerBundleResponse(
                 {
                     type: "apply-fill-bundle",
                     protocolVersion: 1,
                     planId: pendingPlan.planId,
-                    bundleId: bundleResponse.bundleId,
+                    bundleId: bundle.bundleId,
                 },
-                bundleResponse,
-                Date.parse("2026-06-17T12:00:02.000Z")
+                bundle,
+                [],
+                "outcome-unknown",
+                time("12:00:02")
             )
         ).to.throw("expired");
     });
 });
+
+const request = {
+    type: "plan-fill",
+    protocolVersion: 1,
+    requestId: "req-1",
+    binding: {
+        sessionId: "session-1",
+        origin: "https://checkout.example.test",
+        frameId: 0,
+    },
+    fields: [
+        { selector: "#email", role: "contact.email" },
+        { selector: "#card", role: "payment.card.pan" },
+        { selector: "#cvv", role: "payment.card.cvv_transient" },
+    ],
+};
+
+const target = {
+    tabId: 42,
+    frameId: 0,
+    documentId: "document-1",
+    formRef: "form-1",
+    targetRevision: "revision-1",
+    topOrigin: "https://checkout.example.test",
+    frameOrigin: "https://checkout.example.test",
+};
+
+const inspectedFields = [
+    { selector: "#email", role: "contact.email", fieldRef: "field-email" },
+    { selector: "#card", role: "payment.card.pan", fieldRef: "field-card" },
+    { selector: "#cvv", role: "payment.card.cvv_transient", fieldRef: "field-cvv" },
+];
+
+const principal = { userId: "account-1", sessionId: "vault-session-1" };
+
+function makePlan() {
+    return buildUnlockedBrokerPlanResponse(request, items(), target, inspectedFields, principal, time("12:00:00"));
+}
+
+function approve(pendingPlan) {
+    return approveBrokerPlanResponse(
+        { type: "approve", protocolVersion: 1, planId: pendingPlan.planId, approved: true, ttlSeconds: 60 },
+        pendingPlan,
+        time("12:00:01")
+    );
+}
+
+function time(clock: string) {
+    return Date.parse(`2026-09-18T${clock}.000Z`);
+}
 
 function items() {
     const person = {

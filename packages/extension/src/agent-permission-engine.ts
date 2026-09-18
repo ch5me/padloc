@@ -300,7 +300,7 @@ export function completeAgentGrantUse(
     const next = cloneGrantRecord(record);
     next.reservations[attemptId] = outcome === "completed" ? "completed" : "outcome-unknown";
     if (outcome === "completed") next.completedUses += 1;
-    next.status = outcome;
+    next.status = outcome === "completed" && next.completedUses < next.grant.maxUses ? "active" : outcome;
     return next;
 }
 

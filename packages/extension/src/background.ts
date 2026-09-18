@@ -7,25 +7,28 @@ import { PasskeyCredential } from "@padloc/core/src/passkey";
 import { bytesToBase64 } from "@padloc/core/src/encoding";
 import { ExtensionWorkerPlatform } from "./worker-platform";
 import { FetchSender } from "./fetch-sender";
-import {
-    AgenticAutofillApprovalPrompt,
-    CredentialData,
-    FieldMappings,
-    Message,
-    SavePrompt,
-    messageTab,
-} from "./message";
+import { AgenticAutofillApprovalPrompt, CredentialData, Message, SavePrompt, messageTab } from "./message";
 import { clearSessionMasterKey, configureSessionStorage, getSessionMasterKey } from "./storage";
-import { AutofillBrokerRequest, AutofillBrokerResponse, buildLockedBrokerResponse } from "./autofill-broker-protocol";
+import {
+    AutofillBrokerInspectedField,
+    AutofillBrokerRequest,
+    AutofillBrokerResponse,
+    AutofillBrokerTarget,
+    buildLockedBrokerResponse,
+} from "./autofill-broker-protocol";
 import {
     applyBrokerBundleResponse,
     approveBrokerPlanResponse,
     buildBrokerStatusResponse,
     buildUnlockedBrokerPlanResponse,
     BrokerApproval,
+    completeBrokerBundleFieldUse,
     mintBrokerBundleResponse,
+    PendingBrokerBundle,
     PendingBrokerPlan,
     redactBrokerResponse,
+    reserveBrokerBundleFieldUse,
+    resolveBrokerBundleFieldValue,
     revokeBrokerBundleResponse,
 } from "./autofill-broker";
 import { PASSKEY_PROTOCOL_VERSION, PasskeyResult } from "./passkey-protocol";
@@ -60,7 +63,7 @@ let badgeAndContextMenuUpdateChain = Promise.resolve();
 const pendingPrompts = new Map<string, SavePrompt>();
 const pendingAutofillPlans = new Map<string, PendingBrokerPlan>();
 const pendingAutofillApprovals = new Map<string, BrokerApproval>();
-const pendingAutofillBundles = new Map<string, AutofillBrokerResponse>();
+const pendingAutofillBundles = new Map<string, PendingBrokerBundle>();
 const pendingAutofillPromptNonces = new Map<string, { nonce: string; senderUrl: string }>();
 let fixtureAutofillItems: Array<{ item: VaultItem }> = [];
 const FIXTURE_CIPHERTEXT_KEY = "pl_agenticAutofillFixtureCiphertext";
@@ -1021,7 +1024,7 @@ function handleGetAgenticAutofillApprovalPrompt(sender: Runtime.MessageSender): 
         prompt: {
             planId: latest.planId,
             promptNonce,
-            origin: latest.request.binding ? latest.request.binding.origin : "unknown",
+            origin: latest.target.topOrigin,
             fieldCount: latest.fields.length,
             transactionOnlyCount: latest.fields.filter((field) => field.transactionOnly).length,
             paymentFieldCount: latest.fields.filter((field) => field.role.startsWith("payment.")).length,
@@ -1108,8 +1111,16 @@ async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, appli
     }
 
     if (request.type === "plan-fill" || request.type === "classify") {
+        if (!application.account || !application.session) throw new Error("Autofill vault principal unavailable");
+        const inspection = await inspectAgenticBrowserTarget(request);
         const items = await getItemsForActiveTab();
-        const { response, pendingPlan } = buildUnlockedBrokerPlanResponse(request, items);
+        const { response, pendingPlan } = buildUnlockedBrokerPlanResponse(
+            request,
+            items,
+            inspection.target,
+            inspection.fields,
+            { userId: application.account.id, sessionId: application.session.id }
+        );
         pendingAutofillPlans.set(pendingPlan.planId, pendingPlan);
         void publishRedactedBrokerResponse(response);
         return { type: "agenticAutofillBrokerResponse", response };
@@ -1124,10 +1135,10 @@ async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, appli
         const approval = request.approvalId ? pendingAutofillApprovals.get(request.approvalId) : null;
         if (!plan) throw new Error("Autofill bundle plan not found");
         if (!approval) throw new Error("Autofill bundle approval not found");
-        const response = await mintBrokerBundleResponse(request, plan, approval, await getItemsForActiveTab());
+        const { response, bundle } = mintBrokerBundleResponse(request, plan, approval);
         pendingAutofillApprovals.delete(approval.approvalId);
         const redacted = redactBrokerResponse(response);
-        if (response.bundleId) pendingAutofillBundles.set(response.bundleId, response);
+        pendingAutofillBundles.set(bundle.bundleId, bundle);
         void publishRedactedBrokerResponse(redacted);
         return { type: "agenticAutofillBrokerResponse", response: redacted };
     }
@@ -1135,10 +1146,9 @@ async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, appli
     if (request.type === "apply-fill-bundle") {
         const bundle = request.bundleId ? pendingAutofillBundles.get(request.bundleId) : null;
         if (!bundle) throw new Error("Autofill bundle not found");
-        const response = applyBrokerBundleResponse(request, bundle);
-        await fillActiveTabFromBundle(bundle);
-        pendingAutofillBundles.delete(bundle.bundleId || "");
-        pendingAutofillPlans.delete(bundle.planId || "");
+        const response = await executeBrokerBundle(request, bundle, application);
+        pendingAutofillBundles.delete(bundle.bundleId);
+        pendingAutofillPlans.delete(bundle.planId);
         void publishRedactedBrokerResponse(response);
         return { type: "agenticAutofillBrokerResponse", response };
     }
@@ -1146,9 +1156,9 @@ async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, appli
     if (request.type === "revoke-fill-bundle") {
         const bundle = request.bundleId ? pendingAutofillBundles.get(request.bundleId) : null;
         if (!bundle) throw new Error("Autofill bundle not found");
-        const response = revokeBrokerBundleResponse(request, bundle);
-        pendingAutofillBundles.delete(bundle.bundleId || "");
-        pendingAutofillPlans.delete(bundle.planId || "");
+        const { response } = revokeBrokerBundleResponse(request, bundle);
+        pendingAutofillBundles.delete(bundle.bundleId);
+        pendingAutofillPlans.delete(bundle.planId);
         void publishRedactedBrokerResponse(response);
         return { type: "agenticAutofillBrokerResponse", response };
     }
@@ -1227,91 +1237,171 @@ function fixtureBrokerItem(fixture: { itemName: string; username: string; passwo
     };
 }
 
-async function fillActiveTabFromBundle(bundle: AutofillBrokerResponse): Promise<void> {
-    const bundleFields = bundle.bundleFields || [];
-    const mappings = bundleFieldsToMappings(bundleFields);
-    if (!Object.values(mappings).some((value) => Boolean(value))) {
-        throw new Error("Autofill bundle contains no fillable values");
+async function inspectAgenticBrowserTarget(request: AutofillBrokerRequest): Promise<{
+    target: AutofillBrokerTarget;
+    fields: AutofillBrokerInspectedField[];
+}> {
+    if (!request.binding || !request.binding.origin) throw new Error("Autofill request missing origin binding");
+    const tab = await getActiveTab();
+    if (!tab || tab.id === undefined || !tab.url) throw new Error("Autofill browser target unavailable");
+    const topOrigin = exactHttpOrigin(tab.url);
+    if (!topOrigin || topOrigin !== request.binding.origin) {
+        throw new Error("Autofill request origin does not match the active browser tab");
     }
-    await messageTab({ type: "fillFields", mappings });
+    const frameId = parseBrokerFrameId(request.binding.frameId);
+    const proposals = (request.fields || [])
+        .filter((field) => Boolean(field.selector && field.role))
+        .map((field) => ({ selector: field.selector, role: field.role! }));
+    if (proposals.length === 0) throw new Error("Autofill request contains no field proposals");
+    const inspection = (await browser.tabs.sendMessage(
+        tab.id,
+        { type: "inspectAgenticFields", fields: proposals },
+        { frameId }
+    )) as unknown;
+    if (!isAgenticInspectionResult(inspection)) throw new Error("Autofill field inspection failed closed");
+    const target: AutofillBrokerTarget = {
+        tabId: tab.id,
+        frameId,
+        documentId: inspection.documentId,
+        formRef: inspection.formRef,
+        targetRevision: inspection.targetRevision,
+        topOrigin,
+        frameOrigin: inspection.frameOrigin,
+    };
+    return { target, fields: inspection.fields };
 }
 
-function bundleFieldsToMappings(fields: NonNullable<AutofillBrokerResponse["bundleFields"]>): FieldMappings {
-    const mappings: FieldMappings = {};
-    for (const field of fields) {
-        if (!field.value) continue;
-        switch (field.role) {
-            case "username":
-                mappings.username = field.value;
-                break;
-            case "password":
-                mappings.password = field.value;
-                break;
-            case "totp":
-                mappings.totp = field.value;
-                break;
-            case "person.full_name":
-                mappings.fullName = field.value;
-                break;
-            case "person.first_name":
-                mappings.firstName = field.value;
-                break;
-            case "person.last_name":
-                mappings.lastName = field.value;
-                break;
-            case "contact.email":
-                mappings.email = field.value;
-                break;
-            case "contact.phone":
-                mappings.phone = field.value;
-                break;
-            case "billing.address.line1":
-            case "address.line1":
-                mappings.addressLine1 = field.value;
-                break;
-            case "billing.address.line2":
-            case "address.line2":
-                mappings.addressLine2 = field.value;
-                break;
-            case "billing.address.city":
-            case "address.city":
-                mappings.city = field.value;
-                break;
-            case "billing.address.region":
-            case "address.region":
-                mappings.region = field.value;
-                break;
-            case "billing.address.postal_code":
-            case "address.postal_code":
-                mappings.postalCode = field.value;
-                break;
-            case "billing.address.country":
-            case "address.country":
-                mappings.country = field.value;
-                break;
-            case "payment.card.cardholder_name":
-            case "payment.cardholder_name":
-                mappings.cardholderName = field.value;
-                break;
-            case "payment.card.pan":
-                mappings.cardNumber = field.value;
-                break;
-            case "payment.card.expiry":
-            case "payment.card.expiry_mm_yy":
-                mappings.cardExpiry = field.value;
-                break;
-            case "payment.card.expiry_month":
-                mappings.cardExpiryMonth = field.value;
-                break;
-            case "payment.card.expiry_year":
-                mappings.cardExpiryYear = field.value;
-                break;
-            case "payment.card.cvv_transient":
-                mappings.cardCvv = field.value;
-                break;
+async function executeBrokerBundle(
+    request: AutofillBrokerRequest,
+    initialBundle: PendingBrokerBundle,
+    application: App
+): Promise<AutofillBrokerResponse> {
+    const startedAt = Date.now();
+    let bundle = initialBundle;
+    const filledFieldRefs: string[] = [];
+    const approvedFields = bundle.fields.map(({ selector, role, fieldRef }) => ({ selector, role, fieldRef }));
+    const items = brokerItemsForBundle(application, bundle);
+    for (const field of bundle.fields) {
+        const attemptId = `${bundle.bundleId}:${field.fieldRef}`;
+        try {
+            await assertBrokerTargetCurrent(bundle, approvedFields);
+            bundle = reserveBrokerBundleFieldUse(bundle, field.fieldRef, attemptId);
+            pendingAutofillBundles.set(bundle.bundleId, bundle);
+            const value = await resolveBrokerBundleFieldValue(bundle, field.fieldRef, items);
+            const applied = await browser.tabs.sendMessage(
+                bundle.target.tabId,
+                {
+                    type: "applyAgenticField",
+                    target: bundle.target,
+                    approvedFields,
+                    field: { selector: field.selector, role: field.role, fieldRef: field.fieldRef, value },
+                },
+                { frameId: bundle.target.frameId }
+            );
+            if (applied !== true) throw new Error("Autofill field target changed before write");
+            bundle = completeBrokerBundleFieldUse(bundle, attemptId, "completed");
+            pendingAutofillBundles.set(bundle.bundleId, bundle);
+            filledFieldRefs.push(field.fieldRef);
+        } catch {
+            if (bundle.grantRecord.reservations[attemptId] === "executing") {
+                bundle = completeBrokerBundleFieldUse(bundle, attemptId, "outcome-unknown");
+                pendingAutofillBundles.set(bundle.bundleId, bundle);
+            }
+            break;
         }
     }
-    return mappings;
+    const status =
+        filledFieldRefs.length === bundle.fields.length
+            ? "completed"
+            : filledFieldRefs.length > 0
+            ? "partial"
+            : "outcome-unknown";
+    return applyBrokerBundleResponse(request, bundle, filledFieldRefs, status, startedAt);
+}
+
+async function assertBrokerTargetCurrent(
+    bundle: PendingBrokerBundle,
+    approvedFields: AutofillBrokerInspectedField[]
+): Promise<void> {
+    const tab = await browser.tabs.get(bundle.target.tabId);
+    if (!tab.url || exactHttpOrigin(tab.url) !== bundle.target.topOrigin) {
+        throw new Error("Autofill top-level browser target changed");
+    }
+    const inspection = (await browser.tabs.sendMessage(
+        bundle.target.tabId,
+        {
+            type: "inspectAgenticFields",
+            fields: approvedFields.map(({ selector, role }) => ({ selector, role })),
+        },
+        { frameId: bundle.target.frameId }
+    )) as unknown;
+    if (!isAgenticInspectionResult(inspection)) throw new Error("Autofill target revalidation failed");
+    if (
+        inspection.documentId !== bundle.target.documentId ||
+        inspection.formRef !== bundle.target.formRef ||
+        inspection.targetRevision !== bundle.target.targetRevision ||
+        inspection.frameOrigin !== bundle.target.frameOrigin ||
+        JSON.stringify(inspection.fields) !== JSON.stringify(approvedFields)
+    ) {
+        throw new Error("Autofill target changed after approval");
+    }
+}
+
+function brokerItemsForBundle(application: App, bundle: PendingBrokerBundle): Array<{ item: VaultItem }> {
+    if (fixtureAutofillItems.length) return fixtureAutofillItems;
+    const itemIds = new Set(bundle.fields.map((field) => field.itemId));
+    const items: Array<{ item: VaultItem }> = [];
+    for (const itemId of itemIds) {
+        const matched = application.getItem(itemId);
+        if (matched) items.push({ item: matched.item });
+    }
+    return items;
+}
+
+function parseBrokerFrameId(value: number | string | undefined): number {
+    if (value === undefined || value === "main") return 0;
+    const frameId = Number(value);
+    if (!Number.isInteger(frameId) || frameId < 0) throw new Error("Autofill frame binding is invalid");
+    return frameId;
+}
+
+function exactHttpOrigin(value: string): string | null {
+    try {
+        const url = new URL(value);
+        if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+        return url.origin === "null" ? null : url.origin;
+    } catch {
+        return null;
+    }
+}
+
+function isAgenticInspectionResult(value: unknown): value is {
+    documentId: string;
+    formRef: string;
+    targetRevision: string;
+    frameOrigin: string;
+    fields: AutofillBrokerInspectedField[];
+} {
+    if (!value || typeof value !== "object") return false;
+    const candidate = value as Record<string, unknown>;
+    if (
+        typeof candidate.documentId !== "string" ||
+        typeof candidate.formRef !== "string" ||
+        typeof candidate.targetRevision !== "string" ||
+        typeof candidate.frameOrigin !== "string" ||
+        !exactHttpOrigin(candidate.frameOrigin) ||
+        !Array.isArray(candidate.fields)
+    ) {
+        return false;
+    }
+    return candidate.fields.every(
+        (field) =>
+            Boolean(field) &&
+            typeof field === "object" &&
+            typeof (field as Record<string, unknown>).selector === "string" &&
+            typeof (field as Record<string, unknown>).role === "string" &&
+            typeof (field as Record<string, unknown>).fieldRef === "string"
+    );
 }
 
 async function processPendingNativeBrokerRequest(application: App): Promise<void> {
