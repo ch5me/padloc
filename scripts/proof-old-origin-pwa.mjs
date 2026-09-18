@@ -225,26 +225,48 @@ async function main() {
         ]);
         cdp.close();
         cdp = await connectSession(browser, sessionId);
-        const reloaded = await waitFor(
+        const reloadState = await waitFor(
             cdp,
             `(() => {
+                return {
+                    ok: document.readyState === "complete" &&
+                        Boolean(window.app) &&
+                        Boolean(window.app?.state?.loggedIn),
+                    origin: location.origin,
+                    locked: window.app?.state?.locked === true
+                };
+            })()`,
+            "old-origin PWA reload"
+        );
+        if (reloadState.origin !== target.oldOrigin) {
+            throw new SmokeError("OLD_ORIGIN_REDIRECTED", "old-origin reload changed browser origin");
+        }
+        if (reloadState.locked) {
+            const reloadUnlock = await lockAndUnlock(cdp, masterPassword);
+            if (!reloadUnlock.ok) {
+                throw new SmokeError("RELOAD_UNLOCK_FAILED", "old-origin PWA could not unlock after reload");
+            }
+        }
+        const reloaded = await waitFor(
+            cdp,
+            `(async () => {
+                await window.app.synchronize();
+                for (let i = 0; i < 120 && window.app.state.syncing; i += 1) {
+                    await new Promise((resolveWait) => setTimeout(resolveWait, 250));
+                }
                 const items = [...(window.app?.state?.vaults || [])]
                     .flatMap((vault) => [...(vault.items || [])]);
                 return {
-                    ok: document.readyState === "complete" &&
-                        Boolean(window.app?.state?.loggedIn) &&
-                        window.app?.state?.locked === false,
-                    origin: location.origin,
+                    ok: window.app.state.loggedIn === true &&
+                        window.app.state.locked === false &&
+                        items.some((item) => item.name === ${JSON.stringify(fixtureName)}),
                     itemVisible: items.some((item) => item.name === ${JSON.stringify(fixtureName)}),
-                    vaultCount: (window.app?.state?.vaults || []).length,
+                    vaultCount: (window.app.state.vaults || []).length,
                     itemCount: items.length
                 };
             })()`,
-            "old-origin PWA reload and item visibility"
+            "old-origin PWA post-reload sync and item visibility"
         );
-        if (reloaded.origin !== target.oldOrigin) {
-            throw new SmokeError("OLD_ORIGIN_REDIRECTED", "old-origin reload changed browser origin");
-        }
 
         console.log(
             JSON.stringify({
@@ -495,7 +517,7 @@ async function loginWithPassword(cdp, email, password) {
 async function lockAndUnlock(cdp, password) {
     return cdp.evaluate(
         `(async () => {
-            await window.app.lock();
+            if (window.app.state.locked !== true) await window.app.lock();
             const locked = window.app.state.locked === true;
             await window.app.unlock(${JSON.stringify(password)});
             for (let i = 0; i < 120 && window.app.state.syncing; i += 1) {
