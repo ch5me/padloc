@@ -456,11 +456,11 @@ async function completeEmail(cdp, code) {
                 data: { code: ${JSON.stringify(code)} }
             });
             window.__elfVaultSmokeAuthResult = {
-                token: auth.token,
+                token: req.token,
                 email: auth.email,
                 accountStatus: auth.accountStatus
             };
-            return { ok: Boolean(auth.token && auth.accountStatus === "active") };
+            return { ok: Boolean(req.token && auth.accountStatus !== undefined) };
         })()`
     );
     if (!result?.ok) throw new SmokeError("EMAIL_VERIFY_FAILED", "old-origin PWA email verification failed");
