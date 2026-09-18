@@ -1,0 +1,112 @@
+{
+  "schema": "agent.workflow.dispatch-context.v1",
+  "contextId": "agentic-autofill-delta-architect-r4-v1",
+  "taskClass": "review",
+  "objective": "Independently delta-review only revision-4 C2/C3 remainder patches.",
+  "authority": {
+    "principal": "operator",
+    "grants": [
+      "read plan artifacts and write one review artifact"
+    ],
+    "provenance": "TYPED_CONTRACT",
+    "source": "Autopilot Delta Architect Rule"
+  },
+  "requirements": [
+    {
+      "id": "r1",
+      "statement": "Review only remaining C2/C3 against revision 4",
+      "provenance": "TYPED_CONTRACT",
+      "gating": true,
+      "source": ".ch5/autopilot/agentic-autofill-unification-20260918/architect-review-delta-c1c6.json"
+    },
+    {
+      "id": "r2",
+      "statement": "Do not edit reviewed artifacts",
+      "provenance": "TYPED_CONTRACT",
+      "gating": true,
+      "source": "Ralplan delta review"
+    }
+  ],
+  "conflicts": [],
+  "nonGoals": [
+    "implementation",
+    "new plan design",
+    "credential access",
+    "A1-A9 relitigation",
+    "C1 C4 C5 C6 relitigation"
+  ],
+  "owners": [
+    {
+      "seam": "delta architecture review",
+      "repository": "padloc",
+      "owner": "agentic-autofill-delta-architect-r4",
+      "files": [
+        ".ch5/autopilot/agentic-autofill-unification-20260918/architect-review-delta-r4.json"
+      ],
+      "symbols": [
+        "DeltaArchitectVerdict"
+      ]
+    }
+  ],
+  "workspace": {
+    "schema": "agent.workflow.prepared-workspace.v1",
+    "receiptId": "grove-agentic-autofill-unification-20260918",
+    "workspaceId": "agentic-autofill-unification-20260918",
+    "preparedAt": "2026-09-18T20:50:47.452+00:00",
+    "repositories": [
+      {
+        "repository": "padloc",
+        "workspacePath": "/Users/hassoncs/worktrees/ch5/padloc/agentic-autofill-unification-20260918",
+        "branch": "grove/agentic-autofill-unification-20260918/padloc",
+        "sourceCommit": "83a55325623a13115c873b67795ec7c442766f5f",
+        "readiness": "ready"
+      },
+      {
+        "repository": "magic-browser",
+        "workspacePath": "/Users/hassoncs/worktrees/ch5/magic-browser/agentic-autofill-unification-20260918",
+        "branch": "grove/agentic-autofill-unification-20260918/magic-browser",
+        "sourceCommit": "213896cdaf0cbdde9366767ec0febbd8cd42acd2",
+        "readiness": "ready"
+      }
+    ]
+  },
+  "targets": [
+    {
+      "repository": "padloc",
+      "files": [
+        ".ch5/autopilot/agentic-autofill-unification-20260918/architect-review-delta-r4.json"
+      ],
+      "symbols": [
+        "DeltaArchitectVerdict"
+      ],
+      "sourceCommit": "83a55325623a13115c873b67795ec7c442766f5f",
+      "diff": []
+    }
+  ],
+  "consumedEvidence": [
+    {
+      "kind": "artifact",
+      "reference": ".ch5/autopilot/agentic-autofill-unification-20260918/architect-review-delta-c1c6.json"
+    },
+    {
+      "kind": "artifact",
+      "reference": ".ch5/autopilot/agentic-autofill-unification-20260918/plan-correction-report.json"
+    }
+  ],
+  "acceptance": [
+    {
+      "id": "a1",
+      "statement": "Revision-4 C2/C3 remainder delta review is independent and content-bound",
+      "provenance": "TYPED_CONTRACT",
+      "gating": true,
+      "state": "remaining",
+      "evidence": []
+    }
+  ],
+  "cheapestProof": [
+    "python3 -m json.tool .ch5/autopilot/agentic-autofill-unification-20260918/architect-review-delta-r4.json"
+  ],
+  "resultDestination": "thread://01a0b4ec-b81f-7491-b80b-97f373c67d39",
+  "skills": [],
+  "createdAt": "2026-09-18T20:50:47.452+00:00"
+}

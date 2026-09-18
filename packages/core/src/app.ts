@@ -14,7 +14,11 @@ import {
     ItemHistoryEntry,
     ITEM_HISTORY_ENTRIES_LIMIT,
     TagInfo,
+    AutofillItemKind,
+    deriveAutofillItemKind,
+    normalizeAutofillFields,
 } from "./item";
+import { ImportProvenance, IMPORT_PROVENANCE_SCHEMA } from "./import-result";
 import { Account, AccountID, UnlockedAccount } from "./account";
 import { Auth, AuthPurpose, AuthType } from "./auth";
 import { Session, SessionID } from "./session";
@@ -1573,6 +1577,8 @@ export class App {
         passkeys,
         tags,
         icon,
+        autofillKind,
+        provenance,
     }: {
         name: string;
         vault: { id: VaultID };
@@ -1580,8 +1586,28 @@ export class App {
         passkeys?: PasskeyCredential[];
         tags?: Tag[];
         icon?: string;
+        autofillKind?: AutofillItemKind;
+        provenance?: ImportProvenance | null;
     }): Promise<VaultItem> {
-        const item = await createVaultItem({ name, fields, passkeys, tags, icon });
+        const normalizedFields = normalizeAutofillFields(fields);
+        const item = await createVaultItem({
+            name,
+            fields: normalizedFields,
+            passkeys,
+            tags,
+            icon,
+            autofillKind: autofillKind || deriveAutofillItemKind(normalizedFields),
+            provenance: provenance || undefined,
+        });
+        if (!item.provenance) {
+            item.provenance = {
+                schema: IMPORT_PROVENANCE_SCHEMA,
+                source: "create-item",
+                sourceId: item.id,
+                importedAt: new Date().toISOString(),
+                importerVersion: "padloc-core-create-item-v1",
+            };
+        }
         if (this.account) {
             item.updatedBy = this.account.id;
         }

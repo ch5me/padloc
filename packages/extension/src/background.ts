@@ -3,7 +3,7 @@ import { setPlatform } from "@padloc/core/src/platform";
 import { App } from "@padloc/core/src/app";
 import { debounce, uuid } from "@padloc/core/src/util";
 import { AutofillFieldRole, FieldType, Field, VaultItem } from "@padloc/core/src/item";
-import { PasskeyCredential } from "@padloc/core/src/passkey";
+import { PasskeyCredential, PasskeyCeremonyBinding } from "@padloc/core/src/passkey";
 import { bytesToBase64 } from "@padloc/core/src/encoding";
 import { ExtensionWorkerPlatform } from "./worker-platform";
 import { FetchSender } from "./fetch-sender";
@@ -33,7 +33,7 @@ import {
     resolveBrokerBundleFieldValue,
     revokeBrokerBundleResponse,
 } from "./autofill-broker";
-import { PASSKEY_PROTOCOL_VERSION, PasskeyResult } from "./passkey-protocol";
+import { isPasskeyRuntimeRequest, PASSKEY_PROTOCOL_VERSION, PasskeyResult } from "./passkey-protocol";
 import { PasskeyApprovalCoordinator, PasskeyApprovalResolution } from "./passkey-approval-coordinator";
 import { PasskeySelectionCoordinator, PasskeySelectionResolution } from "./passkey-selection-coordinator";
 import {
@@ -44,7 +44,14 @@ import {
     PasskeySelectionCandidate,
 } from "./passkey-provider-engine";
 import { approvePasskeyRpSuffix, isPasskeyProviderOriginEnabled } from "./passkey-rp-policy";
-import { bindPasskeyRequest, isPasskeyRequestBindingCurrent, PasskeyRequestBinding } from "./passkey-request-binding";
+import {
+    bindPasskeyRequest,
+    consumePasskeyRequestBinding,
+    isPasskeyRequestBindingCurrent,
+    passkeyRequestBindingCeremony,
+    PasskeyRequestBinding,
+} from "./passkey-request-binding";
+import { issuePasskeyUserVerification } from "./passkey-user-verification";
 import {
     AutofillPermissionRepository,
     addAutofillStandingPolicy,
@@ -173,9 +180,28 @@ nativeRuntime.onConnect.addListener((port) => {
         if (msg.type !== "passkeyRequest" || activeRequestId) return;
         passkeyRuntimeDiagnostics.requestCount += 1;
         passkeyRuntimeDiagnostics.lastStage = "request-received";
-        activeRequestId = msg.requestId;
-        const deadline = Date.now() + passkeyRequestTimeoutMs(msg.options);
-        void beginPasskeyRequest(msg, port.sender!, respond, abortController.signal, deadline);
+        const rawMessage = msg as unknown;
+        if (!isPasskeyRuntimeRequest(rawMessage)) {
+            responded = true;
+            try {
+                port.postMessage({
+                    type: "passkeyResult",
+                    protocolVersion: PASSKEY_PROTOCOL_VERSION,
+                    requestId:
+                        typeof (rawMessage as { requestId?: unknown }).requestId === "string"
+                            ? (rawMessage as { requestId: string }).requestId
+                            : "invalid-passkey-request",
+                    outcome: "error",
+                    error: { name: "SecurityError", message: "Invalid passkey ceremony binding" },
+                } as PasskeyResult);
+            } catch {
+                // The page may have navigated before the malformed request was rejected.
+            }
+            return;
+        }
+        activeRequestId = rawMessage.requestId;
+        const deadline = Date.now() + rawMessage.ttlMs;
+        void beginPasskeyRequest(rawMessage, port.sender!, respond, abortController.signal, deadline);
     });
     port.onDisconnect.addListener(() => {
         abortController.abort();
@@ -206,7 +232,7 @@ function buildPasskeyFallback(
     if (PASSKEY_DIAGNOSTICS_ENABLED) {
         console.debug("[Padloc passkey] background request", msg.requestId, msg.operation);
     }
-    const verified = bindPasskeyRequest(msg.origin, sender) !== null;
+    const verified = isPasskeyRuntimeRequest(msg) && bindPasskeyRequest(msg.origin, sender, msg) !== null;
     return {
         type: "passkeyResult",
         protocolVersion: PASSKEY_PROTOCOL_VERSION,
@@ -225,7 +251,7 @@ async function beginPasskeyRequest(
     signal: AbortSignal,
     deadline: number
 ): Promise<void> {
-    const binding = bindPasskeyRequest(msg.origin, sender);
+    const binding = bindPasskeyRequest(msg.origin, sender, msg);
     if (!binding || !isPasskeyProviderOriginEnabled(msg.origin)) {
         respond(passkeyErrorResult(msg, "SecurityError", "Unable to verify the requesting origin"));
         return;
@@ -246,6 +272,10 @@ async function beginPasskeyRequest(
                 rpName: description.rpName,
                 userName: description.userName,
                 userDisplayName: description.userDisplayName,
+                flowId: binding.flowId,
+                ttlMs: binding.ttlMs,
+                topOrigin: binding.topOrigin,
+                target: msg.target,
             },
             (resolution) => {
                 void resolvePasskeyRequest(msg, binding, resolution, respond, signal, deadline);
@@ -289,12 +319,29 @@ async function resolvePasskeyRequest(
             respond(passkeyErrorResult(msg, "NotAllowedError", "Unlock Elf Vault to use this passkey"));
             return;
         }
+        if (!binding.nonce || !consumePasskeyRequestBinding(binding, binding.nonce)) {
+            respond(passkeyErrorResult(msg, "SecurityError", "The passkey ceremony nonce is no longer valid"));
+            return;
+        }
+        const ceremony = passkeyRequestBindingCeremony(binding);
+        const verifiedAt = resolution.verifiedAt;
+        if (!ceremony || !Number.isFinite(verifiedAt)) {
+            respond(passkeyErrorResult(msg, "NotAllowedError", "Recent user verification is required"));
+            return;
+        }
+        const userVerification = issuePasskeyUserVerification(verifiedAt);
+        const boundCeremony: PasskeyCeremonyBinding = {
+            ...ceremony,
+            userVerification,
+        };
 
         const credential = await executePasskeyOperation({
             request: msg,
             origin: msg.origin,
             repository: createVaultPasskeyRepository(application),
             userVerified: resolution.userVerified,
+            ceremony: boundCeremony,
+            requireCeremonyBinding: true,
             rpIdSuffixValidator: approvePasskeyRpSuffix,
             selectCredential: (candidates) =>
                 requestPasskeyCredentialSelection(msg, binding, candidates, signal, deadline),
@@ -367,6 +414,10 @@ async function requestPasskeyCredentialSelection(
                     origin: msg.origin,
                     rpId: description.rpId,
                     candidates,
+                    flowId: binding.flowId,
+                    ttlMs: binding.ttlMs,
+                    topOrigin: binding.topOrigin,
+                    target: msg.target,
                 },
                 (resolution) => void finish(resolution)
             );
@@ -383,10 +434,6 @@ async function isPasskeyTabStillBound(binding: PasskeyRequestBinding): Promise<b
     } catch {
         return false;
     }
-}
-
-function passkeyRequestTimeoutMs(options: Record<string, unknown>): number {
-    return Math.min(Math.max(Number(options.timeout) || 60_000, 1_000), 120_000);
 }
 
 async function assertPasskeyCeremonyActive(
@@ -434,8 +481,12 @@ function createVaultPasskeyRepository(application: App): PasskeyCredentialReposi
             return credentials;
         },
         async createCredential(credential) {
+            if (!application.state.loggedIn || application.state.locked) {
+                throw new PasskeyProviderError("NotAllowedError", "Unlock Elf Vault to store a passkey");
+            }
             const vault = application.mainVault;
-            if (!vault) throw new PasskeyProviderError("NotAllowedError", "A writable vault is required to use Elf Vault");
+            if (!vault)
+                throw new PasskeyProviderError("NotAllowedError", "A writable vault is required to use Elf Vault");
             let created: VaultItem | null = null;
             try {
                 created = await application.createItem({
@@ -457,6 +508,9 @@ function createVaultPasskeyRepository(application: App): PasskeyCredentialReposi
             }
         },
         async updateCredential(credential) {
+            if (!application.state.loggedIn || application.state.locked) {
+                throw new PasskeyProviderError("NotAllowedError", "Unlock Elf Vault to use this passkey");
+            }
             const item = findOwner(credential);
             if (!item) throw new PasskeyProviderError("NotAllowedError", "The selected passkey is no longer stored");
             const credentialKey = bytesToBase64(credential.credentialId);

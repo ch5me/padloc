@@ -1,0 +1,134 @@
+{
+  "contractVersion": "ch5.agent-handoff.v1.1",
+  "handoffId": "agentic-autofill-critic-r5-v1",
+  "workstream": "agentic-autofill-unification-critic",
+  "lead": false,
+  "pinState": "unpinned",
+  "role": "worker",
+  "root": {
+    "threadId": "01a0b4ec-b81f-7491-b80b-97f373c67d39",
+    "identity": "codex-autopilot-root"
+  },
+  "parent": {
+    "threadId": "01a0b4ec-b81f-7491-b80b-97f373c67d39",
+    "identity": "codex-autopilot-root"
+  },
+  "child": {
+    "threadId": "agentic-autofill-critic-r5",
+    "identity": "luna-max-critic"
+  },
+  "scope": {
+    "goal": "Independently critique Architect-approved revision-5 for testability, acceptance coverage, risk mitigation, scope clarity, and worker executability. ITERATE only if a worker would invent a path, credential, API, or publish identity.",
+    "includes": [
+      "brief",
+      "revision-5 spec/plan/test/graph",
+      "Architect r5 APPROVE"
+    ],
+    "excludes": [
+      "plan edits",
+      "source edits",
+      "credential access",
+      "deployment",
+      "A1-A9 relitigation"
+    ],
+    "acceptance": [
+      "Write critic-review-r5.json with APPROVE, ITERATE, or REJECT",
+      "Every node must be executable without replanning and have cheapest proof",
+      "Do not modify reviewed artifacts"
+    ]
+  },
+  "ownership": {
+    "paths": [
+      ".ch5/autopilot/agentic-autofill-unification-20260918/critic-review-r5.json"
+    ],
+    "interfaces": [
+      "independent Critic consensus evidence"
+    ],
+    "resultDestination": {
+      "threadId": "01a0b4ec-b81f-7491-b80b-97f373c67d39",
+      "channel": "thread-result"
+    }
+  },
+  "authority": {
+    "allowedDecisions": [
+      "read-only Critic review",
+      "write assigned review artifact"
+    ],
+    "gates": [
+      "credential",
+      "spend",
+      "production",
+      "external-trust",
+      "source-edit",
+      "plan-edit"
+    ],
+    "resources": [
+      "/Users/hassoncs/worktrees/ch5/padloc/agentic-autofill-unification-20260918",
+      "/Users/hassoncs/worktrees/ch5/magic-browser/agentic-autofill-unification-20260918",
+      ".ch5/autopilot/agentic-autofill-unification-20260918/brief.md",
+      "docs/specs/agentic-personal-data-vault.md",
+      ".ch5/autopilot/agentic-autofill-unification-20260918/plan.md",
+      ".ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md",
+      ".ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json",
+      ".ch5/autopilot/agentic-autofill-unification-20260918/architect-review-delta-r5.json"
+    ],
+    "maySubdivide": false
+  },
+  "route": {
+    "dispatchClass": "standard",
+    "requestedHost": "local",
+    "effectiveHost": "local",
+    "localExceptionReason": "User explicitly requested local Codex Luna Max workers; bounded same-host independent Critic review.",
+    "executionSurface": {
+      "requestedApp": "bb-nightly",
+      "effectiveApp": "bb-nightly",
+      "requestedPermissionMode": "full",
+      "effectivePermissionMode": "full",
+      "preflightEvidence": "BB Nightly healthy; exact Grove workspace supplied"
+    },
+    "remoteAdmission": {
+      "status": "not-requested"
+    },
+    "provider": "codex",
+    "model": "gpt-5.6-luna",
+    "reasoningLevel": "max",
+    "account": "default",
+    "priority": "normal"
+  },
+  "missionFit": {
+    "sessionShape": "bounded-worker",
+    "rationale": "One Architect-approved revision 5 with ten bounded nodes and explicit tests.",
+    "phases": [
+      "inspect",
+      "critic review",
+      "record"
+    ],
+    "evidenceVolume": {
+      "class": "bounded-medium",
+      "basis": "five frozen artifacts and one Architect approval"
+    },
+    "verificationBounds": [
+      "Check all ten nodes",
+      "Check acceptance and proof",
+      "Return compact verdict"
+    ],
+    "contextEstimate": {
+      "status": "unknown",
+      "reason": "No measured estimate"
+    },
+    "compaction": {
+      "enabled": true,
+      "fallbackOnly": true
+    }
+  },
+  "continuation": {
+    "kind": "initial",
+    "disposition": "accept",
+    "basis": "initial-dispatch"
+  },
+  "lifecycle": {
+    "state": "dispatched",
+    "firstAction": "Read revision-5 artifacts and Architect APPROVE; write critic-review-r5.json; stop.",
+    "dispatchedAt": "2026-09-18T21:31:24.635+00:00"
+  }
+}

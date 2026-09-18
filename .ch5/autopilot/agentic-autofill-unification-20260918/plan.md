@@ -3,12 +3,12 @@
 ## Deliberate plan candidate
 
 - Plan id: `agentic-autofill-unification-20260918`
-- Revision: `2`
+- Revision: `5`
 - Posture: `personal-dev`
 - Assurance: `runtime_observed`
 - Planning boundary: this pass writes planning artifacts only. It does not edit product source, access credentials, move personal data, deploy, or publish.
 - Correction status: all independent architect findings A1-A9 are resolved in
-  the owned planning artifacts; implementation remains pending.
+  the owned planning artifacts. Critic C1-C6 plus Architect C2/C3 remainder are frozen in revision 5; implementation remains pending.
 
 ## Objective
 
@@ -46,6 +46,25 @@ private fill.
 12. Exact privacy targeting is a `privacy-status.v2` contract. Protocol-v1
     responses lacking target identity remain readable only as non-authorizing
     data and cannot satisfy the observation gate.
+13. Item kinds, roles, release classes, and user-facing-to-engine mode mapping
+    are frozen in the spec critic contract freeze. `bypassPrompts` is
+    internal-only.
+14. ImportResult, loss entries, encrypted envelope, key-custody handshake
+    request/response, and every broker-response variant field table are the
+    closed `elf.*` contracts in the spec. Canonical fixtures include one
+    example of each variant.
+15. The shared observation gate covers the exhaustive tool inventory including
+    `document_text`, `shape`, `network_detail`, `replay_request`, form
+    inspect/action, `click_text`, `click_button_text`, `scroll_table`, and
+    `drag`. G007 owns `form.ts` and those typed-tool call sites.
+16. G009 has one canonical command from the padloc Tree; Magic Browser's script
+    is a helper only. Clean state requires trusted reset before first
+    observation.
+17. Padloc `.ch5/proof.yaml` is program proof authority. G008 must add the
+    eight named keys; missing keys fail.
+18. Canonical fixtures live at
+    `padloc/packages/extension/test/fixtures/agentic-autofill/contract.v1.json`.
+
 
 ## Observed seams
 
@@ -86,7 +105,7 @@ private fill.
 - `src/worker/typed-tools.ts`, `src/runtime/browser-evidence.ts`, screenshot
   paths, extension bridge observation, network/body capture, and guarded eval
   do not yet consume Padloc `privacy-status` or a shared
-  `potentially-private` gate. Consumer enforcement is therefore `UNKNOWN`.
+  `potentially-private` gate. G007 must implement the exhaustive inventory.
 - `src/runtime/cdp.ts` currently includes input values in snapshots. G007 owns
   the metadata-only serializer and pre-fill/post-fill regression proof.
 
@@ -113,9 +132,9 @@ artifact is explicitly `padloc/.ch5/.../synthetic-e2e/**`.
 | G004 | padloc policy worker | G001 | All approval modes, hard deny, always-ask, lock, expiry, revocation, exact bindings, and high-risk fresh verification are enforced. |
 | G005 | padloc trusted-executor worker | G001,G002,G003,G004 | Native broker resolves one value at a time inside the extension, owns the privacy state producer/reset and exact descriptor, validates the full target, returns only closed/redacted plans/receipts/privacy state, and exposes an encrypted-profile compatibility receiver with no fill authority. |
 | G006 | magic-browser cutover worker | G005,G007 | Standard autofill commands use the Padloc native broker; the local vault sends only the bounded encrypted envelope and cannot be an authority. Closed-schema parsing, protocol-v1 compatibility, and direct CLI screenshot gate wiring are proven. |
-| G007 | magic-browser privacy worker | G005 | A named shared observation gate and metadata-only snapshots protect every generic observation, extension-bridge, eval/body, and non-CLI screenshot path; unknown and potentially-private documents fail closed while redacted proof remains available. |
-| G008 | cross-repo contract worker | G006,G007 | Shared fixtures prove role/protocol/privacy/redaction compatibility; missing `.ch5/proof.yaml` keys are added only through the existing proof authority or remain explicit `UNKNOWN`. |
-| G009 | synthetic e2e worker | G008 | A fake-data native-host run proves install, unlock, classify, plan, approval/policy, mint, exact apply, privacy block, proof, revoke, lock, and worker restart. |
+| G007 | magic-browser privacy worker | G005 | Named shared gate plus `form.ts` cover the exhaustive observation inventory, including `document_text`, `shape`, `network_detail`, `replay_request`, and form inspect/action; unknown and potentially-private documents fail closed while redacted proof remains available. |
+| G008 | cross-repo contract worker | G006,G007 | Both repositories consume the canonical `contract.v1.json`; padloc `.ch5/proof.yaml` has the eight required keys. Missing keys fail. |
+| G009 | synthetic e2e worker | G008 | Canonical `node scripts/synthetic-agentic-autofill-e2e.mjs --magic-browser-tree <mb-tree>` from the padloc Tree proves clean-reset bootstrap then install/unlock/classify/plan/approval/mint/apply/privacy/revoke/lock/restart. |
 | G010 | operator-doc worker | G009 | Diagnostics, migration warnings, security boundaries, and the ordered limited-pilot runbook are exact and synthetic-first. |
 
 ## Ownership and write boundaries
@@ -170,16 +189,19 @@ artifact is explicitly `padloc/.ch5/.../synthetic-e2e/**`.
   `src/runtime/browser-evidence.ts`, `network-inspect.ts`,
   `src/runtime/browser-capability-gateway.ts`,
   `src/runtime/autofill-observation-gate.ts`, `src/runtime/cdp.ts`,
-  `src/policy/guarded-eval.ts`,
+  `src/runtime/form.ts`, `src/policy/guarded-eval.ts`,
   `src/session/extension-bridge.ts`, extension-app observation and screenshot
   call sites, and matching tests. Direct CLI screenshot wiring remains owned by
   G006 so the two nodes have disjoint ownership. It owns the metadata-only
   snapshot serializer and pre-fill/post-fill snapshot tests; it must not
   reintroduce a value store.
-- G008 owns only cross-repository fixtures and the existing proof authority
-  entries. G009 owns only synthetic smoke scripts and fixtures. G010 owns only
-  operator/pilot documentation. None may edit real data, credentials, or
-  deployment configuration.
+- G008 owns the canonical fixture
+  `padloc/packages/extension/test/fixtures/agentic-autofill/contract.v1.json`,
+  both consumer tests, `padloc/.ch5/proof.yaml`, and
+  `magic-browser/.ch5/proof.yaml`. G009 owns only synthetic smoke scripts and
+  fixtures; the canonical command is the padloc runner. G010 owns only
+  operator/pilot documentation and documents that one command. None may edit
+  real data, credentials, or deployment configuration.
 
 ## Deliberate pre-mortem
 
@@ -189,7 +211,7 @@ artifact is explicitly `padloc/.ch5/.../synthetic-e2e/**`.
 | A stale DOM target receives a value | Changed document/form/field hash still applies | Recompute exact target bindings immediately before each write and test frame/document/revision/nonce/TTL mismatch. |
 | Import silently overclaims or loses unsupported data | Imported count differs from loss report, or passkey/document appears as migrated | Make provenance and loss categories first-class; fixture each unsupported category and assert explicit loss. |
 | Magic Browser continues using its local vault | A standard command reads `~/.local/share/ch5-autofill/vault.json` or returns a local bundle | Route standard commands through `padloc-broker-request`; leave local vault only as bounded fixture/compatibility input and assert no authority path. |
-| Privacy gate misses one observation primitive | Post-fill `open_snapshot`, evidence, screenshot, page text, eval, or network/body call succeeds | Centralize the check at the shared session/observation boundary and exercise every enumerated primitive, including extension bridge paths. |
+| Privacy gate misses one observation primitive | Post-fill `open_snapshot`, `document_text`, `shape`, `network_detail`, `replay_request`, `form_inspect`, evidence, screenshot, page text, eval, or network/body call succeeds | Centralize the check at the shared gate, own `form.ts` in G007, and exercise the exhaustive inventory. |
 | Privacy status is asserted for the wrong tab or a stale target | A cross-tab, frame, document, form, or target-revision fixture returns `clean` | Echo the exact descriptor from Padloc, reject mismatches, and require the trusted reset operation for `clean`. |
 | Compatibility migration leaks or gains fill authority | Native/CDP fixture contains plaintext, a key, or a mint/apply grant | Use the one-time encrypted envelope and wrapped-key handshake; assert ciphertext-only transport and an `ImportResult`-only response. |
 | A new item loses semantic metadata | Template-created login/government/financial item has absent or contradictory kind/roles | Make G001 own `createItem` plus template propagation and round-trip fixtures. |
@@ -201,22 +223,16 @@ artifact is explicitly `padloc/.ch5/.../synthetic-e2e/**`.
 ## Unknowns and gates
 
 - `UNKNOWN`: Magic Browser consumer-side privacy enforcement is absent from the
-  current checkout and must be implemented by G007.
+  current checkout and must be implemented by G007 using the frozen inventory.
 - `UNKNOWN`: CDP snapshot input-value redaction is absent from the current
   checkout and must be implemented by G007 before any privacy-status call.
 - `UNKNOWN`: live unlocked synthetic native-host checkout proof is not captured
-  yet and must be produced by G009.
-- `UNKNOWN`: exact government and financial role names must be resolved against
-  the shared vocabulary before G001/G004 implementation.
-- `UNKNOWN`: bridge mode naming must map the brief's plan-only/prompted/
-  standing-policy/noninteractive terms to `plan`/`manual`/`auto`/`dontAsk`/
-  `bypassPrompts`.
-- `UNKNOWN`: `.ch5/proof.yaml` currently has no repo-owned keys. G008 must add
-  keys to that existing authority or leave closure explicitly incomplete; do
-  not invent a parallel proof registry.
-- `UNKNOWN`: the encrypted-profile envelope and wrapped-key handshake are
-  planning contracts only until G005/G006 implement and exercise them with
-  synthetic ciphertext.
+  yet and must be produced by G009 using the canonical padloc command.
+- `UNKNOWN`: the encrypted-profile envelope and wrapped-key handshake remain
+  unimplemented product code until G005/G006 exercise them with synthetic
+  ciphertext against the frozen schemas.
+- Frozen, not unknown: role vocabulary, mode mapping, closed schemas, canonical
+  runner, required proof keys, and canonical fixture path.
 - Human gates remain for credentials, real-data pilot entry, production/store
   publication, external trust, and any working-credential mutation.
 

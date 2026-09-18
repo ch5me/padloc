@@ -41,6 +41,9 @@ suite("Autofill permission store", () => {
         expect(matchAutofillStandingPolicy(state, plan({ topOrigin: "https://evil.example" }), now)).to.equal(null);
         expect(matchAutofillStandingPolicy(state, plan({ itemId: "item-other" }), now)).to.equal(null);
         expect(matchAutofillStandingPolicy(state, plan({ role: "contact.phone" }), now)).to.equal(null);
+        expect(
+            matchAutofillStandingPolicy(state, plan({ frameOrigin: "https://checkout.shop.example" }), now)
+        ).to.equal(null);
     });
 
     test("gives deny and always-ask policies precedence over allow", () => {
@@ -52,7 +55,7 @@ suite("Autofill permission store", () => {
         expect(matchAutofillStandingPolicy(state, plan(), now + 4)?.effect).to.equal("deny");
     });
 
-    test("keeps always-ask mandatory in bypass mode and denies it in dontAsk", () => {
+    test("keeps always-ask mandatory and rejects bypassPrompts mode", () => {
         let state = addAutofillStandingPolicy(
             createAutofillPermissionState("account-1"),
             plan(),
@@ -60,7 +63,7 @@ suite("Autofill permission store", () => {
             "ask",
             now
         );
-        state = setAutofillApprovalMode(state, "bypassPrompts");
+        expect(() => setAutofillApprovalMode(state, "bypassPrompts")).to.throw("internal-only");
         expect(decideAutofillPlanAuthority(state, plan(), now + 1)).to.include({
             outcome: "ask",
             reasonCode: "ASK_ALWAYS",
@@ -70,6 +73,62 @@ suite("Autofill permission store", () => {
             outcome: "deny",
             reasonCode: "DENY_CONFIRMATION_REQUIRED",
         });
+    });
+
+    test("maps user-facing modes and keeps persisted state fail closed", () => {
+        let state = createAutofillPermissionState("account-1");
+        state = setAutofillApprovalMode(state, "plan-only");
+        expect(state.mode).to.equal("plan");
+        state = setAutofillApprovalMode(state, "prompted");
+        expect(state.mode).to.equal("manual");
+        state = setAutofillApprovalMode(state, "standing-policy-automatic");
+        expect(state.mode).to.equal("auto");
+        state = setAutofillApprovalMode(state, "noninteractive");
+        expect(state.mode).to.equal("dontAsk");
+        expect(
+            isAutofillPermissionState({ ...state, mode: "bypassPrompts" as const }, "account-1")
+        ).to.equal(false);
+    });
+
+    test("requires fresh verification for high-risk plans and rejects locked authority", () => {
+        const highRiskPlan = plan({ role: "government.ssn" });
+        highRiskPlan.fields[0].transactionOnly = true;
+        let state = setAutofillApprovalMode(createAutofillPermissionState("account-1"), "auto");
+        state = addAutofillStandingPolicy(
+            state,
+            highRiskPlan,
+            "allow",
+            "policy-high-risk",
+            now
+        );
+        expect(decideAutofillPlanAuthority(state, highRiskPlan, now + 1)).to.include({
+            outcome: "ask",
+            reasonCode: "ASK_ALWAYS",
+        });
+        state = setAutofillApprovalMode(state, "dontAsk");
+        expect(decideAutofillPlanAuthority(state, highRiskPlan, now + 1)).to.include({
+            outcome: "deny",
+            reasonCode: "DENY_CONFIRMATION_REQUIRED",
+        });
+        expect(
+            decideAutofillPlanAuthority(state, highRiskPlan, now + 1, { vaultState: "locked" })
+        ).to.include({ outcome: "deny", reasonCode: "DENY_VAULT_LOCKED" });
+    });
+
+    test("expires policies while retaining active authority across mode revisions", () => {
+        let state = addAutofillStandingPolicy(
+            createAutofillPermissionState("account-1"),
+            plan(),
+            "allow",
+            "policy-expiring",
+            now,
+            new Date(now + 1000).toISOString()
+        );
+        expect(decideAutofillPlanAuthority(state, plan(), now + 500).outcome).to.equal("allow");
+        expect(decideAutofillPlanAuthority(state, plan(), now + 1001).outcome).to.equal("ask");
+        state = addAutofillStandingPolicy(state, plan(), "allow", "policy-revision", now + 2_000);
+        state = setAutofillApprovalMode(state, "dontAsk");
+        expect(decideAutofillPlanAuthority(state, plan(), now + 2_001).outcome).to.equal("allow");
     });
 
     test("increments monotonic revisions and revocation generations", () => {
@@ -115,8 +174,11 @@ suite("Autofill permission store", () => {
 
 const now = Date.parse("2026-09-18T12:00:00.000Z");
 
-function plan(overrides: { topOrigin?: string; itemId?: string; role?: string } = {}) {
+function plan(
+    overrides: { topOrigin?: string; frameOrigin?: string; itemId?: string; role?: string } = {}
+) {
     const topOrigin = overrides.topOrigin || "https://shop.example";
+    const frameOrigin = overrides.frameOrigin || topOrigin;
     const role = overrides.role || "contact.email";
     return {
         planId: "plan-1",
@@ -128,7 +190,7 @@ function plan(overrides: { topOrigin?: string; itemId?: string; role?: string } 
             formRef: "form-1",
             targetRevision: "revision-1",
             topOrigin,
-            frameOrigin: topOrigin,
+            frameOrigin,
         },
         fields: [
             {

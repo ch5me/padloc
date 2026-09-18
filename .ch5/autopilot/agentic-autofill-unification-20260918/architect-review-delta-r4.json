@@ -1,0 +1,71 @@
+{
+  "schema": "agent.workflow.review.v1",
+  "role": "architect",
+  "verdict": "iterate",
+  "verdictLabel": "ITERATE",
+  "planRevision": "sha256:c98e9940f8ebf1f6e8c96f50a06978de358f516bd5d7484ef1cc4ddbfbe21645",
+  "reviewedInputs": {
+    "priorDelta": "sha256:84462d0dce718724d0dcf2e6b6167e274cd14b4dc1f6a50d444966da4edea067",
+    "planCorrectionReport": "sha256:4feef2bf73e3f4c6eebf169e07943aee20a1c711bb9721f3cdaba1d11af03c11",
+    "spec": "sha256:294d70946f344260c2bfd5361d29e3fb4429165eb50babb073dd5659a7cce579",
+    "plan": "sha256:c98e9940f8ebf1f6e8c96f50a06978de358f516bd5d7484ef1cc4ddbfbe21645",
+    "testSpec": "sha256:ce92c65ca6b31169d391b4095e4530558206e2eced54e127f0fe1e9e46af7609",
+    "graph": "sha256:53f24522f5af621a089fe0a338a6a3582689312d018afe77344cba41e4b9ef16"
+  },
+  "reviewerRelation": "independent-delta",
+  "reviewerIdentity": "codex-architect-delta-r4-review-v1",
+  "source": "Independent read-only review of only the revision-4 C2/C3 remainder corrections. A1-A9 and resolved C1, C4, C5, and C6 were not re-reviewed.",
+  "completedAt": "2026-09-18T21:04:05Z",
+  "assurance": "local",
+  "sourceCommits": {
+    "padloc": "83a55325623a13115c873b67795ec7c442766f5f",
+    "magic-browser": "213896cdaf0cbdde9366767ec0febbd8cd42acd2"
+  },
+  "checks": {
+    "scopeBoundToC2C3": "pass",
+    "revision4HashesMatch": "pass",
+    "correctionReportMapping": "pass",
+    "graphJsonParse": "pass",
+    "graphDag": "pass",
+    "parallelEdgesSymmetric": "pass",
+    "parallelOwnershipDisjoint": "pass",
+    "repositoryPrefixedPaths": "pass",
+    "c2PerKindInventory": "pass",
+    "c2HandshakeShapePresence": "pass",
+    "c2FieldTypeAndNestedClosure": "fail",
+    "c2HandshakeFailureClosure": "fail",
+    "c2FixtureTransportBinding": "fail",
+    "c3ToolInventory": "pass",
+    "c3GateOwnershipAndNegativeNames": "pass",
+    "c3ValueFreeDragOutput": "fail",
+    "productSourceEdited": false,
+    "credentialsAccessed": false,
+    "realDataAccessed": false,
+    "runtimeProof": "UNKNOWN"
+  },
+  "findingResolutions": [
+    {
+      "id": "C2",
+      "status": "iterate",
+      "evidence": [
+        "docs/specs/agentic-personal-data-vault.md:305-329 now names all ten broker kinds and the shared/variant field names, and :331-349 names both handshake request/response pairs.",
+        "The C2 tables still omit scalar types, cardinality, and closed nested shapes for many required fields: ImportProvenance/ImportLossEntry/ImportResult members, envelope metadata, AutofillBrokerTarget members, per-kind fields, receipt fields, privacy-status fields, and the broker error object. ImportResult.provenance and sourceIdentifiers are not given an unambiguous serialized shape.",
+        "The handshake section does not define the ok=false response shape or how an error is carried for import-begin and import-commit; 'Handshake errors use elf.padloc-broker-error.v1' is not a closed response schema.",
+        "plan.md:52-55, G005/G006 proof, and graph-candidate.json:G005/G006/G008 require fixtures and parsing, but do not bind exact fixture member paths or exact transport operation-to-schema mappings. G005, G006, and G008 can still choose incompatible wire layouts."
+      ],
+      "requiredChange": "Make the C2 contract executable without worker choices: add field types, constants, cardinality, enum domains, and closed nested object shapes for every import/envelope/target/variant/error field; define explicit success and failure response unions for import-begin and import-commit; and name the canonical fixture JSON paths plus the native/CDP operation mapping consumed by G005, G006, and G008."
+    },
+    {
+      "id": "C3",
+      "status": "iterate",
+      "evidence": [
+        "Revision 4 adds click_text, click_button_text, scroll_table, and drag to the spec remainder, plan decision/inventory, graph G007 deliverable/proof, and G007 negative-test list.",
+        "magic-browser/src/runtime/form.ts:2119-2130 defines DragResult.valueBefore, valueAfter, ariaValueBefore, and ariaValueAfter; :2298-2308 populates those fields. These are direct value-bearing action outputs, but the revision-4 forbidden-output lists only input/textarea snapshot values, FormField.value/FormActionResult.value, and table cell values.",
+        "magic-browser/src/worker/typed-tools.ts:3178-3210 returns a pageSnapshot from click_text/click_button_text, and :3252-3400 returns allRows/headings from scroll_table. The plan and test spec name negative tool calls but do not define per-tool output schemas or assert that these returned objects contain only metadata/redacted data under the shared gate."
+      ],
+      "requiredChange": "Extend C3's value-forbidden contract to DragResult.valueBefore/valueAfter/ariaValueBefore/ariaValueAfter and any equivalent click/table payload; require metadata-only or redacted result schemas for all four tools in clean, unknown, and potentially-private cases; and add assertions that no value-bearing keys survive the worker boundary, with unknown/potentially-private negatives at each call site."
+    }
+  ],
+  "rationale": "Revision 4 closes the naming and ownership gaps: all four C3 tools are inventoried and all broker kinds plus handshake names are present. It does not yet close the contracts at the field/type/nested-response level required for interoperable C2 fixtures and parsers, and it leaves drag's explicit value-bearing result fields outside the C3 redaction contract. These remain blocking plan-contract gaps, so implementation dispatch is not ready.",
+  "nextGate": "Return to plan correction for the C2 field/transport schemas and the C3 drag/click/table output contracts, then independently review the corrected revision."
+}

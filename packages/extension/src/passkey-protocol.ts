@@ -2,6 +2,8 @@ export const PASSKEY_PROTOCOL_VERSION = 1 as const;
 export const PASSKEY_PAGE_MESSAGE_SOURCE = "padloc-passkey-page";
 export const PASSKEY_EXTENSION_MESSAGE_SOURCE = "padloc-passkey-extension";
 const MAX_PASSKEY_REQUEST_JSON_LENGTH = 256 * 1024;
+export const PASSKEY_MIN_TTL_MS = 1_000;
+export const PASSKEY_MAX_TTL_MS = 120_000;
 
 export type PasskeyOperation = "create" | "get";
 
@@ -42,6 +44,17 @@ export interface ExtensionPasskeyMessage {
 export interface PasskeyRuntimeRequest extends PagePasskeyRequest {
     type: "passkeyRequest";
     origin: string;
+    flowId: string;
+    nonce: string;
+    ttlMs: number;
+    topOrigin: string;
+    rpId: string;
+    target: {
+        frameId: 0;
+        origin: string;
+        topOrigin: string;
+        documentId: string;
+    };
 }
 
 export interface SerializedPublicKeyCredential {
@@ -134,6 +147,74 @@ export function deserializeWebAuthnValue(value: unknown): unknown {
     return value;
 }
 
+export function passkeyRequestTtlMs(options: Record<string, unknown>): number {
+    const requested = Number(options.timeout);
+    if (!Number.isFinite(requested) || requested <= 0) return 60_000;
+    return Math.min(Math.max(Math.floor(requested), PASSKEY_MIN_TTL_MS), PASSKEY_MAX_TTL_MS);
+}
+
+/**
+ * Resolve the RP ID before the request crosses into the extension worker. The
+ * page supplies the WebAuthn options, but the origin comes from the isolated
+ * bridge and is revalidated again by the worker/provider.
+ */
+export function derivePasskeyRpId(
+    operation: PasskeyOperation,
+    options: Record<string, unknown>,
+    origin: string
+): string | null {
+    const requested =
+        operation === "get"
+            ? options.rpId
+            : options.rp && typeof options.rp === "object" && !Array.isArray(options.rp)
+            ? (options.rp as Record<string, unknown>).id
+            : undefined;
+    if (typeof requested !== "undefined" && typeof requested !== "string") return null;
+    if (typeof requested === "string" && requested.length === 0) return null;
+    const fallback = typeof requested === "string" ? requested : safeOriginHost(origin);
+    if (!fallback) return null;
+    const normalized = fallback.toLowerCase().replace(/\.$/, "");
+    return normalized && normalized.length <= 253 && !/[\s/:\\]/.test(normalized) ? normalized : null;
+}
+
+export function isPasskeyRuntimeRequest(value: unknown): value is PasskeyRuntimeRequest {
+    if (!value || typeof value !== "object") return false;
+    if (!isPagePasskeyRequest(value)) return false;
+    const request = value as PasskeyRuntimeRequest;
+    if (
+        typeof request.origin !== "string" ||
+        typeof request.flowId !== "string" ||
+        typeof request.nonce !== "string" ||
+        typeof request.topOrigin !== "string" ||
+        typeof request.rpId !== "string" ||
+        !Number.isInteger(request.ttlMs) ||
+        request.ttlMs < PASSKEY_MIN_TTL_MS ||
+        request.ttlMs > PASSKEY_MAX_TTL_MS
+    ) {
+        return false;
+    }
+    if (!isExactHttpOrigin(request.origin) || request.topOrigin !== request.origin) return false;
+    const target = request.target;
+    return (
+        !!target &&
+        target.frameId === 0 &&
+        target.origin === request.origin &&
+        target.topOrigin === request.topOrigin &&
+        typeof target.documentId === "string" &&
+        target.documentId.length > 0 &&
+        target.documentId.length <= 256 &&
+        !/[\u0000-\u001f\u007f]/.test(target.documentId) &&
+        request.flowId.length > 0 &&
+        request.flowId.length <= 256 &&
+        request.nonce.length > 0 &&
+        request.nonce.length <= 256 &&
+        request.rpId.length > 0 &&
+        request.rpId.length <= 253 &&
+        !/[\s/:\\]/.test(request.rpId) &&
+        request.rpId === request.rpId.toLowerCase()
+    );
+}
+
 export function isPagePasskeyRequest(value: unknown): value is PagePasskeyRequest {
     if (!value || typeof value !== "object") return false;
     const request = value as Partial<PagePasskeyRequest>;
@@ -154,6 +235,26 @@ export function isPagePasskeyRequest(value: unknown): value is PagePasskeyReques
     if (!shapeValid) return false;
     try {
         return JSON.stringify(request).length <= MAX_PASSKEY_REQUEST_JSON_LENGTH;
+    } catch {
+        return false;
+    }
+}
+
+function safeOriginHost(origin: string): string | null {
+    try {
+        const parsed = new URL(origin);
+        return parsed.hostname.toLowerCase().replace(/\.$/, "");
+    } catch {
+        return null;
+    }
+}
+
+function isExactHttpOrigin(origin: string): boolean {
+    try {
+        const parsed = new URL(origin);
+        const host = parsed.hostname.toLowerCase().replace(/\.$/, "");
+        const loopback = host === "localhost" || host === "127.0.0.1" || host === "[::1]";
+        return parsed.origin === origin && (parsed.protocol === "https:" || (parsed.protocol === "http:" && loopback));
     } catch {
         return false;
     }

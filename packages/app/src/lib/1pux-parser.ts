@@ -11,35 +11,33 @@ export type OnePuxItemDetailsLoginField = {
 export type OnePuxItemDetailsSection = {
     title: string;
     name: string;
-    fields: [
-        {
-            title: string;
-            id: string;
-            value: {
-                concealed?: string;
-                reference?: string;
-                string?: string;
-                email?: string;
-                phone?: string;
-                url?: string;
-                totp?: string;
-                gender?: string;
-                creditCardType?: string;
-                creditCardNumber?: string;
-                monthYear?: number;
-                date?: number;
-            };
-            indexAtSource: number;
-            guarded: boolean;
-            multiline: boolean;
-            dontGenerate: boolean;
-            inputTraits: {
-                keyboard: string;
-                correction: string;
-                capitalization: string;
-            };
-        }
-    ];
+    fields: {
+        title: string;
+        id: string;
+        value: {
+            concealed?: string;
+            reference?: string;
+            string?: string;
+            email?: string;
+            phone?: string;
+            url?: string;
+            totp?: string;
+            gender?: string;
+            creditCardType?: string;
+            creditCardNumber?: string;
+            monthYear?: number;
+            date?: number;
+        };
+        indexAtSource: number;
+        guarded: boolean;
+        multiline: boolean;
+        dontGenerate: boolean;
+        inputTraits: {
+            keyboard: string;
+            correction: string;
+            capitalization: string;
+        };
+    }[];
 };
 
 export type OnePuxItemDetailsPasswordHistory = {
@@ -58,13 +56,13 @@ export type OnePuxItem = {
         favIndex: number;
         createdAt: number;
         updatedAt: number;
-        trashed: boolean;
-        categoryUuid: string;
+        trashed?: boolean;
+        categoryUuid?: string;
         details: {
-            loginFields: OnePuxItemDetailsLoginField[];
+            loginFields?: OnePuxItemDetailsLoginField[];
             notesPlain?: string;
-            sections: OnePuxItemDetailsSection[];
-            passwordHistory: OnePuxItemDetailsPasswordHistory[];
+            sections?: OnePuxItemDetailsSection[];
+            passwordHistory?: OnePuxItemDetailsPasswordHistory[];
             documentAttributes?: {
                 fileName: string;
                 documentId: string;
@@ -202,12 +200,12 @@ export function parseToRowData(item: OnePuxItem["item"], defaultTags?: string[])
     };
 
     // Skip documents
-    if (item.details.documentAttributes && item.details.loginFields.length === 0) {
+    if (item.details.documentAttributes && (item.details.loginFields?.length || 0) === 0) {
         return;
     }
 
     // Extract username, password, and some extraFields
-    item.details.loginFields.forEach((field) => {
+    (item.details.loginFields || []).forEach((field) => {
         if (field.designation === "username") {
             rowData.username = field.value;
         } else if (field.designation === "password") {
@@ -230,8 +228,8 @@ export function parseToRowData(item: OnePuxItem["item"], defaultTags?: string[])
     });
 
     // Extract some more extraFields
-    item.details.sections.forEach((section) => {
-        section.fields.forEach((field) => {
+    (item.details.sections || []).forEach((section) => {
+        (section.fields || []).forEach((field) => {
             let value = "";
             let type: ExtraFieldType = "text";
 

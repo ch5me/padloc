@@ -1,13 +1,33 @@
 import { unmarshal, bytesToString } from "@padloc/core/src/encoding";
 import { PBES2Container } from "@padloc/core/src/container";
 import { validateLegacyContainer, parseLegacyContainer } from "@padloc/core/src/legacy";
-import { VaultItem, Field, createVaultItem, FieldType, guessFieldType } from "@padloc/core/src/item";
+import {
+    AutofillFieldRole,
+    AutofillItemKind,
+    VaultItem,
+    Field,
+    createVaultItem,
+    FieldType,
+    guessFieldType,
+    deriveAutofillItemKind,
+} from "@padloc/core/src/item";
 import { Err, ErrorCode } from "@padloc/core/src/error";
 import { uuid, capitalize } from "@padloc/core/src/util";
 import { translate as $l } from "@padloc/locale/src/translate";
 import { readFileAsText, readFileAsArrayBuffer } from "@padloc/core/src/attachment";
+import {
+    IMPORT_LOSS_SCHEMA,
+    IMPORT_PROVENANCE_SCHEMA,
+    IMPORT_RESULT_SCHEMA,
+    ImportLossCategory,
+    ImportLossEntry,
+    ImportLossOutcome,
+    ImportLossReasonCode,
+    ImportProvenance,
+    ImportResult,
+} from "@padloc/core/src/import-result";
 
-import { OnePuxItem } from "./1pux-parser";
+import { OnePuxExport, OnePuxItem } from "./1pux-parser";
 import { BitwardenExport, BitwardenItem } from "./bitwarden-parser";
 
 export interface ImportFormat {
@@ -432,86 +452,716 @@ export async function isLastPass(file: File): Promise<boolean> {
     }
 }
 
-async function parse1PuxItem(
-    accountName: string,
-    vaultName: string,
-    item: OnePuxItem["item"]
-): Promise<VaultItem | undefined> {
-    if (!item) {
+const ONEPUX_IMPORTER_VERSION = "padloc-1pux-import-v1";
+const FALLBACK_IMPORT_TIME = "1970-01-01T00:00:00.000Z";
+
+export interface OnePuxImportOptions {
+    sourceId?: string;
+    importedAt?: string;
+    importerVersion?: string;
+}
+
+export interface OnePuxImport {
+    items: VaultItem[];
+    result: ImportResult;
+}
+
+export type OnePuxImportedItems = VaultItem[] & {
+    importResult: ImportResult;
+};
+
+type OnePuxFieldCandidate = {
+    name: string;
+    value: string;
+    role?: AutofillFieldRole;
+    type: FieldType;
+};
+
+type OnePuxNormalizedItem = {
+    item?: VaultItem;
+    losses: ImportLossEntry[];
+};
+
+type OnePuxCategory =
+    | "passkey"
+    | "attachment"
+    | "document"
+    | "history"
+    | "sharing"
+    | "totp-parameters"
+    | "unsupported-field"
+    | "trashed"
+    | "unknown-kind";
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+    return typeof value === "object" && value !== null && !Array.isArray(value)
+        ? (value as Record<string, unknown>)
+        : undefined;
+}
+
+function hasOwn(value: Record<string, unknown> | undefined, key: string): boolean {
+    return Boolean(value && Object.prototype.hasOwnProperty.call(value, key));
+}
+
+function normalizedLabel(value: string): string {
+    return value
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
+}
+
+function nonEmptyString(value: unknown): string | undefined {
+    return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function itemSourceId(item: OnePuxItem["item"], fallback: string): string {
+    return nonEmptyString(item?.uuid) || fallback;
+}
+
+function importLoss(
+    sourceItemId: string,
+    category: ImportLossCategory,
+    outcome: ImportLossOutcome,
+    reasonCode: ImportLossReasonCode
+): ImportLossEntry {
+    return {
+        schema: IMPORT_LOSS_SCHEMA,
+        sourceItemId,
+        category,
+        outcome,
+        reasonCode,
+    };
+}
+
+function lossCategoryToReason(category: OnePuxCategory): ImportLossReasonCode {
+    switch (category) {
+        case "passkey":
+            return "UNSUPPORTED_PASSKEY";
+        case "attachment":
+            return "UNSUPPORTED_ATTACHMENT";
+        case "document":
+            return "UNSUPPORTED_DOCUMENT";
+        case "history":
+            return "UNSUPPORTED_HISTORY";
+        case "sharing":
+            return "UNSUPPORTED_SHARING";
+        case "totp-parameters":
+            return "NONEXACT_TOTP_PARAMETERS";
+        case "unsupported-field":
+            return "UNSUPPORTED_FIELD";
+        case "trashed":
+            return "TRASHED_ITEM";
+        case "unknown-kind":
+            return "UNKNOWN_KIND";
+    }
+}
+
+function valueFromSectionField(value: unknown): { value: string; valueType: string } | undefined {
+    if (typeof value === "string") {
+        return { value, valueType: "string" };
+    }
+
+    const record = asRecord(value);
+    if (!record) {
         return;
     }
 
-    const { parseToRowData } = await import("./1pux-parser");
-
-    const rowData = parseToRowData(item, [accountName, vaultName]);
-
-    if (!rowData) {
-        return;
-    }
-
-    const itemName = rowData.name;
-    const tags = rowData.tags.split(",");
-
-    if (item.trashed) {
-        tags.push("trashed");
-    }
-
-    const fields: Field[] = [
-        new Field({ name: $l("Username"), value: rowData.username, type: FieldType.Username }),
-        new Field({ name: $l("Password"), value: rowData.password, type: FieldType.Password }),
-        new Field({ name: $l("URL"), value: rowData.url, type: FieldType.Url }),
+    const keys = [
+        "concealed",
+        "reference",
+        "string",
+        "email",
+        "phone",
+        "url",
+        "totp",
+        "gender",
+        "creditCardType",
+        "creditCardNumber",
+        "monthYear",
+        "date",
     ];
 
-    if (rowData.notes) {
-        fields.push(new Field({ name: $l("Notes"), value: rowData.notes, type: FieldType.Note }));
-    }
-
-    for (const extraField of rowData.extraFields) {
-        if (extraField.type === "totp") {
-            // Extract just the secret
-            try {
-                const secret = new URL(extraField.value).searchParams.get("secret");
-                if (secret) {
-                    fields.push(new Field({ name: extraField.name, value: secret, type: FieldType.Totp }));
-                }
-            } catch (error) {
-                // Do nothing
-            }
-        } else {
-            fields.push(
-                new Field({ name: extraField.name, value: extraField.value, type: extraField.type as FieldType })
-            );
+    for (const key of keys) {
+        const candidate = record[key];
+        if (typeof candidate === "string" && candidate.length > 0) {
+            return { value: candidate, valueType: key };
+        }
+        if (typeof candidate === "number" && Number.isFinite(candidate)) {
+            return { value: String(candidate), valueType: key };
         }
     }
 
-    return createVaultItem({ name: itemName, fields, tags });
+    return;
 }
 
-export async function as1Pux(file: File): Promise<VaultItem[]> {
+function kindFromCategory(categoryUuid: string | undefined): AutofillItemKind | undefined {
+    const category = normalizedLabel(categoryUuid || "");
+    if (!category) {
+        return;
+    }
+
+    if (category === "001" || /(^| )login(s)?$|website|web app|password/.test(category)) {
+        return AutofillItemKind.Login;
+    }
+    if (category === "003" || /credit card|creditcard|payment|card/.test(category)) {
+        return AutofillItemKind.PaymentCardPolicy;
+    }
+    if (category === "005" || /identity|profile|person|contact/.test(category)) {
+        return AutofillItemKind.PersonProfile;
+    }
+    if (/postal|address/.test(category)) {
+        return AutofillItemKind.PostalAddress;
+    }
+    if (
+        category === "100" ||
+        category === "101" ||
+        category === "103" ||
+        /government|passport|driver|license|ssn|social security|national id/.test(category)
+    ) {
+        return AutofillItemKind.GovernmentIdentity;
+    }
+    if (category === "106" || /financial|bank|routing|iban|bic|account/.test(category)) {
+        return AutofillItemKind.FinancialAccount;
+    }
+    if (/merchant|origin/.test(category)) {
+        return AutofillItemKind.MerchantProfile;
+    }
+
+    return;
+}
+
+function roleForLabel(
+    name: string,
+    kind: AutofillItemKind | undefined,
+    valueType?: string,
+    fieldType?: string
+): AutofillFieldRole | undefined {
+    const label = normalizedLabel(name);
+    const type = normalizedLabel(fieldType || "");
+    const valueKind = normalizedLabel(valueType || "");
+
+    if (type === "t" || valueKind === "totp" || /totp|otp|one time password|authenticator/.test(label)) {
+        return AutofillFieldRole.Totp;
+    }
+    if (/user(name)?|login id|sign in|account name/.test(label)) {
+        return AutofillFieldRole.Username;
+    }
+    if (/password|passcode/.test(label)) {
+        return AutofillFieldRole.Password;
+    }
+
+    if (/social security|(^| )ssn($| )/.test(label)) {
+        return AutofillFieldRole.GovernmentSsn;
+    }
+    if (/passport/.test(label)) {
+        return AutofillFieldRole.GovernmentPassportNumber;
+    }
+    if (/driver.?s license|drivers license|license number/.test(label)) {
+        return AutofillFieldRole.GovernmentDriversLicenseNumber;
+    }
+    if (/national id|national identification/.test(label)) {
+        return AutofillFieldRole.GovernmentNationalId;
+    }
+
+    if (/routing number|routing/.test(label)) {
+        return AutofillFieldRole.FinancialRoutingNumber;
+    }
+    if (/iban/.test(label)) {
+        return AutofillFieldRole.FinancialIban;
+    }
+    if (/bic|swift/.test(label)) {
+        return AutofillFieldRole.FinancialBic;
+    }
+    if (/account number|bank account|account/.test(label) && kind === AutofillItemKind.FinancialAccount) {
+        return AutofillFieldRole.FinancialAccountNumber;
+    }
+
+    if (/card number|credit card number|pan/.test(label)) {
+        return AutofillFieldRole.PaymentCardPan;
+    }
+    if (/cardholder|card owner|owner name|name on card/.test(label)) {
+        return AutofillFieldRole.PaymentCardholderName;
+    }
+    if (/cvv|cvc|security code/.test(label)) {
+        return AutofillFieldRole.PaymentCardCvvTransient;
+    }
+    if (/expiry|expiration|valid until|valid thru/.test(label)) {
+        if (/month/.test(label)) {
+            return AutofillFieldRole.PaymentCardExpiryMonth;
+        }
+        if (/year/.test(label)) {
+            return AutofillFieldRole.PaymentCardExpiryYear;
+        }
+        return AutofillFieldRole.PaymentCardExpiry;
+    }
+
+    if (/full name|display name/.test(label)) {
+        return AutofillFieldRole.PersonFullName;
+    }
+    if (/first name|given name/.test(label)) {
+        return AutofillFieldRole.PersonFirstName;
+    }
+    if (/last name|family name|surname/.test(label)) {
+        return AutofillFieldRole.PersonLastName;
+    }
+    if (/email|e mail/.test(label) || valueKind === "email") {
+        return AutofillFieldRole.ContactEmail;
+    }
+    if (/phone|mobile|telephone/.test(label) || valueKind === "phone") {
+        return AutofillFieldRole.ContactPhone;
+    }
+    if (/address line 1|address1|line 1|line1|street address|street/.test(label)) {
+        return AutofillFieldRole.AddressLine1;
+    }
+    if (/address line 2|address2|line 2|line2|unit|apt|suite/.test(label)) {
+        return AutofillFieldRole.AddressLine2;
+    }
+    if (/city|town/.test(label)) {
+        return AutofillFieldRole.AddressCity;
+    }
+    if (/state|province|region/.test(label)) {
+        return AutofillFieldRole.AddressRegion;
+    }
+    if (/postal|zip/.test(label)) {
+        return AutofillFieldRole.AddressPostalCode;
+    }
+    if (/country/.test(label)) {
+        return AutofillFieldRole.AddressCountry;
+    }
+
+    if (valueKind === "url" || /url|website|web site|homepage|origin/.test(label)) {
+        return kind === AutofillItemKind.MerchantProfile
+            ? AutofillFieldRole.MerchantOrigin
+            : AutofillFieldRole.LoginUrl;
+    }
+
+    if (kind === AutofillItemKind.PersonProfile && /name/.test(label)) {
+        return AutofillFieldRole.PersonFullName;
+    }
+    if (kind === AutofillItemKind.PostalAddress && /address/.test(label)) {
+        return AutofillFieldRole.AddressLine1;
+    }
+
+    return;
+}
+
+function fieldTypeForRole(role: AutofillFieldRole | undefined, valueType?: string): FieldType {
+    switch (role) {
+        case AutofillFieldRole.Username:
+            return FieldType.Username;
+        case AutofillFieldRole.Password:
+            return FieldType.Password;
+        case AutofillFieldRole.Totp:
+            return FieldType.Totp;
+        case AutofillFieldRole.LoginUrl:
+        case AutofillFieldRole.MerchantOrigin:
+            return FieldType.Url;
+        case AutofillFieldRole.ContactEmail:
+            return FieldType.Email;
+        case AutofillFieldRole.ContactPhone:
+            return FieldType.Phone;
+        case AutofillFieldRole.PaymentCardPan:
+            return FieldType.Credit;
+        case AutofillFieldRole.PaymentCardCvvTransient:
+            return FieldType.Pin;
+        case AutofillFieldRole.PaymentCardExpiry:
+        case AutofillFieldRole.PaymentCardExpiryMonth:
+        case AutofillFieldRole.PaymentCardExpiryYear:
+            return FieldType.Month;
+        default:
+            return valueType === "url" ? FieldType.Url : FieldType.Text;
+    }
+}
+
+function exactTotpSecret(value: string): { secret: string } | { nonExact: true } {
+    const candidate = value.trim();
+    if (/^[A-Z2-7]+=*$/i.test(candidate)) {
+        return { secret: candidate };
+    }
+
+    try {
+        const uri = new URL(candidate);
+        if (uri.protocol !== "otpauth:" || uri.hostname !== "totp") {
+            return { nonExact: true };
+        }
+
+        const secret = uri.searchParams.get("secret");
+        const algorithm = (uri.searchParams.get("algorithm") || "SHA1").toUpperCase();
+        const digits = uri.searchParams.get("digits") || "6";
+        const period = uri.searchParams.get("period") || "30";
+        if (!secret || algorithm !== "SHA1" || digits !== "6" || period !== "30") {
+            return { nonExact: true };
+        }
+        return { secret };
+    } catch {
+        return { nonExact: true };
+    }
+}
+
+function categoryLosses(item: OnePuxItem["item"], sourceItemId: string): ImportLossEntry[] {
+    const rawItem = asRecord(item);
+    const details = asRecord(item?.details);
+    const overview = asRecord(item?.overview);
+    const losses: ImportLossEntry[] = [];
+
+    if (
+        hasOwn(rawItem, "passkeys") ||
+        hasOwn(details, "passkeys") ||
+        hasOwn(details, "passkey") ||
+        hasOwn(details, "webauthn")
+    ) {
+        losses.push(importLoss(sourceItemId, "passkey", "skipped", lossCategoryToReason("passkey")));
+    }
+    if (hasOwn(rawItem, "attachments") || hasOwn(details, "attachments") || hasOwn(rawItem, "file")) {
+        losses.push(importLoss(sourceItemId, "attachment", "lossy-normalized", lossCategoryToReason("attachment")));
+    }
+    if (hasOwn(details, "documentAttributes") || hasOwn(details, "documents")) {
+        losses.push(importLoss(sourceItemId, "document", "lossy-normalized", lossCategoryToReason("document")));
+    }
+    if (Array.isArray(details?.passwordHistory) && details!.passwordHistory.length > 0) {
+        losses.push(importLoss(sourceItemId, "history", "lossy-normalized", lossCategoryToReason("history")));
+    }
+    if (
+        hasOwn(rawItem, "sharing") ||
+        hasOwn(rawItem, "shared") ||
+        hasOwn(rawItem, "permissions") ||
+        hasOwn(details, "sharing") ||
+        hasOwn(details, "shared") ||
+        hasOwn(details, "permissions") ||
+        hasOwn(overview, "sharing") ||
+        hasOwn(overview, "shared") ||
+        hasOwn(overview, "permissions")
+    ) {
+        losses.push(importLoss(sourceItemId, "sharing", "lossy-normalized", lossCategoryToReason("sharing")));
+    }
+    return losses;
+}
+
+function collectCandidates(
+    item: OnePuxItem["item"],
+    kind?: AutofillItemKind
+): { candidates: OnePuxFieldCandidate[]; unsupportedField: boolean; nonExactTotp: boolean } {
+    const candidates: OnePuxFieldCandidate[] = [];
+    let unsupportedField = false;
+    let nonExactTotp = false;
+    const details = item?.details;
+
+    for (const loginField of details?.loginFields || []) {
+        const value = nonEmptyString(loginField.value);
+        if (!value) {
+            continue;
+        }
+        if (loginField.fieldType === "I" || loginField.fieldType === "C" || loginField.id.includes(";opid=__")) {
+            unsupportedField = true;
+            continue;
+        }
+
+        const name = nonEmptyString(loginField.name) || nonEmptyString(loginField.id) || "Imported field";
+        const role =
+            loginField.designation === "username"
+                ? AutofillFieldRole.Username
+                : loginField.designation === "password"
+                ? AutofillFieldRole.Password
+                : roleForLabel(name, kind, undefined, loginField.fieldType);
+
+        if (!role) {
+            unsupportedField = true;
+            continue;
+        }
+        if (role === AutofillFieldRole.Totp) {
+            const totpResult = exactTotpSecret(value);
+            if ("secret" in totpResult) {
+                candidates.push({ name, value: totpResult.secret, role, type: FieldType.Totp });
+            } else {
+                nonExactTotp = true;
+            }
+            continue;
+        }
+        candidates.push({ name, value, role, type: fieldTypeForRole(role) });
+    }
+
+    for (const section of details?.sections || []) {
+        for (const sectionField of section.fields || []) {
+            const extracted = valueFromSectionField(sectionField.value);
+            if (!extracted || extracted.value.length === 0) {
+                continue;
+            }
+
+            const name = nonEmptyString(sectionField.title) || nonEmptyString(sectionField.id) || "Imported field";
+            const role = roleForLabel(name, kind, extracted.valueType);
+            if (!role) {
+                unsupportedField = true;
+                continue;
+            }
+            if (role === AutofillFieldRole.Totp) {
+                const totpResult = exactTotpSecret(extracted.value);
+                if ("secret" in totpResult) {
+                    candidates.push({ name, value: totpResult.secret, role, type: FieldType.Totp });
+                } else {
+                    nonExactTotp = true;
+                }
+                continue;
+            }
+            candidates.push({
+                name,
+                value: extracted.value,
+                role,
+                type: fieldTypeForRole(role, extracted.valueType),
+            });
+        }
+    }
+
+    const overviewUrl = nonEmptyString(item?.overview.url);
+    if (overviewUrl && kind === AutofillItemKind.Login) {
+        const alreadyHasUrl = candidates.some(
+            (candidate) => candidate.role === AutofillFieldRole.LoginUrl && candidate.value === overviewUrl
+        );
+        if (!alreadyHasUrl) {
+            candidates.push({
+                name: $l("URL"),
+                value: overviewUrl,
+                role: AutofillFieldRole.LoginUrl,
+                type: FieldType.Url,
+            });
+        }
+    } else if (overviewUrl && kind === AutofillItemKind.MerchantProfile) {
+        candidates.push({
+            name: $l("Origin"),
+            value: overviewUrl,
+            role: AutofillFieldRole.MerchantOrigin,
+            type: FieldType.Url,
+        });
+    }
+
+    const notes = nonEmptyString(item?.details.notesPlain);
+    if (notes) {
+        candidates.push({ name: $l("Notes"), value: notes, type: FieldType.Note });
+    }
+
+    return { candidates, unsupportedField, nonExactTotp };
+}
+
+async function normalize1PuxItem(
+    accountName: string,
+    vaultName: string,
+    item: OnePuxItem["item"],
+    fallbackSourceItemId: string,
+    provenanceBase: Omit<ImportProvenance, "sourceItemId">
+): Promise<OnePuxNormalizedItem> {
+    if (!item) {
+        return { losses: [] };
+    }
+
+    const sourceItemId = itemSourceId(item, fallbackSourceItemId);
+    const losses = categoryLosses(item, sourceItemId);
+    const categoryKind = kindFromCategory(item.categoryUuid);
+    const rawCandidates = collectCandidates(item, categoryKind);
+    const inferredKind =
+        categoryKind ||
+        deriveAutofillItemKind(rawCandidates.candidates.map((candidate) => ({ autofillRole: candidate.role })));
+    const kind = categoryKind || inferredKind;
+
+    if (!kind) {
+        losses.push(importLoss(sourceItemId, "unknown-kind", "skipped", lossCategoryToReason("unknown-kind")));
+        return { losses };
+    }
+
+    const candidates = collectCandidates(item, kind);
+    if (candidates.nonExactTotp) {
+        losses.push(importLoss(sourceItemId, "totp-parameters", "skipped", lossCategoryToReason("totp-parameters")));
+    }
+    if (candidates.unsupportedField) {
+        losses.push(
+            importLoss(sourceItemId, "unsupported-field", "skipped", lossCategoryToReason("unsupported-field"))
+        );
+    }
+
+    const fields = candidates.candidates.map(
+        (candidate) =>
+            new Field({
+                name: candidate.name,
+                value: candidate.value,
+                type: candidate.type,
+                autofillRole: candidate.role,
+            })
+    );
+    if (fields.length === 0 && !item.trashed) {
+        return { losses };
+    }
+
+    const tags = [accountName, vaultName, ...((item.overview.tags || []).filter(Boolean) as string[])].filter(Boolean);
+    if (item.trashed) {
+        tags.push("trashed");
+        losses.push(importLoss(sourceItemId, "trashed", "lossy-normalized", lossCategoryToReason("trashed")));
+    }
+
+    const provenance: ImportProvenance = {
+        ...provenanceBase,
+        sourceItemId,
+    };
+    const importedItem = await createVaultItem({
+        name: nonEmptyString(item.overview.title) || "Unnamed",
+        fields,
+        tags,
+        autofillKind: kind,
+        provenance,
+    });
+
+    // A trashed record remains inspectable and keeps provenance, but it must
+    // not become a new autofill authority merely because it was imported.
+    if (item.trashed) {
+        importedItem.autofillKind = undefined;
+    }
+
+    return { item: importedItem, losses };
+}
+
+function importedAtForExport(dataExport: OnePuxExport, requested?: string): string {
+    if (requested && !Number.isNaN(Date.parse(requested))) {
+        return requested;
+    }
+
+    const createdAt = dataExport.attributes && dataExport.attributes.createdAt;
+    if (typeof createdAt === "number" && Number.isFinite(createdAt)) {
+        const millis = createdAt < 100000000000 ? createdAt * 1000 : createdAt;
+        const date = new Date(millis);
+        if (!Number.isNaN(date.getTime())) {
+            return date.toISOString();
+        }
+    }
+    return FALLBACK_IMPORT_TIME;
+}
+
+function sourceIdForFile(file: File, requested?: string): string {
+    if (requested && requested.length > 0) {
+        return requested;
+    }
+    const fileName = file && typeof file.name === "string" ? file.name : "";
+    return fileName || "1pux-export";
+}
+
+async function normalize1PuxExport(dataExport: OnePuxExport, options: OnePuxImportOptions = {}): Promise<OnePuxImport> {
+    const sourceId = options.sourceId || "1pux-export";
+    const importedAt = importedAtForExport(dataExport, options.importedAt);
+    const importerVersion = options.importerVersion || ONEPUX_IMPORTER_VERSION;
+    const provenanceBase: Omit<ImportProvenance, "sourceItemId"> = {
+        schema: IMPORT_PROVENANCE_SCHEMA,
+        source: "1pux",
+        sourceId,
+        importedAt,
+        importerVersion,
+    };
+    const items: VaultItem[] = [];
+    const losses: ImportLossEntry[] = [];
+    const sourceIdentifiers: string[] = [];
+    let skipped = 0;
+    let lossy = 0;
+    let itemIndex = 0;
+
+    for (const account of dataExport.data.accounts || []) {
+        for (const vault of account.vaults || []) {
+            for (const vaultItem of vault.items || []) {
+                const rawItem = vaultItem.item;
+                const fallbackSourceItemId = `${account.attrs.uuid || account.attrs.name}/${
+                    vault.attrs.uuid || vault.attrs.name
+                }/${itemIndex}`;
+                itemIndex += 1;
+                if (!rawItem) {
+                    skipped += 1;
+                    continue;
+                }
+
+                const sourceItemId = itemSourceId(rawItem, fallbackSourceItemId);
+                if (!sourceIdentifiers.includes(sourceItemId)) {
+                    sourceIdentifiers.push(sourceItemId);
+                }
+
+                const normalized = await normalize1PuxItem(
+                    account.attrs.name,
+                    vault.attrs.name,
+                    rawItem,
+                    fallbackSourceItemId,
+                    provenanceBase
+                );
+                losses.push(...normalized.losses);
+                if (normalized.item) {
+                    items.push(normalized.item);
+                    if (normalized.losses.length > 0) {
+                        lossy += 1;
+                    }
+                } else {
+                    skipped += 1;
+                }
+            }
+        }
+    }
+
+    const result: ImportResult = {
+        schema: IMPORT_RESULT_SCHEMA,
+        imported: items.length,
+        normalized: items.length,
+        skipped,
+        lossy,
+        provenance: provenanceBase,
+        losses,
+        sourceIdentifiers,
+    };
+    return { items, result };
+}
+
+/**
+ * Normalize an already-parsed synthetic export. Keeping this boundary
+ * separate makes importer tests deterministic and avoids real exports.
+ */
+export async function import1PuxExport(
+    dataExport: OnePuxExport,
+    options: OnePuxImportOptions = {}
+): Promise<OnePuxImport> {
+    return normalize1PuxExport(dataExport, options);
+}
+
+/** Parse and normalize a 1PUX file while returning the value-free report. */
+export async function import1Pux(file: File, options: OnePuxImportOptions = {}): Promise<OnePuxImport> {
     try {
         const { parse1PuxFile } = await import("./1pux-parser");
         const data = await readFileAsArrayBuffer(file);
         const dataExport = await parse1PuxFile(data);
-
-        const items = [];
-
-        for (const account of dataExport.data.accounts) {
-            for (const vault of account.vaults) {
-                for (const vaultItem of vault.items) {
-                    if (vaultItem.item) {
-                        const parsedItem = await parse1PuxItem(account.attrs.name, vault.attrs.name, vaultItem.item);
-                        if (parsedItem) {
-                            items.push(parsedItem);
-                        }
-                    }
-                }
-            }
-        }
-
-        return items;
+        return normalize1PuxExport(dataExport, {
+            ...options,
+            sourceId: sourceIdForFile(file, options.sourceId),
+        });
     } catch (error) {
         throw new Err(ErrorCode.INVALID_1PUX, "Failed to parse .1pux file.");
     }
+}
+
+/** Result-only boundary for callers that do not need decrypted item values. */
+export async function import1PuxResult(file: File, options: OnePuxImportOptions = {}): Promise<ImportResult> {
+    const imported = await import1Pux(file, options);
+    return imported.result;
+}
+
+export async function as1PuxResult(file: File, options: OnePuxImportOptions = {}): Promise<ImportResult> {
+    return import1PuxResult(file, options);
+}
+
+export async function as1PuxWithResult(file: File, options: OnePuxImportOptions = {}): Promise<OnePuxImport> {
+    return import1Pux(file, options);
+}
+
+/**
+ * Legacy UI callers still receive the item array. The result is attached as a
+ * non-enumerable property so the existing import dialog remains unchanged.
+ */
+export async function as1Pux(file: File): Promise<OnePuxImportedItems> {
+    const imported = await import1Pux(file);
+    Object.defineProperty(imported.items, "importResult", {
+        configurable: false,
+        enumerable: false,
+        value: imported.result,
+        writable: false,
+    });
+    return imported.items as OnePuxImportedItems;
 }
 
 /**

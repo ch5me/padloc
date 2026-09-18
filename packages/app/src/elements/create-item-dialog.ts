@@ -1,5 +1,13 @@
 import { Vault } from "@padloc/core/src/vault";
-import { VaultItem, Field, ItemTemplate, ITEM_TEMPLATES, FieldType } from "@padloc/core/src/item";
+import {
+    VaultItem,
+    Field,
+    ItemTemplate,
+    ITEM_TEMPLATES,
+    FieldType,
+    AutofillItemKind,
+    AutofillFieldRole,
+} from "@padloc/core/src/item";
 import { translate as $l } from "@padloc/locale/src/translate";
 import { app, router } from "../globals";
 import { Select } from "./select";
@@ -144,6 +152,8 @@ export class CreateItemDialog extends Dialog<Vault, VaultItem> {
             vault,
             icon: this._template.icon,
             fields: this._template.fields.map((f) => new Field({ ...f, value: f.value || "" })),
+            autofillKind: this._template.autofillKind,
+            provenance: this._template.provenance,
         });
         this.done(item);
 
@@ -168,21 +178,25 @@ export class CreateItemDialog extends Dialog<Vault, VaultItem> {
                 name,
                 icon: "web",
                 iconSrc: favIconUrl,
+                autofillKind: AutofillItemKind.Login,
                 fields: [
                     {
                         name: $l("Username"),
                         type: FieldType.Username,
                         value: "",
+                        autofillRole: AutofillFieldRole.Username,
                     },
                     {
                         name: $l("Password"),
                         type: FieldType.Password,
                         value: "",
+                        autofillRole: AutofillFieldRole.Password,
                     },
                     {
                         name: $l("URL"),
                         type: FieldType.Url,
                         value: parsedUrl.origin,
+                        autofillRole: AutofillFieldRole.LoginUrl,
                     },
                 ],
             };

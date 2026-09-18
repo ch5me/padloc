@@ -1,0 +1,148 @@
+{
+  "contractVersion": "ch5.agent-handoff.v1.1",
+  "handoffId": "agentic-autofill-plan-correction-c1c6-v1",
+  "workstream": "agentic-autofill-unification-plan-correction",
+  "lead": false,
+  "pinState": "unpinned",
+  "role": "worker",
+  "root": {
+    "threadId": "01a0b4ec-b81f-7491-b80b-97f373c67d39",
+    "identity": "codex-autopilot-root"
+  },
+  "parent": {
+    "threadId": "01a0b4ec-b81f-7491-b80b-97f373c67d39",
+    "identity": "codex-autopilot-root"
+  },
+  "child": {
+    "threadId": "agentic-autofill-plan-correction-c1c6",
+    "identity": "luna-max-plan-correction-writer"
+  },
+  "scope": {
+    "goal": "Patch spec, plan, test spec, and graph exactly once to apply frozen C1-C6 decisions without widening product objective or regressing A1-A9.",
+    "includes": [
+      "C1 role/mode freeze",
+      "C2 field-level schemas",
+      "C3 observation inventory",
+      "C4 canonical G009 runner",
+      "C5 proof authority",
+      "C6 canonical fixtures"
+    ],
+    "excludes": [
+      "product source edits",
+      "new features beyond C1-C6",
+      "credential access",
+      "deployment",
+      "inventing contracts not in critic-frozen-decisions.json"
+    ],
+    "acceptance": [
+      "Every C1-C6 decision is copied into spec/plan/test/graph with no remaining UNKNOWN for those contracts",
+      "Graph revision is integer 3, valid DAG, disjoint ownership, repository-prefixed paths",
+      "G007 owns form.ts; G008 owns canonical fixture and both proof.yaml files; G009 names one canonical command",
+      "Write plan-correction-report.json mapping C1-C6 to exact artifact changes",
+      "Do not edit product source"
+    ]
+  },
+  "ownership": {
+    "paths": [
+      "docs/specs/agentic-personal-data-vault.md",
+      ".ch5/autopilot/agentic-autofill-unification-20260918/plan.md",
+      ".ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md",
+      ".ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json",
+      ".ch5/autopilot/agentic-autofill-unification-20260918/plan-correction-report.json"
+    ],
+    "interfaces": [
+      "frozen execution spec",
+      "deliberate plan revision",
+      "agent.workflow.plan.v1 candidate"
+    ],
+    "resultDestination": {
+      "threadId": "01a0b4ec-b81f-7491-b80b-97f373c67d39",
+      "channel": "thread-result"
+    }
+  },
+  "authority": {
+    "allowedDecisions": [
+      "apply critic-frozen-decisions.json verbatim into owned artifacts",
+      "choose only wording/ownership splits required to encode those decisions"
+    ],
+    "gates": [
+      "credential",
+      "spend",
+      "production",
+      "external-trust",
+      "product-source-edit",
+      "scope-expansion",
+      "contract-invention"
+    ],
+    "resources": [
+      "/Users/hassoncs/worktrees/ch5/padloc/agentic-autofill-unification-20260918",
+      "/Users/hassoncs/worktrees/ch5/magic-browser/agentic-autofill-unification-20260918",
+      ".ch5/autopilot/agentic-autofill-unification-20260918/critic-review.json",
+      ".ch5/autopilot/agentic-autofill-unification-20260918/critic-frozen-decisions.json",
+      ".ch5/autopilot/agentic-autofill-unification-20260918/architect-review-delta.json",
+      "docs/specs/agentic-personal-data-vault.md",
+      ".ch5/autopilot/agentic-autofill-unification-20260918/plan.md",
+      ".ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md",
+      ".ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json"
+    ],
+    "maySubdivide": false
+  },
+  "route": {
+    "dispatchClass": "standard",
+    "requestedHost": "local",
+    "effectiveHost": "local",
+    "localExceptionReason": "User explicitly requested local Codex Luna Max workers; bounded same-host plan correction in the Grove Tree.",
+    "executionSurface": {
+      "requestedApp": "bb-nightly",
+      "effectiveApp": "bb-nightly",
+      "requestedPermissionMode": "full",
+      "effectivePermissionMode": "full",
+      "preflightEvidence": "BB Nightly healthy; exact Grove Tree supplied"
+    },
+    "remoteAdmission": {
+      "status": "not-requested"
+    },
+    "provider": "codex",
+    "model": "gpt-5.6-luna",
+    "reasoningLevel": "max",
+    "account": "default",
+    "priority": "normal"
+  },
+  "missionFit": {
+    "sessionShape": "bounded-worker",
+    "rationale": "Coordinator froze C1-C6. One writer copies them into four plan artifacts.",
+    "phases": [
+      "read frozen decisions",
+      "patch artifacts",
+      "validate",
+      "report"
+    ],
+    "evidenceVolume": {
+      "class": "bounded-medium",
+      "basis": "one critic review, one frozen-decision artifact, four plan artifacts"
+    },
+    "verificationBounds": [
+      "JSON parse graph and report",
+      "DAG and ownership audit",
+      "Map every C1-C6 finding"
+    ],
+    "contextEstimate": {
+      "status": "unknown",
+      "reason": "No measured estimate"
+    },
+    "compaction": {
+      "enabled": true,
+      "fallbackOnly": true
+    }
+  },
+  "continuation": {
+    "kind": "initial",
+    "disposition": "accept",
+    "basis": "initial-dispatch"
+  },
+  "lifecycle": {
+    "state": "dispatched",
+    "firstAction": "Read critic-frozen-decisions.json and critic-review.json, patch owned artifacts once, validate, write plan-correction-report.json, stop.",
+    "dispatchedAt": "2026-09-18T20:23:04.631+00:00"
+  }
+}

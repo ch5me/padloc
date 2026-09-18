@@ -1,0 +1,197 @@
+{
+  "schema": "agent.workflow.review.v1",
+  "role": "critic",
+  "verdict": "iterate",
+  "verdictLabel": "ITERATE",
+  "planRevision": "sha256:927b4269fa54adacb74bbb26ae71dc0f2110c11e78f0a9b69dda379687079d95",
+  "reviewedInputs": {
+    "brief": "sha256:db58160710524f1d4e36556df6eac08458c683113fa86bbd0c10ab634b455b3b",
+    "spec": "sha256:81db3a3c5f4a14611adf04364bdbb3ae9beb3a4214e0860d2d94e0c71608c9ca",
+    "plan": "sha256:927b4269fa54adacb74bbb26ae71dc0f2110c11e78f0a9b69dda379687079d95",
+    "testSpec": "sha256:e7bc8dcf8b1ac834e880a55847afc3008a82cee86818931e3f9c9e844b45b42b",
+    "graph": "sha256:7dd8d982bf4f495720588c4bcd5d9b4e9c99e7463876b58aea5a1d979d93730f",
+    "architectDelta": "sha256:a3dabc366b51c65cfffc849ce18642bbf18f315d2883c50e5ee9b1f10505c09d"
+  },
+  "reviewerRelation": "independent-followup",
+  "reviewerIdentity": "codex-critic-review-v1",
+  "source": "Independent read-only review of the revision-2 brief, spec, plan, test specification, graph, and Architect delta approval.",
+  "completedAt": "2026-09-18T20:15:11Z",
+  "assurance": "local",
+  "sourceCommits": {
+    "padloc": "83a55325623a13115c873b67795ec7c442766f5f",
+    "magic-browser": "213896cdaf0cbdde9366767ec0febbd8cd42acd2"
+  },
+  "checks": {
+    "architectDeltaApprovalRead": "pass",
+    "revision2HashesMatch": "pass",
+    "graphJsonParse": "pass",
+    "graphDag": "pass",
+    "parallelEdgesSymmetric": "pass",
+    "parallelOwnershipDisjoint": "pass",
+    "repositoryPrefixedPaths": "pass",
+    "productSourceEdited": false,
+    "credentialsAccessed": false,
+    "realDataAccessed": false,
+    "runtimeProof": "UNKNOWN"
+  },
+  "findings": [
+    {
+      "id": "C1",
+      "severity": "blocking",
+      "category": "scope-and-contract",
+      "title": "Role vocabulary and approval-mode mapping remain unresolved",
+      "evidence": [
+        "plan.md:209-213 records exact government/financial role names and the mapping of plan-only, prompted, standing-policy, and noninteractive modes to plan/manual/auto/dontAsk/bypassPrompts as UNKNOWN.",
+        "test-spec.md:40-42 and 81-89 require stable role identifiers, every mode, and high-risk step-up behavior.",
+        "G001 and G004 are the first owners of these contracts, while G002, G005, G008, and G009 consume them."
+      ],
+      "impact": "G001 and G004 must invent public identifiers or mode semantics, and downstream fixtures cannot be stable. This violates the no-replanning/no-invented-API worker requirement.",
+      "requiredChange": "Freeze the role enum, role-to-risk/release derivation table, and exact five-mode mapping before dispatch. Define whether bypassPrompts is an internal-only escape and how noninteractive execution is represented."
+    },
+    {
+      "id": "C2",
+      "severity": "blocking",
+      "category": "wire-contract",
+      "title": "Import, compatibility-envelope, and closed-response contracts lack field-level schemas",
+      "evidence": [
+        "spec.md:56-63 names ImportProvenance/ImportResult counts, loss entries, and source identifiers but does not define their fields, enums, requiredness, or closed shape.",
+        "spec.md:86-102 describes EncryptedAutofillProfileEnvelope and PadlocBrokerResponse conceptually but does not define serialized fields, error variants, key-wrap/unwrap operations, or exact nested payload schemas.",
+        "test-spec.md:38-39, 116-120, and 133-135 require closed deterministic fixtures and rejection of unknown nested keys."
+      ],
+      "impact": "G002, G005, G006, and G008 cannot implement interoperable parsers or deterministic fixtures without choosing APIs and wire shapes themselves. A closed parser cannot be written from only a list of payload categories.",
+      "requiredChange": "Add exact versioned TypeScript/JSON schemas for ImportResult, loss entries, the encrypted envelope, broker response variants, structured errors, and the one-time key-custody handshake. Name the canonical fixture and transport operations."
+    },
+    {
+      "id": "C3",
+      "severity": "blocking",
+      "category": "security-and-acceptance",
+      "title": "The privacy-gate matrix omits existing value-bearing observation paths",
+      "evidence": [
+        "test-spec.md:149-164 lists open_snapshot, page text/accessibility, evidence, bridge observation/fetch, screenshots, read_image, links/tables, eval, and network/body capture, but omits document_text, shape, network_detail, replay_request, and form_inspect.",
+        "magic-browser/src/worker/typed-tools.ts:104-126 exposes those omitted tools; document_text is implemented at :2456, network_detail/replay_request at :2721-2800, and form_inspect at :2833-2846.",
+        "magic-browser/src/runtime/form.ts:14-37 includes FormField.value and :76-107 includes FormActionResult.value, so form inspection/action output is directly value-bearing.",
+        "G007 owns typed-tools.ts but not runtime/form.ts, and no test requirement proves these paths block on unknown/potentially-private state."
+      ],
+      "impact": "A worker can satisfy the written G007 tests while leaving direct model-observation/body/form routes open after a private fill, contradicting the brief's all-generic-observation invariant.",
+      "requiredChange": "Publish an exhaustive observation-tool inventory with gate call sites and exact-target behavior. Add negative tests for document_text, shape, network_detail, replay_request, form_inspect, and any form-action outputs; assign omitted producer files or explicitly document safe exceptions."
+    },
+    {
+      "id": "C4",
+      "severity": "blocking",
+      "category": "end-to-end-executability",
+      "title": "G009 has no canonical cross-repository runner or clean-state bootstrap",
+      "evidence": [
+        "graph-candidate.json G009 owns two scripts and two fixture trees, one in each repository, but names no canonical entrypoint, invocation command, working-directory contract, or cross-repository handoff.",
+        "test-spec.md:184-200 says 'one deterministic script' while also requiring both repository runners, native-host install, browser setup, scanners, cleanup, and a padloc-owned evidence directory.",
+        "spec.md:64-79 and :104-113 make unknown privacy state fail closed and make an exact trusted reset the only producer of clean, but test-spec.md:184-188 starts G009 at install/unlock/classify without specifying the reset/clean bootstrap."
+      ],
+      "impact": "G009 must invent orchestration and may be unable to reach classify/plan under the fail-closed unknown state. G010 cannot document an exact command that the plan never names.",
+      "requiredChange": "Choose one canonical runner and command, define its two-repository invocation and artifact handoff, and add the exact synthetic target-descriptor/reset sequence that establishes clean before the first observation."
+    },
+    {
+      "id": "C5",
+      "severity": "high",
+      "category": "proof-authority",
+      "title": "Proof authority ownership and pass criteria are ambiguous",
+      "evidence": [
+        "plan.md:214-216 allows G008 either to add proof keys or leave closure explicitly incomplete.",
+        "graph-candidate.json G008 lists only padloc/.ch5/proof.yaml, while the prepared magic-browser tree has its own .ch5/proof.yaml and no corresponding graph-owned proof file.",
+        "test-spec.md:9-11 and :178-180 require exact proof keys and exact-SHA records, but do not name the required command IDs, evidence paths, or which repository is authoritative."
+      ],
+      "impact": "G008/G009/G010 have no deterministic pass/fail boundary and can legally finish with UNKNOWN despite the required evidence outcome. Cross-repository proof may be recorded in the wrong authority.",
+      "requiredChange": "Declare the owning proof authority, required command keys, exact-SHA/evidence paths, and whether both repositories register lanes. Make missing keys a blocking failure rather than an optional closure state."
+    },
+    {
+      "id": "C6",
+      "severity": "high",
+      "category": "cross-repository-testability",
+      "title": "G008 promises shared fixtures but assigns only two independent test files",
+      "evidence": [
+        "test-spec.md:168-180 requires both repositories to parse the same synthetic role, protocol, privacy, and envelope fixtures.",
+        "graph-candidate.json G008 owns padloc/packages/extension/test/agentic-contract-fixtures.ts and magic-browser/src/runtime/agentic-contract-fixtures.test.ts, but no canonical shared fixture artifact, generator, or content hash.",
+        "The plan's contract schemas are not field-level (C2), so duplicated fixtures can drift while both local tests pass."
+      ],
+      "impact": "The claimed cross-repository parity proof is not reproducible; each worker can create a different fixture set and still satisfy its local test name.",
+      "requiredChange": "Assign one canonical synthetic fixture source (or generated artifact with a recorded hash), define the read-only consumer in the other repository, and make parity fail on source/hash drift."
+    }
+  ],
+  "nodeAssessment": [
+    {
+      "id": "G001",
+      "executableWithoutReplanning": false,
+      "cheapestProof": "Core round-trip, creation-propagation, and ImportResult contract fixtures",
+      "blockingFindings": ["C1", "C2"]
+    },
+    {
+      "id": "G002",
+      "executableWithoutReplanning": false,
+      "cheapestProof": "Deterministic synthetic 1PUX loss-report snapshots",
+      "blockingFindings": ["C1", "C2", "C6"]
+    },
+    {
+      "id": "G003",
+      "executableWithoutReplanning": true,
+      "cheapestProof": "Synthetic relying-party registration/assertion plus binding and stale-verification negatives",
+      "blockingFindings": []
+    },
+    {
+      "id": "G004",
+      "executableWithoutReplanning": false,
+      "cheapestProof": "Permission-engine/store matrix for every mode, reason, revision, lock, revoke, and step-up case",
+      "blockingFindings": ["C1"]
+    },
+    {
+      "id": "G005",
+      "executableWithoutReplanning": false,
+      "cheapestProof": "Broker protocol, privacy ledger/reset, native redaction, and encrypted-envelope negative fixtures",
+      "blockingFindings": ["C1", "C2", "C3", "C4"]
+    },
+    {
+      "id": "G006",
+      "executableWithoutReplanning": false,
+      "cheapestProof": "CLI authority cutover plus closed-schema and ciphertext-only transport tests",
+      "blockingFindings": ["C2", "C3", "C4"]
+    },
+    {
+      "id": "G007",
+      "executableWithoutReplanning": false,
+      "cheapestProof": "Shared-gate state matrix plus one negative test per observation primitive",
+      "blockingFindings": ["C3", "C4"]
+    },
+    {
+      "id": "G008",
+      "executableWithoutReplanning": false,
+      "cheapestProof": "Canonical fixture parity and proof-authority command records",
+      "blockingFindings": ["C2", "C5", "C6"]
+    },
+    {
+      "id": "G009",
+      "executableWithoutReplanning": false,
+      "cheapestProof": "One canonical synthetic runner with leak scanner and redacted evidence",
+      "blockingFindings": ["C2", "C4", "C5", "C6"]
+    },
+    {
+      "id": "G010",
+      "executableWithoutReplanning": false,
+      "cheapestProof": "Docs link/command check against the canonical G009 entrypoint",
+      "blockingFindings": ["C4", "C5"]
+    }
+  ],
+  "coverage": {
+    "requiredOutcomeMapping": "partial",
+    "securityInvariantCoverage": "blocked_by_C3",
+    "contractCoverage": "blocked_by_C1_C2_C6",
+    "e2eCoverage": "blocked_by_C4",
+    "proofCoverage": "blocked_by_C5",
+    "riskMitigation": "partial",
+    "scopeClarity": "blocked_by_C1_C2_C3_C4_C5_C6"
+  },
+  "positiveEvidence": [
+    "Architect delta APPROVE is for the exact revision-2 hashes reviewed here.",
+    "Graph JSON parses, is acyclic, has symmetric parallel edges, disjoint declared parallel ownership, and repository-prefixed paths.",
+    "The synthetic-only posture, no-working-credential-mutation rule, closed privacy-state intent, and pre-mortem cover the main declared risk classes.",
+    "G003 has a bounded file/symbol region, serial handoff, and an executable synthetic proof shape once shared contracts are frozen."
+  ],
+  "rationale": "Revision 2 repairs Architect findings A1-A9 and is structurally sound, but it still leaves product-contract decisions and acceptance boundaries explicitly UNKNOWN. The omitted value-bearing observation paths and unspecified cross-repository runner/proof authority are blocking executability and security coverage gaps. Iterate the plan/spec/test/graph contracts before implementation dispatch; do not reject the overall architecture.",
+  "nextGate": "Plan correction must resolve C1-C6, rerun graph and contract validation, then obtain a fresh independent Architect review before worker dispatch."
+}

@@ -7,6 +7,7 @@ import {
     completeAgentGrantUse,
     createAgentGrantRecord,
     evaluateAgentPermission,
+    mapUserFacingAgentApprovalMode,
     isAgentPermissionRequest,
     mintAgentExecutionGrant,
     permissionRequestDigest,
@@ -30,27 +31,26 @@ suite("Agent permission engine", () => {
         expect(widenedDecision.reasonCode).to.equal("ASK_MISSING_AUTHORITY");
     });
 
-    test("preserves hard denies in bypassPrompts mode", () => {
-        const secretReveal = request({
-            operation: "reveal",
-            representation: "exact",
-            recipient: { kind: "model-route", routeId: "codex/gpt-test", routeRevision: 3 },
-            target: undefined,
-            bindings: [binding("source-login", "field-password", "authentication-secret")],
-            enforcement: {
-                localExecutorOnly: false,
-                allowModelDisclosure: true,
-                requiresFreshUserConfirmation: false,
-                revocationMode: "online-required",
-            },
-        });
-        const decision = evaluateAgentPermission(evaluation({ mode: "bypassPrompts", request: secretReveal }));
-        expect(decision).to.include({ outcome: "deny", reasonCode: "DENY_AUTH_SECRET_REVEAL" });
+    test("maps user-facing modes and rejects bypassPrompts as an external mode", () => {
+        expect(mapUserFacingAgentApprovalMode("plan-only")).to.equal("plan");
+        expect(mapUserFacingAgentApprovalMode("prompted")).to.equal("manual");
+        expect(mapUserFacingAgentApprovalMode("standing-policy-automatic")).to.equal("auto");
+        expect(mapUserFacingAgentApprovalMode("noninteractive")).to.equal("dontAsk");
+
+        const decision = evaluateAgentPermission(evaluation({ mode: "bypassPrompts" }));
+        expect(decision).to.include({ outcome: "deny", reasonCode: "DENY_INTERNAL_MODE" });
     });
 
-    test("never treats missing authority as implicit bypass permission", () => {
-        const decision = evaluateAgentPermission(evaluation({ mode: "bypassPrompts", policies: [] }));
-        expect(decision).to.include({ outcome: "deny", reasonCode: "DENY_MISSING_AUTHORITY" });
+    test("plan mode allows descriptions only", () => {
+        const described = request({ operation: "describe" });
+        expect(evaluateAgentPermission(evaluation({ mode: "plan", request: described }))).to.include({
+            outcome: "allow",
+            reasonCode: "ALLOW_PLAN_DESCRIPTION",
+        });
+        expect(evaluateAgentPermission(evaluation({ mode: "plan", request: request() }))).to.include({
+            outcome: "deny",
+            reasonCode: "DENY_PLAN_MODE",
+        });
     });
 
     test("requires exact origins and a concrete browser target", () => {
@@ -90,6 +90,67 @@ suite("Agent permission engine", () => {
         expect(confirmed.outcome).to.equal("allow");
     });
 
+    test("requires fresh verification for high-risk roles, passkeys, new origins, and policy changes", () => {
+        const cases: AgentPermissionRequest[] = [
+            request({
+                bindings: [binding("source-ssn", "field-ssn", "profile", "government.ssn")],
+            }),
+            request({ securityContext: { passkey: true } }),
+            request({ securityContext: { newPaymentOrigin: true } }),
+            request({ securityContext: { policyChange: true } }),
+        ];
+        for (const protectedRequest of cases) {
+            const policyForRequest = policy({
+                sourceRefs: protectedRequest.bindings.map((entry) => entry.sourceRef),
+                fieldRefs: protectedRequest.bindings.map((entry) => entry.fieldRef || ""),
+                ...(protectedRequest.bindings.some((entry) => entry.role)
+                    ? { roles: protectedRequest.bindings.map((entry) => entry.role || "").filter(Boolean) }
+                    : {}),
+            });
+            const manual = evaluateAgentPermission(
+                evaluation({ request: protectedRequest, policies: [policyForRequest] })
+            );
+            expect(manual).to.include({ outcome: "ask", reasonCode: "ASK_CONFIRMATION_REQUIRED" });
+
+            const confirmed = evaluateAgentPermission(
+                evaluation({
+                    request: protectedRequest,
+                    policies: [policyForRequest],
+                    confirmedRequestDigest: permissionRequestDigest(protectedRequest),
+                })
+            );
+            expect(confirmed.outcome).to.equal("allow");
+
+            const dontAsk = evaluateAgentPermission(
+                evaluation({ mode: "dontAsk", request: protectedRequest, policies: [policyForRequest] })
+            );
+            expect(dontAsk).to.include({ outcome: "deny", reasonCode: "DENY_CONFIRMATION_REQUIRED" });
+        }
+    });
+
+    test("always-ask and hard-deny policies override an allow policy", () => {
+        const alwaysAsk = evaluateAgentPermission(
+            evaluation({
+                policies: [policy(), policy({ id: "ask", effect: "alwaysAsk", revision: 7 })],
+                confirmedRequestDigest: permissionRequestDigest(request()),
+            })
+        );
+        expect(alwaysAsk).to.include({ outcome: "ask", reasonCode: "ASK_ALWAYS" });
+
+        const hardDeny = evaluateAgentPermission(
+            evaluation({ policies: [policy(), policy({ id: "deny", effect: "deny", revision: 7 })] })
+        );
+        expect(hardDeny).to.include({ outcome: "deny", reasonCode: "DENY_HARD_POLICY" });
+    });
+
+    test("does not infer submit authority from a fill policy", () => {
+        const submit = request({ operation: "submit", bindings: [] });
+        const manual = evaluateAgentPermission(evaluation({ request: submit }));
+        expect(manual).to.include({ outcome: "ask", reasonCode: "ASK_MISSING_AUTHORITY" });
+        const dontAsk = evaluateAgentPermission(evaluation({ mode: "dontAsk", request: submit }));
+        expect(dontAsk).to.include({ outcome: "deny", reasonCode: "DENY_MISSING_AUTHORITY" });
+    });
+
     test("rejects stale policy, revocation, lease, and use-count state before release", () => {
         const input = evaluation();
         const decision = evaluateAgentPermission(input);
@@ -122,6 +183,18 @@ suite("Agent permission engine", () => {
                 currentRevocationGeneration: current.currentRevocationGeneration + 1,
             })
         ).to.throw("revoked by generation");
+        expect(() =>
+            reserveAgentGrantUse(freshRecord, "offline", {
+                ...current,
+                onlineAuthorityCurrent: false,
+            })
+        ).to.throw("online authority");
+        expect(() =>
+            reserveAgentGrantUse(freshRecord, "expired", {
+                ...current,
+                now: Date.parse("2026-09-18T12:06:00.000Z"),
+            })
+        ).to.throw("expired");
     });
 
     test("makes repeat reservation of the same attempt idempotent", () => {
@@ -146,6 +219,40 @@ suite("Agent permission engine", () => {
         const childRequest = request({ expiresAt: "2026-09-18T12:06:00.000Z" });
         const decision = evaluateAgentPermission(evaluation({ request: childRequest, parentGrant: parent }));
         expect(decision).to.include({ outcome: "deny", reasonCode: "DENY_PARENT_SCOPE" });
+    });
+
+    test("invalidates grants after lock and service-worker restart", () => {
+        const input = evaluation({ currentSessionGeneration: 4, currentRestartGeneration: 9 });
+        const grant = mintAgentExecutionGrant(input, evaluateAgentPermission(input), "grant-lifecycle");
+        const record = createAgentGrantRecord(grant);
+        const context = {
+            now: input.now + 1,
+            currentPolicyRevision: grant.policyRevision,
+            currentRevocationGeneration: grant.revocationGeneration,
+            onlineAuthorityCurrent: true,
+            currentSessionGeneration: 4,
+            currentRestartGeneration: 9,
+        };
+        expect(() => reserveAgentGrantUse(record, "locked", { ...context, vaultState: "locked" })).to.throw(
+            "locked"
+        );
+        expect(() =>
+            reserveAgentGrantUse(record, "restarted-session", { ...context, currentSessionGeneration: 5 })
+        ).to.throw("restarted session");
+        expect(() =>
+            reserveAgentGrantUse(record, "restarted-worker", { ...context, currentRestartGeneration: 10 })
+        ).to.throw("restarted worker");
+    });
+
+    test("fails closed on unknown roles", () => {
+        const invalid = request({
+            bindings: [binding("source-unknown", "field-unknown", "profile", "government.tax_secret")],
+        });
+        expect(isAgentPermissionRequest(invalid)).to.equal(false);
+        expect(evaluateAgentPermission(evaluation({ request: invalid }))).to.include({
+            outcome: "deny",
+            reasonCode: "DENY_INVALID_REQUEST",
+        });
     });
 });
 
@@ -185,9 +292,10 @@ function request(overrides: Partial<AgentPermissionRequest> = {}): AgentPermissi
 function binding(
     sourceRef: string,
     fieldRef: string,
-    dataClass: AgentPermissionRequest["bindings"][number]["dataClass"] = "profile"
+    dataClass: AgentPermissionRequest["bindings"][number]["dataClass"] = "profile",
+    role?: string
 ) {
-    return { sourceRef, fieldRef, dataClass };
+    return { sourceRef, fieldRef, dataClass, ...(role ? { role } : {}) };
 }
 
 function policy(overrides: Partial<AgentStandingPolicy> = {}): AgentStandingPolicy {

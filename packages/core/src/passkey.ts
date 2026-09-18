@@ -1,8 +1,119 @@
 import { AsBytes, AsDate, AsSerializable, Serializable } from "./encoding";
 
+export const PASSKEY_CEREMONY_MIN_TTL_MS = 1_000;
+export const PASSKEY_CEREMONY_MAX_TTL_MS = 120_000;
+export const PASSKEY_USER_VERIFICATION_MAX_AGE_MS = 60_000;
+
 export enum PasskeyCounterPolicy {
     None = "none",
     Incrementing = "incrementing",
+}
+
+export interface PasskeyCeremonyTarget {
+    tabId: number;
+    frameId: 0;
+    origin: string;
+    topOrigin: string;
+    documentId: string;
+}
+
+export interface PasskeyUserVerificationGrant {
+    verifiedAt: number;
+    expiresAt: number;
+}
+
+/**
+ * Request metadata that binds a passkey operation to one browser ceremony.
+ * The binding contains no credential or private-key material.
+ */
+export interface PasskeyCeremonyBinding {
+    flowId: string;
+    nonce: string;
+    ttlMs: number;
+    expiresAt: number;
+    topOrigin: string;
+    rpId: string;
+    target: PasskeyCeremonyTarget;
+    userVerification?: PasskeyUserVerificationGrant;
+}
+
+export function validatePasskeyCeremonyBinding(
+    binding: PasskeyCeremonyBinding,
+    now = Date.now(),
+    requireUserVerification = false
+): void {
+    if (!Number.isFinite(now)) throw new TypeError("Passkey ceremony clock is invalid");
+    if (!isBoundedToken(binding.flowId) || !isBoundedToken(binding.nonce)) {
+        throw new TypeError("Passkey ceremony flow and nonce are required");
+    }
+    if (
+        !Number.isInteger(binding.ttlMs) ||
+        binding.ttlMs < PASSKEY_CEREMONY_MIN_TTL_MS ||
+        binding.ttlMs > PASSKEY_CEREMONY_MAX_TTL_MS
+    ) {
+        throw new TypeError("Passkey ceremony TTL is outside the supported range");
+    }
+    if (!Number.isFinite(binding.expiresAt) || binding.expiresAt <= now || binding.expiresAt - now > binding.ttlMs) {
+        throw new Error("Passkey ceremony expired or has an invalid deadline");
+    }
+    const topOrigin = exactOrigin(binding.topOrigin, "Passkey ceremony top origin");
+    const targetOrigin = exactOrigin(binding.target.origin, "Passkey ceremony target origin");
+    if (topOrigin !== targetOrigin || binding.target.topOrigin !== topOrigin) {
+        throw new Error("Passkey ceremony target origin mismatch");
+    }
+    if (
+        !Number.isInteger(binding.target.tabId) ||
+        binding.target.tabId < 0 ||
+        binding.target.frameId !== 0 ||
+        !isBoundedToken(binding.target.documentId)
+    ) {
+        throw new TypeError("Passkey ceremony target is invalid");
+    }
+    if (!isValidRpId(binding.rpId)) throw new TypeError("Passkey ceremony RP ID is invalid");
+    if (
+        requireUserVerification &&
+        (!binding.userVerification || !isFreshPasskeyUserVerification(binding.userVerification, now))
+    ) {
+        throw new Error("Passkey ceremony requires recent user verification");
+    }
+}
+
+export function isFreshPasskeyUserVerification(grant: PasskeyUserVerificationGrant, now = Date.now()): boolean {
+    if (!Number.isFinite(now)) return false;
+    if (!Number.isFinite(grant.verifiedAt) || !Number.isFinite(grant.expiresAt)) return false;
+    if (grant.verifiedAt > now || grant.expiresAt <= now) return false;
+    if (grant.expiresAt - grant.verifiedAt > PASSKEY_USER_VERIFICATION_MAX_AGE_MS) return false;
+    return now - grant.verifiedAt <= PASSKEY_USER_VERIFICATION_MAX_AGE_MS;
+}
+
+function isBoundedToken(value: unknown): value is string {
+    return typeof value === "string" && value.length > 0 && value.length <= 256 && !/[\u0000-\u001f\u007f]/.test(value);
+}
+
+function exactOrigin(value: unknown, label: string): string {
+    if (typeof value !== "string") throw new TypeError(`${label} is invalid`);
+    let parsed: URL;
+    try {
+        parsed = new URL(value);
+    } catch {
+        throw new TypeError(`${label} is invalid`);
+    }
+    const host = parsed.hostname.toLowerCase().replace(/\.$/, "");
+    const loopback = host === "localhost" || host === "127.0.0.1" || host === "[::1]";
+    if (parsed.origin !== value || (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && loopback))) {
+        throw new TypeError(`${label} is invalid`);
+    }
+    return parsed.origin;
+}
+
+function isValidRpId(value: unknown): value is string {
+    return (
+        typeof value === "string" &&
+        value.length > 0 &&
+        value.length <= 253 &&
+        !/[\s/:\\]/.test(value) &&
+        value === value.toLowerCase()
+    );
 }
 
 export interface PasskeyEs256PublicJwk {

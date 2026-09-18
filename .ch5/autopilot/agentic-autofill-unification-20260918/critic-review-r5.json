@@ -1,0 +1,188 @@
+{
+  "schema": "agent.workflow.review.v1",
+  "role": "critic",
+  "verdict": "approve",
+  "verdictLabel": "APPROVE",
+  "planRevision": "sha256:0e2ffd21292818f509b1cc4763d2764c2290ab5d95281e59d74aa715742b118b",
+  "reviewedInputs": {
+    "brief": "sha256:db58160710524f1d4e36556df6eac08458c683113fa86bbd0c10ab634b455b3b",
+    "spec": "sha256:d6f77e196471bf4d493c1b763c851353339c109787009d31947c7d5a748d31e8",
+    "plan": "sha256:0e2ffd21292818f509b1cc4763d2764c2290ab5d95281e59d74aa715742b118b",
+    "testSpec": "sha256:092360b244ae3f42a750d8d36d556d84fc8a3e50542b7feb2010d5040790e72e",
+    "graph": "sha256:2b045e6eeb6be345a1d837186acd0e91f360634bafc253b52e5243842673d013",
+    "architectDelta": "sha256:6f3cd4f4fb8935f3fc28bc8d0692aa4853bdecfb935851c1058d702e0d21020e"
+  },
+  "reviewerRelation": "independent-followup",
+  "reviewerIdentity": "codex-critic-review-r5-v1",
+  "source": "Independent read-only review of the exact revision-5 brief, spec, plan, test specification, graph, and Architect r5 APPROVE. Prior blocking C1-C6 decisions are checked for consistency; no product source or runtime behavior was changed.",
+  "completedAt": "2026-09-18T22:02:06Z",
+  "assurance": "local",
+  "sourceCommits": {
+    "padloc": "83a55325623a13115c873b67795ec7c442766f5f",
+    "magic-browser": "213896cdaf0cbdde9366767ec0febbd8cd42acd2"
+  },
+  "checks": {
+    "architectR5ApprovalRead": "pass",
+    "revision5HashesMatch": "pass",
+    "graphJsonParse": "pass",
+    "graphDag": "pass",
+    "parallelEdgesSymmetric": "pass",
+    "parallelOwnershipDisjoint": "pass",
+    "repositoryPrefixedPaths": "pass",
+    "nodeIntentDeliverableProofPresent": "pass",
+    "canonicalFixturePathBound": "pass",
+    "privacyInventoryBound": "pass",
+    "proofAuthorityBound": "pass",
+    "noCredentialOrPublishIdentityRequired": "pass",
+    "productSourceEdited": false,
+    "credentialsAccessed": false,
+    "realDataAccessed": false,
+    "runtimeProof": "UNKNOWN"
+  },
+  "findings": [
+    {
+      "id": "R5-A1",
+      "severity": "advisory",
+      "category": "contract-testability",
+      "title": "Pin recursive scalar and cardinality checks at the canonical fixture boundary",
+      "evidence": [
+        "The r5 spec fixes scalar conventions and named fields for ImportProvenance, ImportLossEntry, ImportResult, the encrypted envelope, targets, plans, receipts, and errors.",
+        "Architect r5 marks the remaining per-variant scalar and empty-array precision gaps as medium advisories, not blocking contract gaps.",
+        "G008 and the test specification require every v2 variant plus both handshake success/error pairs in the canonical fixture."
+      ],
+      "impact": "A shallow parser test could accept an unexpected nested key or wrong empty-array cardinality while still passing the named fixture cases.",
+      "recommendation": "Make fixture/parser tests recursively closed and assert scalar type, constant, non-empty, and empty-array rules for every variant. This is an implementation proof strengthening, not a new path or API decision."
+    },
+    {
+      "id": "R5-A2",
+      "severity": "advisory",
+      "category": "privacy-boundary-testability",
+      "title": "Assert actual metadata-only result envelopes recursively",
+      "evidence": [
+        "The r5 spec adds click_text, click_button_text, scroll_table, and drag to the shared gate and forbids value/valueBefore/valueAfter/ariaValue*/allRows and table-cell strings.",
+        "The test specification requires clean, unknown, and potentially-private coverage, with blocked states failing closed.",
+        "Architect r5 specifically advises checking real pageSnapshot/scroll result envelopes for value-bearing descendants, not only top-level keys."
+      ],
+      "impact": "A serializer could remove named top-level fields but leak a value through a nested snapshot, row, or action-result descendant.",
+      "recommendation": "Use recursive redaction assertions on the worker-visible envelopes and keep one negative per tool plus blocked-state assertions. No replanning is needed."
+    },
+    {
+      "id": "R5-A3",
+      "severity": "advisory",
+      "category": "proof-authority",
+      "title": "Bind the eight proof keys to executable commands and durable evidence",
+      "evidence": [
+        "The spec fixes padloc/.ch5/proof.yaml as authority and names the eight required command keys.",
+        "The graph and test specification require exact-SHA proof records, but the planning artifacts intentionally leave the command bodies and evidence directories to implementation."
+      ],
+      "impact": "A key could exist with a placeholder or non-consuming command and appear complete without proving the boundary.",
+      "recommendation": "When G008 lands, map each fixed key to an executable changed-only or cross-repository command and record its exact-SHA evidence path. The authority path and key names are already fixed, so this is not an ITERATE condition."
+    },
+    {
+      "id": "R5-A4",
+      "severity": "advisory",
+      "category": "handoff-safety",
+      "title": "Make the G003 to G005 background handoff mechanically visible",
+      "evidence": [
+        "The plan and graph give G003 the passkey region, G005 the autofill region, and a serial dependency before G005 may edit background.ts.",
+        "The graph uses region-qualified background.ts ownership and the test specification requires a terminal handoff fixture, but it does not name a separate handoff artifact."
+      ],
+      "impact": "Reviewers could miss an accidental cross-region edit if the handoff is recorded only in prose.",
+      "recommendation": "Have G003 leave its existing terminal handoff fixture and have G005 verify the passkey-region exclusion before editing. Keep all new proof inside already-owned test/artifact paths; do not invent a public API."
+    },
+    {
+      "id": "R5-A5",
+      "severity": "advisory",
+      "category": "e2e-proof",
+      "title": "Make the synthetic artifact scanner cover every declared leak channel",
+      "evidence": [
+        "G009 fixes the canonical padloc command, repository-local fixture directories, padloc-owned evidence directory, and non-zero-on-leak behavior.",
+        "The test specification names stdout, logs, argv, screenshots, artifacts, workflow state, temporary profiles, and queues as safety boundaries."
+      ],
+      "impact": "The runner could be green while scanning only a subset of the declared channels or leaving stale temporary state behind.",
+      "recommendation": "Require the scanner to recurse through every listed channel, fail on raw-value markers or unsafe keys, and verify temporary profile/queue cleanup. The runner, paths, and fake-data posture are already fixed."
+    }
+  ],
+  "nodeAssessment": [
+    {
+      "id": "G001",
+      "executableWithoutReplanning": true,
+      "cheapestProof": "Core model round-trip, missing-kind compatibility, creation-path propagation, and closed ImportResult/provenance fixtures",
+      "blockingFindings": []
+    },
+    {
+      "id": "G002",
+      "executableWithoutReplanning": true,
+      "cheapestProof": "Deterministic synthetic 1PUX loss-report snapshots with persisted provenance",
+      "blockingFindings": []
+    },
+    {
+      "id": "G003",
+      "executableWithoutReplanning": true,
+      "cheapestProof": "Synthetic relying-party re-enrollment/assertion plus binding, expiry, lock, and stale-verification negatives",
+      "blockingFindings": []
+    },
+    {
+      "id": "G004",
+      "executableWithoutReplanning": true,
+      "cheapestProof": "Permission-engine/store matrix for all modes, reason codes, revisions, lock, revoke, restart, and fresh-verification cases",
+      "blockingFindings": []
+    },
+    {
+      "id": "G005",
+      "executableWithoutReplanning": true,
+      "cheapestProof": "Broker/protocol, target revalidation, privacy-ledger/reset, native redaction, and ciphertext-only envelope negatives",
+      "blockingFindings": []
+    },
+    {
+      "id": "G006",
+      "executableWithoutReplanning": true,
+      "cheapestProof": "CLI authority cutover plus closed-schema, protocol-v1 compatibility, screenshot-gate, and ciphertext-only transport tests",
+      "blockingFindings": []
+    },
+    {
+      "id": "G007",
+      "executableWithoutReplanning": true,
+      "cheapestProof": "Shared-gate state matrix, metadata-only snapshot/form output, and one blocked-state negative per observation primitive",
+      "blockingFindings": []
+    },
+    {
+      "id": "G008",
+      "executableWithoutReplanning": true,
+      "cheapestProof": "Canonical fixture hash parity, closed-schema/redaction parity, handshake coverage, and proof-authority key checks",
+      "blockingFindings": []
+    },
+    {
+      "id": "G009",
+      "executableWithoutReplanning": true,
+      "cheapestProof": "One canonical synthetic runner with clean reset, full lifecycle, recursive leak scan, and redacted evidence",
+      "blockingFindings": []
+    },
+    {
+      "id": "G010",
+      "executableWithoutReplanning": true,
+      "cheapestProof": "Documentation command/link check against the fixed canonical G009 entrypoint and migration/pilot checklist",
+      "blockingFindings": []
+    }
+  ],
+  "coverage": {
+    "requiredOutcomeMapping": "complete",
+    "acceptanceCoverage": "complete_with_advisories",
+    "securityInvariantCoverage": "complete_with_advisories",
+    "contractCoverage": "complete_with_advisories",
+    "e2eCoverage": "complete_with_advisories",
+    "proofCoverage": "complete_with_advisories",
+    "riskMitigation": "strong",
+    "scopeClarity": "clear",
+    "workerExecutability": "all_nodes_without_replanning"
+  },
+  "positiveEvidence": [
+    "The brief maps all ten required outcomes to the ten graph nodes and keeps real-data, credential mutation, deployment, and publication out of scope.",
+    "Revision 5 fixes the role vocabulary, release classes, approval-mode mapping, privacy-status v2 target descriptor, closed broker and import contracts, handshake operations, canonical fixture path, exhaustive observation inventory, canonical runner, and proof authority.",
+    "The graph is a valid DAG with symmetric parallel edges, repository-prefixed paths, disjoint parallel ownership, explicit region-qualified background.ts handoff, and intent/deliverable/proof for every node.",
+    "The test specification crosses the consuming boundaries and includes focused negatives for stale targets, lock/revoke/restart, raw-value disclosure, privacy bypass, unsupported migration, protocol drift, and missing proof keys.",
+    "No worker needs to invent a credential, credential path, public API contract, publish identity, or deployment surface before implementation."
+  ],
+  "rationale": "APPROVE. Revision 5 closes the previously blocking contract and privacy-inventory gaps. The exact schemas, operation names, role/mode identifiers, target descriptor, canonical fixture path, observation inventory, synthetic command, evidence directory, and proof-key authority are bound across the brief/spec/plan/test/graph. All ten workers have explicit ownership, dependencies, deliverables, and cheapest proof and can execute without replanning. The remaining items are medium implementation-proof advisories only; none requires inventing a path, credential, API, or publish identity.",
+  "nextGate": "Proceed to implementation dispatch. Carry R5-A1 through R5-A5 as proof-hardening advisories and preserve the frozen paths, schemas, command, and proof authority."
+}

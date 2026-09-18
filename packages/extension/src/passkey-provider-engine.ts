@@ -1,5 +1,12 @@
 import { bytesToBase64 } from "@padloc/core/src/encoding";
-import { PasskeyCounterPolicy, PasskeyCredential, PasskeyEs256KeyMaterial } from "@padloc/core/src/passkey";
+import {
+    isFreshPasskeyUserVerification,
+    PasskeyCeremonyBinding,
+    PasskeyCounterPolicy,
+    PasskeyCredential,
+    PasskeyEs256KeyMaterial,
+    validatePasskeyCeremonyBinding,
+} from "@padloc/core/src/passkey";
 import {
     buildPasskeyAssertionResponse,
     buildPasskeyRegistrationResponse,
@@ -44,6 +51,10 @@ export interface ExecutePasskeyOperationOptions {
     repository: PasskeyCredentialRepository;
     /** Trusted result of the provider's approval/unlock step. */
     userVerified: boolean;
+    /** Strong request binding used by the background ceremony path. */
+    ceremony?: PasskeyCeremonyBinding;
+    /** Production callers set this to require the strong ceremony contract. */
+    requireCeremonyBinding?: boolean;
     /** Trusted Public Suffix List policy used to approve the requested RP ID for the origin host. */
     rpIdSuffixValidator: (rpId: string, originHost: string) => boolean;
     cryptoProvider?: Crypto;
@@ -136,6 +147,7 @@ async function executeCreate(
     const user = requireRecord(options.user, "user");
     const rpId = resolveRpId(optionalString(rp.id, "rp.id"), execution.origin);
     validateRpBinding(rpId, execution.origin, execution.rpIdSuffixValidator);
+    validateExecutionCeremony(execution, rpId);
     const rpName = requireNonEmptyString(rp.name, "rp.name");
 
     const challenge = requireBytes(options.challenge, "challenge");
@@ -244,6 +256,7 @@ async function executeGet(
 ): Promise<SerializedPublicKeyCredential> {
     const rpId = resolveRpId(optionalString(options.rpId, "rpId"), execution.origin);
     validateRpBinding(rpId, execution.origin, execution.rpIdSuffixValidator);
+    validateExecutionCeremony(execution, rpId);
     const challenge = requireBytes(options.challenge, "challenge");
     const userVerification = parseUserVerification(options.userVerification);
     requireRequestedUserVerification(userVerification, execution.userVerified);
@@ -551,6 +564,36 @@ function providerError(name: string, message: string): PasskeyProviderError {
 
 async function assertExecutionActive(execution: ExecutePasskeyOperationOptions): Promise<void> {
     await execution.assertActive?.();
+}
+
+function validateExecutionCeremony(execution: ExecutePasskeyOperationOptions, rpId: string): void {
+    const ceremony = execution.ceremony;
+    if (!ceremony) {
+        if (execution.requireCeremonyBinding) {
+            throw providerError("SecurityError", "Passkey ceremony binding is required");
+        }
+        return;
+    }
+
+    const now = currentDate(execution.now).getTime();
+    try {
+        validatePasskeyCeremonyBinding(ceremony, now, true);
+    } catch (error) {
+        throw providerError("NotAllowedError", errorMessage(error, "Passkey ceremony binding is invalid"));
+    }
+    if (ceremony.rpId !== rpId || ceremony.topOrigin !== execution.origin) {
+        throw providerError("SecurityError", "Passkey ceremony origin or RP binding does not match");
+    }
+    if (
+        ceremony.target.origin !== execution.origin ||
+        ceremony.target.topOrigin !== execution.origin ||
+        ceremony.target.frameId !== 0
+    ) {
+        throw providerError("SecurityError", "Passkey ceremony target does not match");
+    }
+    if (!ceremony.userVerification || !isFreshPasskeyUserVerification(ceremony.userVerification, now)) {
+        throw providerError("NotAllowedError", "Recent user verification is required for passkey use");
+    }
 }
 
 async function rollbackCreatedCredential(

@@ -1,4 +1,11 @@
-import { AgentApprovalMode } from "./agent-permission-engine";
+import {
+    AgentApprovalMode,
+    AgentUserFacingApprovalMode,
+    agentReleaseClassForRole,
+    isAgentRoleKnown,
+    mapUserFacingAgentApprovalMode,
+    permissionRequestDigest,
+} from "./agent-permission-engine";
 import type { PendingBrokerPlan } from "./autofill-broker";
 
 export interface StoredAutofillPolicyBinding {
@@ -48,8 +55,17 @@ export interface AutofillAuthorityDecision {
         | "DENY_HARD_POLICY"
         | "DENY_CONFIRMATION_REQUIRED"
         | "DENY_MISSING_AUTHORITY"
+        | "DENY_INTERNAL_MODE"
+        | "DENY_VAULT_LOCKED"
+        | "DENY_ONLINE_AUTHORITY_UNAVAILABLE"
         | "PLAN_ONLY";
     policy?: StoredAutofillPolicy;
+}
+
+export interface AutofillAuthorityContext {
+    vaultState?: "locked" | "unlocked" | "unknown";
+    onlineAuthorityCurrent?: boolean;
+    confirmedRequestDigest?: string;
 }
 
 const STORAGE_KEY_PREFIX = "pl_agenticAutofillPermissions_v1_";
@@ -85,12 +101,16 @@ export function createAutofillPermissionState(accountId: string): AutofillPermis
 
 export function setAutofillApprovalMode(
     state: AutofillPermissionState,
-    mode: AgentApprovalMode
+    mode: AgentApprovalMode | AgentUserFacingApprovalMode
 ): AutofillPermissionState {
-    if (!["plan", "manual", "auto", "dontAsk", "bypassPrompts"].includes(mode)) {
+    const mappedMode = mapStoredApprovalMode(mode);
+    if (mappedMode === "bypassPrompts") {
+        throw new Error("bypassPrompts is internal-only");
+    }
+    if (!["plan", "manual", "auto", "dontAsk"].includes(mappedMode)) {
         throw new Error("Unsupported autofill approval mode");
     }
-    return { ...cloneState(state), mode, revision: state.revision + 1 };
+    return { ...cloneState(state), mode: mappedMode, revision: state.revision + 1 };
 }
 
 export function addAutofillStandingPolicy(
@@ -102,6 +122,9 @@ export function addAutofillStandingPolicy(
     expiresAt?: string
 ): AutofillPermissionState {
     if (!policyId) throw new Error("Autofill policy id is required");
+    if (effect !== "allow" && effect !== "deny" && effect !== "alwaysAsk") {
+        throw new Error("Unsupported autofill policy effect");
+    }
     if (expiresAt && (!Number.isFinite(Date.parse(expiresAt)) || Date.parse(expiresAt) <= now)) {
         throw new Error("Autofill policy expiry is invalid");
     }
@@ -184,19 +207,33 @@ export function matchAutofillStandingPolicy(
 export function decideAutofillPlanAuthority(
     state: AutofillPermissionState,
     plan: PendingBrokerPlan,
-    now = Date.now()
+    now = Date.now(),
+    context: AutofillAuthorityContext = {}
 ): AutofillAuthorityDecision {
+    if (state.mode === "bypassPrompts") return { outcome: "deny", reasonCode: "DENY_INTERNAL_MODE" };
+    if (context.vaultState && context.vaultState !== "unlocked") {
+        return { outcome: "deny", reasonCode: "DENY_VAULT_LOCKED" };
+    }
+    if (context.onlineAuthorityCurrent === false) {
+        return { outcome: "deny", reasonCode: "DENY_ONLINE_AUTHORITY_UNAVAILABLE" };
+    }
     const match = matchAutofillStandingPolicy(state, plan, now);
     if (match?.effect === "deny") return { outcome: "deny", reasonCode: "DENY_HARD_POLICY", policy: match.policy };
     if (state.mode === "plan") return { outcome: "plan", reasonCode: "PLAN_ONLY" };
-    if (match?.effect === "allow") {
-        return { outcome: "allow", reasonCode: "ALLOW_MATCHED_POLICY", policy: match.policy };
-    }
     if (match?.effect === "alwaysAsk") {
         if (state.mode === "dontAsk") {
             return { outcome: "deny", reasonCode: "DENY_CONFIRMATION_REQUIRED", policy: match.policy };
         }
         return { outcome: "ask", reasonCode: "ASK_ALWAYS", policy: match.policy };
+    }
+    if (match?.effect === "allow") {
+        if (planRequiresFreshVerification(plan) && !hasConfirmedPlanDigest(plan, context)) {
+            if (state.mode === "dontAsk") {
+                return { outcome: "deny", reasonCode: "DENY_CONFIRMATION_REQUIRED", policy: match.policy };
+            }
+            return { outcome: "ask", reasonCode: "ASK_ALWAYS", policy: match.policy };
+        }
+        return { outcome: "allow", reasonCode: "ALLOW_MATCHED_POLICY", policy: match.policy };
     }
     if (state.mode === "manual" || state.mode === "auto") {
         return { outcome: "ask", reasonCode: "ASK_MISSING_AUTHORITY" };
@@ -206,7 +243,7 @@ export function decideAutofillPlanAuthority(
 
 export function publicAutofillPermissionState(state: AutofillPermissionState) {
     return {
-        mode: state.mode,
+        mode: state.mode === "bypassPrompts" ? "dontAsk" : state.mode,
         revision: state.revision,
         revocationGeneration: state.revocationGeneration,
         policies: state.policies.map((policy) => ({
@@ -231,7 +268,7 @@ export function isAutofillPermissionState(value: unknown, accountId: string): va
     if (
         candidate.schemaVersion !== 1 ||
         candidate.accountId !== accountId ||
-        !["plan", "manual", "auto", "dontAsk", "bypassPrompts"].includes(candidate.mode) ||
+        !["plan", "manual", "auto", "dontAsk"].includes(candidate.mode) ||
         !Number.isInteger(candidate.revision) ||
         candidate.revision < 0 ||
         !Number.isInteger(candidate.revocationGeneration) ||
@@ -247,9 +284,65 @@ function policyMatchesPlan(policy: StoredAutofillPolicy, plan: PendingBrokerPlan
     if (policy.status !== "active") return false;
     if (policy.expiresAt && Date.parse(policy.expiresAt) <= now) return false;
     if (policy.topOrigin !== plan.target.topOrigin || policy.frameOrigin !== plan.target.frameOrigin) return false;
+    if (
+        plan.fields.some(
+            (field) =>
+                !isAgentRoleKnown(field.role) &&
+                field.role !== "passkey" &&
+                !field.role.startsWith("passkey.")
+        )
+    ) {
+        return false;
+    }
     return plan.fields.every((field) =>
         policy.bindings.some((binding) => binding.itemId === field.itemId && binding.roles.includes(field.role))
     );
+}
+
+function planRequiresFreshVerification(plan: PendingBrokerPlan): boolean {
+    return plan.fields.some((field) => {
+        const roleClass = agentReleaseClassForRole(field.role);
+        return (
+            field.transactionOnly ||
+            (field as PendingBrokerPlan["fields"][number] & { releaseClass?: string }).releaseClass === "high-risk" ||
+            roleClass === "high-risk" ||
+            field.role === "passkey" ||
+            field.role.startsWith("passkey.") ||
+            plan.permissionRequest.passkey === true ||
+            plan.permissionRequest.isPasskey === true ||
+            plan.permissionRequest.newPaymentOrigin === true ||
+            plan.permissionRequest.isNewPaymentOrigin === true ||
+            plan.permissionRequest.policyChange === true ||
+            plan.permissionRequest.isPolicyChange === true ||
+            plan.permissionRequest.securityContext?.passkey === true ||
+            plan.permissionRequest.securityContext?.isPasskey === true ||
+            plan.permissionRequest.securityContext?.newPaymentOrigin === true ||
+            plan.permissionRequest.securityContext?.isNewPaymentOrigin === true ||
+            plan.permissionRequest.securityContext?.policyChange === true ||
+            plan.permissionRequest.securityContext?.isPolicyChange === true
+        );
+    });
+}
+
+function hasConfirmedPlanDigest(plan: PendingBrokerPlan, context: AutofillAuthorityContext): boolean {
+    const expected = context.confirmedRequestDigest;
+    if (!expected) return false;
+    return expected === permissionRequestDigest(plan.permissionRequest);
+}
+
+function mapStoredApprovalMode(mode: AgentApprovalMode | AgentUserFacingApprovalMode): AgentApprovalMode {
+    if (
+        mode === "plan-only" ||
+        mode === "prompted" ||
+        mode === "standing-policy-automatic" ||
+        mode === "standing-policy automatic" ||
+        mode === "noninteractive" ||
+        mode === "noninteractive fail-closed" ||
+        mode === "noninteractive-fail-closed"
+    ) {
+        return mapUserFacingAgentApprovalMode(mode);
+    }
+    return mode;
 }
 
 function normalizePolicyBindings(plan: PendingBrokerPlan): StoredAutofillPolicyBinding[] {

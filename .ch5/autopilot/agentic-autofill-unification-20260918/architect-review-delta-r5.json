@@ -1,0 +1,68 @@
+{
+  "schema": "agent.workflow.review.v1",
+  "role": "architect",
+  "verdict": "approve",
+  "verdictLabel": "APPROVE",
+  "planRevision": "sha256:0e2ffd21292818f509b1cc4763d2764c2290ab5d95281e59d74aa715742b118b",
+  "reviewedInputs": {
+    "priorDelta": "sha256:47deb2a098d879e8d2cd7928a9cb5b2a7298116c20e22b392122c7c959338cf8",
+    "planCorrectionReport": "sha256:aa3b8adb94339eb96ca469544e81a3940953ccc513f3e33a96c3133a3eff6144",
+    "spec": "sha256:d6f77e196471bf4d493c1b763c851353339c109787009d31947c7d5a748d31e8",
+    "plan": "sha256:0e2ffd21292818f509b1cc4763d2764c2290ab5d95281e59d74aa715742b118b",
+    "testSpec": "sha256:092360b244be3f42a750d8d36d556d84fc8a3e50542b7feb2010d5040790e72e",
+    "graph": "sha256:2b045e6eeb6be345a1d837186acd0e91f360634bafc253b52e5243842673d013"
+  },
+  "reviewerRelation": "independent-delta",
+  "reviewerIdentity": "codex-architect-delta-r5-review-v1",
+  "source": "Independent read-only review of only the revision-5 C2/C3 remainder corrections. A1-A9 and resolved C1, C4, C5, and C6 were not re-reviewed.",
+  "completedAt": "2026-09-18T21:26:29Z",
+  "assurance": "local",
+  "sourceCommits": {
+    "padloc": "83a55325623a13115c873b67795ec7c442766f5f",
+    "magic-browser": "213896cdaf0cbdde9366767ec0febbd8cd42acd2"
+  },
+  "checks": {
+    "scopeBoundToC2C3": "pass",
+    "revision5HashesMatch": "pass",
+    "correctionReportMapping": "pass",
+    "graphJsonParse": "pass",
+    "graphDag": "pass",
+    "canonicalFixturePathBound": "pass",
+    "c2ScalarAndNestedContract": "pass",
+    "c2HandshakeErrorClosure": "pass",
+    "c3ForbiddenOutputKeyCoverage": "pass",
+    "productSourceEdited": false,
+    "credentialsAccessed": false,
+    "realDataAccessed": false,
+    "runtimeProof": "UNKNOWN"
+  },
+  "findingResolutions": [
+    {
+      "id": "C2",
+      "status": "resolved",
+      "evidence": [
+        "The revision-5 spec adds a shared scalar/cardinality convention and explicit field contracts for ImportProvenance, ImportLossEntry, ImportResult, the encrypted envelope, AutofillBrokerTarget, inspected/plan fields, receipts, and broker errors.",
+        "Every broker variant has a closed required/optional field table, enum/constants are named where policy-sensitive, unknown keys are rejected, and the canonical fixture path is fixed at padloc/packages/extension/test/fixtures/agentic-autofill/contract.v1.json in the plan and test spec.",
+        "Handshake operations and schemas are fixed as import-begin/import-commit with named request and success shapes. Both failures are explicitly the closed elf.padloc-broker-response.v2 kind=error, ok=false union carrying the closed broker-error object; the plan, test spec, and graph require success and error fixtures for both operations.",
+        "The remaining precision gaps around a few per-variant scalar annotations and operation-to-function mapping are medium advisories only. They do not make a worker invent a path, credential, API surface, or publish identity."
+      ],
+      "advisories": [
+        "During implementation, pin omitted per-variant scalar types and empty-array cardinalities in the canonical fixture/parser tests; preserve the named schemas and operation names."
+      ]
+    },
+    {
+      "id": "C3",
+      "status": "resolved",
+      "evidence": [
+        "Revision 5 covers click_text, click_button_text, scroll_table, and drag in the shared observation gate, test negatives, and G007 ownership.",
+        "The result contract forbids value, valueBefore, valueAfter, ariaValueBefore, ariaValueAfter, allRows, input/textarea values, and any table-cell string payload; it permits only metadata such as selectors/roles/field refs, headings, counts, valuePresent booleans, and drag geometry.",
+        "The contract applies in clean, unknown, and potentially-private states, with unknown/potentially-private still failing closed when the shared gate is blocked. The graph and test spec require per-tool negatives and metadata-only proof."
+      ],
+      "advisories": [
+        "Keep the metadata-only serializers recursively closed at the worker boundary and assert the actual pageSnapshot/scroll result envelopes, including estimated row-count metadata, contain no value-bearing descendants."
+      ]
+    }
+  ],
+  "rationale": "Revision 5 closes the blocking C2/C3 remainder contracts: scalar and nested shapes are named, handshake failures have an explicit kind=error response union, the canonical fixture path and handshake fixtures are bound, and click/table/drag forbidden keys include the drag value fields and table payloads. The remaining items are medium implementation-precision advisories, not missing paths, credentials, API surfaces, or publish identities; under the requested ralplan bar the plan is approved.",
+  "nextGate": "Proceed to implementation dispatch with the C2/C3 advisories carried into fixture/parser and metadata-only boundary tests."
+}

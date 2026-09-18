@@ -1,5 +1,5 @@
 import { translate as $l } from "@padloc/locale/src/translate";
-import { base32ToBytes, Serializable, AsSerializable, AsDate } from "./encoding";
+import { base32ToBytes, Serializable, AsSerializable, AsDate, Serialize } from "./encoding";
 import { totp } from "./otp";
 import { uuid } from "./util";
 import { AccountID } from "./account";
@@ -7,6 +7,7 @@ import { AttachmentInfo } from "./attachment";
 import { openExternalUrl } from "./platform";
 import { add } from "date-fns";
 import { PasskeyCredential } from "./passkey";
+import { ImportProvenance, parseImportProvenance } from "./import-result";
 
 /** A tag that can be assigned to a [[VaultItem]] */
 export type Tag = string;
@@ -43,12 +44,16 @@ export enum AutofillItemKind {
     PaymentCardPolicy = "payment_card_policy",
     GiftRecipient = "gift_recipient",
     MerchantProfile = "merchant_profile",
+    Login = "login",
+    GovernmentIdentity = "government_identity",
+    FinancialAccount = "financial_account",
 }
 
 export enum AutofillFieldRole {
     Username = "username",
     Password = "password",
     Totp = "totp",
+    LoginUrl = "login.url",
     PersonFullName = "person.full_name",
     PersonFirstName = "person.first_name",
     PersonLastName = "person.last_name",
@@ -67,6 +72,284 @@ export enum AutofillFieldRole {
     PaymentCardExpiryYear = "payment.card.expiry_year",
     PaymentCardCvvTransient = "payment.card.cvv_transient",
     MerchantOrigin = "merchant.origin",
+    GovernmentSsn = "government.ssn",
+    GovernmentPassportNumber = "government.passport_number",
+    GovernmentDriversLicenseNumber = "government.drivers_license_number",
+    GovernmentNationalId = "government.national_id",
+    FinancialAccountNumber = "financial.account_number",
+    FinancialRoutingNumber = "financial.routing_number",
+    FinancialIban = "financial.iban",
+    FinancialBic = "financial.bic",
+}
+
+export type AutofillReleaseClass = "low" | "secret" | "high-risk";
+
+const LOW_RISK_ROLES = new Set<AutofillFieldRole>([
+    AutofillFieldRole.PersonFullName,
+    AutofillFieldRole.PersonFirstName,
+    AutofillFieldRole.PersonLastName,
+    AutofillFieldRole.ContactEmail,
+    AutofillFieldRole.ContactPhone,
+    AutofillFieldRole.AddressLine1,
+    AutofillFieldRole.AddressLine2,
+    AutofillFieldRole.AddressCity,
+    AutofillFieldRole.AddressRegion,
+    AutofillFieldRole.AddressPostalCode,
+    AutofillFieldRole.AddressCountry,
+    AutofillFieldRole.LoginUrl,
+    AutofillFieldRole.MerchantOrigin,
+]);
+
+const SECRET_ROLES = new Set<AutofillFieldRole>([
+    AutofillFieldRole.Username,
+    AutofillFieldRole.Password,
+    AutofillFieldRole.Totp,
+    AutofillFieldRole.PaymentCardPan,
+    AutofillFieldRole.PaymentCardholderName,
+    AutofillFieldRole.PaymentCardExpiry,
+    AutofillFieldRole.PaymentCardExpiryMonth,
+    AutofillFieldRole.PaymentCardExpiryYear,
+]);
+
+const HIGH_RISK_ROLES = new Set<AutofillFieldRole>([
+    AutofillFieldRole.PaymentCardCvvTransient,
+    AutofillFieldRole.GovernmentSsn,
+    AutofillFieldRole.GovernmentPassportNumber,
+    AutofillFieldRole.GovernmentDriversLicenseNumber,
+    AutofillFieldRole.GovernmentNationalId,
+    AutofillFieldRole.FinancialAccountNumber,
+    AutofillFieldRole.FinancialRoutingNumber,
+    AutofillFieldRole.FinancialIban,
+    AutofillFieldRole.FinancialBic,
+]);
+
+export function isAutofillItemKind(value: unknown): value is AutofillItemKind {
+    return typeof value === "string" && Object.values(AutofillItemKind).includes(value as AutofillItemKind);
+}
+
+export function isAutofillFieldRole(value: unknown): value is AutofillFieldRole {
+    return typeof value === "string" && Object.values(AutofillFieldRole).includes(value as AutofillFieldRole);
+}
+
+/**
+ * Returns the release class implied by a known role. Unknown roles return
+ * undefined so callers cannot accidentally grant fill authority.
+ */
+export function getAutofillReleaseClass(
+    role?: AutofillFieldRole | string | null
+): AutofillReleaseClass | undefined {
+    if (!isAutofillFieldRole(role)) {
+        return undefined;
+    }
+    if (LOW_RISK_ROLES.has(role)) {
+        return "low";
+    }
+    if (SECRET_ROLES.has(role)) {
+        return "secret";
+    }
+    if (HIGH_RISK_ROLES.has(role)) {
+        return "high-risk";
+    }
+    return undefined;
+}
+
+export const releaseClassForAutofillRole = getAutofillReleaseClass;
+
+export function isAutofillTransactionOnlyRole(role?: AutofillFieldRole | string | null): boolean {
+    return role === AutofillFieldRole.PaymentCardCvvTransient;
+}
+
+/**
+ * Infer a role only when the template omitted one. Explicit unknown roles are
+ * never replaced with a guessed role because that would grant authority.
+ */
+export function inferAutofillFieldRole({
+    name = "",
+    type,
+    autofillRole,
+}: {
+    name?: string;
+    type: FieldType;
+    autofillRole?: unknown;
+}): AutofillFieldRole | undefined {
+    if (typeof autofillRole !== "undefined") {
+        return isAutofillFieldRole(autofillRole) ? autofillRole : undefined;
+    }
+
+    const normalizedName = name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+    if (type === FieldType.Username) {
+        return AutofillFieldRole.Username;
+    }
+    if (type === FieldType.Password) {
+        return AutofillFieldRole.Password;
+    }
+    if (type === FieldType.Totp) {
+        return AutofillFieldRole.Totp;
+    }
+    if (type === FieldType.Url) {
+        return /merchant|origin/.test(normalizedName)
+            ? AutofillFieldRole.MerchantOrigin
+            : AutofillFieldRole.LoginUrl;
+    }
+    if (type === FieldType.Email) {
+        return AutofillFieldRole.ContactEmail;
+    }
+    if (type === FieldType.Phone) {
+        return AutofillFieldRole.ContactPhone;
+    }
+    if (type === FieldType.Credit) {
+        return AutofillFieldRole.PaymentCardPan;
+    }
+    if (type === FieldType.Month) {
+        return AutofillFieldRole.PaymentCardExpiry;
+    }
+
+    if (/cvv|cvc|security code/.test(normalizedName)) {
+        return AutofillFieldRole.PaymentCardCvvTransient;
+    }
+    if (/passport number/.test(normalizedName)) {
+        return AutofillFieldRole.GovernmentPassportNumber;
+    }
+    if (/driver.?s license number|drivers license/.test(normalizedName)) {
+        return AutofillFieldRole.GovernmentDriversLicenseNumber;
+    }
+    if (/social security|^ssn$/.test(normalizedName)) {
+        return AutofillFieldRole.GovernmentSsn;
+    }
+    if (/national id/.test(normalizedName)) {
+        return AutofillFieldRole.GovernmentNationalId;
+    }
+    if (/account number/.test(normalizedName)) {
+        return AutofillFieldRole.FinancialAccountNumber;
+    }
+    if (/routing number/.test(normalizedName)) {
+        return AutofillFieldRole.FinancialRoutingNumber;
+    }
+    if (/^iban$/.test(normalizedName)) {
+        return AutofillFieldRole.FinancialIban;
+    }
+    if (/^bic$/.test(normalizedName)) {
+        return AutofillFieldRole.FinancialBic;
+    }
+    if (/card owner|cardholder/.test(normalizedName)) {
+        return AutofillFieldRole.PaymentCardholderName;
+    }
+    if (/card number|^pan$/.test(normalizedName)) {
+        return AutofillFieldRole.PaymentCardPan;
+    }
+    if (/full name/.test(normalizedName)) {
+        return AutofillFieldRole.PersonFullName;
+    }
+    if (/^first name$/.test(normalizedName)) {
+        return AutofillFieldRole.PersonFirstName;
+    }
+    if (/^last name$/.test(normalizedName)) {
+        return AutofillFieldRole.PersonLastName;
+    }
+    if (/address line 1|street address/.test(normalizedName)) {
+        return AutofillFieldRole.AddressLine1;
+    }
+    if (/address line 2/.test(normalizedName)) {
+        return AutofillFieldRole.AddressLine2;
+    }
+    if (/^city$/.test(normalizedName)) {
+        return AutofillFieldRole.AddressCity;
+    }
+    if (/state|region/.test(normalizedName)) {
+        return AutofillFieldRole.AddressRegion;
+    }
+    if (/postal|zip/.test(normalizedName)) {
+        return AutofillFieldRole.AddressPostalCode;
+    }
+    if (/^country$/.test(normalizedName)) {
+        return AutofillFieldRole.AddressCountry;
+    }
+
+    return undefined;
+}
+
+export function deriveAutofillItemKind(
+    fields: Array<{ autofillRole?: AutofillFieldRole | string | null }>
+): AutofillItemKind | undefined {
+    const roles = fields.map((field) => field.autofillRole).filter(isAutofillFieldRole);
+
+    if (
+        roles.some(
+            (role) =>
+                role === AutofillFieldRole.GovernmentSsn ||
+                role === AutofillFieldRole.GovernmentPassportNumber ||
+                role === AutofillFieldRole.GovernmentDriversLicenseNumber ||
+                role === AutofillFieldRole.GovernmentNationalId
+        )
+    ) {
+        return AutofillItemKind.GovernmentIdentity;
+    }
+    if (
+        roles.some(
+            (role) =>
+                role === AutofillFieldRole.FinancialAccountNumber ||
+                role === AutofillFieldRole.FinancialRoutingNumber ||
+                role === AutofillFieldRole.FinancialIban ||
+                role === AutofillFieldRole.FinancialBic
+        )
+    ) {
+        return AutofillItemKind.FinancialAccount;
+    }
+    if (
+        roles.some(
+            (role) =>
+                role === AutofillFieldRole.PaymentCardPan ||
+                role === AutofillFieldRole.PaymentCardholderName ||
+                role === AutofillFieldRole.PaymentCardExpiry ||
+                role === AutofillFieldRole.PaymentCardExpiryMonth ||
+                role === AutofillFieldRole.PaymentCardExpiryYear ||
+                role === AutofillFieldRole.PaymentCardCvvTransient
+        )
+    ) {
+        return AutofillItemKind.PaymentCardPolicy;
+    }
+    if (
+        roles.some(
+            (role) =>
+                role === AutofillFieldRole.AddressLine1 ||
+                role === AutofillFieldRole.AddressLine2 ||
+                role === AutofillFieldRole.AddressCity ||
+                role === AutofillFieldRole.AddressRegion ||
+                role === AutofillFieldRole.AddressPostalCode ||
+                role === AutofillFieldRole.AddressCountry
+        )
+    ) {
+        return AutofillItemKind.PostalAddress;
+    }
+    if (
+        roles.some(
+            (role) =>
+                role === AutofillFieldRole.PersonFullName ||
+                role === AutofillFieldRole.PersonFirstName ||
+                role === AutofillFieldRole.PersonLastName ||
+                role === AutofillFieldRole.ContactEmail ||
+                role === AutofillFieldRole.ContactPhone
+        )
+    ) {
+        return AutofillItemKind.PersonProfile;
+    }
+    if (roles.includes(AutofillFieldRole.MerchantOrigin)) {
+        return AutofillItemKind.MerchantProfile;
+    }
+    if (
+        roles.some(
+            (role) =>
+                role === AutofillFieldRole.Username ||
+                role === AutofillFieldRole.Password ||
+                role === AutofillFieldRole.LoginUrl ||
+                role === AutofillFieldRole.Totp
+        )
+    ) {
+        return AutofillItemKind.Login;
+    }
+
+    return undefined;
 }
 
 /**
@@ -266,6 +549,7 @@ export class Field extends Serializable {
     constructor(vals: Partial<Field> = {}) {
         super();
         Object.assign(this, vals);
+        this._normalizeAutofillMetadata();
     }
 
     /**
@@ -281,6 +565,8 @@ export class Field extends Serializable {
     autofillRole?: AutofillFieldRole = undefined;
     /** values such as CVV may only be released into a user-approved transaction bundle */
     transactionOnly: boolean = false;
+    /** release policy derived from the semantic role */
+    releaseClass?: AutofillReleaseClass = undefined;
 
     get def(): FieldDef {
         return FIELD_DEFS[this.type] || FIELD_DEFS[FieldType.Text];
@@ -302,8 +588,39 @@ export class Field extends Serializable {
         if (!raw.type) {
             raw.type = guessFieldType(raw);
         }
-        return super._fromRaw(raw);
+        super._fromRaw(raw);
+        this._normalizeAutofillMetadata();
+        return this;
     }
+
+    private _normalizeAutofillMetadata() {
+        if (typeof this.autofillRole !== "undefined" && !isAutofillFieldRole(this.autofillRole)) {
+            this.autofillRole = undefined;
+        }
+        this.releaseClass = getAutofillReleaseClass(this.autofillRole);
+        if (isAutofillTransactionOnlyRole(this.autofillRole)) {
+            this.transactionOnly = true;
+        }
+    }
+}
+
+/**
+ * Apply creation-path semantics to fields. Deserialization deliberately does
+ * not call this helper so old records remain byte-compatible and absent item
+ * kinds never gain authority.
+ */
+export function normalizeAutofillFields(fields: Array<Field | Partial<Field>> = []): Field[] {
+    return fields.map((input) => {
+        const field = input instanceof Field ? input : new Field(input);
+        if (typeof field.autofillRole === "undefined" && typeof input.autofillRole === "undefined") {
+            field.autofillRole = inferAutofillFieldRole(field);
+        }
+        field.releaseClass = getAutofillReleaseClass(field.autofillRole);
+        if (isAutofillTransactionOnlyRole(field.autofillRole)) {
+            field.transactionOnly = true;
+        }
+        return field;
+    });
 }
 
 /** Normalizes a tag value by removing invalid characters */
@@ -356,6 +673,7 @@ export class VaultItem extends Serializable {
     constructor(vals: Partial<VaultItem> = {}) {
         super();
         Object.assign(this, vals);
+        this._normalizeAutofillMetadata();
     }
 
     /** unique identfier */
@@ -370,6 +688,16 @@ export class VaultItem extends Serializable {
     /** item fields */
     @AsSerializable(Field)
     fields: Field[] = [];
+
+    /** semantic kind used by the autofill broker; absent means no authority */
+    autofillKind?: AutofillItemKind = undefined;
+
+    /** source metadata for imported or creation-path records */
+    @Serialize({
+        toRaw: (value: ImportProvenance) => value,
+        fromRaw: (raw: unknown) => parseImportProvenance(raw),
+    })
+    provenance?: ImportProvenance = undefined;
 
     /** passkeys, including private key material, stored in the encrypted item payload */
     @AsSerializable(PasskeyCredential)
@@ -415,6 +743,18 @@ export class VaultItem extends Serializable {
     /** item history (first is the most recent change) */
     @AsSerializable(ItemHistoryEntry)
     history: ItemHistoryEntry[] = [];
+
+    protected _fromRaw(raw: any) {
+        super._fromRaw(raw);
+        this._normalizeAutofillMetadata();
+        return this;
+    }
+
+    private _normalizeAutofillMetadata() {
+        if (typeof this.autofillKind !== "undefined" && !isAutofillItemKind(this.autofillKind)) {
+            this.autofillKind = undefined;
+        }
+    }
 }
 
 /** Creates a new vault item */
@@ -424,13 +764,22 @@ export async function createVaultItem({
     passkeys = [],
     tags = [],
     icon,
+    autofillKind,
+    provenance,
 }: Partial<VaultItem>): Promise<VaultItem> {
+    const normalizedFields = normalizeAutofillFields(fields);
+    const normalizedKind = isAutofillItemKind(autofillKind)
+        ? autofillKind
+        : deriveAutofillItemKind(normalizedFields);
+
     return new VaultItem({
         name,
-        fields,
+        fields: normalizedFields,
         passkeys,
         tags,
         icon,
+        autofillKind: normalizedKind,
+        provenance,
         id: await uuid(),
     });
 }
@@ -475,12 +824,14 @@ export function guessFieldType({
 export interface ItemTemplate {
     name?: string;
     autofillKind?: AutofillItemKind;
+    provenance?: ImportProvenance;
     fields: {
         name: string;
         value?: string;
         type: FieldType;
         autofillRole?: AutofillFieldRole;
         transactionOnly?: boolean;
+        releaseClass?: AutofillReleaseClass;
     }[];
     icon: string;
     iconSrc?: string;
@@ -493,42 +844,49 @@ export const ITEM_TEMPLATES: ItemTemplate[] = [
     {
         toString: () => $l("Website / App"),
         icon: "web",
+        autofillKind: AutofillItemKind.Login,
         fields: [
             {
                 get name() {
                     return $l("Username");
                 },
                 type: FieldType.Username,
+                autofillRole: AutofillFieldRole.Username,
             },
             {
                 get name() {
                     return $l("Password");
                 },
                 type: FieldType.Password,
+                autofillRole: AutofillFieldRole.Password,
             },
             {
                 get name() {
                     return $l("URL");
                 },
                 type: FieldType.Url,
+                autofillRole: AutofillFieldRole.LoginUrl,
             },
         ],
     },
     {
         toString: () => $l("Computer"),
         icon: "desktop",
+        autofillKind: AutofillItemKind.Login,
         fields: [
             {
                 get name() {
                     return $l("Username");
                 },
                 type: FieldType.Username,
+                autofillRole: AutofillFieldRole.Username,
             },
             {
                 get name() {
                     return $l("Password");
                 },
                 type: FieldType.Password,
+                autofillRole: AutofillFieldRole.Password,
             },
         ],
     },
@@ -703,6 +1061,7 @@ export const ITEM_TEMPLATES: ItemTemplate[] = [
     {
         toString: () => $l("Bank Account"),
         icon: "bank",
+        autofillKind: AutofillItemKind.FinancialAccount,
         fields: [
             {
                 get name() {
@@ -715,12 +1074,14 @@ export const ITEM_TEMPLATES: ItemTemplate[] = [
                     return $l("IBAN");
                 },
                 type: FieldType.Text,
+                autofillRole: AutofillFieldRole.FinancialIban,
             },
             {
                 get name() {
                     return $l("BIC");
                 },
                 type: FieldType.Text,
+                autofillRole: AutofillFieldRole.FinancialBic,
             },
             {
                 get name() {
@@ -751,24 +1112,28 @@ export const ITEM_TEMPLATES: ItemTemplate[] = [
     {
         toString: () => $l("Passport"),
         icon: "passport",
+        autofillKind: AutofillItemKind.GovernmentIdentity,
         fields: [
             {
                 get name() {
                     return $l("Full Name");
                 },
                 type: FieldType.Text,
+                autofillRole: AutofillFieldRole.PersonFullName,
             },
             {
                 get name() {
                     return $l("Passport Number");
                 },
                 type: FieldType.Text,
+                autofillRole: AutofillFieldRole.GovernmentPassportNumber,
             },
             {
                 get name() {
                     return $l("Country");
                 },
                 type: FieldType.Text,
+                autofillRole: AutofillFieldRole.AddressCountry,
             },
             {
                 get name() {
@@ -811,12 +1176,14 @@ export const ITEM_TEMPLATES: ItemTemplate[] = [
     {
         toString: () => $l("Authenticator"),
         icon: "totp",
+        autofillKind: AutofillItemKind.Login,
         fields: [
             {
                 get name() {
                     return $l("One-Time Password");
                 },
                 type: FieldType.Totp,
+                autofillRole: AutofillFieldRole.Totp,
             },
         ],
     },

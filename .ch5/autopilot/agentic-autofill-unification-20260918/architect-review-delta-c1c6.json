@@ -1,0 +1,104 @@
+{
+  "schema": "agent.workflow.review.v1",
+  "role": "architect",
+  "verdict": "iterate",
+  "verdictLabel": "ITERATE",
+  "planRevision": "sha256:cbba6d5fe19732b792dbf242f1e9471413acee74ae3e0b546ab70055b1bde8e5",
+  "reviewedInputs": {
+    "criticReview": "sha256:7cabd25be4a9254f4ed27cd446b0335a5804521ba2899d035853fb0736a27fae",
+    "frozenDecisions": "sha256:bf5fd35aa5874ce3474caaae614691fda65b02c4c215a923cc67f4ea3c6f33be",
+    "planCorrectionReport": "sha256:521ece47d5849ea2d958c2ba5dc11b75f7172f747154e383bfdc77d4b3357817",
+    "spec": "sha256:0c1f735824e764b83e056cab407c293041212918d0b9eb098015a98ffefefce7",
+    "plan": "sha256:cbba6d5fe19732b792dbf242f1e9471413acee74ae3e0b546ab70055b1bde8e5",
+    "testSpec": "sha256:0d9c4bf1faeb32d3da736ade024bc0f7bf278a13d51b7327fc137fbca28eb508",
+    "graph": "sha256:8fc9aa4fce87af98b2f41b7ad8ce329626bbf037ea31b5e44691a8b0c8ca1eb0"
+  },
+  "reviewerRelation": "independent-delta",
+  "reviewerIdentity": "codex-architect-delta-c1c6-review-v1",
+  "source": "Independent read-only review of only the revision-3 C1-C6 corrections. A1-A9 findings and unrelated topology were not re-reviewed.",
+  "completedAt": "2026-09-18T20:46:40Z",
+  "assurance": "local",
+  "sourceCommits": {
+    "padloc": "83a55325623a13115c873b67795ec7c442766f5f",
+    "magic-browser": "213896cdaf0cbdde9366767ec0febbd8cd42acd2"
+  },
+  "checks": {
+    "scopeBoundToC1C6": "pass",
+    "revision3HashesMatch": "pass",
+    "correctionReportMapping": "pass",
+    "graphJsonParse": "pass",
+    "graphDag": "pass",
+    "parallelEdgesSymmetric": "pass",
+    "parallelOwnershipDisjoint": "pass",
+    "repositoryPrefixedPaths": "pass",
+    "closedWireSchemaCompleteness": "fail",
+    "observationInventoryCompleteness": "fail",
+    "productSourceEdited": false,
+    "credentialsAccessed": false,
+    "realDataAccessed": false,
+    "runtimeProof": "UNKNOWN"
+  },
+  "findingResolutions": [
+    {
+      "id": "C1",
+      "status": "resolved",
+      "evidence": [
+        "The spec contract freeze names the added kinds and roles, preserves compatibility for absent kinds, defines role-derived low/secret/high-risk classes, and marks CVV transaction-only.",
+        "The spec maps plan-only, prompted, standing-policy automatic, and noninteractive fail-closed to plan/manual/auto/dontAsk and explicitly makes bypassPrompts internal-only.",
+        "G001 and G004 own the frozen model and policy contracts; their graph deliverables and tests cover every mode, high-risk step-up, and bypassPrompts rejection."
+      ]
+    },
+    {
+      "id": "C2",
+      "status": "iterate",
+      "evidence": [
+        "The spec and frozen decisions name the elf.import-provenance.v1, elf.import-loss.v1, elf.import-result.v1, encrypted envelope, handshake operations, and elf.padloc-broker-response.v2 contracts.",
+        "Import fields and envelope constants are partially enumerated, and unknown-key rejection is required.",
+        "The broker response section still defines only common fields, the kind list, target exception, and an error summary; it does not define exact required/optional fields and payload schemas for each kind.",
+        "The import-begin/import-commit handshake is described as steps, not as closed request/response shapes with required fields, types, errors, and one-time-custody result semantics."
+      ],
+      "requiredChange": "Add canonical versioned TypeScript or JSON schemas (or an equivalent field table) for every ImportResult/loss/provenance field, envelope field, handshake request and response, broker-response variant, and nested error/payload shape. Bind those schemas to the canonical fixture and transport operations so G005, G006, and G008 do not choose wire fields."
+    },
+    {
+      "id": "C3",
+      "status": "iterate",
+      "evidence": [
+        "The revision-3 inventory adds the five paths named by the critic and assigns G007 ownership of form.ts plus value-free form outputs.",
+        "magic-browser/src/worker/typed-tools.ts:3178-3210 shows click_text and click_button_text returning pageSnapshot directly after the click.",
+        "magic-browser/src/runtime/cdp.ts:1775-1793 shows pageSnapshot exposing input and textarea value fields in the current seam.",
+        "magic-browser/src/worker/typed-tools.ts:3252-3392 shows scroll_table returning allRows strings and headings.",
+        "click_text, click_button_text, and scroll_table are absent from the C3 mustGate inventory and from the required negative tests, so model-visible page/table values can bypass the stated post-private-fill gate."
+      ],
+      "requiredChange": "Extend the exhaustive inventory and shared-gate ownership/tests to cover click_text, click_button_text, scroll_table, and any equivalent action result that returns a snapshot or page/table text. Require metadata-only or redacted output and unknown/potentially-private negatives."
+    },
+    {
+      "id": "C4",
+      "status": "resolved",
+      "evidence": [
+        "The spec, plan, test specification, and G009 graph node use one canonical padloc-tree command and designate the Magic Browser runner as a helper only.",
+        "The bootstrap sequence requires exact-target privacy-status, trusted reset from unknown, and clean state before classify/plan; the evidence directory is padloc-owned and repository-prefixed.",
+        "G010 is limited to documenting the canonical command, so no second public runner is introduced."
+      ]
+    },
+    {
+      "id": "C5",
+      "status": "resolved",
+      "evidence": [
+        "The spec declares padloc/.ch5/proof.yaml the program authority and names all eight required command keys.",
+        "The test specification makes missing keys a G008 failure rather than optional UNKNOWN closure.",
+        "G008 owns the padloc authority file and may add only a Magic Browser consumer lane, preserving one registry."
+      ]
+    },
+    {
+      "id": "C6",
+      "status": "resolved",
+      "evidence": [
+        "The canonical fixture path is frozen as padloc/packages/extension/test/fixtures/agentic-autofill/contract.v1.json.",
+        "The frozen load rule requires PADLOC_TREE or a recorded sha256 for a local copy, with drift treated as failure.",
+        "G008 owns the canonical fixture and both consumer tests; the test specification requires hash parity and rejects drift."
+      ]
+    }
+  ],
+  "rationale": "Revision 3 closes C1, C4, C5, and C6 and materially improves C2 and C3. C2 remains under-specified at the per-variant wire and handshake-field level. C3 still omits value-bearing click and virtual-table worker outputs from the shared privacy gate. These are blocking plan-contract gaps, so implementation dispatch is not ready.",
+  "nextGate": "Return to plan correction for C2 and C3; re-review the revision-4 spec, plan, test specification, and graph before plan-consensus."
+}

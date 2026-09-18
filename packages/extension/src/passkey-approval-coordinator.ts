@@ -16,6 +16,15 @@ export interface VerifiedPasskeyApprovalMetadata {
     rpName?: string;
     userName?: string;
     userDisplayName?: string;
+    flowId?: string;
+    ttlMs?: number;
+    topOrigin?: string;
+    target?: {
+        frameId: 0;
+        origin: string;
+        topOrigin: string;
+        documentId: string;
+    };
 }
 
 /** Safe to return only to the configured extension approval page. */
@@ -29,10 +38,14 @@ export interface PasskeyApprovalPrompt {
     userName?: string;
     userDisplayName?: string;
     expiresAt: number;
+    flowId?: string;
+    ttlMs?: number;
+    topOrigin?: string;
+    target?: VerifiedPasskeyApprovalMetadata["target"];
 }
 
 export type PasskeyApprovalResolution =
-    | { requestId: string; outcome: "approved"; userVerified: true }
+    | { requestId: string; outcome: "approved"; userVerified: true; verifiedAt?: number }
     | { requestId: string; outcome: "dismissed" | "expired" | "cancelled" };
 
 export type PasskeyApprovalReply = (resolution: Readonly<PasskeyApprovalResolution>) => void;
@@ -145,6 +158,29 @@ function validateMetadata(metadata: VerifiedPasskeyApprovalMetadata): VerifiedPa
     ) {
         throw new TypeError("Invalid verified RP ID");
     }
+    if (metadata.flowId !== undefined && (!metadata.flowId || metadata.flowId.length > MAX_REQUEST_ID_LENGTH)) {
+        throw new TypeError("Invalid passkey flow id");
+    }
+    if (
+        metadata.ttlMs !== undefined &&
+        (!Number.isInteger(metadata.ttlMs) || metadata.ttlMs < MIN_TTL_MS || metadata.ttlMs > MAX_TTL_MS)
+    ) {
+        throw new TypeError("Invalid passkey ceremony TTL");
+    }
+    if (metadata.topOrigin !== undefined && normalizeVerifiedOrigin(metadata.topOrigin) !== metadata.origin) {
+        throw new TypeError("Invalid passkey top origin");
+    }
+    if (metadata.target) {
+        if (
+            metadata.target.frameId !== 0 ||
+            metadata.target.origin !== metadata.origin ||
+            metadata.target.topOrigin !== metadata.origin ||
+            !metadata.target.documentId ||
+            metadata.target.documentId.length > MAX_REQUEST_ID_LENGTH
+        ) {
+            throw new TypeError("Invalid passkey target");
+        }
+    }
 
     return {
         requestId: metadata.requestId,
@@ -154,6 +190,10 @@ function validateMetadata(metadata: VerifiedPasskeyApprovalMetadata): VerifiedPa
         rpName: boundedLabel(metadata.rpName, "RP name"),
         userName: boundedLabel(metadata.userName, "user name"),
         userDisplayName: boundedLabel(metadata.userDisplayName, "user display name"),
+        ...(metadata.flowId ? { flowId: metadata.flowId } : {}),
+        ...(metadata.ttlMs !== undefined ? { ttlMs: metadata.ttlMs } : {}),
+        ...(metadata.topOrigin ? { topOrigin: metadata.topOrigin } : {}),
+        ...(metadata.target ? { target: Object.freeze({ ...metadata.target }) } : {}),
     };
 }
 
@@ -231,6 +271,10 @@ export class PasskeyApprovalCoordinator {
             rpName: safe.rpName ?? safe.rpId,
             ...(safe.userName ? { userName: safe.userName } : {}),
             ...(safe.userDisplayName ? { userDisplayName: safe.userDisplayName } : {}),
+            ...(safe.flowId ? { flowId: safe.flowId } : {}),
+            ...(safe.ttlMs !== undefined ? { ttlMs: safe.ttlMs } : {}),
+            ...(safe.topOrigin ? { topOrigin: safe.topOrigin } : {}),
+            ...(safe.target ? { target: safe.target } : {}),
             expiresAt,
         });
         const entry = {} as PendingApproval;
@@ -253,7 +297,11 @@ export class PasskeyApprovalCoordinator {
     /** Completes a ceremony only after fresh user verification by the trusted UI. */
     approve(command: PasskeyApproveCommand, senderUrl: string): boolean {
         if (command.userVerified !== true) return false;
-        return this._resolve(command, senderUrl, { outcome: "approved", userVerified: true });
+        return this._resolve(command, senderUrl, {
+            outcome: "approved",
+            userVerified: true,
+            verifiedAt: this._now(),
+        });
     }
 
     /** Dismissal is capability-checked too, so another extension page cannot cancel a ceremony. */
@@ -290,7 +338,7 @@ export class PasskeyApprovalCoordinator {
     private _resolve(
         command: PasskeyApprovalCommand,
         senderUrl: string,
-        resolution: { outcome: "approved"; userVerified: true } | { outcome: "dismissed" }
+        resolution: { outcome: "approved"; userVerified: true; verifiedAt?: number } | { outcome: "dismissed" }
     ): boolean {
         this.expirePending();
         const entry = this._pending.get(command.requestId);
@@ -327,6 +375,16 @@ export class PasskeyApprovalCoordinator {
         // cannot replay the capability or cause a second completion.
         this._pending.delete(requestId);
         this._cancelScheduled(entry.timer);
+        if (resolution.outcome === "approved") {
+            const safeResolution = { ...resolution };
+            Object.defineProperty(safeResolution, "verifiedAt", {
+                configurable: false,
+                enumerable: false,
+                value: resolution.verifiedAt ?? this._now(),
+            });
+            entry.reply(Object.freeze(safeResolution));
+            return;
+        }
         entry.reply(Object.freeze(resolution));
     }
 }

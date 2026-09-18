@@ -6,9 +6,8 @@
   personal record, working passkey, production account, or plaintext secret.
 - Proof must cross the consuming boundary. A listener, mock response, or
   redacted unit result alone is not live broker proof.
-- Exact commands become `.ch5/proof.yaml` keys through the existing proof
-  authority in G008. Until those keys exist, their status is `UNKNOWN`, not
-  pass.
+- Exact commands become the eight required keys in `padloc/.ch5/proof.yaml`
+  through G008. Missing keys fail G008; they are not optional UNKNOWN closure.
 
 ## Candidate validation
 
@@ -37,9 +36,14 @@
   conservatively and never exposes field values.
 - The shared `ImportProvenance` and `ImportResult` contracts are closed,
   encrypted/durable where required, and contain no printable personal values.
-- Login, profile, address, payment, government, and financial roles have
-  stable identifiers; CVV is never a persistent default role.
+- Frozen identifiers are required: kinds `login`, `person_profile`,
+  `postal_address`, `payment_card_policy`, `gift_recipient`,
+  `merchant_profile`, `government_identity`, `financial_account`; roles include
+  existing values plus `login.url` and the frozen government/financial set.
+  CVV is never a persistent default role.
 - Unknown role and absent kind fail closed without exposing field values.
+- `ImportProvenance`/`ImportResult`/`ImportLossEntry` fixtures match the
+  closed `elf.import-*.v1` schemas and reject unknown keys.
 - Proof: core model round-trip and compatibility fixtures through the changed
   test wrapper.
 
@@ -78,7 +82,11 @@
 
 ### G004: approval and unlock policy
 
-- Exercise `plan`, `manual`, `auto`, `dontAsk`, and `bypassPrompts`.
+- User-facing plan-only/prompted/standing-policy-automatic/noninteractive map
+  to `plan`/`manual`/`auto`/`dontAsk`.
+- Exercise `plan`, `manual`, `auto`, `dontAsk`, and internal-only
+  `bypassPrompts`. `bypassPrompts` fails closed outside owned test fixtures
+  and is never a CLI or standing-policy mode.
 - Hard deny and `alwaysAsk` win over allow; missing authority fails closed in
   noninteractive modes.
 - Policy revision and revocation generation invalidate old grants.
@@ -133,6 +141,8 @@
 - Closed `PadlocBrokerResponse` schemas reject unknown top-level and nested
   keys, arbitrary key names, nested arrays, printable error messages, and
   malformed protocol-v1 payloads before queue/cache/output.
+- Canonical fixtures include one example of every v2 kind and both handshake
+  request/response pairs with the spec field tables; missing fields fail.
 - Protocol-v1 fields and legacy identifiers remain readable.
 - Direct CLI screenshot wiring remains in this node and must invoke the shared
   privacy-gate boundary rather than bypassing it.
@@ -147,10 +157,13 @@
   including `open_snapshot` and compact snapshots, even when Padloc has not
   yet returned a privacy status.
 - After Padloc reports `potentially-private` or `genericObservation: blocked`,
-  reject `open_snapshot`, page text/accessibility, `evidence`, extension-bridge
-  observation/fetch, non-CLI screenshots, `read_image`, `extract_links`,
-  `extract_tables`, script/eval, and network/body capture for the exact
-  tab/frame/document.
+  reject `open_snapshot`, `document_text`, `shape`, `network_detail`,
+  `replay_request`, `form_inspect`, `form_fill`, `form_set`, `form_submit`,
+  `form_run_task`, `form_upload_file`, `click_text`, `click_button_text`,
+  `scroll_table`, `drag`, page text/accessibility, `evidence`,
+  `evidence_resolve`, extension-bridge observation/fetch, non-CLI screenshots,
+  `read_image`, `extract_links`, `extract_tables`, script/eval, and
+  network/body capture for the exact tab/frame/document.
 - Unknown document state also fails closed for generic observation.
 - Redacted role/count/receipt/privacy-status proof remains available.
 - `unknown`, `clean`, and `potentially-private` transitions for navigation, new
@@ -160,12 +173,24 @@
   screenshot, typed-worker evidence, and guarded eval all use the same gate.
 - Direct CLI screenshot behavior is proven by G006; this node owns the shared
   gate and all non-CLI call sites.
-- Proof: unit tests for the shared gate plus worker, bridge, capability-gateway,
-  network, screenshot, and eval integration tests.
+- Form inspect/action output omits `FormField.value` and
+  `FormActionResult.value`; form writes cannot bypass the Padloc broker.
+- Proof: unit tests for the shared gate plus worker, form, bridge,
+  capability-gateway, network, screenshot, and eval integration tests,
+  including negatives for `document_text`, `shape`, `network_detail`,
+  `replay_request`, `form_inspect`, `click_text`, `click_button_text`,
+  `scroll_table`, and `drag`.
+- Click/table/drag results omit `value`, `valueBefore`, `valueAfter`,
+  `ariaValueBefore`, `ariaValueAfter`, `allRows`, and cell strings in clean,
+  unknown, and potentially-private; unknown/private still fail closed when
+  the gate is blocked. Handshake fixtures include success and `kind=error`
+  for import-begin and import-commit.
 
 ### G008: cross-repository contract proof
 
-- Padloc and Magic Browser parse the same synthetic role/protocol fixtures.
+- Padloc and Magic Browser parse the same canonical file
+  `padloc/packages/extension/test/fixtures/agentic-autofill/contract.v1.json`;
+  hash drift fails.
 - Redacted response fixtures reject nested values and preserve privacy state.
 - Cross-tab, frame, document, form, and target-revision fixtures prove the
   privacy-status descriptor is not substituted with the active tab.
@@ -175,13 +200,20 @@
   raw keys, unavailable key custody, and fill-grant responses.
 - Legacy protocol-v1 responses remain readable; incompatible changes require a
   versioned contract.
-- Add proof commands only to `.ch5/proof.yaml`; do not create a second registry.
+- G008 adds the eight required keys to `padloc/.ch5/proof.yaml`. Missing keys
+  fail. Magic Browser may add a consumer lane invoked by
+  `agentic-autofill-privacy-gate`. Do not create a second registry.
 - Proof: fixture parser tests in both repositories and exact-SHA proof command
-  records.
+  records for all eight keys.
 
 ### G009: synthetic native-host end to end
 
+- Canonical command from the padloc Tree:
+  `node scripts/synthetic-agentic-autofill-e2e.mjs --magic-browser-tree <mb-tree>`.
+  The Magic Browser script is a helper only.
 - Install/setup the extension and native host using fake data only.
+- Query privacy-status with the exact descriptor; if `unknown`, trusted
+  `autofill-observation-reset`; require `clean` before first observation.
 - Unlock synthetic vault, classify, plan, approve or match standing policy,
   mint, apply exact fields, and receive redacted receipt.
 - Verify privacy block, redacted proof, revoke, lock/logout, and service-worker
@@ -196,7 +228,7 @@
   redacted evidence under the padloc-owned
   `padloc/.ch5/autopilot/agentic-autofill-unification-20260918/synthetic-e2e/`
   directory, then removes temporary browser profiles and queues.
-- Proof: one deterministic script that exits non-zero on any leak or bypass and
+- Proof: the canonical padloc script exits non-zero on any leak or bypass and
   stores only redacted evidence.
 
 ### G010: operator and pilot documentation
@@ -209,8 +241,8 @@
   CVV, low-risk passwords, and low-risk re-enrolled passkey; SSN enters last.
 - Deferred screenshot masking, cross-origin iframe grants, model disclosure,
   and country-specific schemas are clearly marked deferred.
-- Proof: docs lint/link check plus command snippets checked against the
-  synthetic E2E entrypoint.
+- Proof: docs lint/link check plus command snippets checked against
+  `node scripts/synthetic-agentic-autofill-e2e.mjs --magic-browser-tree <mb-tree>`.
 
 ## Proof ladder and stop conditions
 

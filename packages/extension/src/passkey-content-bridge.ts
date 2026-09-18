@@ -6,6 +6,8 @@ import {
     PASSKEY_PAGE_MESSAGE_SOURCE,
     PASSKEY_PROTOCOL_VERSION,
     PasskeyResult,
+    derivePasskeyRpId,
+    passkeyRequestTtlMs,
 } from "./passkey-protocol";
 
 const PASSKEY_DIAGNOSTICS_ENABLED = process.env.PL_PASSKEY_DIAGNOSTICS === "true";
@@ -14,6 +16,8 @@ interface RuntimeRequestHandle {
     response: Promise<unknown>;
     cancel(): void;
 }
+
+const PASSKEY_DOCUMENT_ID_MARKER = "__padlocPasskeyDocumentIdV1";
 
 function bridgeRequestId(): string {
     const randomUUID = (crypto as Crypto & { randomUUID?: () => string }).randomUUID;
@@ -63,6 +67,23 @@ function sendRuntimeMessage(message: unknown, timeoutMs: number): RuntimeRequest
     return { response, cancel: () => cancel() };
 }
 
+function bridgeDocumentId(target: Window): string {
+    const existing = (target as any)[PASSKEY_DOCUMENT_ID_MARKER];
+    if (typeof existing === "string" && existing.length > 0) return existing;
+    const generated = bridgeRequestId();
+    try {
+        Object.defineProperty(target, PASSKEY_DOCUMENT_ID_MARKER, {
+            configurable: false,
+            enumerable: false,
+            value: generated,
+        });
+    } catch {
+        // The marker is only a same-document hint. The worker still binds tab,
+        // frame, URL origin, flow, nonce, and TTL independently.
+    }
+    return generated;
+}
+
 export function installPasskeyContentBridge(target: Window = window): void {
     if (target.top && target.top !== target) return;
     const marker = "__padlocPasskeyContentBridgeV1";
@@ -91,7 +112,10 @@ export function installPasskeyContentBridge(target: Window = window): void {
             console.debug("[Padloc passkey] forwarding request", runtimeRequestId, detail.operation);
         }
 
-        const timeoutMs = Math.min(Math.max(Number((detail.options as any).timeout) || 60_000, 1_000), 120_000);
+        const timeoutMs = passkeyRequestTtlMs(detail.options);
+        const topOrigin = target.location.origin;
+        const documentId = bridgeDocumentId(target);
+        const rpId = derivePasskeyRpId(detail.operation, detail.options, topOrigin);
         const runtimeRequest = sendRuntimeMessage(
             {
                 type: "passkeyRequest",
@@ -101,7 +125,18 @@ export function installPasskeyContentBridge(target: Window = window): void {
                 mediation: detail.mediation,
                 options: detail.options,
                 // The page event has no origin field. This value comes only from the isolated world.
-                origin: target.location.origin,
+                origin: topOrigin,
+                flowId: runtimeRequestId,
+                nonce: bridgeRequestId(),
+                ttlMs: timeoutMs,
+                topOrigin,
+                rpId: rpId || "",
+                target: {
+                    frameId: 0,
+                    origin: topOrigin,
+                    topOrigin,
+                    documentId,
+                },
             },
             timeoutMs
         );

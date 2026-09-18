@@ -1,0 +1,441 @@
+{
+  "schema": "ch5.autopilot-frozen-decisions.v1",
+  "decisionId": "agentic-autofill-critic-c1-c6-v1",
+  "planId": "agentic-autofill-unification-20260918",
+  "sourceReview": ".ch5/autopilot/agentic-autofill-unification-20260918/critic-review.json",
+  "sourceVerdict": "iterate",
+  "decidedAt": "2026-09-18T20:23:04.631+00:00",
+  "decidedBy": "codex-autopilot-root",
+  "preserve": [
+    "revision-2 A1-A9 contract corrections remain in force",
+    "no raw personal value in model output, logs, argv, receipts, screenshots, generic observations, or workflow artifacts",
+    "no working credential mutation",
+    "no real 1Password or personal data",
+    "no production deploy"
+  ],
+  "C1": {
+    "title": "Role vocabulary and approval-mode mapping",
+    "itemKinds": {
+      "keep": [
+        "person_profile",
+        "postal_address",
+        "payment_card_policy",
+        "gift_recipient",
+        "merchant_profile"
+      ],
+      "add": [
+        "login",
+        "government_identity",
+        "financial_account"
+      ],
+      "absentKind": "fail-closed-compatible-deserialize-no-authority"
+    },
+    "roles": {
+      "keep": [
+        "username",
+        "password",
+        "totp",
+        "person.full_name",
+        "person.first_name",
+        "person.last_name",
+        "contact.email",
+        "contact.phone",
+        "address.line1",
+        "address.line2",
+        "address.city",
+        "address.region",
+        "address.postal_code",
+        "address.country",
+        "payment.card.pan",
+        "payment.card.cardholder_name",
+        "payment.card.expiry",
+        "payment.card.expiry_month",
+        "payment.card.expiry_year",
+        "payment.card.cvv_transient",
+        "merchant.origin"
+      ],
+      "add": [
+        "login.url",
+        "government.ssn",
+        "government.passport_number",
+        "government.drivers_license_number",
+        "government.national_id",
+        "financial.account_number",
+        "financial.routing_number",
+        "financial.iban",
+        "financial.bic"
+      ],
+      "unknownRole": "fail-closed-no-fill-no-value-disclosure"
+    },
+    "releaseClassByRole": {
+      "low": [
+        "person.full_name",
+        "person.first_name",
+        "person.last_name",
+        "contact.email",
+        "contact.phone",
+        "address.line1",
+        "address.line2",
+        "address.city",
+        "address.region",
+        "address.postal_code",
+        "address.country",
+        "login.url",
+        "merchant.origin"
+      ],
+      "secret": [
+        "username",
+        "password",
+        "totp",
+        "payment.card.pan",
+        "payment.card.cardholder_name",
+        "payment.card.expiry",
+        "payment.card.expiry_month",
+        "payment.card.expiry_year"
+      ],
+      "high-risk": [
+        "payment.card.cvv_transient",
+        "government.ssn",
+        "government.passport_number",
+        "government.drivers_license_number",
+        "government.national_id",
+        "financial.account_number",
+        "financial.routing_number",
+        "financial.iban",
+        "financial.bic"
+      ]
+    },
+    "transactionOnlyRoles": [
+      "payment.card.cvv_transient"
+    ],
+    "freshVerificationRoles": "all high-risk roles plus passkeys, new payment origins, and policy changes",
+    "websiteTemplate": "G001 must persist autofillKind=login and roles username/password/login.url/totp when present; Computer template is login without login.url",
+    "modes": {
+      "userFacing": {
+        "plan-only": "plan",
+        "prompted": "manual",
+        "standing-policy-automatic": "auto",
+        "noninteractive-fail-closed": "dontAsk"
+      },
+      "engine": [
+        "plan",
+        "manual",
+        "auto",
+        "dontAsk",
+        "bypassPrompts"
+      ],
+      "semantics": {
+        "plan": "describe allowed; fill/authenticate/derive/reveal/submit denied",
+        "manual": "ask when no exact allow policy; high-risk always asks unless recent verification already bound to this request digest",
+        "auto": "allow only on exact origin/frame/item/role/revision standing allow policy; otherwise ask; high-risk still requires fresh verification",
+        "dontAsk": "allow only on exact matching allow policy with no confirmation required; otherwise deny; never prompt",
+        "bypassPrompts": "INTERNAL-ONLY synthetic/test escape. Never a user-facing mode, never a Magic Browser CLI mode, never a standing policy, never a pilot/default. Setting it outside owned test fixtures is a defect."
+      }
+    }
+  },
+  "C2": {
+    "title": "Field-level closed schemas",
+    "importProvenance": {
+      "schema": "elf.import-provenance.v1",
+      "required": [
+        "schema",
+        "source",
+        "sourceId",
+        "importedAt",
+        "importerVersion"
+      ],
+      "optional": [
+        "sourceItemId"
+      ],
+      "enums": {
+        "source": [
+          "1pux",
+          "compatibility-envelope",
+          "create-item",
+          "synthetic"
+        ]
+      },
+      "rules": [
+        "unknown keys rejected",
+        "no field values",
+        "sourceId and sourceItemId are opaque non-secret identifiers"
+      ]
+    },
+    "importLossEntry": {
+      "schema": "elf.import-loss.v1",
+      "required": [
+        "schema",
+        "sourceItemId",
+        "category",
+        "outcome",
+        "reasonCode"
+      ],
+      "optional": [
+        "note"
+      ],
+      "enums": {
+        "category": [
+          "passkey",
+          "attachment",
+          "document",
+          "history",
+          "sharing",
+          "totp-parameters",
+          "unsupported-field",
+          "trashed",
+          "unknown-kind"
+        ],
+        "outcome": [
+          "skipped",
+          "lossy-normalized"
+        ],
+        "reasonCode": [
+          "UNSUPPORTED_PASSKEY",
+          "UNSUPPORTED_ATTACHMENT",
+          "UNSUPPORTED_DOCUMENT",
+          "UNSUPPORTED_HISTORY",
+          "UNSUPPORTED_SHARING",
+          "NONEXACT_TOTP_PARAMETERS",
+          "UNSUPPORTED_FIELD",
+          "TRASHED_ITEM",
+          "UNKNOWN_KIND"
+        ]
+      },
+      "rules": [
+        "unknown keys rejected",
+        "note never contains field values"
+      ]
+    },
+    "importResult": {
+      "schema": "elf.import-result.v1",
+      "required": [
+        "schema",
+        "imported",
+        "normalized",
+        "skipped",
+        "lossy",
+        "provenance",
+        "losses",
+        "sourceIdentifiers"
+      ],
+      "rules": [
+        "counts are integers >= 0",
+        "losses is an array of elf.import-loss.v1",
+        "sourceIdentifiers is an array of opaque strings",
+        "unknown keys rejected",
+        "no field values, keys, or ciphertext dumps"
+      ]
+    },
+    "encryptedEnvelope": {
+      "schema": "elf.encrypted-autofill-profile-envelope.v1",
+      "required": [
+        "schema",
+        "envelopeId",
+        "formatVersion",
+        "ciphertext",
+        "wrappedKey",
+        "wrapAlgorithm",
+        "sourceProvenance",
+        "consentNonce",
+        "recordCountHint",
+        "createdAt"
+      ],
+      "constants": {
+        "formatVersion": 1,
+        "wrapAlgorithm": "padloc-import-key-v1"
+      },
+      "rules": [
+        "ciphertext and wrappedKey are opaque base64",
+        "no plaintext profile, raw key, or fill grant",
+        "unknown keys rejected"
+      ]
+    },
+    "keyCustodyHandshake": {
+      "operations": [
+        "import-begin",
+        "import-commit"
+      ],
+      "steps": [
+        "Magic Browser calls Padloc native host import-begin and receives a one-time import public key plus wrapAlgorithm",
+        "Local keychain helper wraps the existing profile key to that public key; Magic Browser never sees the unwrapped profile key",
+        "Magic Browser sends only EncryptedAutofillProfileEnvelope on import-commit",
+        "Padloc decrypts only inside the trusted extension/native executor after explicit unlock and returns ImportResult",
+        "The one-time key is not reused; wrap material is never logged"
+      ]
+    },
+    "brokerResponse": {
+      "schema": "elf.padloc-broker-response.v2",
+      "closedDiscriminatedUnionKey": "kind",
+      "requiredOnAll": [
+        "schema",
+        "kind",
+        "protocolVersion",
+        "requestId",
+        "ok"
+      ],
+      "kinds": [
+        "status",
+        "classified",
+        "plan",
+        "approval-required",
+        "granted",
+        "applied",
+        "revoked",
+        "privacy-status",
+        "import-result",
+        "error"
+      ],
+      "targetRequiredExcept": [
+        "status",
+        "error"
+      ],
+      "error": {
+        "schema": "elf.padloc-broker-error.v1",
+        "required": [
+          "code",
+          "retryable"
+        ],
+        "optional": [
+          "safeMessage"
+        ],
+        "codes": [
+          "LOCKED",
+          "DENIED",
+          "ASK_REQUIRED",
+          "TARGET_MISMATCH",
+          "STALE",
+          "UNKNOWN_PRIVACY",
+          "POTENTIALLY_PRIVATE",
+          "INVALID_REQUEST",
+          "UNKNOWN_KEY",
+          "UNSUPPORTED",
+          "EXPIRED",
+          "REVOKED"
+        ],
+        "rules": [
+          "safeMessage contains no field values or secrets"
+        ]
+      },
+      "rules": [
+        "unknown top-level or nested keys rejected",
+        "protocol-v1 AutofillBrokerResponse remains readable as compatibility only and cannot authorize observation or fill",
+        "incompatible change requires protocolVersion 2 payloads using this closed union"
+      ]
+    }
+  },
+  "C3": {
+    "title": "Exhaustive observation inventory",
+    "sharedGate": "magic-browser/src/runtime/autofill-observation-gate.ts",
+    "mustGate": [
+      "open_snapshot",
+      "extract_links",
+      "extract_tables",
+      "read_image",
+      "document_text",
+      "evidence",
+      "evidence_resolve",
+      "shape",
+      "network_detail",
+      "replay_request",
+      "form_inspect",
+      "form_fill",
+      "form_set",
+      "form_submit",
+      "form_run_task",
+      "form_upload_file",
+      "page.observe",
+      "page.fetch",
+      "screenshot",
+      "eval",
+      "network/body capture",
+      "CDP snapshots"
+    ],
+    "valueBearingOutputsForbidden": [
+      "FormField.value",
+      "FormActionResult.value",
+      "input/textarea snapshot value",
+      "network request/response bodies after potentially-private or unknown"
+    ],
+    "addOwnsPathsToG007": [
+      "magic-browser/src/runtime/form.ts",
+      "magic-browser/src/runtime/form.test.ts"
+    ],
+    "safeExceptions": [
+      "todo_init",
+      "todo_status",
+      "todo_update",
+      "candidate_status",
+      "candidate_update",
+      "source_index",
+      "web_search",
+      "wikipedia_as_of",
+      "helper_*",
+      "prompts",
+      "prompt_cancel",
+      "scratchpad_status",
+      "session_health_check",
+      "deterministic_tally",
+      "redacted Padloc privacy-status/receipt/plan commands"
+    ],
+    "testsRequired": [
+      "unknown and potentially-private negatives for document_text, shape, network_detail, replay_request, form_inspect",
+      "form_fill/form_set/form_submit do not return field values and cannot bypass Padloc broker",
+      "FormField.value and FormActionResult.value are omitted from worker/tool output"
+    ]
+  },
+  "C4": {
+    "title": "Canonical G009 runner and clean bootstrap",
+    "canonicalCommand": "node scripts/synthetic-agentic-autofill-e2e.mjs --magic-browser-tree <mb-tree>",
+    "canonicalCwd": "padloc Grove Tree root",
+    "canonicalScript": "padloc/scripts/synthetic-agentic-autofill-e2e.mjs",
+    "helperScript": "magic-browser/scripts/synthetic-agentic-autofill-e2e.mjs",
+    "helperRole": "browser/native setup helper invoked only by the canonical padloc runner; not a second documented command",
+    "evidenceDir": "padloc/.ch5/autopilot/agentic-autofill-unification-20260918/synthetic-e2e/",
+    "bootstrap": [
+      "install synthetic extension and native host",
+      "unlock synthetic vault",
+      "open synthetic checkout target",
+      "query privacy-status with exact target descriptor",
+      "if state is unknown, trusted extension autofill-observation-reset with the same exact descriptor",
+      "require state clean before first observation",
+      "classify, plan, approve or standing-policy, mint, apply, redacted receipt",
+      "prove privacy block, revoke, lock/logout, worker restart"
+    ],
+    "g010DocumentsOnly": "the canonical padloc command"
+  },
+  "C5": {
+    "title": "Proof authority",
+    "programAuthority": "padloc/.ch5/proof.yaml",
+    "missingKeys": "G008 failure, not optional UNKNOWN closure",
+    "requiredPadlocKeys": [
+      "agentic-autofill-core-model",
+      "agentic-autofill-1pux-import",
+      "agentic-autofill-passkey-contract",
+      "agentic-autofill-permission-engine",
+      "agentic-autofill-broker",
+      "agentic-autofill-privacy-gate",
+      "agentic-autofill-contract-fixtures",
+      "agentic-autofill-synthetic-e2e"
+    ],
+    "magicBrowserProofYaml": "G008 may add a consumer lane that padloc agentic-autofill-privacy-gate invokes; padloc remains program authority",
+    "addOwnsPathsToG008": [
+      "magic-browser/.ch5/proof.yaml"
+    ]
+  },
+  "C6": {
+    "title": "Canonical shared fixtures",
+    "canonicalFixture": "padloc/packages/extension/test/fixtures/agentic-autofill/contract.v1.json",
+    "padlocConsumer": "padloc/packages/extension/test/agentic-contract-fixtures.ts",
+    "magicBrowserConsumer": "magic-browser/src/runtime/agentic-contract-fixtures.test.ts",
+    "loadRule": "Magic Browser test loads the padloc canonical file via PADLOC_TREE or copies it locally only after recording sha256; drift is failure",
+    "addOwnsPathsToG008": [
+      "padloc/packages/extension/test/fixtures/agentic-autofill/contract.v1.json"
+    ]
+  },
+  "graph": {
+    "setRevision": 3,
+    "keepNodeCount": 10,
+    "keepDependencyWaves": true,
+    "doNotRegressA1A9": true
+  }
+}

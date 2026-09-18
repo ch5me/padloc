@@ -1,0 +1,4 @@
+Continue this mission now. Do not restate the transcript.
+Workspace: /Users/hassoncs/worktrees/ch5/padloc/agentic-autofill-unification-20260918
+Edit only: docs/specs/agentic-personal-data-vault.md, .ch5/autopilot/agentic-autofill-unification-20260918/plan.md, .ch5/autopilot/agentic-autofill-unification-20260918/test-spec.md, .ch5/autopilot/agentic-autofill-unification-20260918/graph-candidate.json, .ch5/autopilot/agentic-autofill-unification-20260918/plan-correction-report.json.
+Read `.ch5/autopilot/agentic-autofill-unification-20260918/critic-review.json` and apply `.ch5/autopilot/agentic-autofill-unification-20260918/critic-frozen-decisions.json` verbatim. Do not invent roles, modes, schemas, runners, proof keys, or fixture paths. Preserve A1-A9. Set graph revision to 3. Do not edit product source. Validate JSON and DAG/ownership, write the correction report mapping C1-C6, then stop with terminal RETURN.

@@ -5,6 +5,15 @@ export interface VerifiedPasskeySelectionMetadata {
     origin: string;
     rpId: string;
     candidates: readonly PasskeySelectionCandidate[];
+    flowId?: string;
+    ttlMs?: number;
+    topOrigin?: string;
+    target?: {
+        frameId: 0;
+        origin: string;
+        topOrigin: string;
+        documentId: string;
+    };
 }
 
 export interface PasskeySelectionPrompt extends VerifiedPasskeySelectionMetadata {
@@ -123,7 +132,36 @@ function validateMetadata(metadata: VerifiedPasskeySelectionMetadata): VerifiedP
             userDisplayName: boundedText(candidate.userDisplayName, "user display name", MAX_LABEL_LENGTH),
         });
     });
-    return { requestId, origin: normalizeVerifiedOrigin(metadata.origin), rpId, candidates };
+    const origin = normalizeVerifiedOrigin(metadata.origin);
+    if (metadata.flowId !== undefined) boundedText(metadata.flowId, "passkey flow id", MAX_REQUEST_ID_LENGTH);
+    if (
+        metadata.ttlMs !== undefined &&
+        (!Number.isInteger(metadata.ttlMs) || metadata.ttlMs < MIN_TTL_MS || metadata.ttlMs > MAX_TTL_MS)
+    ) {
+        throw new TypeError("Invalid passkey ceremony TTL");
+    }
+    if (metadata.topOrigin !== undefined && normalizeVerifiedOrigin(metadata.topOrigin) !== origin) {
+        throw new TypeError("Invalid passkey top origin");
+    }
+    if (
+        metadata.target &&
+        (metadata.target.frameId !== 0 ||
+            metadata.target.origin !== origin ||
+            metadata.target.topOrigin !== origin ||
+            !metadata.target.documentId)
+    ) {
+        throw new TypeError("Invalid passkey target");
+    }
+    return {
+        requestId,
+        origin,
+        rpId,
+        candidates,
+        ...(metadata.flowId ? { flowId: metadata.flowId } : {}),
+        ...(metadata.ttlMs !== undefined ? { ttlMs: metadata.ttlMs } : {}),
+        ...(metadata.topOrigin ? { topOrigin: metadata.topOrigin } : {}),
+        ...(metadata.target ? { target: Object.freeze({ ...metadata.target }) } : {}),
+    };
 }
 
 function validateNonce(value: string): string {
