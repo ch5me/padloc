@@ -80,7 +80,10 @@ const mutations = [
     {
         name: "Wrangler canonical route disagreement",
         mutate({ wrangler }) {
-            wrangler.value = wrangler.value.replace("staging.api.vault.elf.dance/*", "wrong.api.vault.elf.dance/*");
+            wrangler.value = wrangler.value.replace(
+                '{ pattern = "staging.api.vault.elf.dance", custom_domain = true }',
+                '{ pattern = "staging.api.vault.elf.dance/*", zone_name = "elf.dance" }'
+            );
         },
     },
 ];

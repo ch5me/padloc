@@ -86,7 +86,7 @@ class_name = "AccountLockDO"
 
 [env.staging]
 name = "padloc-worker-staging"
-routes = [{ pattern = "api-pad-staging.ch5.me/*", zone_name = "ch5.me" }, { pattern = "staging.api.vault.elf.dance/*", zone_name = "elf.dance" }]
+routes = [{ pattern = "api-pad-staging.ch5.me/*", zone_name = "ch5.me" }, { pattern = "staging.api.vault.elf.dance", custom_domain = true }]
 
 [env.staging.vars]
 ALLOW_ORIGIN = "https://staging.vault.elf.dance,https://pad-staging.ch5.me"
@@ -118,7 +118,7 @@ class_name = "AccountLockDO"
 
 [env.production]
 name = "padloc-worker"
-routes = [{ pattern = "api-pad.ch5.me/*", zone_name = "ch5.me" }, { pattern = "api.vault.elf.dance/*", zone_name = "elf.dance" }]
+routes = [{ pattern = "api-pad.ch5.me/*", zone_name = "ch5.me" }, { pattern = "api.vault.elf.dance", custom_domain = true }]
 
 [env.production.vars]
 ALLOW_ORIGIN = "https://vault.elf.dance,https://pad.ch5.me"

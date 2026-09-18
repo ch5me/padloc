@@ -206,7 +206,11 @@ function workerValue(block, key) {
 }
 
 function workerRoutes(block) {
-    return [...block.matchAll(/pattern\s*=\s*"([^"]+)"/g)].map((match) => match[1]);
+    return [...block.matchAll(/\{([^{}]*pattern\s*=\s*"([^"]+)"[^{}]*)\}/g)].map((match) => ({
+        pattern: match[2],
+        customDomain: /\bcustom_domain\s*=\s*true\b/.test(match[1]),
+        zoneName: match[1].match(/\bzone_name\s*=\s*"([^"]+)"/)?.[1] || null,
+    }));
 }
 
 function validateWrangler() {
@@ -234,13 +238,23 @@ function validateWrangler() {
                 `wrangler ${envName}.vars.ALLOW_ORIGIN disagrees with target ${stage}`
             );
             const routes = workerRoutes(block);
+            const canonicalHost = new URL(target.apiBaseUrl).host;
+            const legacyHost = new URL(target.legacyApiBaseUrl).host;
             assert(
-                routes.includes(`${new URL(target.apiBaseUrl).host}/*`),
-                `wrangler ${envName} is missing the canonical API route`
+                routes.some(
+                    (route) =>
+                        route.pattern === canonicalHost && route.customDomain === true && route.zoneName === null
+                ),
+                `wrangler ${envName} canonical API host must be an exact Worker custom domain`
             );
             assert(
-                routes.includes(`${new URL(target.legacyApiBaseUrl).host}/*`),
-                `wrangler ${envName} is missing the legacy API route`
+                routes.some(
+                    (route) =>
+                        route.pattern === `${legacyHost}/*` &&
+                        route.customDomain === false &&
+                        route.zoneName === new URL(target.legacyApiBaseUrl).hostname.split(".").slice(-2).join(".")
+                ),
+                `wrangler ${envName} is missing the legacy zone API route`
             );
         }
     }
