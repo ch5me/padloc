@@ -6,7 +6,7 @@ tags: [testing, ci, proof, validation]
 ---
 # Testing and Proof Lanes
 
-Setup is `npm ci`; formatting is `npm run format:check`; runtime/theme checks are `npm run runtime-config:check` and `npm run theme:check`. Prefer changed-only validation: `npm run test:changed -- --since hq/main` or `npm run test:changed -- --files <csv>`. General suites are `npm run test` and `npm run test:e2e`.
+Setup is `npm ci`; formatting is `npm run format:check`; runtime/theme checks are `npm run runtime-config:check` and `npm run theme:check`. Prefer changed-only validation: `npm run test:changed -- --since origin/main` or `npm run test:changed -- --files <csv>`. General suites are `npm run test` and `npm run test:e2e`.
 
 Worker default CI is `npm --prefix packages/worker run test:ci`, covering logging redaction, session contract, crypto parity, transport roundtrip, and vault CRUD. Additional runners cover auth, errors, metrics, multi-org isolation, seat quota, Firefly sync, HQ instrumentation, and R2 lifecycle. Extension validation is `npm run test:extension`, with Node, Playwright harness, RP, native, readiness, and headful-debug variants. Proof lanes are `npm run proof:all` and the individual `proof:*` scripts.
 

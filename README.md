@@ -74,11 +74,12 @@ the [web client](packages/pwa):
 git clone git@git.ch5.me:ch5/padloc.git
 cd padloc
 npm ci
-npm start
+ch5-svc up api web
+ch5-svc status
 ```
 
-The current local web client is available at `http://localhost:3000`, backed by
-the Worker at `http://127.0.0.1:8787`.
+Use the exact per-tree URLs printed by `ch5-svc status`. Do not assume fixed
+localhost ports; `pitchfork.toml` assigns ports per Grove Tree.
 
 ## Maintenance and Contributions
 
@@ -129,17 +130,13 @@ This may take a minute, so maybe grab a cup of ☕️.
 To start "dev mode", simply run
 
 ```sh
-npm run dev
+ch5-svc up api web
+ch5-svc status
 ```
 
-from the root of the project. This will start the Cloudflare Worker backend on
-`http://127.0.0.1:8787`, as well as the PWA (available on
-`http://localhost:3000`) by default.
-
-The worker and PWA port can be changed via the `PL_WORKER_PORT` and
-`PL_PWA_PORT` environment variables, respectively. For more configuration
-options, check out the worker config in `packages/worker/wrangler.toml` and the
-[pwa](packages/pwa#configuration).
+This starts the Cloudflare Worker backend and PWA through the `ch5-svc` front
+door. Use the URLs it prints; service ports are dynamic per Grove Tree.
+`npm run dev` remains a compatibility alias for `ch5-svc up web`.
 
 ### Formatting
 
@@ -199,7 +196,7 @@ npm run test:extension
 For iteration, use changed-only CH5 planning first:
 
 ```sh
-npm run test:changed -- --since hq/main
+npm run test:changed -- --since origin/main
 ```
 
 The extension harness is headless by default. For visual debugging only:

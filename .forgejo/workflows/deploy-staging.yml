@@ -12,19 +12,6 @@ on:
     push:
         branches:
             - main
-        paths:
-            - ".forgejo/workflows/deploy-staging.yml"
-            - "packages/worker/**"
-            - "packages/pwa/**"
-            - "packages/core/**"
-            - "packages/locale/**"
-            - "assets/**"
-            - "config/**"
-            - "scripts/**"
-            - "package.json"
-            - "package-lock.json"
-            - "packages/*/package.json"
-            - "packages/*/package-lock.json"
 
 concurrency:
     group: padloc-staging
@@ -59,6 +46,20 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.sha }}
+                  fetch-depth: 0
+            - name: Verify current-main deploy candidate
+              env:
+                  EXPECTED_SHA: ${{ github.sha }}
+              run: |
+                  if ! printf '%s' "$EXPECTED_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+                    echo "github.sha must be a full lowercase 40-character Git SHA" >&2
+                    exit 2
+                  fi
+                  test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+                  git fetch --no-tags origin main
+                  test "$(git rev-parse origin/main)" = "$EXPECTED_SHA"
             - uses: actions/setup-node@v4
               with:
                   node-version-file: ".nvmrc"

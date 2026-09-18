@@ -1,0 +1,3 @@
+mode: auto
+requiredCleanRuns: 3
+forceFullBoundaries: [staging->production]

@@ -1,0 +1,8 @@
+version: 2
+
+# The Worker API preset supplies the shared validation, coverage, and launch-gate
+# commands. Repo-owned proof lanes stay empty until they can publish durable
+# evidence instead of claiming an unproved test result.
+extends: ch5:worker-api
+commands: {}
+proofs: []

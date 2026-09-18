@@ -34,10 +34,22 @@ const disableCsp = process.env.PL_PWA_DISABLE_CSP === "true";
 
 const { name, terms_of_service } = require(join(assetsDir, "manifest.json"));
 
-const isBuildingLocally = pwaUrl.includes(".localhost") || pwaUrl.startsWith("http://localhost");
+const isBuildingLocally = (() => {
+    try {
+        const hostname = new URL(pwaUrl).hostname;
+        return hostname === "localhost" || hostname === "127.0.0.1" || hostname.endsWith(".localhost");
+    } catch {
+        return pwaUrl.includes(".localhost") || pwaUrl.startsWith("http://localhost") || pwaUrl.startsWith("http://127.0.0.1");
+    }
+})();
 const pwaWebSocket = new URL(pwaUrl);
 if (!pwaWebSocket.port && pwaPort) pwaWebSocket.port = String(pwaPort);
 const pwaWebSocketUrl = pwaWebSocket.toString().replace(/^http/, "ws").replace(/\/$/, "");
+const allowedHosts = [pwaHost];
+if (isBuildingLocally) {
+    // ch5-svc routes through per-tree localhost and company dev hostnames.
+    allowedHosts.push(".localhost", ".dev.ch5.me");
+}
 
 const htmlMetaTags = disableCsp
     ? {}
@@ -300,7 +312,7 @@ module.exports = {
     devServer: {
         historyApiFallback: true,
         host: "0.0.0.0",
-        allowedHosts: [pwaHost],
+        allowedHosts,
         ...(pwaPort ? { port: pwaPort } : {}),
         // hot: false,
         // liveReload: false,

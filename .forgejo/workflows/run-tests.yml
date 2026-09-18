@@ -16,6 +16,7 @@ on:
             - "scripts/**"
             - "package.json"
             - "package-lock.json"
+            - "pitchfork.toml"
             - "packages/*/package.json"
             - "packages/*/package-lock.json"
             - "packages/**"
@@ -68,6 +69,8 @@ jobs:
                   fi
             - name: Validate runtime contract
               run: npm run runtime-config:check
+            - name: Validate local service configuration
+              run: npm run test:services
             - name: Run pwa production artifact build
               env:
                   PL_SERVER_URL: https://api-pad-staging.ch5.me

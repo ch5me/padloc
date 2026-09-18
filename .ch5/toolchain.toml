@@ -14,6 +14,10 @@ command = "test -f package.json"
 name = "native build Python"
 command = "bash scripts/check-native-build-python.sh"
 
+[[verify]]
+name = "runtime config contract"
+command = "npm run runtime-config:check"
+
 [deps]
 install = "npm ci --ignore-scripts && bash scripts/ci-bootstrap-workspaces.sh"
 

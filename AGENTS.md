@@ -20,7 +20,7 @@ ch5-svc logs <name>   # tail one service
 ch5-svc down          # stop this repo's services only
 ```
 
-Services here: `api`, `web`, `v3`, `maildev`, `tauri`
+Services here: `api`, `web`, `v3`, `maildev`, `tauri`, `openwiki`
 
 URLs are `http://<service>.<tree>.localhost:7300/`, where `<tree>` is the
 directory basename — the repo name in the canonical checkout, the Grove Tree name
