@@ -128,7 +128,7 @@ test("deployed canary fixture covers API, PWA, CORS, CSP, assets, and old hosts"
         });
         const dist = path.join(directory, "dist");
         await mkdir(dist, { recursive: true });
-        const html = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src http://127.0.0.1:${port}/api/new; worker-src http://127.0.0.1:${port}/new; script-src http://127.0.0.1:${port}"><script src="/main.js"></script><title>Elf Vault</title>`;
+        const html = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src http://127.0.0.1:${port}/api/new; worker-src 'self'; script-src 'self'"><script src="/main.js"></script><title>Elf Vault</title>`;
         await writeFile(path.join(dist, "index.html"), html);
         await writeFile(path.join(dist, "manifest.json"), JSON.stringify({ name: "Elf Vault" }));
         await writeFile(path.join(dist, "sw.js"), "self.addEventListener('fetch', () => {});");

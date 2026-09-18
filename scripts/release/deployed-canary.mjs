@@ -274,8 +274,11 @@ async function checkPwa(fetchImpl, target, expectedSha, timeoutMs) {
         .filter(Boolean);
     const cspParts = [header(htmlResponse, "content-security-policy"), ...cspMetaValues].join(" ");
     if (!cspParts) fail("PWA index.html has no Content-Security-Policy");
-    if (!cspParts.includes(originOf(target.appUrl)) || !cspParts.includes(originOf(target.apiBaseUrl))) {
-        fail("PWA CSP does not include the configured app and API origins");
+    if (!/\b(?:script-src|font-src|img-src|manifest-src)[^;]*'self'/i.test(cspParts)) {
+        fail("PWA CSP does not allow same-origin application assets");
+    }
+    if (!cspParts.includes(originOf(target.apiBaseUrl))) {
+        fail("PWA CSP does not include the configured API origin");
     }
     assertHash(htmlBytes, provenance.hashes?.indexHtml, "PWA index.html");
 
