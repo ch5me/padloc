@@ -24,6 +24,14 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
+target_field() {
+  node scripts/release/target-config.mjs --stage staging --field "$1"
+}
+
+staging_app_url="$(target_field appUrl)"
+staging_api_url="$(target_field apiBaseUrl)"
+staging_pages_project="$(target_field pagesProject)"
+
 deploy_sha="${PADLOC_DEPLOY_SHA:-$(git rev-parse HEAD)}"
 if ! [[ "$deploy_sha" =~ ^[0-9a-f]{40}$ ]]; then
   echo "PADLOC_DEPLOY_SHA must be a full 40-character Git SHA" >&2
@@ -72,14 +80,16 @@ fi
 npm run runtime-config:check
 
 # Build and gate the exact Pages artifact before any remote migration or Worker mutation.
-PL_BUILD_ENV=production PL_SERVER_URL="https://api-pad-staging.ch5.me" PL_PWA_URL="https://pad-staging.ch5.me" npm run pwa:build
+PL_BUILD_ENV=production PL_SERVER_URL="$staging_api_url" PL_PWA_URL="$staging_app_url" npm run pwa:build
+node scripts/release/write-pwa-provenance.mjs --stage staging --sha "$PADLOC_DEPLOY_SHA"
 npm run pwa:check
 
 # All Cloudflare-authenticated steps run under the governed ch5-padloc-staging token.
 # The token env vars propagate to every wrangler subprocess (migrate, worker, Pages).
+export STAGING_PAGES_PROJECT="$staging_pages_project"
 hush run --target wrangler-deploy-staging -- bash -euo pipefail -c '
   npm run worker:migrate:staging
   npm --prefix packages/worker exec -- wrangler deploy --config packages/worker/wrangler.toml --env=staging --var "VERSION:${PADLOC_DEPLOY_SHA}" --var "HQ_RELEASE:padloc-worker@${PADLOC_DEPLOY_SHA}"
   npm run pwa:check
-  ./node_modules/.bin/wrangler pages deploy packages/pwa/dist --project-name padloc-pwa-staging --branch main
+  ./node_modules/.bin/wrangler pages deploy packages/pwa/dist --project-name "$STAGING_PAGES_PROJECT" --branch main
 '

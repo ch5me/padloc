@@ -1,0 +1,12 @@
+{"event":"architect_review","verdict":"ITERATE","date":"2026-09-18","required":["old-origin functional proof","production entrypoint preflight","PWA SHA provenance","native release scope"]}
+{"event":"plan_patch","date":"2026-09-18","applied":["old-origin functional proof","production entrypoint preflight","PWA SHA provenance","native source versus signed release scope"]}
+{"event":"critic_review","verdict":"ITERATE","date":"2026-09-18","required":["test identity and command","provenance schema and consumer","ownership repair","domain operator commands and receipts","staging versus production sibling dependencies"]}
+{"event":"plan_patch","date":"2026-09-18","applied":["agent-test old-origin smoke contract","elf-vault.pwa-provenance.v1","exclusive runtime/email ownership","ch5-infra Terraform domain receipts","split sibling staging/production nodes"]}
+{"event":"delta_architect_review","verdict":"ITERATE","date":"2026-09-18","required":["own identity provisioner and old-origin smoke","update Elf Vault email subject matcher","consume stage smoke results"]}
+{"event":"plan_patch","date":"2026-09-18","applied":["identity-smoke worker owns provisioner and proof command","stage nodes invoke old-origin smoke","Elf Vault email subject matcher required"]}
+{"event":"critic_review","verdict":"ITERATE","date":"2026-09-18","required":["replace nonexistent agent-test target with runtime-staging/runtime-production","name exact Hush smoke commands","do not mutate credentials"]}
+{"event":"plan_patch","date":"2026-09-18","applied":["stage-specific existing Hush targets","exact provisioner and smoke commands","credential mutation explicitly forbidden"]}
+{"event":"delta_architect_review","verdict":"APPROVE","date":"2026-09-18"}
+{"event":"critic_review","verdict":"APPROVE","date":"2026-09-18"}
+{"event": "implementation_review", "date": "2026-09-18", "verdict": "APPROVE_AFTER_FIXES", "fixes": ["origin-safe PWA CSP", "old-origin functional smoke gates", "production clean-tree gate", "bounded canary timeout", "release branding scan and labels", "production preflight negative tests"]}
+{"event": "local_qa", "date": "2026-09-18", "verdict": "PASS", "proof": ["runtime config positive/negative", "Worker CORS/security", "email generation", "customer surface scan", "extension production build/preflight", "staging and production PWA production build/check", "release contract tests", "Worker dry-run", "local Elf Vault web/API serving"]}

@@ -32,7 +32,7 @@ targets:
     info:
       path: CredentialProvider/Info.plist
       properties:
-        CFBundleDisplayName: CH5 Auth Passkeys
+        CFBundleDisplayName: Elf Vault Passkeys
         NSExtension:
           NSExtensionPointIdentifier: com.apple.authentication-services-credential-provider-ui
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).CredentialProviderViewController
@@ -62,7 +62,7 @@ targets:
     info:
       path: Host/Info.plist
       properties:
-        CFBundleDisplayName: CH5 Auth Passkeys
+        CFBundleDisplayName: Elf Vault Passkeys
         LSApplicationCategoryType: public.app-category.productivity
         NSPrincipalClass: NSApplication
     entitlements:
@@ -73,7 +73,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: me.ch5.auth.dev.passkeys
-        PRODUCT_NAME: CH5 Auth Passkeys
+        PRODUCT_NAME: Elf Vault Passkeys
   CH5AuthNativeCoreTests:
     type: bundle.unit-test
     platform: macOS

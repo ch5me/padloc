@@ -4,7 +4,7 @@ import { Err, ErrorCode } from "@padloc/core/src/error";
 import { IdempotencyStore, hashRequestBody } from "./idempotency";
 import { sanitizeError } from "./error";
 import { RateLimiter } from "./rate-limiter";
-import { responseHeaders } from "./observability/security-headers";
+import { CorsConfig, responseHeaders } from "./observability/security-headers";
 import { captureHqException } from "./hq-instrumentation";
 import { incrementMetric, renderMetrics } from "./metrics";
 
@@ -12,10 +12,10 @@ const DEFAULT_MAX_REQUEST_SIZE = 25 * 1024 * 1024;
 const DEFAULT_MAX_REQUEST_AGE_MS = 5 * 60 * 1000;
 const DEFAULT_CLOCK_SKEW_TOLERANCE_MS = 30 * 1000;
 
-function errorResponse(err: Err, allowOrigin: string): Response {
+function errorResponse(err: Err, corsConfig: CorsConfig): Response {
     return new Response(JSON.stringify({ error: { code: err.code, message: err.message } }), {
         status: statusForError(err),
-        headers: responseHeaders({ allowOrigin: allowOrigin || "*" }, undefined, {
+        headers: responseHeaders(corsConfig, undefined, {
             "Content-Type": "application/json; charset=utf-8",
         }),
     });
@@ -46,6 +46,7 @@ function statusForError(err: Err): number {
 
 export class WorkerReceiverConfig {
     allowOrigin: string = "*";
+    allowedOrigins?: string[];
     maxRequestSize: number = DEFAULT_MAX_REQUEST_SIZE;
     maxRequestAgeMs: number = DEFAULT_MAX_REQUEST_AGE_MS;
     clockSkewToleranceMs: number = DEFAULT_CLOCK_SKEW_TOLERANCE_MS;
@@ -76,26 +77,26 @@ export class WorkerReceiver implements Receiver {
         handler: (req: Request) => Promise<CoreResponse>
     ): Promise<Response> {
         const url = new URL(request.url);
-        const allowOrigin = this.config.allowOrigin;
+        const corsConfig = this.corsConfig(request);
 
         if (request.method === "OPTIONS") {
             return new Response(null, {
                 status: 204,
-                headers: responseHeaders({ allowOrigin: allowOrigin || "*" }),
+                headers: responseHeaders(corsConfig),
             });
         }
 
         if (request.method === "GET" && url.pathname === this.config.healthCheckPath) {
             return new Response(null, {
                 status: 200,
-                headers: responseHeaders({ allowOrigin: allowOrigin || "*" }),
+                headers: responseHeaders(corsConfig),
             });
         }
 
         if (request.method === "GET" && url.pathname === this.config.metricsPath) {
             return new Response(renderMetrics(), {
                 status: 200,
-                headers: responseHeaders({ allowOrigin: allowOrigin || "*" }, undefined, {
+                headers: responseHeaders(corsConfig, undefined, {
                     "Content-Type": "text/plain; version=0.0.4; charset=utf-8",
                 }),
             });
@@ -107,7 +108,7 @@ export class WorkerReceiver implements Receiver {
 
         return new Response(JSON.stringify({ error: { code: ErrorCode.BAD_REQUEST, message: "Method not allowed" } }), {
             status: 405,
-            headers: responseHeaders({ allowOrigin: allowOrigin || "*" }, undefined, {
+            headers: responseHeaders(corsConfig, undefined, {
                 "Content-Type": "application/json; charset=utf-8",
             }),
         });
@@ -117,7 +118,7 @@ export class WorkerReceiver implements Receiver {
         request: globalThis.Request,
         handler: (req: Request) => Promise<CoreResponse>
     ): Promise<Response> {
-        const allowOrigin = this.config.allowOrigin;
+        const corsConfig = this.corsConfig(request);
         const identity =
             request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "anonymous";
 
@@ -132,7 +133,7 @@ export class WorkerReceiver implements Receiver {
                     }),
                     {
                         status: 429,
-                        headers: responseHeaders({ allowOrigin: allowOrigin || "*" }, undefined, {
+                        headers: responseHeaders(corsConfig, undefined, {
                             "Content-Type": "application/json; charset=utf-8",
                             "Retry-After": String(Math.ceil((rateResult.retryAfterMs || 0) / 1000)),
                         }),
@@ -149,7 +150,7 @@ export class WorkerReceiver implements Receiver {
                     ErrorCode.MAX_REQUEST_SIZE_EXCEEDED,
                     `Request body exceeds maximum size of ${this.config.maxRequestSize} bytes`
                 ),
-                allowOrigin,
+                corsConfig,
                 "unknown"
             );
         }
@@ -163,7 +164,7 @@ export class WorkerReceiver implements Receiver {
             incrementMetric("padloc_rpc_total", { method: "unknown" });
             return metricErrorResponse(
                 new Err(ErrorCode.INVALID_REQUEST, "Failed to parse request body"),
-                allowOrigin,
+                corsConfig,
                 "unknown"
             );
         }
@@ -175,7 +176,7 @@ export class WorkerReceiver implements Receiver {
         if (!validateRequestAge(rawRequest, this.config)) {
             return metricErrorResponse(
                 new Err(ErrorCode.MAX_REQUEST_AGE_EXCEEDED, "Request timestamp outside acceptable window"),
-                allowOrigin,
+                corsConfig,
                 method
             );
         }
@@ -190,7 +191,7 @@ export class WorkerReceiver implements Receiver {
                 headers: {
                     "Content-Type": "application/json; charset=utf-8",
                     "Idempotency-Replayed": "true",
-                    ...responseHeaders({ allowOrigin: allowOrigin || "*" }),
+                    ...responseHeaders(corsConfig),
                 },
             });
         }
@@ -206,7 +207,7 @@ export class WorkerReceiver implements Receiver {
                         "padloc.error.report": true,
                     });
                 }
-                return metricErrorResponse(unknown, allowOrigin, method);
+                return metricErrorResponse(unknown, corsConfig, method);
             }
             const sanitized = sanitizeError(unknown);
             if (sanitized.report) {
@@ -215,7 +216,7 @@ export class WorkerReceiver implements Receiver {
                     "padloc.error.report": true,
                 });
             }
-            return metricErrorResponse(sanitized, allowOrigin, method);
+            return metricErrorResponse(sanitized, corsConfig, method);
         }
 
         const raw = res.toRaw(req.device?.appVersion);
@@ -232,17 +233,25 @@ export class WorkerReceiver implements Receiver {
         const resBody = marshal(raw);
         return new Response(resBody, {
             status: 200,
-            headers: responseHeaders({ allowOrigin: allowOrigin || "*" }, undefined, {
+            headers: responseHeaders(corsConfig, undefined, {
                 "Content-Type": "application/json; charset=utf-8",
                 "Content-Length": String(new TextEncoder().encode(resBody).byteLength),
             }),
         });
     }
+
+    private corsConfig(request: globalThis.Request): CorsConfig {
+        return {
+            allowOrigin: this.config.allowOrigin || "*",
+            allowedOrigins: this.config.allowedOrigins,
+            requestOrigin: request.headers.get("Origin"),
+        };
+    }
 }
 
-function metricErrorResponse(err: Err, allowOrigin: string, method: string): Response {
+function metricErrorResponse(err: Err, corsConfig: CorsConfig, method: string): Response {
     incrementMetric("padloc_rpc_error_total", { method, code: String(err.code) });
-    return errorResponse(err, allowOrigin);
+    return errorResponse(err, corsConfig);
 }
 
 function validateRequestAge(rawRequest: Record<string, unknown>, config: WorkerReceiverConfig): boolean {

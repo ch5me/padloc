@@ -1,4 +1,4 @@
-name: Public Release Staging
+name: Elf Vault Public Release Staging
 
 on:
     push:
@@ -42,6 +42,10 @@ jobs:
             - uses: actions/setup-node@v4
               with:
                   node-version-file: ".nvmrc"
+            - name: Resolve staging release host
+              run: |
+                  echo "PL_SERVER_URL=$(node scripts/release/target-config.mjs --stage staging --field apiBaseUrl)" >> "$GITHUB_ENV"
+                  echo "RELEASE_DOWNLOAD_BASE_URL=$(node scripts/release/target-config.mjs --stage staging --field apiBaseUrl)/public-releases" >> "$GITHUB_ENV"
             - name: Install dependencies
               run: |
                   env -u ESBUILD_BINARY_PATH npm ci --ignore-scripts
@@ -49,23 +53,21 @@ jobs:
             - name: Build and verify unsigned staging extension
               env:
                   PL_BUILD_ENV: production
-                  PL_SERVER_URL: https://api-pad-staging.ch5.me
               run: |
                   npm --prefix packages/extension test
                   npm run web-extension:build
                   npm --prefix packages/extension run preflight:dist
                   if find packages/extension/dist -type f -name '*.map' -print -quit | grep -q .; then exit 1; fi
                   version=$(node -p "require('./package.json').version")
-                  scripts/package-web-extension.sh --extension-dir packages/extension/dist --zip-file "ch5-auth-${version}-web-extension-unsigned.zip"
+                  scripts/package-web-extension.sh --extension-dir packages/extension/dist --zip-file "elf-vault-${version}-web-extension-unsigned.zip"
             - name: Generate manifest and release-note draft
               env:
                   RELEASE_CHANNEL: staging
                   RELEASE_VERSION: ${{ vars.CH5_AUTH_RELEASE_VERSION || '4.3.0' }}
                   RELEASE_SHA: ${{ github.sha }}
                   RELEASE_TAG: release-v${{ vars.CH5_AUTH_RELEASE_VERSION || '4.3.0' }}-${{ github.sha }}
-                  RELEASE_ASSET: ch5-auth-${{ vars.CH5_AUTH_RELEASE_VERSION || '4.3.0' }}-web-extension-unsigned.zip
+                  RELEASE_ASSET: elf-vault-${{ vars.CH5_AUTH_RELEASE_VERSION || '4.3.0' }}-web-extension-unsigned.zip
                   RELEASE_BASE_URL: ${{ github.server_url }}/${{ github.repository }}
-                  RELEASE_DOWNLOAD_BASE_URL: https://api-pad-staging.ch5.me/public-releases
                   RELEASE_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
                   RELEASE_BUILD: ${{ github.run_number }}
               run: |
@@ -77,7 +79,7 @@ jobs:
                   FORGEJO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   TAG: release-v${{ vars.CH5_AUTH_RELEASE_VERSION || '4.3.0' }}-${{ github.sha }}
                   VERSION: ${{ vars.CH5_AUTH_RELEASE_VERSION || '4.3.0' }}
-              run: bash scripts/release/publish-forgejo.sh immutable manifest.json RELEASE_NOTES.md "ch5-auth-${VERSION}-web-extension-unsigned.zip"
+              run: bash scripts/release/publish-forgejo.sh immutable manifest.json RELEASE_NOTES.md "elf-vault-${VERSION}-web-extension-unsigned.zip"
             - name: Update staging channel pointer
               env:
                   FORGEJO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -95,7 +97,7 @@ jobs:
               env:
                   TAG: release-v${{ vars.CH5_AUTH_RELEASE_VERSION || '4.3.0' }}-${{ github.sha }}
               run: |
-                  hush run --target wrangler-deploy-staging -- bash scripts/release/publish-public-r2.sh immutable manifest.json RELEASE_NOTES.md "ch5-auth-${{ vars.CH5_AUTH_RELEASE_VERSION || '4.3.0' }}-web-extension-unsigned.zip"
+                  hush run --target wrangler-deploy-staging -- bash scripts/release/publish-public-r2.sh immutable manifest.json RELEASE_NOTES.md "elf-vault-${{ vars.CH5_AUTH_RELEASE_VERSION || '4.3.0' }}-web-extension-unsigned.zip"
                   hush run --target wrangler-deploy-staging -- bash scripts/release/publish-public-r2.sh pointer manifest.json
             - name: Public download canary
-              run: npm run release:canary -- "https://api-pad-staging.ch5.me/public-releases/channels/staging/latest.json"
+              run: npm run release:canary -- "${RELEASE_DOWNLOAD_BASE_URL}/channels/staging/latest.json"

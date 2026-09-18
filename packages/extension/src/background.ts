@@ -286,7 +286,7 @@ async function resolvePasskeyRequest(
 
         const application = await getApp();
         if (!application.state.loggedIn || application.state.locked) {
-            respond(passkeyErrorResult(msg, "NotAllowedError", "Unlock Padloc to use this passkey"));
+            respond(passkeyErrorResult(msg, "NotAllowedError", "Unlock Elf Vault to use this passkey"));
             return;
         }
 
@@ -435,7 +435,7 @@ function createVaultPasskeyRepository(application: App): PasskeyCredentialReposi
         },
         async createCredential(credential) {
             const vault = application.mainVault;
-            if (!vault) throw new PasskeyProviderError("NotAllowedError", "A writable Padloc vault is required");
+            if (!vault) throw new PasskeyProviderError("NotAllowedError", "A writable vault is required to use Elf Vault");
             let created: VaultItem | null = null;
             try {
                 created = await application.createItem({
@@ -498,7 +498,7 @@ function passkeyErrorResult(
 
 function passkeyErrorFromUnknown(msg: Extract<Message, { type: "passkeyRequest" }>, error: unknown): PasskeyResult {
     if (error instanceof PasskeyProviderError) return passkeyErrorResult(msg, error.name, error.message);
-    return passkeyErrorResult(msg, "OperationError", "Padloc could not complete the passkey request");
+    return passkeyErrorResult(msg, "OperationError", "Elf Vault could not complete the passkey request");
 }
 
 async function handleRuntimeMessage(msg: Message, sender: Runtime.MessageSender) {
@@ -570,7 +570,7 @@ async function handleRuntimeMessage(msg: Message, sender: Runtime.MessageSender)
             }
             requireExtensionUiSender(sender);
             if (application.state.locked || !application.state.loggedIn) {
-                throw new Error("Agentic autofill fixtures require an unlocked signed-in Padloc vault");
+                throw new Error("Agentic autofill fixtures require an unlocked, signed-in Elf Vault account");
             }
             return seedAgenticAutofillFixtures();
         case "getPasskeyApprovalPrompt":
@@ -818,7 +818,7 @@ async function updateBadgeAndContextMenu() {
         actionApi.setTitle({ title: "Please Log In" });
     } else {
         actionApi.setIcon({ path: "icon.png" });
-        actionApi.setTitle({ title: "CH5 Auth" });
+        actionApi.setTitle({ title: "Elf Vault" });
     }
 
     // Update context menu
@@ -1221,7 +1221,7 @@ function requireExtensionUiSender(sender: Runtime.MessageSender): string {
     const senderUrl = sender.url || "";
     const extensionOrigin = `chrome-extension://${browser.runtime.id}/`;
     if (!senderUrl.startsWith(extensionOrigin)) {
-        throw new Error("Autofill approval requires Padloc extension UI sender");
+        throw new Error("Autofill approval requires Elf Vault extension UI sender");
     }
     return senderUrl;
 }
@@ -1336,7 +1336,7 @@ async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, appli
     }
 
     if (request.type === "approve") {
-        throw new Error("Autofill approval requires Padloc approval UI");
+        throw new Error("Autofill approval requires Elf Vault approval UI");
     }
 
     if (request.type === "mint-fill-bundle") {
@@ -1722,7 +1722,7 @@ async function processPendingNativeBrokerRequest(application: App): Promise<void
             protocolVersion: 1,
             requestId: typeof failedRequest.requestId === "string" ? failedRequest.requestId : undefined,
             vaultState: application.state.locked ? "locked" : "unknown",
-            reason: error instanceof Error ? error.message : "Padloc native broker request failed",
+            reason: error instanceof Error ? error.message : "Elf Vault native broker request failed",
             audit: {
                 operation: failedRequest.type || "status",
                 sessionId: failedRequest.binding?.sessionId || null,

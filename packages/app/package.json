@@ -65,5 +65,5 @@
         "chai": "4.3.4",
         "mocha": "9.2.2"
     },
-    "description": "Padloc Web-Based UI package"
+    "description": "Elf Vault Web-Based UI package"
 }

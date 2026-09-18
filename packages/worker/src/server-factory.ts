@@ -38,8 +38,15 @@ export function createServer(env: Env): Server {
     config.verifyEmailOnSignup = env.EMAIL_VERIFY_ON_SIGNUP !== "false";
     if (env.CLIENT_URL) {
         config.clientUrl = env.CLIENT_URL;
-    } else if (env.ALLOW_ORIGIN && env.ALLOW_ORIGIN !== "*") {
-        config.clientUrl = env.ALLOW_ORIGIN;
+    } else {
+        const configuredOrigins = env.ALLOWED_ORIGINS || env.ALLOW_ORIGIN;
+        const clientUrl = configuredOrigins
+            ?.split(/[,\n]/)
+            .map((origin) => origin.trim())
+            .find((origin) => origin && origin !== "*");
+        if (clientUrl) {
+            config.clientUrl = clientUrl;
+        }
     }
 
     return new Server(

@@ -583,9 +583,9 @@ export class LoginOrSignup extends StartForm {
 
         const choice = await alert(
             $l(
-                "You don't have a Padloc 4 account yet but we've found " +
-                    "an account from an older version. " +
-                    "Would you like to migrate your account to Padloc 4 now?"
+                "You don't have an Elf Vault account yet but we've found " +
+                    "an account from the legacy Padloc 4 version. " +
+                    "Would you like to migrate your account to Elf Vault now?"
             ),
             {
                 title: "Account Migration",
@@ -595,7 +595,7 @@ export class LoginOrSignup extends StartForm {
         );
 
         if (choice === 1) {
-            window.open("https://padloc.app/help/migrate-v3", "_system");
+            window.open("https://vault.elf.dance/help/migrate-v3", "_system");
             return this._migrateLegacyAccount(authResponse);
         } else if (choice === 2) {
             this._submitEmailButton.stop();
@@ -637,10 +637,10 @@ export class LoginOrSignup extends StartForm {
 
             await alert(
                 $l(
-                    "All done! Please note that you won't be able to access your Padloc 4 account " +
+                    "All done! Please note that you won't be able to access your Elf Vault account " +
                         "with older versions of the app, so please make sure you have the latest version installed " +
                         "on all your devices! (You can find download links for all platforms at " +
-                        "https://padloc.app/downloads/). Enjoy using Padloc 4!"
+                        "https://vault.elf.dance/downloads/). Enjoy using Elf Vault!"
                 ),
                 {
                     title: $l("Migration Complete"),

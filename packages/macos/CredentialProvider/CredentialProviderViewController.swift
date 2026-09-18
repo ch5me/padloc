@@ -64,7 +64,7 @@ final class CredentialProviderViewController: ASCredentialProviderViewController
                 clientDataHash: request.clientDataHash
             )
             guard let verification = await userVerifier.verify(
-                reason: "Verify to save this passkey in CH5 Auth",
+                reason: "Verify to save this passkey in Elf Vault",
                 binding: binding
             ) else {
                 mark("verification-cancelled")
@@ -208,7 +208,7 @@ final class CredentialProviderViewController: ASCredentialProviderViewController
                 clientDataHash: request.clientDataHash
             )
             guard let verification = await userVerifier.verify(
-                reason: "Verify to use this CH5 Auth passkey",
+                reason: "Verify to use this Elf Vault passkey",
                 binding: binding
             ) else {
                     logger.notice("assertion verification result=cancelled")

@@ -1,4 +1,4 @@
-# @padloc/tauri
+# Elf Vault Tauri App
 
 Native cross-platform app, powered by
 [Tauri](https://github.com/tauri-apps/tauri).
@@ -6,7 +6,7 @@ Native cross-platform app, powered by
 ## Setup
 
 The `@padloc/tauri` package is meant to be used from within the
-[Padloc monorepo](../../README.md).
+[Elf Vault monorepo](../../README.md).
 
 ```sh
 git clone git@github.com:padloc/padloc.git
@@ -52,5 +52,5 @@ npm run dev
 
 ## Contributing
 
-For info on how to contribute to Padloc, please refer to the
+For info on how to contribute to Elf Vault, please refer to the
 [monorepo readme](../../README.md#contributing).

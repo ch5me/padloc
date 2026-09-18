@@ -1,0 +1,16 @@
+{
+  "schema": "agent.workflow.plan.v1",
+  "runId": "elf-vault-rebrand-20260918",
+  "nodes": [
+    {"id":"runtime","dependsOn":[],"owner":"runtime-worker","paths":["config/environment-targets.json","config/runtime-requirements.json","packages/worker/wrangler.toml","packages/worker/src/env.ts","packages/worker/src/index.ts","packages/worker/src/transport.ts","packages/worker/src/server-factory.ts","packages/worker/src/observability/security-headers.ts","packages/worker/test/security-headers.test.mjs","scripts/check-runtime-config.mjs","scripts/check-runtime-config.negative.test.mjs"]},
+    {"id":"brand","dependsOn":[],"owner":"brand-worker","paths":["assets/app-icon.png","assets/app-icon.svg","assets/app-icon.ico","assets/app-icon.icns","assets/icons","assets/logo-light.svg","assets/logo-dark.svg","assets/manifest.json","assets/support.md","packages/pwa","packages/app","packages/locale","packages/extension","packages/cordova","packages/electron","packages/tauri","packages/macos","scripts/check-customer-surface.mjs","scripts/check-pwa-dist.cjs","scripts/check-pwa-dist.test.cjs"]},
+    {"id":"email","dependsOn":[],"owner":"email-worker","paths":["assets/email","scripts/bundle-templates.ts","packages/worker/src/email/templates.ts"]},
+    {"id":"identity-smoke","dependsOn":["email"],"owner":"identity-smoke-worker","paths":["scripts/provision-agent-test-identity.mjs","scripts/proof-old-origin-pwa.mjs"]},
+    {"id":"release","dependsOn":["runtime"],"owner":"release-worker","paths":["scripts/deploy-staging","scripts/deploy-production","scripts/release",".forgejo/workflows","docs/production-promotion.md","docs/product-catalog-integration.md"]},
+    {"id":"integration","dependsOn":["runtime","brand","email","identity-smoke","release"],"owner":"coordinator","paths":["package.json",".ch5/autopilot/elf-vault-rebrand-20260918"]},
+    {"id":"staging","dependsOn":["integration"],"owner":"release-operator","paths":["ch5-infra/cloudflare/pages/domains.tf","ch5-infra/cloudflare/dns/dns_explicit.tf",".ch5/autopilot/elf-vault-rebrand-20260918/domain-receipts/staging.json"],"acceptance":["hush run -t runtime-staging -- npm run agent:test-identity -- staging","hush run -t runtime-staging -- node scripts/proof-old-origin-pwa.mjs --stage staging"]},
+    {"id":"production","dependsOn":["staging"],"owner":"release-operator","paths":["ch5-infra/cloudflare/pages/domains.tf","ch5-infra/cloudflare/dns/dns_explicit.tf",".ch5/autopilot/elf-vault-rebrand-20260918/domain-receipts/production.json"],"acceptance":["hush run -t runtime-production -- npm run agent:test-identity -- production","hush run -t runtime-production -- node scripts/proof-old-origin-pwa.mjs --stage production"]},
+    {"id":"siblings-staging","dependsOn":["staging"],"owner":"sibling-owners","paths":["ch5-devtools/packages/tooling/cloud-work/src/fleet.ts","ch5-company/config/monitoring/coverage.json"]},
+    {"id":"siblings-production","dependsOn":["production"],"owner":"sibling-owners","paths":["ch5-devtools/packages/tooling/cloud-work/src/fleet.ts","ch5-company/config/monitoring/coverage.json"]}
+  ]
+}

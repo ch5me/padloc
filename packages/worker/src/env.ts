@@ -4,6 +4,8 @@ export interface Env {
     HINTS?: KVNamespace;
     ACCOUNT_LOCK?: DurableObjectNamespace;
     ALLOW_ORIGIN?: string;
+    /** Optional comma-separated CORS origins; ALLOW_ORIGIN remains the legacy name. */
+    ALLOWED_ORIGINS?: string;
     CLIENT_URL?: string;
     VERSION?: string;
     RESEND_API_KEY?: string;

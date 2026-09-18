@@ -11,7 +11,7 @@ import { AgentApprovalMode } from "./agent-permission-engine";
 
 /**
  * Mapping of field role to value for multi-field fill orchestration.
- * Legacy login keys stay supported while the Padloc/Magic Browser bridge grows
+ * Legacy login keys stay supported while the Magic Browser bridge grows
  * identity, address, and transaction-only payment roles.
  */
 export type FieldMappings = {

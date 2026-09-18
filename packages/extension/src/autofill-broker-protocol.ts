@@ -137,7 +137,7 @@ export function buildLockedBrokerResponse(request: AutofillBrokerRequest): Autof
         protocolVersion: AUTOFILL_BROKER_PROTOCOL_VERSION,
         requestId: request.requestId,
         vaultState: "locked",
-        reason: request.type === "status" ? null : "Padloc vault locked or approval UI unavailable",
+        reason: request.type === "status" ? null : "Elf Vault is locked or approval UI is unavailable",
         audit: {
             operation: request.type,
             sessionId: request.binding ? request.binding.sessionId : null,

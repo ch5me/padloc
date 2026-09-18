@@ -1,6 +1,6 @@
 # @padloc/cordova
 
-This package contains the sources to build the mobile apps for Padloc.
+This package contains the sources to build the mobile apps for Elf Vault.
 
 ## Requirements (Android)
 

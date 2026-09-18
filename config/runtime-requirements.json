@@ -5,9 +5,16 @@
                 {
                     "name": "ALLOW_ORIGIN",
                     "delivery": "derived",
-                    "derivedFrom": "allowedOrigin",
+                    "derivedFrom": "allowedOrigins",
                     "requiredIn": ["local", "staging", "production"],
-                    "description": "Exact browser origin allowed to call the Worker API."
+                    "description": "Comma-separated exact browser origins allowed to call the Worker API, including the current and legacy app hosts during the compatibility window."
+                },
+                {
+                    "name": "CLIENT_URL",
+                    "delivery": "derived",
+                    "derivedFrom": "appUrl",
+                    "requiredIn": ["local", "staging", "production"],
+                    "description": "Canonical app URL used in Worker-generated links and email templates."
                 },
                 {
                     "name": "HQ_SENTRY_DSN",

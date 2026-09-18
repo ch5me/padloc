@@ -1,7 +1,7 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://pad.ch5.me/schemas/release-manifest-v1.json",
-    "title": "CH5 Auth public release manifest",
+    "$id": "https://vault.elf.dance/schemas/release-manifest-v1.json",
+    "title": "Elf Vault public release manifest",
     "type": "object",
     "additionalProperties": false,
     "required": [

@@ -13,7 +13,7 @@
         "url": "https://github.com/padloc/padloc.git",
         "directory": "packages/locale"
     },
-    "description": "Padloc localization package",
+    "description": "Elf Vault localization package",
     "scripts": {
         "extract": "bash scripts/extract-translations.sh"
     },

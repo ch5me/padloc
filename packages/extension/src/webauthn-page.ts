@@ -88,7 +88,7 @@ if (
         const request = buildCreateRequest(publicKey);
         const response = await dispatchPadlocWebAuthn(request);
         if (!response.ok) {
-            throw webAuthnDomException(response.error, "Passkey registration was not approved by Padloc");
+            throw webAuthnDomException(response.error, "Passkey registration was not approved by Elf Vault");
         }
         return toPublicKeyCredential(response.credential, "attestation") as unknown as Credential;
     };
@@ -101,7 +101,7 @@ if (
         const request = await buildGetRequest(publicKey);
         const response = await dispatchPadlocWebAuthn(request);
         if (!response.ok) {
-            throw webAuthnDomException(response.error, "Passkey assertion was not approved by Padloc");
+            throw webAuthnDomException(response.error, "Passkey assertion was not approved by Elf Vault");
         }
         return toPublicKeyCredential(response.credential, "assertion") as unknown as Credential;
     };
@@ -125,7 +125,7 @@ function buildCreateRequest(publicKey: PublicKeyCredentialCreationOptions): Padl
     const algorithm = chooseSupportedAlgorithm(publicKey.pubKeyCredParams);
     if (!algorithm) {
         throw new DOMException(
-            "Padloc does not support any requested WebAuthn public-key algorithm",
+            "Elf Vault does not support any requested WebAuthn public-key algorithm",
             "NotSupportedError"
         );
     }
@@ -194,7 +194,7 @@ function dispatchPadlocWebAuthn(request: PadlocWebAuthnRequest): Promise<PadlocW
                 requestId: request.requestId,
                 error: {
                     name: "NotAllowedError",
-                    message: "Timed out waiting for Padloc passkey response",
+                    message: "Timed out waiting for Elf Vault passkey response",
                 },
             });
         }, 120000);

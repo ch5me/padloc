@@ -1,6 +1,6 @@
 export type MessageData = { [param: string]: string };
 
-function getAppName(defaultName = "CH5 Auth") {
+function getAppName(defaultName = "Elf Vault") {
     if (typeof process !== "undefined" && process.env?.PL_APP_NAME) {
         return process.env.PL_APP_NAME;
     }

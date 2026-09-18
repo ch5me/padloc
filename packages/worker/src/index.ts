@@ -5,7 +5,7 @@ import { Env } from "./env";
 import { createServer } from "./server-factory";
 import { AccountLockDO } from "./locks/account-lock";
 import { Server } from "@padloc/core/src/server";
-import { responseHeaders } from "./observability/security-headers";
+import { CorsConfig, parseAllowedOrigins, responseHeaders } from "./observability/security-headers";
 import { RateLimiter } from "./rate-limiter";
 import { captureHqException, initializeHqInstrumentationFromEnv, withHqSpan } from "./hq-instrumentation";
 import { handleFireflySsoVerifyRoute } from "./firefly-sso";
@@ -65,9 +65,11 @@ export default {
     async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
         initializeHqInstrumentationFromEnv(env, ctx);
 
-        const allowOrigin = env.ALLOW_ORIGIN || "*";
+        const allowOrigin = env.ALLOW_ORIGIN || env.ALLOWED_ORIGINS || "*";
+        const allowedOrigins = parseAllowedOrigins(env.ALLOWED_ORIGINS || allowOrigin);
         const config = new WorkerReceiverConfig();
         config.allowOrigin = allowOrigin;
+        config.allowedOrigins = allowedOrigins;
         config.idempotencyStore = new IdempotencyStore(env.HINTS);
         config.rateLimiter = new RateLimiter(env.HINTS, {
             maxRequests: Number(env.RATE_LIMIT_MAX_REQUESTS || 100),
@@ -85,7 +87,7 @@ export default {
             );
             return new Response(JSON.stringify(health), {
                 status: 200,
-                headers: responseHeaders({ allowOrigin }, undefined, {
+                headers: responseHeaders(corsConfig(request, allowOrigin, allowedOrigins), undefined, {
                     "Content-Type": "application/json; charset=utf-8",
                 }),
             });
@@ -151,12 +153,29 @@ async function publicRelease(request: Request, env: Env): Promise<Response> {
     const object = await env.ATTACHMENTS.get(`public-releases/${key}`);
     if (!object) return new Response("Not found", { status: 404 });
     const immutable = key.startsWith("releases/");
-    const headers = responseHeaders({ allowOrigin: "*", allowMethods: ["GET", "OPTIONS"] }, undefined, {
-        "Content-Type": releaseContentType(key),
-        "Cache-Control": immutable ? "public, max-age=31536000, immutable" : "public, max-age=60",
-        ETag: object.httpEtag,
-    });
+    const headers = responseHeaders(
+        {
+            allowOrigin: "*",
+            allowedOrigins: ["*"],
+            requestOrigin: request.headers.get("Origin"),
+            allowMethods: ["GET", "OPTIONS"],
+        },
+        undefined,
+        {
+            "Content-Type": releaseContentType(key),
+            "Cache-Control": immutable ? "public, max-age=31536000, immutable" : "public, max-age=60",
+            ETag: object.httpEtag,
+        }
+    );
     return new Response(object.body, { headers });
+}
+
+function corsConfig(request: Request, allowOrigin: string, allowedOrigins: string[]): CorsConfig {
+    return {
+        allowOrigin,
+        allowedOrigins,
+        requestOrigin: request.headers.get("Origin"),
+    };
 }
 
 function releaseContentType(key: string): string {

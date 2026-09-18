@@ -519,7 +519,7 @@
 					"@executable_path/../Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = me.ch5.auth.dev.passkeys;
-				PRODUCT_NAME = "CH5 Auth Passkeys";
+				PRODUCT_NAME = "Elf Vault Passkeys";
 				SDKROOT = macosx;
 			};
 			name = Release;
@@ -595,7 +595,7 @@
 					"@executable_path/../Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = me.ch5.auth.dev.passkeys;
-				PRODUCT_NAME = "CH5 Auth Passkeys";
+				PRODUCT_NAME = "Elf Vault Passkeys";
 				SDKROOT = macosx;
 			};
 			name = Debug;

@@ -57,7 +57,7 @@ autoUpdater.on("update-downloaded", updateReady);
 
 //     const { response, checkboxChecked } = await dialog.showMessageBox(win, {
 //         type: "info",
-//         message: `A new version of Padloc is available! (v${versionInfo.version})`,
+//         message: `A new version of Elf Vault is available! (v${versionInfo.version})`,
 //         detail: htmlToText(versionInfo.releaseNotes as string),
 //         checkboxLabel: "Automatically download and install updates in the future (recommended)",
 //         buttons: ["Remind Me Later", "Download And Install"],
@@ -93,7 +93,7 @@ autoUpdater.on("update-downloaded", updateReady);
 //         const { checkboxChecked } = await dialog.showMessageBox(win, {
 //             type: "info",
 //             message: "No Updates Available",
-//             detail: "Your version of Padloc is up to date.",
+//             detail: "Your version of Elf Vault is up to date.",
 //             checkboxLabel: "Automatically download and install updates in the future (recommended)",
 //             checkboxChecked: settings.get("autoDownloadUpdates") as boolean,
 //         });
@@ -171,7 +171,7 @@ function createApplicationMenu() {
     const appSubMenu: any[] = [];
 
     // appSubMenu.push(
-    //     os.platform() === "darwin" ? { role: "about" } : { label: `Padloc v${app.getVersion()}`, enabled: false }
+    //     os.platform() === "darwin" ? { role: "about" } : { label: `Elf Vault v${app.getVersion()}`, enabled: false }
     // );
 
     // appSubMenu.push(checkForUpdatesItem);

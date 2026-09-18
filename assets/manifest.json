@@ -1,10 +1,11 @@
 {
-    "name": "CH5 Auth",
-    "background_color": "#ffffff",
-    "description": "A modern password manager for individuals and teams",
+    "name": "Elf Vault",
+    "short_name": "Elf Vault",
+    "background_color": "#080c3f",
+    "description": "A secure password manager for individuals and teams",
     "appId": "me.ch5",
     "scheme": "ch5",
     "author": "Martin Kleinschrodt <martin@maklesoft.com>",
-    "icon_background": "#f1f1f1",
-    "terms_of_service": "https://pad.ch5.me/"
+    "icon_background": "#080c3f",
+    "terms_of_service": "https://vault.elf.dance/"
 }

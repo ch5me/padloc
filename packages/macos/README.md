@@ -1,4 +1,4 @@
-# CH5 Auth macOS passkey provider
+# Elf Vault macOS passkey provider
 
 This package contains the native macOS host and AuthenticationServices Credential Provider Extension required for authoritative browser passkey registration and assertion.
 
@@ -27,5 +27,5 @@ Keychain-synchronizable development store. The key payload is exportable inside
 the broker/store module so Keychain can synchronize it; it is not a non-exportable
 `SecKey`. Cross-device identity-store reconciliation is not implemented or
 claimed yet. This is a native CH5 broker, not the browser extension's encrypted
-Padloc item format; any future migration must preserve the same bounded
+legacy vault item format; any future migration must preserve the same bounded
 verification and signing boundary.

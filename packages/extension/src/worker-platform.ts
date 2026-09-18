@@ -13,7 +13,7 @@ export class ExtensionWorkerPlatform extends StubPlatform {
             platform: navigatorInfo?.platform || "",
             userAgent: navigatorInfo?.userAgent || "",
             locale: navigatorInfo?.language || "en",
-            description: "CH5 Auth browser extension",
+            description: "Elf Vault browser extension",
             runtime: "extension",
         });
     }

@@ -470,7 +470,7 @@ export class SettingsSecurity extends StateMixin(Routing(LitElement)) {
                     </pl-button>
                     <pl-popover class="small double-padded max-width-20em">
                         ${$l(
-                            "Active sessions indicate which devices or browsers are currently logged into your account. Note that sessions are not automatically revoked if you close or uninstall the Padloc app (or close the browser tab if you're using the web app). So it's possible that some devices that you haven't used Padloc on in a while still show up as active sessions. If you're unsure which device a session belongs to, simply revoke it."
+                            "Active sessions indicate which devices or browsers are currently logged into your account. Note that sessions are not automatically revoked if you close or uninstall the Elf Vault app (or close the browser tab if you're using the web app). So it's possible that some devices that you haven't used Elf Vault on in a while still show up as active sessions. If you're unsure which device a session belongs to, simply revoke it."
                         )}
                     </pl-popover>
                 </h2>

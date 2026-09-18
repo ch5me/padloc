@@ -19,8 +19,8 @@ export class BackgroundFetchSender implements Sender {
                 body,
             });
         } catch (error) {
-            progress && (progress.error = { code: ErrorCode.FAILED_CONNECTION, message: "Padloc API fetch failed" });
-            throw new Err(ErrorCode.FAILED_CONNECTION, "Padloc API fetch failed", {
+            progress && (progress.error = { code: ErrorCode.FAILED_CONNECTION, message: "Elf Vault API fetch failed" });
+            throw new Err(ErrorCode.FAILED_CONNECTION, "Elf Vault API fetch failed", {
                 error: error instanceof Error ? error : undefined,
             });
         }

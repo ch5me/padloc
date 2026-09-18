@@ -1,7 +1,7 @@
 {
     "name": "@padloc/cordova",
     "version": "4.3.0",
-    "displayName": "Padloc",
+    "displayName": "Elf Vault",
     "private": true,
     "scripts": {
         "prepare-build": "node update-config-xml.js && webpack",

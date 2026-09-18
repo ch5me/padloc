@@ -1,6 +1,6 @@
 <ul class="plain box">
     <li class="list-item">
-        <a href="https://pad.ch5.me/" target="_blank" class="plain double-padded horizontal spacing center-aligning layout">
+        <a href="https://vault.elf.dance/" target="_blank" class="plain double-padded horizontal spacing center-aligning layout">
             <i class="fa-globe block"></i>
             <div class="stretch">Website</div>
             <i class="subtle block fa-external-link"></i>

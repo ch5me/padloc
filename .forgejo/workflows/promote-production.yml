@@ -1,4 +1,4 @@
-name: Promote Production
+name: Promote Elf Vault Production
 
 # Cloudflare deploy-auth: hush-in-CI (company standard).
 # Production deploys resolve the governed `ch5-padloc-prod` Cloudflare token from the
@@ -30,23 +30,33 @@ jobs:
               with:
                   ref: ${{ github.event.inputs.candidate_sha }}
                   fetch-depth: 0
+            - uses: actions/setup-node@v4
+              with:
+                  node-version-file: ".nvmrc"
             - name: Verify current-main staging candidate
               env:
                   CANDIDATE_SHA: ${{ github.event.inputs.candidate_sha }}
               run: |
-                  if ! printf '%s' "$CANDIDATE_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
-                    echo "candidate_sha must be a full lowercase 40-character Git SHA" >&2
-                    exit 2
-                  fi
-                  test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
-                  git fetch --no-tags origin main
-                  test "$(git rev-parse origin/main)" = "$CANDIDATE_SHA"
-                  health="$(curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 5 --max-time 20 https://api-pad-staging.ch5.me/healthcheck)"
-                  HEALTH="$health" EXPECTED_SHA="$CANDIDATE_SHA" node -e "const h=JSON.parse(process.env.HEALTH); if(h.version!==process.env.EXPECTED_SHA) throw new Error('staging SHA mismatch: '+h.version)"
-                  curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 5 --max-time 20 https://pad-staging.ch5.me/ >/dev/null
-            - uses: actions/setup-node@v4
-              with:
-                  node-version-file: ".nvmrc"
+                  node scripts/release/preflight-production.mjs \
+                    --sha "$CANDIDATE_SHA" \
+                    --receipt .ch5/state/staging-canary-receipt.json
+            - name: Verify exact-SHA staging receipt
+              env:
+                  CANDIDATE_SHA: ${{ github.event.inputs.candidate_sha }}
+              run: |
+                  RECEIPT=.ch5/state/staging-canary-receipt.json EXPECTED_SHA="$CANDIDATE_SHA" node -e '
+                    const fs = require("node:fs");
+                    const receipt = JSON.parse(fs.readFileSync(process.env.RECEIPT, "utf8"));
+                    if (
+                      receipt.schema !== "elf-vault.deployed-canary-receipt.v1" ||
+                      receipt.stage !== "staging" ||
+                      receipt.expectedSha !== process.env.EXPECTED_SHA ||
+                      receipt.apiSha !== process.env.EXPECTED_SHA ||
+                      receipt.pwaSha !== process.env.EXPECTED_SHA
+                    ) {
+                      throw new Error(`invalid staging canary receipt for ${process.env.EXPECTED_SHA}`);
+                    }
+                  '
             - name: Install dependencies
               run: |
                   env -u ESBUILD_BINARY_PATH npm ci
@@ -58,10 +68,10 @@ jobs:
               run: bash scripts/deploy-production
               env:
                   PADLOC_DEPLOY_SHA: ${{ github.event.inputs.candidate_sha }}
-            - name: Verify production API and PWA canaries
-              env:
-                  EXPECTED_SHA: ${{ github.event.inputs.candidate_sha }}
-              run: |
-                  health="$(curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 5 --max-time 20 https://api-pad.ch5.me/healthcheck)"
-                  HEALTH="$health" node -e "const h=JSON.parse(process.env.HEALTH); if(h.version!==process.env.EXPECTED_SHA) throw new Error('production SHA mismatch: '+h.version)"
-                  curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 5 --max-time 20 https://pad.ch5.me/ >/dev/null
+                  PADLOC_STAGING_CANARY_RECEIPT: .ch5/state/staging-canary-receipt.json
+            - name: Verify production API, PWA, and compatibility canaries
+              run: node scripts/release/deployed-canary.mjs --stage production --sha "${{ github.event.inputs.candidate_sha }}" --receipt .ch5/state/production-canary-receipt.json
+            - name: Provision production old-origin smoke identity
+              run: hush run -t runtime-production -- npm run agent:test-identity -- production
+            - name: Verify production old-origin functional smoke
+              run: hush run -t runtime-production -- node scripts/proof-old-origin-pwa.mjs --stage production

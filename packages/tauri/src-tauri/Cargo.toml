@@ -1,11 +1,11 @@
 [package]
-name = "ch5-auth"
+name = "elf-vault"
 version = "4.3.0"
-description = "CH5 Auth"
+description = "Elf Vault"
 authors = [ "Martin Kleinschrodt <martin@maklesoft.com>" ]
 license = "GPL-3.0"
 repository = "https://github.com/padloc/padloc"
-default-run = "ch5-auth"
+default-run = "elf-vault"
 edition = "2021"
 build = "src/build.rs"
 

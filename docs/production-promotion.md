@@ -1,6 +1,6 @@
-# Production Promotion
+# Elf Vault Production Promotion
 
-CH5 Auth production deployment is human-gated. It never runs automatically on a
+Elf Vault production deployment is human-gated. It never runs automatically on a
 push, tag, or staging deployment.
 
 ## Preconditions
@@ -8,8 +8,10 @@ push, tag, or staging deployment.
 1. The candidate is a full 40-character Git SHA and is the current Forgejo
    `main` commit.
 2. The staging deployment completed successfully for that SHA.
-3. `https://api-pad-staging.ch5.me/healthcheck` reports the candidate SHA and
-   `https://pad-staging.ch5.me/` passes its canary.
+3. `scripts/release/preflight-production.mjs` proves the candidate SHA on
+   `https://staging.api.vault.elf.dance/healthcheck`, verifies
+   `/build-provenance.json` on `https://staging.vault.elf.dance/`, and checks
+   the retained `pad*.ch5.me` compatibility hosts.
 
 ## Promotion
 
@@ -20,8 +22,10 @@ target.
 
 The deployment applies production D1 migrations, deploys the Worker with the
 candidate SHA as `VERSION` and `HQ_RELEASE`, builds the production PWA from the
-same checkout, and deploys it to Cloudflare Pages. The workflow finishes by
-checking the production API's exact SHA and the production PWA response.
+same checkout, emits `elf-vault.pwa-provenance.v1`, and deploys it to Cloudflare
+Pages. The workflow finishes with API, PWA, CSP, CORS, asset, brand, and
+old-host canaries on `https://api.vault.elf.dance/` and
+`https://vault.elf.dance/`.
 
 ## Security Boundary
 
@@ -29,9 +33,9 @@ checking the production API's exact SHA and the production PWA response.
     stage-specific `wrangler-deploy-production` Hush target.
 -   An arbitrary branch, shortened SHA, stale staging candidate, or non-current
     `main` commit fails before production credentials are loaded.
--   Do not run `scripts/deploy-production` directly for routine promotion. Its
-    SHA checks reduce mistakes, but only the workflow proves current `main` and
-    live staging state.
+-   `scripts/deploy-production` repeats the same preflight before its production
+    Hush invocation, so the direct entrypoint cannot mutate production without
+    current-main and exact staging provenance proof.
 
 ## Residual Limitation
 

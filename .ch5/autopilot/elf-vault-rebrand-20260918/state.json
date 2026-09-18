@@ -1,0 +1,38 @@
+{
+  "schema": "ch5.autopilot-state.v1",
+  "runId": "elf-vault-rebrand-20260918",
+  "active": true,
+  "phase": "qa",
+  "objective": "Rebrand customer-facing CH5 Auth/Padloc surfaces to Elf Vault, adopt elf-ear vault branding, move service domains to the established elf.dance pattern, and deploy staging-first with served-identity proof.",
+  "constraints": [
+    "Preserve Padloc names only where required as internal package, repository, protocol, or compatibility identifiers.",
+    "Remove customer-facing Padloc and CH5 Auth naming.",
+    "Use Hush for operator and deploy secrets.",
+    "Production deployment requires staging exact-SHA proof and the existing human-gated production promotion lane."
+  ],
+  "exclusions": [
+    "No vault-data migration.",
+    "No credential rotation or mutation.",
+    "No weakening of authentication, encryption, or production promotion gates."
+  ],
+  "capabilities": {
+    "nativeSubagents": true,
+    "imageGeneration": "ch5-img",
+    "localServices": "ch5-svc",
+    "deployment": "repo scripts and Forgejo workflows",
+    "browser": "magic-browser"
+  },
+  "handoffs": {},
+  "gates": {
+    "domainPattern": "vault.elf.dance / staging.vault.elf.dance; api.vault.elf.dance / staging.api.vault.elf.dance",
+    "brandApproval": "preauthorized-by-user-request",
+    "stagingProof": "pending",
+    "productionPromotion": "pending"
+  },
+  "iterations": {
+    "plan": 3,
+    "review": 2,
+    "qa": 1
+  },
+  "updatedAt": "2026-09-18T05:30:00-07:00"
+}

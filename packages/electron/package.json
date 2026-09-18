@@ -1,7 +1,7 @@
 {
     "name": "@padloc/electron",
     "version": "4.3.0",
-    "description": "Electron Wrapper for Padloc app",
+    "description": "Electron Wrapper for Elf Vault",
     "main": "main.js",
     "private": true,
     "scripts": {

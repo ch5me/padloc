@@ -11,7 +11,7 @@ request() { curl -fsS --header "Authorization: token ${FORGEJO_TOKEN}" "$@"; }
 create_release() {
   local tag="$1" name="$2" prerelease="$3" response status payload
   payload=$(mktemp); response=$(mktemp)
-  TAG="$tag" NAME="$name" PRERELEASE="$prerelease" node -e 'process.stdout.write(JSON.stringify({tag_name:process.env.TAG,target_commitish:process.env.GITHUB_SHA,name:process.env.NAME,body:"Machine-readable CH5 Auth release ledger.",draft:false,prerelease:process.env.PRERELEASE==="true"}))' > "$payload"
+  TAG="$tag" NAME="$name" PRERELEASE="$prerelease" node -e 'process.stdout.write(JSON.stringify({tag_name:process.env.TAG,target_commitish:process.env.GITHUB_SHA,name:process.env.NAME,body:"Machine-readable Elf Vault release ledger.",draft:false,prerelease:process.env.PRERELEASE==="true"}))' > "$payload"
   status=$(curl -sS -o "$response" -w '%{http_code}' -X POST -H "Authorization: token ${FORGEJO_TOKEN}" -H 'Content-Type: application/json' --data @"$payload" "$api/repos/$repo/releases")
   if [ "$status" = 409 ]; then request "$api/repos/$repo/releases/tags/$tag"; elif [[ "$status" =~ ^2 ]]; then cat "$response"; else cat "$response" >&2; return 1; fi
 }
@@ -34,7 +34,7 @@ if [ "$mode" = immutable ]; then
     exit 1
   fi
   [ "$status" = 404 ] || { echo "unexpected release lookup HTTP $status" >&2; exit 1; }
-  release=$(create_release "$TAG" "$TAG" "${IMMUTABLE_PRERELEASE:-true}")
+  release=$(create_release "$TAG" "Elf Vault ${TAG}" "${IMMUTABLE_PRERELEASE:-true}")
   id=$(printf '%s' "$release" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(String(JSON.parse(s).id)))')
   for file in "$@"; do upload "$id" "$file" false; done
 elif [ "$mode" = pointer ]; then
@@ -42,7 +42,7 @@ elif [ "$mode" = pointer ]; then
   channel="${RELEASE_POINTER_CHANNEL:-staging}"
   [ "$channel" = staging ] || [ "$channel" = stable ] || { echo "invalid pointer channel" >&2; exit 2; }
   prerelease=true; [ "$channel" = stable ] && prerelease=false
-  release=$(create_release "${channel}-latest" "CH5 Auth ${channel} latest" "$prerelease")
+  release=$(create_release "${channel}-latest" "Elf Vault ${channel} latest" "$prerelease")
   id=$(printf '%s' "$release" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(String(JSON.parse(s).id)))')
   cp "$file" latest.json
   upload "$id" latest.json true

@@ -1,6 +1,6 @@
 # Public Releases
 
-CH5 Auth separates CI proof, staging downloads, stable downloads, and store
+Elf Vault separates CI proof, staging downloads, stable downloads, and store
 distribution. Forgejo is the private release ledger. Anonymous artifacts and
 machine-readable channel pointers are served from the stage's Worker-backed R2
 release namespace; website/catalog consumers must read those manifests rather

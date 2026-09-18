@@ -86,11 +86,11 @@ class_name = "AccountLockDO"
 
 [env.staging]
 name = "padloc-worker-staging"
-routes = [{ pattern = "api-pad-staging.ch5.me/*", zone_name = "ch5.me" }]
+routes = [{ pattern = "api-pad-staging.ch5.me/*", zone_name = "ch5.me" }, { pattern = "staging.api.vault.elf.dance/*", zone_name = "elf.dance" }]
 
 [env.staging.vars]
-ALLOW_ORIGIN = "https://pad-staging.ch5.me"
-CLIENT_URL = "https://pad-staging.ch5.me"
+ALLOW_ORIGIN = "https://staging.vault.elf.dance,https://pad-staging.ch5.me"
+CLIENT_URL = "https://staging.vault.elf.dance"
 HQ_ENVIRONMENT = "staging"
 HQ_SERVICE_NAME = "padloc-worker"
 
@@ -118,11 +118,11 @@ class_name = "AccountLockDO"
 
 [env.production]
 name = "padloc-worker"
-routes = [{ pattern = "api-pad.ch5.me/*", zone_name = "ch5.me" }]
+routes = [{ pattern = "api-pad.ch5.me/*", zone_name = "ch5.me" }, { pattern = "api.vault.elf.dance/*", zone_name = "elf.dance" }]
 
 [env.production.vars]
-ALLOW_ORIGIN = "https://pad.ch5.me"
-CLIENT_URL = "https://pad.ch5.me"
+ALLOW_ORIGIN = "https://vault.elf.dance,https://pad.ch5.me"
+CLIENT_URL = "https://vault.elf.dance"
 HQ_ENVIRONMENT = "production"
 HQ_SERVICE_NAME = "padloc-worker"
 

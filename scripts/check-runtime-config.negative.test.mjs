@@ -8,6 +8,7 @@ import { spawnSync } from "node:child_process";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const pristineTargets = JSON.parse(await readFile(join(root, "config/environment-targets.json"), "utf8"));
 const pristineRequirements = JSON.parse(await readFile(join(root, "config/runtime-requirements.json"), "utf8"));
+const pristineWrangler = await readFile(join(root, "packages/worker/wrangler.toml"), "utf8");
 
 const mutations = [
     {
@@ -15,6 +16,18 @@ const mutations = [
         mutate({ targets }) {
             targets.targets.staging.appUrl = targets.targets.staging.apiBaseUrl;
             targets.targets.staging.allowedOrigin = targets.targets.staging.apiBaseUrl;
+            targets.targets.staging.allowedOrigins = [
+                targets.targets.staging.apiBaseUrl,
+                targets.targets.staging.legacyAppUrl,
+            ];
+        },
+    },
+    {
+        name: "invalid non-HTTPS staging origin",
+        mutate({ targets }) {
+            targets.targets.staging.appUrl = "http://staging.vault.elf.dance";
+            targets.targets.staging.allowedOrigin = targets.targets.staging.appUrl;
+            targets.targets.staging.allowedOrigins[0] = targets.targets.staging.appUrl;
         },
     },
     {
@@ -64,6 +77,12 @@ const mutations = [
             vars.push(structuredClone(vars.find(({ name }) => name === "RESEND_API_KEY")));
         },
     },
+    {
+        name: "Wrangler canonical route disagreement",
+        mutate({ wrangler }) {
+            wrangler.value = wrangler.value.replace("staging.api.vault.elf.dance/*", "wrong.api.vault.elf.dance/*");
+        },
+    },
 ];
 
 const failures = [];
@@ -72,12 +91,14 @@ for (const { name, mutate } of mutations) {
     try {
         await mkdir(join(fixture, "scripts"));
         await mkdir(join(fixture, "config"));
+        await mkdir(join(fixture, "packages", "worker"), { recursive: true });
         await cp(join(root, "scripts/check-runtime-config.mjs"), join(fixture, "scripts/check-runtime-config.mjs"), {
             recursive: true,
         });
         const state = {
             targets: structuredClone(pristineTargets),
             requirements: structuredClone(pristineRequirements),
+            wrangler: { value: pristineWrangler },
         };
         mutate(state);
 
@@ -89,6 +110,7 @@ for (const { name, mutate } of mutations) {
             join(fixture, "config/runtime-requirements.json"),
             JSON.stringify(state.requirements, null, 4) + "\n"
         );
+        await writeFile(join(fixture, "packages", "worker", "wrangler.toml"), state.wrangler.value);
 
         const result = spawnSync(process.execPath, [join(fixture, "scripts/check-runtime-config.mjs")], {
             encoding: "utf8",

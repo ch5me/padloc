@@ -43,7 +43,7 @@
         "build_and_start": "npm run build && npm run start",
         "dev": "webpack serve --config webpack.config.js"
     },
-    "description": "Padloc Progressive Web App",
+    "description": "Elf Vault Progressive Web App",
     "dependencies": {
         "@padloc/app": "4.3.0",
         "@padloc/core": "4.3.0"

@@ -1,7 +1,7 @@
 {
     "name": "@padloc/extension",
     "version": "4.3.0",
-    "description": "Padloc Progressive Web App",
+    "description": "Elf Vault Browser Extension",
     "author": "Martin Kleinschrodt <martin@maklesoft.com>",
     "license": "GPL-3.0",
     "private": true,

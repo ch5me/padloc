@@ -1,12 +1,12 @@
-# @padloc/pwa
+# Elf Vault PWA
 
-The Padloc Web Client, a
+The Elf Vault Web Client, a
 [Progressive Web App](https://developers.google.com/web/progressive-web-apps).
 
 ## Setup
 
 Currently the `@padloc/pwa` package is meant to be used from within the
-[Padloc monorepo](../../README.md). A standalone npm package is coming soon!
+[Elf Vault monorepo](../../README.md). A standalone npm package is coming soon!
 
 ```sh
 git clone git@github.com:padloc/padloc.git
@@ -63,5 +63,5 @@ For development instructions, please refer to the
 
 ## Contributing
 
-For info on how to contribute to Padloc, please refer to the
+For info on how to contribute to Elf Vault, please refer to the
 [monorepo readme](../../README.md#contributing).

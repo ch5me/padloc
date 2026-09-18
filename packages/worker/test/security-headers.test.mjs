@@ -10,6 +10,7 @@ import {
 } from "../src/observability/security-headers.ts";
 
 const exactOrigin = "https://pad.ch5.me";
+const newOrigin = "https://vault.elf.dance";
 
 test("CORS origin and credential matrix", async (t) => {
     for (const vector of [
@@ -40,8 +41,34 @@ test("CORS methods, headers, and max-age are serialized exactly", () => {
             "Access-Control-Allow-Methods": "OPTIONS, GET, POST, DELETE",
             "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Request-ID",
             "Access-Control-Max-Age": "600",
+            Vary: "Origin",
         }
     );
+});
+
+test("request-aware CORS echoes only an allowed old or new app origin", () => {
+    const allowedOrigins = [newOrigin, exactOrigin];
+
+    assert.equal(
+        corsHeaders({ allowOrigin: newOrigin, allowedOrigins, requestOrigin: newOrigin })[
+            "Access-Control-Allow-Origin"
+        ],
+        newOrigin
+    );
+    assert.equal(
+        corsHeaders({ allowOrigin: newOrigin, allowedOrigins, requestOrigin: exactOrigin })[
+            "Access-Control-Allow-Origin"
+        ],
+        exactOrigin
+    );
+
+    const denied = corsHeaders({
+        allowOrigin: newOrigin,
+        allowedOrigins,
+        requestOrigin: "https://unknown.example.test",
+    });
+    assert.equal(denied["Access-Control-Allow-Origin"], undefined);
+    assert.equal(denied.Vary, "Origin");
 });
 
 test("response header precedence allows explicit final overrides", () => {
@@ -115,6 +142,7 @@ test("OPTIONS preflight response exposes only the configured CORS matrix", () =>
     assert.equal(response.headers.get("access-control-allow-methods"), "OPTIONS, POST");
     assert.equal(response.headers.get("access-control-allow-headers"), "Content-Type");
     assert.equal(response.headers.get("access-control-max-age"), "86400");
+    assert.equal(response.headers.get("vary"), "Origin");
     assert.equal(response.headers.get("access-control-allow-credentials"), null);
 });
 

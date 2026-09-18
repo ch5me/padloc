@@ -56,7 +56,7 @@ const htmlMetaTags = disableCsp
     : {
           "Content-Security-Policy": {
               "http-equiv": "Content-Security-Policy",
-              content: `default-src 'none'; base-uri 'none'; script-src blob: [REPLACE_SCRIPT]; connect-src ${serverUrl} https://api.pwnedpasswords.com [REPLACE_CONNECT]; style-src 'unsafe-inline'; font-src [REPLACE_FONT]; object-src blob:; frame-src blob:; img-src [REPLACE_IMG] blob: data: https://icons.duckduckgo.com; manifest-src [REPLACE_MANIFEST]; worker-src ${pwaUrl}/sw.js;`,
+                content: `default-src 'none'; base-uri 'none'; script-src blob: [REPLACE_SCRIPT]; connect-src ${serverUrl} https://api.pwnedpasswords.com [REPLACE_CONNECT]; style-src 'unsafe-inline'; font-src [REPLACE_FONT]; object-src blob:; frame-src blob:; img-src [REPLACE_IMG] blob: data: https://icons.duckduckgo.com; manifest-src [REPLACE_MANIFEST]; worker-src 'self';`,
           },
       };
 
@@ -112,7 +112,7 @@ module.exports = {
             PL_BILLING_ENABLED: null,
             PL_BILLING_DISABLE_PAYMENT: null,
             PL_BILLING_STRIPE_PUBLIC_KEY: null,
-            PL_SUPPORT_EMAIL: "support@padloc.app",
+            PL_SUPPORT_EMAIL: "support@ch5.me",
             PL_VERSION: version,
             PL_VENDOR_VERSION: version,
             PL_DISABLE_SW: false,
@@ -197,6 +197,7 @@ module.exports = {
             meta: htmlMetaTags,
         }),
         new WebpackPwaManifest({
+            filename: "manifest.json",
             name: name,
             short_name: name,
             icons: [
@@ -287,15 +288,12 @@ module.exports = {
                         builtFilesForCsp.get(cspRule).push(asset.name);
                     }
 
-                    // Manually add the files in for the CSP meta tag
+                    // Use origin-relative sources so the same artifact works on
+                    // the canonical app origin and the retained legacy origin.
                     for (const cspRule of builtFilesForCsp.keys()) {
-                        // Sort all files first
-                        const files = builtFilesForCsp.get(cspRule);
-                        files.sort();
-
                         htmlFileContents = htmlFileContents.replace(
                             `[REPLACE_${cspRule.replace("-src", "").toUpperCase()}]`,
-                            `${files.map((file) => `${pwaUrl}/${file}`).join(" ")}`
+                            "'self'"
                         );
                     }
 

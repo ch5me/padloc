@@ -22,7 +22,7 @@ for (const line of commits) {
         : "Changed";
     categories[target].push(line);
 }
-let output = `# CH5 Auth release notes\n\n> DRAFT: generated from commits since ${previous}. A human must edit and approve these notes before stable promotion.\n`;
+let output = `# Elf Vault release notes\n\n> DRAFT: generated from commits since ${previous}. A human must edit and approve these notes before stable promotion.\n`;
 for (const [heading, lines] of Object.entries(categories))
     output += `\n## ${heading}\n\n${lines.length ? lines.map((line) => `- ${line}`).join("\n") : "- None recorded."}\n`;
 await writeFile(process.env.RELEASE_NOTES || "RELEASE_NOTES.md", output);

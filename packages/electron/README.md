@@ -1,11 +1,11 @@
 # @padloc/electron
 
-Padloc Desktop app, built with [Electron](https://www.electronjs.org/)
+Elf Vault Desktop app, built with [Electron](https://www.electronjs.org/)
 
 ## Setup
 
 The `@padloc/electron` package is meant to be used from within the
-[Padloc monorepo](../../README.md).
+[Elf Vault monorepo](../../README.md).
 
 ```sh
 git clone git@github.com:padloc/padloc.git
@@ -42,5 +42,5 @@ npm run dev
 
 ## Contributing
 
-For info on how to contribute to Padloc, please refer to the
+For info on how to contribute to Elf Vault, please refer to the
 [monorepo readme](../../README.md#contributing).

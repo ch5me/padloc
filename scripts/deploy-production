@@ -20,6 +20,8 @@ set -euo pipefail
 # secret CI holds). Production is workflow_dispatch-gated on purpose.
 #
 # PADLOC_DEPLOY_SHA must identify the exact staging-verified main commit.
+# PADLOC_STAGING_CANARY_RECEIPT optionally records the machine-readable staging
+# canary receipt written by the preflight.
 # Usage: PADLOC_DEPLOY_SHA=<40-char-sha> bash scripts/deploy-production
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -36,18 +38,70 @@ if [ "$(git rev-parse HEAD)" != "$deploy_sha" ]; then
 fi
 export PADLOC_DEPLOY_SHA="$deploy_sha"
 
+# Do not build or authenticate from a tree that can contain local-only content.
+# Ignored dependency/build directories are safe; any other untracked path can
+# enter the artifact or change the exact source being deployed.
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  echo "production deploy requires a clean tracked index and worktree" >&2
+  git status --short >&2
+  exit 2
+fi
+safe_generated_path() {
+  case "$1" in
+    node_modules/*|packages/*/node_modules/*|packages/pwa/dist/*|.ch5/state/*|.hush-materialized/*)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+unsafe_untracked_files=()
+while IFS= read -r -d '' path; do
+  unsafe_untracked_files+=("$path")
+done < <(git ls-files --others --exclude-standard -z)
+while IFS= read -r -d '' path; do
+  if ! safe_generated_path "$path"; then
+    unsafe_untracked_files+=("$path")
+  fi
+done < <(git ls-files --others --ignored --exclude-standard -z)
+
+if [ "${#unsafe_untracked_files[@]}" -gt 0 ]; then
+  echo "production deploy permits only known runtime-generated untracked paths" >&2
+  printf '%s\n' "${unsafe_untracked_files[@]}" >&2
+  exit 2
+fi
+
+# This preflight must stay before any production Hush invocation. It proves the
+# checked-out SHA is current origin/main and that staging serves the exact API
+# and PWA provenance before credentials are loaded.
+preflight_args=(--sha "$PADLOC_DEPLOY_SHA")
+if [ -n "${PADLOC_STAGING_CANARY_RECEIPT:-}" ]; then
+  preflight_args+=(--receipt "$PADLOC_STAGING_CANARY_RECEIPT")
+fi
+node scripts/release/preflight-production.mjs "${preflight_args[@]}"
+
+target_field() {
+  node scripts/release/target-config.mjs --stage production --field "$1"
+}
+
+production_app_url="$(target_field appUrl)"
+production_api_url="$(target_field apiBaseUrl)"
+production_pages_project="$(target_field pagesProject)"
+
 # Runtime contract gate (no Cloudflare auth needed).
 npm run runtime-config:check
 
 # Build and gate the exact Pages artifact before any remote migration or Worker mutation.
-PL_BUILD_ENV=production PL_SERVER_URL="https://api-pad.ch5.me" PL_PWA_URL="https://pad.ch5.me" npm run pwa:build
+PL_BUILD_ENV=production PL_SERVER_URL="$production_api_url" PL_PWA_URL="$production_app_url" npm run pwa:build
+node scripts/release/write-pwa-provenance.mjs --stage production --sha "$PADLOC_DEPLOY_SHA"
 npm run pwa:check
 
 # All Cloudflare-authenticated steps run under the governed ch5-padloc-prod token.
 # The token env vars propagate to every wrangler subprocess (migrate, worker, Pages).
+export PRODUCTION_PAGES_PROJECT="$production_pages_project"
 hush run --target wrangler-deploy-production -- bash -euo pipefail -c '
   npm run worker:migrate:production
   npm --prefix packages/worker exec -- wrangler deploy --config packages/worker/wrangler.toml --env=production --var "VERSION:${PADLOC_DEPLOY_SHA}" --var "HQ_RELEASE:padloc-worker@${PADLOC_DEPLOY_SHA}"
   npm run pwa:check
-  ./node_modules/.bin/wrangler pages deploy packages/pwa/dist --project-name padloc-pwa --branch main
+  ./node_modules/.bin/wrangler pages deploy packages/pwa/dist --project-name "$PRODUCTION_PAGES_PROJECT" --branch main
 '

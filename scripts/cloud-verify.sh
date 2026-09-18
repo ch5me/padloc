@@ -61,13 +61,16 @@ printf 'CLOUD_PLATFORM_SKIP platform=windows reason=unsupported_no_owned_runner\
 printf 'CLOUD_PLATFORM_SKIP platform=android reason=requires_android_sdk_lane\n'
 printf 'CLOUD_PLATFORM_SKIP platform=linux-desktop reason=requires_desktop_system_libraries_lane\n'
 
+staging_api_url="$(node scripts/release/target-config.mjs --stage staging --field apiBaseUrl)"
+staging_app_url="$(node scripts/release/target-config.mjs --stage staging --field appUrl)"
+
 run_stage formatting env FORMAT_BASE_SHA=HEAD FORMAT_INCLUDE_WORKTREE=1 npm run prettier:check:changed
 run_stage contracts bash -lc 'npm run runtime-config:check && npm run theme:check'
 run_stage worker npm --prefix packages/worker run test:ci
 run_stage extension npm --prefix packages/extension test
 run_stage extension-build bash -lc \
-    'PL_BUILD_ENV=production PL_SERVER_URL=https://api-pad-staging.ch5.me npm run web-extension:build && npm --prefix packages/extension run preflight:dist'
+    "PL_BUILD_ENV=production PL_SERVER_URL=${staging_api_url} npm run web-extension:build && npm --prefix packages/extension run preflight:dist"
 run_stage pwa-build bash -lc \
-    'PL_BUILD_ENV=production PL_SERVER_URL=https://api-pad-staging.ch5.me PL_PWA_URL=https://pad-staging.ch5.me npm run pwa:build && npm run pwa:check'
+    "PL_BUILD_ENV=production PL_SERVER_URL=${staging_api_url} PL_PWA_URL=${staging_app_url} npm run pwa:build && npm run pwa:check"
 
 printf 'CLOUD_VERIFY_PASS platform=%s\n' "$(uname -s)"

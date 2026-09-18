@@ -560,7 +560,7 @@ async function rollbackCreatedCredential(
     try {
         await repository.deleteCredential(credential);
     } catch (_error) {
-        throw providerError("OperationError", "Padloc could not roll back a cancelled passkey registration");
+        throw providerError("OperationError", "Elf Vault could not roll back a cancelled passkey registration");
     }
 }
 
@@ -571,7 +571,7 @@ async function rollbackUpdatedCredential(
     try {
         await repository.updateCredential(credential);
     } catch (_error) {
-        throw providerError("OperationError", "Padloc could not roll back a cancelled passkey assertion");
+        throw providerError("OperationError", "Elf Vault could not roll back a cancelled passkey assertion");
     }
 }
 

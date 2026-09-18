@@ -255,14 +255,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
-name = "ch5-auth"
-version = "4.3.0"
-dependencies = [
- "tauri",
- "tauri-build",
-]
-
-[[package]]
 name = "cocoa"
 version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -552,6 +544,14 @@ name = "dunce"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0bd4b30a6560bbd9b4620f4de34c3f14f60848e58a9b7216801afcb4c7b31c3c"
+
+[[package]]
+name = "elf-vault"
+version = "4.3.0"
+dependencies = [
+ "tauri",
+ "tauri-build",
+]
 
 [[package]]
 name = "embed_plist"

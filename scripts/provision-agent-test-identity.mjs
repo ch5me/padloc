@@ -107,7 +107,7 @@ try {
             "--email",
             email,
             "--subject-contains",
-            "CH5 Auth Email Verification",
+            "Elf Vault Email Verification",
             "--extract",
             "otp",
             "--timeout-s",
@@ -124,7 +124,8 @@ try {
             consume,
         ],
         process.env,
-        devtoolsRoot
+        devtoolsRoot,
+        { quiet: true }
     );
 
     const status = runJson(
@@ -142,7 +143,15 @@ try {
             })}`
         );
     }
-    console.log(JSON.stringify({ status: "ok", stage, email, loggedIn: true, locked: false }));
+    console.log(
+        JSON.stringify({
+            status: "ok",
+            stage,
+            identity: "dedicated-agent-test-identity",
+            loggedIn: true,
+            locked: false,
+        })
+    );
 } finally {
     if (chrome && chrome.exitCode === null) {
         chrome.kill("SIGTERM");
@@ -167,11 +176,24 @@ function resolveProjectPath(project) {
     return result.stdout.trim();
 }
 
-function run(command, args, env, cwd) {
-    const result = spawnSync(command, args, { cwd, env, stdio: "inherit" });
+function run(command, args, env, cwd, { quiet = false } = {}) {
+    const result = spawnSync(command, args, {
+        cwd,
+        env,
+        encoding: quiet ? "utf8" : undefined,
+        stdio: quiet ? ["ignore", "pipe", "pipe"] : "inherit",
+    });
     if (result.status !== 0) {
-        throw new Error(`${command} exited ${result.status ?? "without status"}`);
+        const detail = quiet ? redact(`${result.stderr || result.stdout || ""}`.trim()) : "";
+        throw new Error(`${command} exited ${result.status ?? "without status"}${detail ? `: ${detail}` : ""}`);
     }
+}
+
+function redact(value) {
+    let text = String(value || "");
+    if (email) text = text.replaceAll(email, "[redacted-email]");
+    if (masterPassword) text = text.replaceAll(masterPassword, "[redacted-password]");
+    return text.replaceAll(/\b\d{6}\b/g, "[redacted-code]").slice(-2000);
 }
 
 function runJson(command, args, env, cwd) {

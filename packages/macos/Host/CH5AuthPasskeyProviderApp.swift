@@ -9,8 +9,8 @@ struct CH5AuthPasskeyProviderApp: App {
         WindowGroup {
             VStack(spacing: 16) {
                 Image(systemName: "key.fill").font(.system(size: 44))
-                Text("CH5 Auth Passkeys").font(.title2)
-                Text("The native credential provider is installed. Enable CH5 Auth in Passwords & AutoFill to make it available to browsers.")
+                Text("Elf Vault Passkeys").font(.title2)
+                Text("The native credential provider is installed. Enable Elf Vault in Passwords & AutoFill to make it available to browsers.")
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 420)
                 Text(providerState).font(.caption).foregroundStyle(.secondary)

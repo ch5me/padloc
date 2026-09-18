@@ -3,7 +3,8 @@ set -euo pipefail
 
 stage="${PADLOC_RELEASE_STAGE:-staging}"
 bucket="${PADLOC_RELEASE_BUCKET:-padloc-attachments-${stage}}"
-origin="${PADLOC_RELEASE_ORIGIN:-https://api-pad-${stage}.ch5.me/public-releases}"
+target_api_url="$(node scripts/release/target-config.mjs --stage "$stage" --field apiBaseUrl)"
+origin="${PADLOC_RELEASE_ORIGIN:-${target_api_url}/public-releases}"
 mode="${1:?mode}"
 shift
 

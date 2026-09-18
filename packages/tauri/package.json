@@ -1,7 +1,7 @@
 {
     "name": "@padloc/tauri",
     "version": "4.3.0",
-    "description": "Tauri Wrapper for Padloc",
+    "description": "Tauri Wrapper for Elf Vault",
     "main": "index.js",
     "scripts": {
         "tauri": "tauri",

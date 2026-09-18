@@ -1108,8 +1108,8 @@
     "Hesap Mevcut"
   ],
   [
-    "You don't have a Padloc 4 account yet but we've found an account from an older version. Would you like to migrate your account to Padloc 4 now?",
-    "Henüz Padloc 4 hesabınız yok ancak eski versiyondan bir hesap bulduk. Hesabınızı şimdi Padloc 4'e aktarmak ister misiniz?"
+    "You don't have an Elf Vault account yet but we've found an account from the legacy Padloc 4 version. Would you like to migrate your account to Elf Vault now?",
+    "Henüz Elf Vault 4 hesabınız yok ancak eski versiyondan bir hesap bulduk. Hesabınızı şimdi Elf Vault 4'e aktarmak ister misiniz?"
   ],
   [
     "Migrate",
@@ -1132,8 +1132,8 @@
     "Eski Hesabı Sil"
   ],
   [
-    "All done! Please note that you won't be able to access your Padloc 4 account with older versions of the app, so please make sure you have the latest version installed on all your devices! (You can find download links for all platforms at https://padloc.app/downloads/). Enjoy using Padloc 4!",
-    "Hepsi bu kadar! Lütfen uygulamanın eski versiyonlarından Padloc 4 hesabına erişmenin mümkün olmadığını unutmayın, bu yüzden tüm cihazlarınızda en son versiyonun yüklü olduğundan emin olun! (Tüm platformlar için indirme linklerini https://padloc.app/downloads/ adresinde bulabilirsiniz.) Padloc 4 kullanmanın tadını çıkarın!"
+    "All done! Please note that you won't be able to access your Elf Vault account with older versions of the app, so please make sure you have the latest version installed on all your devices! (You can find download links for all platforms at https://vault.elf.dance/downloads/). Enjoy using Elf Vault!",
+    "Hepsi bu kadar! Lütfen uygulamanın eski versiyonlarından Elf Vault 4 hesabına erişmenin mümkün olmadığını unutmayın, bu yüzden tüm cihazlarınızda en son versiyonun yüklü olduğundan emin olun! (Tüm platformlar için indirme linklerini https://vault.elf.dance/downloads/ adresinde bulabilirsiniz.) Elf Vault 4 kullanmanın tadını çıkarın!"
   ],
   [
     "Migration Complete",
@@ -1588,8 +1588,8 @@
     "{0} Hata Tespit Edildi"
   ],
   [
-    "Padloc has registered {0} errors during your use of the app. These errors may not have any impact on functionality and can often be ignored, but reporting them may help us diagnose problems, identify possible failure modes and generally improve the stability of the app.",
-    "Padloc uygulamayı kullandığınız süreçte {0} hata kaydetti. Bu hatalar kullanıma etki etmeyebilir ve genellikle göz ardı edilebilir. Ancak bunları raporlamanız bizim sorunları teşhis etmemize, olası başarısız modları bulmamıza ve genellikle uygulamanın kararlılığını geliştirmemize yardım eder."
+    "Elf Vault has registered {0} errors during your use of the app. These errors may not have any impact on functionality and can often be ignored, but reporting them may help us diagnose problems, identify possible failure modes and generally improve the stability of the app.",
+    "Elf Vault uygulamayı kullandığınız süreçte {0} hata kaydetti. Bu hatalar kullanıma etki etmeyebilir ve genellikle göz ardı edilebilir. Ancak bunları raporlamanız bizim sorunları teşhis etmemize, olası başarısız modları bulmamıza ve genellikle uygulamanın kararlılığını geliştirmemize yardım eder."
   ],
   [
     "All Security Reports have been disabled.",
@@ -1864,7 +1864,7 @@
     "Aktif Oturumlar"
   ],
   [
-    "Active sessions indicate which devices or browsers are currently logged into your account. Note that sessions are not automatically revoked if you close or uninstall the Padloc app (or close the browser tab if you're using the web app). So it's possible that some devices that you haven't used Padloc on in a while still show up as active sessions. If you're unsure which device a session belongs to, simply revoke it.",
+    "Active sessions indicate which devices or browsers are currently logged into your account. Note that sessions are not automatically revoked if you close or uninstall the Elf Vault app (or close the browser tab if you're using the web app). So it's possible that some devices that you haven't used Elf Vault on in a while still show up as active sessions. If you're unsure which device a session belongs to, simply revoke it.",
     ""
   ],
   [

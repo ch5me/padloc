@@ -1,4 +1,4 @@
-name: Promote Public Release
+name: Promote Elf Vault Public Release
 
 # Stable downloads are never automatic. Dispatch is a human production gate.
 on:
@@ -50,12 +50,16 @@ jobs:
             - uses: actions/setup-node@v4
               with:
                   node-version-file: ".nvmrc"
+            - name: Resolve release hosts
+              run: |
+                  echo "STAGING_API_URL=$(node scripts/release/target-config.mjs --stage staging --field apiBaseUrl)" >> "$GITHUB_ENV"
+                  echo "PRODUCTION_API_URL=$(node scripts/release/target-config.mjs --stage production --field apiBaseUrl)" >> "$GITHUB_ENV"
             - name: Download and verify immutable staging assets
               env:
                   STAGING_TAG: ${{ github.event.inputs.staging_tag }}
               run: |
                   set -euo pipefail
-                  base="https://api-pad-staging.ch5.me/public-releases/releases/${STAGING_TAG}"
+                  base="${STAGING_API_URL}/public-releases/releases/${STAGING_TAG}"
                   curl -fsSLO "$base/manifest.json"
                   node scripts/release/validate-manifest.mjs manifest.json
                   SHA="${{ github.event.inputs.candidate_sha }}" node -e 'const m=require("./manifest.json"); if(m.channel!=="staging"||m.sourceSha!==process.env.SHA) process.exit(1)'
@@ -75,7 +79,8 @@ jobs:
                   m.channel = 'stable';
                   m.version = process.env.VERSION;
                   m.publishedAt = new Date().toISOString();
-                  const publicRelease = `https://api-pad.ch5.me/public-releases/releases/${process.env.TAG}`;
+                  const config = JSON.parse(fs.readFileSync('config/environment-targets.json'));
+                  const publicRelease = `${config.targets.production.apiBaseUrl}/public-releases/releases/${process.env.TAG}`;
                   m.releaseNotesUrl = `${publicRelease}/RELEASE_NOTES.md`;
                   m.provenance.runUrl = process.env.RUN_URL;
                   m.provenance.workflow = 'promote-public-release.yml';
@@ -102,7 +107,6 @@ jobs:
                   TAG: v${{ github.event.inputs.version }}
                   PADLOC_RELEASE_STAGE: production
                   PADLOC_RELEASE_BUCKET: padloc-attachments-prod
-                  PADLOC_RELEASE_ORIGIN: https://api-pad.ch5.me/public-releases
                   RELEASE_POINTER_CHANNEL: stable
               run: |
                   assets=$(node -e 'const m=require("./manifest.json"); process.stdout.write(m.artifacts.map(a=>a.file).join(" "))')
@@ -110,4 +114,4 @@ jobs:
                   hush run --target wrangler-deploy-production -- bash scripts/release/publish-public-r2.sh immutable manifest.json RELEASE_NOTES.md $assets
                   hush run --target wrangler-deploy-production -- bash scripts/release/publish-public-r2.sh pointer manifest.json
             - name: Stable download canary
-              run: node scripts/release/canary.mjs "https://api-pad.ch5.me/public-releases/channels/stable/latest.json"
+              run: node scripts/release/canary.mjs "${PRODUCTION_API_URL}/public-releases/channels/stable/latest.json"

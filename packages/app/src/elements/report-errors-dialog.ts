@@ -9,7 +9,7 @@ import { css, html } from "lit";
 export class ReportErrorsDialog extends Dialog<void, void> {
     private _reportErrors() {
         const email = process.env.PL_SUPPORT_EMAIL || "";
-        const subject = "Padloc Error Report";
+        const subject = "Elf Vault Error Report";
         const message = `
 
 ----- enter your comment above -----
@@ -52,7 +52,7 @@ ${JSON.stringify(app.state.device.toRaw(), null, 4)}
                 <div class="error note item">${$l("{0} Errors Detected", app.state._errors.length.toString())}</div>
                 <div class="message">
                     ${$l(
-                        "Padloc has registered {0} errors during your use of the app. " +
+                        "Elf Vault has registered {0} errors during your use of the app. " +
                             "These errors may not have any impact on functionality and can often be ignored, " +
                             "but reporting them may help us diagnose problems, identify possible failure " +
                             "modes and generally improve the stability of the app.",

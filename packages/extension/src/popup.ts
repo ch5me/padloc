@@ -11,7 +11,7 @@ function showStartupError(error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     document.body.innerHTML = `
         <div style="font-family: sans-serif; padding: 16px; color: #b00020; line-height: 1.4;">
-            <strong>CH5 Auth failed to load.</strong>
+            <strong>Elf Vault failed to load.</strong>
             <p style="font-size: 12px; white-space: pre-wrap;">${message}</p>
         </div>
     `;
@@ -28,7 +28,7 @@ async function startPopup() {
         setTimeout(focusWindow, 100);
         setTimeout(focusWindow, 250);
     } catch (error) {
-        console.error("[CH5 Auth] Popup failed to start", error);
+        console.error("[Elf Vault] Popup failed to start", error);
         showStartupError(error);
     }
 }
