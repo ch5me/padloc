@@ -60,3 +60,6 @@ packages/macos/.signed-build
 # in plaintext; firefly-cloud had this rule and nobody generalized it. Never commit
 # this directory.
 /.hush-materialized/
+
+# Autopilot deployment receipts are exact-run evidence, not source state.
+.ch5/autopilot/*/domain-receipts/

@@ -10,3 +10,6 @@
 {"event":"critic_review","verdict":"APPROVE","date":"2026-09-18"}
 {"event": "implementation_review", "date": "2026-09-18", "verdict": "APPROVE_AFTER_FIXES", "fixes": ["origin-safe PWA CSP", "old-origin functional smoke gates", "production clean-tree gate", "bounded canary timeout", "release branding scan and labels", "production preflight negative tests"]}
 {"event": "local_qa", "date": "2026-09-18", "verdict": "PASS", "proof": ["runtime config positive/negative", "Worker CORS/security", "email generation", "customer surface scan", "extension production build/preflight", "staging and production PWA production build/check", "release contract tests", "Worker dry-run", "local Elf Vault web/API serving"]}
+{"event": "staging_deployed", "date": "2026-09-18", "verdict": "PASS", "evidence": ["canonical and legacy PWA/API hosts", "exact-SHA provenance", "old-origin login/unlock/sync/reload/item visibility"]}
+{"event": "production_deployed", "date": "2026-09-18", "verdict": "PASS", "evidence": ["canonical and legacy PWA/API hosts", "exact-SHA provenance", "old-origin login/unlock/sync/reload/item visibility"]}
+{"event": "autopilot_complete", "date": "2026-09-18", "verdict": "PASS", "hushAuthorityPreserved": true, "credentialMutation": false}

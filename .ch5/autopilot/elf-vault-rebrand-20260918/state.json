@@ -1,8 +1,8 @@
 {
   "schema": "ch5.autopilot-state.v1",
   "runId": "elf-vault-rebrand-20260918",
-  "active": true,
-  "phase": "qa",
+  "active": false,
+  "phase": "complete",
   "objective": "Rebrand customer-facing CH5 Auth/Padloc surfaces to Elf Vault, adopt elf-ear vault branding, move service domains to the established elf.dance pattern, and deploy staging-first with served-identity proof.",
   "constraints": [
     "Preserve Padloc names only where required as internal package, repository, protocol, or compatibility identifiers.",
@@ -26,13 +26,13 @@
   "gates": {
     "domainPattern": "vault.elf.dance / staging.vault.elf.dance; api.vault.elf.dance / staging.api.vault.elf.dance",
     "brandApproval": "preauthorized-by-user-request",
-    "stagingProof": "pending",
-    "productionPromotion": "pending"
+    "stagingProof": "verified exact-SHA canary plus old-origin login/unlock/sync/reload",
+    "productionPromotion": "deployed and verified exact-SHA canary plus old-origin login/unlock/sync/reload"
   },
   "iterations": {
     "plan": 3,
     "review": 2,
-    "qa": 1
+    "qa": 2
   },
-  "updatedAt": "2026-09-18T05:30:00-07:00"
+  "updatedAt": "2026-09-18T05:17:00-07:00"
 }
