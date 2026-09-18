@@ -276,6 +276,97 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
         expect(passwordVal).toBe("secret123");
     });
 
+    test("secret-blind writer binds exact fields and returns no synthetic values", async ({
+        page,
+        extensionWorker,
+    }) => {
+        await page.goto(LOGIN_URL);
+        await page.waitForLoadState("networkidle");
+        await page.waitForTimeout(500);
+
+        const result = await extensionWorker.evaluate(async () => {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            const inspection = await chrome.tabs.sendMessage(tab.id, {
+                type: "inspectAgenticFields",
+                fields: [
+                    { selector: "#username", role: "username" },
+                    { selector: "#password", role: "password" },
+                ],
+            });
+            const target = {
+                tabId: tab.id,
+                frameId: 0,
+                documentId: inspection.documentId,
+                formRef: inspection.formRef,
+                targetRevision: inspection.targetRevision,
+                topOrigin: "https://passkey-test.ch5.me",
+                frameOrigin: inspection.frameOrigin,
+            };
+            const values = {
+                username: "synthetic-agent@example.invalid",
+                password: "synthetic-password-not-a-secret",
+            };
+            const writes = [];
+            for (const field of inspection.fields) {
+                const value = field.role === "password" ? values.password : values.username;
+                writes.push(
+                    await chrome.tabs.sendMessage(tab.id, {
+                        type: "applyAgenticField",
+                        target,
+                        approvedFields: inspection.fields,
+                        field: { ...field, value },
+                    })
+                );
+            }
+            return { inspection, writes };
+        });
+
+        expect(result.writes).toEqual([true, true]);
+        expect(await page.locator("#username").inputValue()).toBe("synthetic-agent@example.invalid");
+        expect(await page.locator("#password").inputValue()).toBe("synthetic-password-not-a-secret");
+        expect(JSON.stringify(result)).not.toContain("synthetic-agent@example.invalid");
+        expect(JSON.stringify(result)).not.toContain("synthetic-password-not-a-secret");
+        expect(result.inspection.fields.every((field: any) => /^ref_[0-9a-f]{64}$/.test(field.fieldRef))).toBe(true);
+    });
+
+    test("secret-blind writer refuses stale field identity after approval", async ({ page, extensionWorker }) => {
+        await page.goto(LOGIN_URL);
+        await page.waitForLoadState("networkidle");
+        await page.waitForTimeout(500);
+
+        const inspection = await extensionWorker.evaluate(async () => {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            return chrome.tabs.sendMessage(tab.id, {
+                type: "inspectAgenticFields",
+                fields: [{ selector: "#username", role: "username" }],
+            });
+        });
+        await page.locator("#username").evaluate((input) => input.setAttribute("autocomplete", "email"));
+        const applied = await extensionWorker.evaluate(
+            async ({ inspection }) => {
+                const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                return chrome.tabs.sendMessage(tab.id, {
+                    type: "applyAgenticField",
+                    target: {
+                        tabId: tab.id,
+                        frameId: 0,
+                        documentId: inspection.documentId,
+                        formRef: inspection.formRef,
+                        targetRevision: inspection.targetRevision,
+                        topOrigin: "https://passkey-test.ch5.me",
+                        frameOrigin: inspection.frameOrigin,
+                    },
+                    approvedFields: inspection.fields,
+                    field: { ...inspection.fields[0], value: "synthetic-stale@example.invalid" },
+                });
+            },
+            { inspection }
+        );
+
+        expect(applied).toBe(false);
+        expect(await page.locator("#username").inputValue()).toBe("");
+    });
+
     test("controlled CH5 RP creates and verifies a vault-held passkey through the approval popup", async ({
         page,
         context,
