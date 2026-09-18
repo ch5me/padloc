@@ -620,7 +620,11 @@ function resolveProjectPath(project) {
 
 async function readCode(args) {
     const value = args.get("code");
-    const code = value || (args.get("code-stdin") === "true" ? (await readFile(0, "utf8")).trim() : "");
+    let stdinValue = "";
+    if (!value && args.get("code-stdin") === "true") {
+        for await (const chunk of process.stdin) stdinValue += chunk;
+    }
+    const code = value || stdinValue.trim();
     if (!/^\d{6}$/.test(code)) throw new SmokeError("EMAIL_CODE_INVALID", "verification code must be six digits");
     return code;
 }
