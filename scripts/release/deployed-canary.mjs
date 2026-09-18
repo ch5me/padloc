@@ -270,7 +270,10 @@ async function checkPwa(fetchImpl, target, expectedSha, timeoutMs) {
     const cspMetaValues = [...html.matchAll(/<meta\b[^>]*>/gi)]
         .map((match) => match[0])
         .filter((tag) => /http-equiv=["']Content-Security-Policy["']/i.test(tag))
-        .map((tag) => tag.match(/content=["']([^"']+)["']/i)?.[1])
+        .map((tag) => {
+            const match = tag.match(/\bcontent=(?:"([^"]*)"|'([^']*)')/i);
+            return match?.[1] ?? match?.[2];
+        })
         .filter(Boolean);
     const cspParts = [header(htmlResponse, "content-security-policy"), ...cspMetaValues].join(" ");
     if (!cspParts) fail("PWA index.html has no Content-Security-Policy");
