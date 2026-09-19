@@ -1,0 +1,450 @@
+{
+  "schema": "elf.agentic-autofill-contract-fixtures.v1",
+  "fixtureVersion": 1,
+  "target": {
+    "tabId": 7,
+    "frameId": 0,
+    "origin": "https://checkout.example.test",
+    "documentId": "document-synthetic-1",
+    "formRef": "form-synthetic-1",
+    "targetRevision": "revision-1",
+    "sessionId": "session-synthetic-1",
+    "topOrigin": "https://checkout.example.test",
+    "frameOrigin": "https://checkout.example.test"
+  },
+  "privacyTransitions": [
+    {
+      "state": "unknown",
+      "observationRevision": 0,
+      "genericObservation": "requires-separate-disclosure"
+    },
+    {
+      "state": "clean",
+      "observationRevision": 1,
+      "genericObservation": "allowed"
+    },
+    {
+      "state": "potentially-private",
+      "observationRevision": 2,
+      "genericObservation": "blocked"
+    }
+  ],
+  "provenance": {
+    "schema": "elf.import-provenance.v1",
+    "source": "synthetic",
+    "sourceId": "fixture-import-run",
+    "importedAt": "2026-01-01T00:00:00.000Z",
+    "importerVersion": "fixture-v1",
+    "sourceItemId": "fixture-item-1"
+  },
+  "importResult": {
+    "schema": "elf.import-result.v1",
+    "imported": 1,
+    "normalized": 1,
+    "skipped": 0,
+    "lossy": 1,
+    "provenance": {
+      "schema": "elf.import-provenance.v1",
+      "source": "synthetic",
+      "sourceId": "fixture-import-run",
+      "importedAt": "2026-01-01T00:00:00.000Z",
+      "importerVersion": "fixture-v1",
+      "sourceItemId": "fixture-item-1"
+    },
+    "losses": [
+      {
+        "schema": "elf.import-loss.v1",
+        "sourceItemId": "fixture-item-1",
+        "category": "unsupported-field",
+        "outcome": "lossy-normalized",
+        "reasonCode": "UNSUPPORTED_FIELD",
+        "note": "fixture-only metadata"
+      }
+    ],
+    "sourceIdentifiers": [
+      "fixture-source-item-1"
+    ]
+  },
+  "envelope": {
+    "schema": "elf.encrypted-autofill-profile-envelope.v1",
+    "envelopeId": "fixture-envelope-1",
+    "formatVersion": 1,
+    "ciphertext": "AAECAwQFBgcICQ==",
+    "wrappedKey": "CgsMDQ4PEBESExQVFg==",
+    "wrapAlgorithm": "padloc-import-key-v1",
+    "sourceProvenance": {
+      "schema": "elf.import-provenance.v1",
+      "source": "compatibility-envelope",
+      "sourceId": "fixture-envelope-source",
+      "importedAt": "2026-01-01T00:00:00.000Z",
+      "importerVersion": "fixture-v1",
+      "sourceItemId": "fixture-envelope-item"
+    },
+    "consentNonce": "fixture-consent-1",
+    "recordCountHint": 1,
+    "createdAt": "2026-01-01T00:00:00.000Z"
+  },
+  "brokerResponses": [
+    {
+      "schema": "elf.padloc-broker-response.v2",
+      "kind": "status",
+      "protocolVersion": 2,
+      "requestId": "fixture-status-1",
+      "ok": true,
+      "vaultState": "unlocked"
+    },
+    {
+      "schema": "elf.padloc-broker-response.v2",
+      "kind": "classified",
+      "protocolVersion": 2,
+      "requestId": "fixture-classified-1",
+      "ok": true,
+      "target": {
+        "tabId": 7,
+        "frameId": 0,
+        "origin": "https://checkout.example.test",
+        "documentId": "document-synthetic-1",
+        "formRef": "form-synthetic-1",
+        "targetRevision": "revision-1",
+        "sessionId": "session-synthetic-1",
+        "topOrigin": "https://checkout.example.test",
+        "frameOrigin": "https://checkout.example.test"
+      },
+      "fields": [
+        {
+          "selector": "#email",
+          "role": "contact.email",
+          "fieldRef": "field-email"
+        }
+      ]
+    },
+    {
+      "schema": "elf.padloc-broker-response.v2",
+      "kind": "plan",
+      "protocolVersion": 2,
+      "requestId": "fixture-plan-1",
+      "ok": true,
+      "target": {
+        "tabId": 7,
+        "frameId": 0,
+        "origin": "https://checkout.example.test",
+        "documentId": "document-synthetic-1",
+        "formRef": "form-synthetic-1",
+        "targetRevision": "revision-1",
+        "sessionId": "session-synthetic-1",
+        "topOrigin": "https://checkout.example.test",
+        "frameOrigin": "https://checkout.example.test"
+      },
+      "planId": "fixture-plan-1",
+      "fields": [
+        {
+          "fieldRef": "field-email",
+          "role": "contact.email",
+          "sourceRef": "item-ref-1",
+          "transactionOnly": false,
+          "releaseClass": "low"
+        }
+      ],
+      "expiresAt": "2026-01-01T00:05:00.000Z"
+    },
+    {
+      "schema": "elf.padloc-broker-response.v2",
+      "kind": "approval-required",
+      "protocolVersion": 2,
+      "requestId": "fixture-approval-1",
+      "ok": true,
+      "target": {
+        "tabId": 7,
+        "frameId": 0,
+        "origin": "https://checkout.example.test",
+        "documentId": "document-synthetic-1",
+        "formRef": "form-synthetic-1",
+        "targetRevision": "revision-1",
+        "sessionId": "session-synthetic-1",
+        "topOrigin": "https://checkout.example.test",
+        "frameOrigin": "https://checkout.example.test"
+      },
+      "planId": "fixture-plan-1",
+      "reasonCode": "ASK_REQUIRED",
+      "mode": "manual"
+    },
+    {
+      "schema": "elf.padloc-broker-response.v2",
+      "kind": "granted",
+      "protocolVersion": 2,
+      "requestId": "fixture-granted-1",
+      "ok": true,
+      "target": {
+        "tabId": 7,
+        "frameId": 0,
+        "origin": "https://checkout.example.test",
+        "documentId": "document-synthetic-1",
+        "formRef": "form-synthetic-1",
+        "targetRevision": "revision-1",
+        "sessionId": "session-synthetic-1",
+        "topOrigin": "https://checkout.example.test",
+        "frameOrigin": "https://checkout.example.test"
+      },
+      "grantId": "fixture-grant-1",
+      "planId": "fixture-plan-1",
+      "expiresAt": "2026-01-01T00:05:00.000Z",
+      "maxUses": 1
+    },
+    {
+      "schema": "elf.padloc-broker-response.v2",
+      "kind": "applied",
+      "protocolVersion": 2,
+      "requestId": "fixture-applied-1",
+      "ok": true,
+      "target": {
+        "tabId": 7,
+        "frameId": 0,
+        "origin": "https://checkout.example.test",
+        "documentId": "document-synthetic-1",
+        "formRef": "form-synthetic-1",
+        "targetRevision": "revision-1",
+        "sessionId": "session-synthetic-1",
+        "topOrigin": "https://checkout.example.test",
+        "frameOrigin": "https://checkout.example.test"
+      },
+      "grantId": "fixture-grant-1",
+      "receipt": {
+        "receiptId": "fixture-receipt-1",
+        "status": "completed",
+        "filledFieldRefs": [
+          "field-email"
+        ],
+        "modelDisclosure": "none",
+        "submittedByExecutor": false
+      }
+    },
+    {
+      "schema": "elf.padloc-broker-response.v2",
+      "kind": "revoked",
+      "protocolVersion": 2,
+      "requestId": "fixture-revoked-1",
+      "ok": true,
+      "target": {
+        "tabId": 7,
+        "frameId": 0,
+        "origin": "https://checkout.example.test",
+        "documentId": "document-synthetic-1",
+        "formRef": "form-synthetic-1",
+        "targetRevision": "revision-1",
+        "sessionId": "session-synthetic-1",
+        "topOrigin": "https://checkout.example.test",
+        "frameOrigin": "https://checkout.example.test"
+      },
+      "grantId": "fixture-grant-1",
+      "status": "revoked"
+    },
+    {
+      "schema": "elf.padloc-broker-response.v2",
+      "kind": "privacy-status",
+      "protocolVersion": 2,
+      "requestId": "fixture-privacy-1",
+      "ok": true,
+      "target": {
+        "tabId": 7,
+        "frameId": 0,
+        "origin": "https://checkout.example.test",
+        "documentId": "document-synthetic-1",
+        "formRef": "form-synthetic-1",
+        "targetRevision": "revision-1",
+        "sessionId": "session-synthetic-1",
+        "topOrigin": "https://checkout.example.test",
+        "frameOrigin": "https://checkout.example.test"
+      },
+      "state": "clean",
+      "observationRevision": 1,
+      "genericObservation": "allowed"
+    },
+    {
+      "schema": "elf.padloc-broker-response.v2",
+      "kind": "import-result",
+      "protocolVersion": 2,
+      "requestId": "fixture-import-result-1",
+      "ok": true,
+      "result": {
+        "schema": "elf.import-result.v1",
+        "imported": 1,
+        "normalized": 1,
+        "skipped": 0,
+        "lossy": 1,
+        "provenance": {
+          "schema": "elf.import-provenance.v1",
+          "source": "synthetic",
+          "sourceId": "fixture-import-run",
+          "importedAt": "2026-01-01T00:00:00.000Z",
+          "importerVersion": "fixture-v1",
+          "sourceItemId": "fixture-item-1"
+        },
+        "losses": [
+          {
+            "schema": "elf.import-loss.v1",
+            "sourceItemId": "fixture-item-1",
+            "category": "unsupported-field",
+            "outcome": "lossy-normalized",
+            "reasonCode": "UNSUPPORTED_FIELD",
+            "note": "fixture-only metadata"
+          }
+        ],
+        "sourceIdentifiers": [
+          "fixture-source-item-1"
+        ]
+      }
+    },
+    {
+      "schema": "elf.padloc-broker-response.v2",
+      "kind": "error",
+      "protocolVersion": 2,
+      "requestId": "fixture-error-1",
+      "ok": false,
+      "target": {
+        "tabId": 7,
+        "frameId": 0,
+        "origin": "https://checkout.example.test",
+        "documentId": "document-synthetic-1",
+        "formRef": "form-synthetic-1",
+        "targetRevision": "revision-1",
+        "sessionId": "session-synthetic-1",
+        "topOrigin": "https://checkout.example.test",
+        "frameOrigin": "https://checkout.example.test"
+      },
+      "error": {
+        "schema": "elf.padloc-broker-error.v1",
+        "code": "ASK_REQUIRED",
+        "retryable": false,
+        "safeMessage": "Synthetic approval is required"
+      }
+    }
+  ],
+  "handshake": {
+    "beginRequest": {
+      "schema": "elf.import-begin-request.v1",
+      "operation": "import-begin",
+      "requestId": "fixture-import-begin-1",
+      "consentNonce": "fixture-consent-1"
+    },
+    "beginSuccess": {
+      "schema": "elf.import-begin-result.v1",
+      "kind": "import-begin-result",
+      "requestId": "fixture-import-begin-1",
+      "ok": true,
+      "wrapAlgorithm": "padloc-import-key-v1",
+      "importPublicKey": "fixture-import-public-key",
+      "importKeyId": "fixture-import-key-1",
+      "expiresAt": "2026-01-01T00:05:00.000Z"
+    },
+    "beginError": {
+      "schema": "elf.padloc-broker-response.v2",
+      "kind": "error",
+      "protocolVersion": 2,
+      "requestId": "fixture-import-begin-error-1",
+      "ok": false,
+      "error": {
+        "schema": "elf.padloc-broker-error.v1",
+        "code": "UNKNOWN_KEY",
+        "retryable": true,
+        "safeMessage": "Synthetic import key is unavailable"
+      }
+    },
+    "commitRequest": {
+      "schema": "elf.import-commit-request.v1",
+      "operation": "import-commit",
+      "requestId": "fixture-import-commit-1",
+      "envelope": {
+        "schema": "elf.encrypted-autofill-profile-envelope.v1",
+        "envelopeId": "fixture-envelope-1",
+        "formatVersion": 1,
+        "ciphertext": "AAECAwQFBgcICQ==",
+        "wrappedKey": "CgsMDQ4PEBESExQVFg==",
+        "wrapAlgorithm": "padloc-import-key-v1",
+        "sourceProvenance": {
+          "schema": "elf.import-provenance.v1",
+          "source": "compatibility-envelope",
+          "sourceId": "fixture-envelope-source",
+          "importedAt": "2026-01-01T00:00:00.000Z",
+          "importerVersion": "fixture-v1",
+          "sourceItemId": "fixture-envelope-item"
+        },
+        "consentNonce": "fixture-consent-1",
+        "recordCountHint": 1,
+        "createdAt": "2026-01-01T00:00:00.000Z"
+      }
+    },
+    "commitSuccess": {
+      "schema": "elf.import-commit-result.v1",
+      "kind": "import-result",
+      "requestId": "fixture-import-commit-1",
+      "ok": true,
+      "result": {
+        "schema": "elf.import-result.v1",
+        "imported": 1,
+        "normalized": 1,
+        "skipped": 0,
+        "lossy": 1,
+        "provenance": {
+          "schema": "elf.import-provenance.v1",
+          "source": "synthetic",
+          "sourceId": "fixture-import-run",
+          "importedAt": "2026-01-01T00:00:00.000Z",
+          "importerVersion": "fixture-v1",
+          "sourceItemId": "fixture-item-1"
+        },
+        "losses": [
+          {
+            "schema": "elf.import-loss.v1",
+            "sourceItemId": "fixture-item-1",
+            "category": "unsupported-field",
+            "outcome": "lossy-normalized",
+            "reasonCode": "UNSUPPORTED_FIELD",
+            "note": "fixture-only metadata"
+          }
+        ],
+        "sourceIdentifiers": [
+          "fixture-source-item-1"
+        ]
+      }
+    },
+    "commitError": {
+      "schema": "elf.padloc-broker-response.v2",
+      "kind": "error",
+      "protocolVersion": 2,
+      "requestId": "fixture-import-commit-error-1",
+      "ok": false,
+      "target": {
+        "tabId": 7,
+        "frameId": 0,
+        "origin": "https://checkout.example.test",
+        "documentId": "document-synthetic-1",
+        "formRef": "form-synthetic-1",
+        "targetRevision": "revision-1",
+        "sessionId": "session-synthetic-1",
+        "topOrigin": "https://checkout.example.test",
+        "frameOrigin": "https://checkout.example.test"
+      },
+      "error": {
+        "schema": "elf.padloc-broker-error.v1",
+        "code": "INVALID_REQUEST",
+        "retryable": false,
+        "safeMessage": "Synthetic import envelope was rejected"
+      }
+    }
+  },
+  "legacyProtocolV1": {
+    "ok": true,
+    "protocolVersion": 1,
+    "requestId": "fixture-legacy-1",
+    "vaultState": "unlocked",
+    "reason": null,
+    "audit": {
+      "valuePolicy": "redacted metadata only"
+    }
+  },
+  "malformedProtocolV1": {
+    "protocolVersion": 1,
+    "requestId": "fixture-legacy-malformed-1",
+    "vaultState": "unlocked"
+  }
+}

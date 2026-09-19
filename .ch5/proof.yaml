@@ -1,8 +1,56 @@
 version: 2
 
 # The Worker API preset supplies the shared validation, coverage, and launch-gate
-# commands. Repo-owned proof lanes stay empty until they can publish durable
-# evidence instead of claiming an unproved test result.
+# commands. These focused lanes are the frozen agentic autofill proof authority.
 extends: ch5:worker-api
-commands: {}
+commands:
+  agentic-autofill-core-model: >-
+    (cd packages/app && NODE_PATH="./node_modules:../extension/node_modules"
+    NODE_OPTIONS=--no-experimental-strip-types TS_NODE_PROJECT=tsconfig.json
+    TS_NODE_COMPILER_OPTIONS='{"module":"commonjs","esModuleInterop":true}'
+    ./node_modules/.bin/mocha --ui tdd --require ts-node/register/transpile-only
+    --require tsconfig-paths/register ../core/test/agentic-autofill-item.ts
+    ../core/test/agentic-import-result.ts test/agentic-create-item-semantics.ts
+    test/agentic-1pux-import.ts)
+  agentic-autofill-1pux-import: >-
+    (cd packages/app && NODE_PATH="./node_modules:../extension/node_modules"
+    NODE_OPTIONS=--no-experimental-strip-types TS_NODE_PROJECT=tsconfig.json
+    TS_NODE_COMPILER_OPTIONS='{"module":"commonjs","esModuleInterop":true}'
+    ./node_modules/.bin/mocha --ui tdd --require ts-node/register/transpile-only
+    --require tsconfig-paths/register test/agentic-1pux-import.ts
+    test/agentic-create-item-semantics.ts)
+  agentic-autofill-passkey-contract: >-
+    (cd packages/extension && NODE_OPTIONS=--no-experimental-strip-types
+    TS_NODE_COMPILER_OPTIONS='{"module":"commonjs"}' npx mocha --ui tdd
+    --require ts-node/register/transpile-only --require tsconfig-paths/register
+    --require test/setup.ts test/passkey-migration-contract.ts)
+  agentic-autofill-permission-engine: >-
+    (cd packages/extension && NODE_OPTIONS=--no-experimental-strip-types
+    TS_NODE_COMPILER_OPTIONS='{"module":"commonjs"}' npx mocha --ui tdd
+    --require ts-node/register/transpile-only --require tsconfig-paths/register
+    --require test/setup.ts test/agent-permission-engine.ts
+    test/autofill-permission-store.ts)
+  agentic-autofill-broker: >-
+    (cd packages/extension && NODE_OPTIONS=--no-experimental-strip-types
+    TS_NODE_COMPILER_OPTIONS='{"module":"commonjs"}' npx mocha --ui tdd
+    --require ts-node/register/transpile-only --require tsconfig-paths/register
+    --require test/setup.ts test/autofill-broker-protocol.ts
+    test/autofill-broker.ts test/autofill-compatibility-migration.ts)
+  agentic-autofill-privacy-gate: >-
+    (cd packages/extension && NODE_OPTIONS=--no-experimental-strip-types
+    TS_NODE_COMPILER_OPTIONS='{"module":"commonjs"}' npx mocha --ui tdd
+    --require ts-node/register/transpile-only --require tsconfig-paths/register
+    --require test/setup.ts test/autofill-observation-policy.ts) &&
+    (cd "${MAGIC_BROWSER_TREE:-/Users/hassoncs/worktrees/ch5/magic-browser/agentic-autofill-unification-20260918}"
+    && CH5_RAW_TEST_OK=1 CH5_RAW_TEST_REASON="G008 owned mocha/bun unit files"
+    bun test src/runtime/agentic-contract-fixtures.test.ts)
+  agentic-autofill-contract-fixtures: >-
+    (cd packages/extension && NODE_OPTIONS=--no-experimental-strip-types
+    TS_NODE_COMPILER_OPTIONS='{"module":"commonjs"}' npx mocha --ui tdd
+    --require ts-node/register/transpile-only --require tsconfig-paths/register
+    --require test/setup.ts test/agentic-contract-fixtures.ts)
+  agentic-autofill-synthetic-e2e: >-
+    node scripts/synthetic-agentic-autofill-e2e.mjs
+    --magic-browser-tree
+    "${MAGIC_BROWSER_TREE:-/Users/hassoncs/worktrees/ch5/magic-browser/agentic-autofill-unification-20260918}"
 proofs: []
