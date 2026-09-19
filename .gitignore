@@ -63,3 +63,6 @@ packages/macos/.signed-build
 
 # Autopilot deployment receipts are exact-run evidence, not source state.
 .ch5/autopilot/*/domain-receipts/
+
+# Generated synthetic autofill proof runtime (browser profile, native host state)
+.ch5/autopilot/*/synthetic-e2e/runtime/

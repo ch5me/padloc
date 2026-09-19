@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Synthetic Autofill Checkout</title>
+  </head>
+  <body>
+    <main>
+      <h1>Synthetic checkout</h1>
+      <form id="synthetic-autofill-form">
+        <label for="synthetic-username">Username</label>
+        <input id="synthetic-username" name="username" autocomplete="username" type="text">
+        <label for="synthetic-password">Password</label>
+        <input id="synthetic-password" name="password" autocomplete="current-password" type="password">
+        <button id="synthetic-submit" type="submit">Continue</button>
+        <output id="synthetic-result" aria-live="polite"></output>
+      </form>
+    </main>
+    <script>
+      document.querySelector("#synthetic-autofill-form").addEventListener("submit", (event) => {
+        event.preventDefault();
+        document.querySelector("#synthetic-result").textContent = "blocked synthetic submit";
+      });
+    </script>
+  </body>
+</html>
