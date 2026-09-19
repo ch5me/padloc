@@ -89,6 +89,11 @@ function enqueueBrokerRequest(request) {
     if (!brokerRequest) {
         return statusResponse(false, "broker-request requires request");
     }
+    const innerType = typeof brokerRequest.type === "string" ? brokerRequest.type : "";
+    const authorizing = ["approve", "mint-fill-bundle", "apply-fill-bundle", "revoke-fill-bundle"].includes(innerType);
+    if (authorizing && brokerRequest.protocolVersion !== 2) {
+        return statusResponse(false, "native host refuses protocol-v1 authorizing operations");
+    }
     const unsafe = findRawBundleValue(brokerRequest);
     if (unsafe) {
         return statusResponse(false, "refused broker request containing sensitive payload");

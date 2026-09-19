@@ -92,7 +92,7 @@ mochaSuite("Autofill broker", () => {
         const { response, bundle: minted } = mintBrokerBundleResponse(
             {
                 type: "mint-fill-bundle",
-                protocolVersion: 1,
+                protocolVersion: 2,
                 planId: pendingPlan.planId,
                 approvalId: approval.approvalId,
             },
@@ -105,7 +105,8 @@ mochaSuite("Autofill broker", () => {
         const value = await resolveBrokerBundleFieldValue(bundle, field.fieldRef, items());
 
         expect(response.grantId).to.match(/^grant_/);
-        expect(response.bundleId).to.equal(minted.bundleId);
+        expect(response.kind).to.equal("granted");
+        expect(minted.bundleId).to.match(/^bundle_/);
         expect(JSON.stringify(response)).not.to.contain("sentinel@example.test");
         expect(JSON.stringify(response)).not.to.contain("#email");
         expect(value).to.equal("sentinel@example.test");
@@ -118,7 +119,7 @@ mochaSuite("Autofill broker", () => {
         const { bundle: minted } = mintBrokerBundleResponse(
             {
                 type: "mint-fill-bundle",
-                protocolVersion: 1,
+                protocolVersion: 2,
                 planId: pendingPlan.planId,
                 approvalId: approval.approvalId,
             },
@@ -145,7 +146,7 @@ mochaSuite("Autofill broker", () => {
         let { bundle } = mintBrokerBundleResponse(
             {
                 type: "mint-fill-bundle",
-                protocolVersion: 1,
+                protocolVersion: 2,
                 planId: pendingPlan.planId,
                 approvalId: approval.approvalId,
             },
@@ -162,7 +163,7 @@ mochaSuite("Autofill broker", () => {
             filled.push(field.fieldRef);
         }
         const response = applyBrokerBundleResponse(
-            { type: "apply-fill-bundle", protocolVersion: 1, planId: pendingPlan.planId, bundleId: bundle.bundleId },
+            { type: "apply-fill-bundle", protocolVersion: 2, planId: pendingPlan.planId, bundleId: bundle.bundleId },
             bundle,
             filled,
             "completed",
@@ -174,7 +175,7 @@ mochaSuite("Autofill broker", () => {
         expect(response.receipt.status).to.equal("completed");
         expect(response.receipt.filledFieldRefs).to.deep.equal(filled);
         expect(response.receipt.modelDisclosure).to.equal("none");
-        expect(response.receipt.submittedByExecutor).to.equal(false);
+        expect(response.receipt.submittedByExecutor).to.equal(true);
         expect(JSON.stringify(response)).not.to.contain("sentinel@example.test");
     });
 
@@ -204,7 +205,7 @@ mochaSuite("Autofill broker", () => {
     mochaTest("rejects minting after approval expiry", () => {
         const { pendingPlan } = makePlan();
         const { approval } = approveBrokerPlanResponse(
-            { type: "approve", protocolVersion: 1, planId: pendingPlan.planId, approved: true, ttlSeconds: 1 },
+            { type: "approve", protocolVersion: 2, planId: pendingPlan.planId, approved: true, ttlSeconds: 1 },
             pendingPlan,
             time("12:00:01")
         );
@@ -212,7 +213,7 @@ mochaSuite("Autofill broker", () => {
             mintBrokerBundleResponse(
                 {
                     type: "mint-fill-bundle",
-                    protocolVersion: 1,
+                    protocolVersion: 2,
                     planId: pendingPlan.planId,
                     approvalId: approval.approvalId,
                 },
@@ -229,7 +230,7 @@ mochaSuite("Autofill broker", () => {
         const { bundle } = mintBrokerBundleResponse(
             {
                 type: "mint-fill-bundle",
-                protocolVersion: 1,
+                protocolVersion: 2,
                 planId: pendingPlan.planId,
                 approvalId: approval.approvalId,
             },
@@ -238,25 +239,26 @@ mochaSuite("Autofill broker", () => {
             time("12:00:02")
         );
         const revoked = revokeBrokerBundleResponse(
-            { type: "revoke-fill-bundle", protocolVersion: 1, planId: pendingPlan.planId, bundleId: bundle.bundleId },
+            { type: "revoke-fill-bundle", protocolVersion: 2, planId: pendingPlan.planId, bundleId: bundle.bundleId },
             bundle
         );
         expect(revoked.bundle.grantRecord.status).to.equal("revoked");
-        expect(revoked.response.receipt.status).to.equal("revoked");
+        expect(revoked.response.kind).to.equal("revoked");
+        expect(revoked.response.status).to.equal("revoked");
         expect(JSON.stringify(revoked.response)).not.to.contain("4111111111111111");
     });
 
     mochaTest("rejects applying after bundle expiry", () => {
         const { pendingPlan } = makePlan();
         const { approval } = approveBrokerPlanResponse(
-            { type: "approve", protocolVersion: 1, planId: pendingPlan.planId, approved: true, ttlSeconds: 1 },
+            { type: "approve", protocolVersion: 2, planId: pendingPlan.planId, approved: true, ttlSeconds: 1 },
             pendingPlan,
             time("12:00:00")
         );
         const { bundle } = mintBrokerBundleResponse(
             {
                 type: "mint-fill-bundle",
-                protocolVersion: 1,
+                protocolVersion: 2,
                 planId: pendingPlan.planId,
                 approvalId: approval.approvalId,
             },
@@ -264,6 +266,62 @@ mochaSuite("Autofill broker", () => {
             approval,
             time("12:00:00")
         );
+        expect(() =>
+            applyBrokerBundleResponse(
+                {
+                    type: "apply-fill-bundle",
+                    protocolVersion: 2,
+                    planId: pendingPlan.planId,
+                    bundleId: bundle.bundleId,
+                },
+                bundle,
+                [],
+                "outcome-unknown",
+                time("12:00:02")
+            )
+        ).to.throw("expired");
+    });
+
+    mochaTest("rejects protocol-v1 authorizing operations", () => {
+        const { pendingPlan } = makePlan();
+        expect(() =>
+            approveBrokerPlanResponse(
+                { type: "approve", protocolVersion: 1, planId: pendingPlan.planId, approved: true },
+                pendingPlan,
+                time("12:00:01")
+            )
+        ).to.throw("protocol v2");
+
+        const { approval } = approveBrokerPlanResponse(
+            { type: "approve", protocolVersion: 2, planId: pendingPlan.planId, approved: true },
+            pendingPlan,
+            time("12:00:01")
+        );
+        const { bundle } = mintBrokerBundleResponse(
+            {
+                type: "mint-fill-bundle",
+                protocolVersion: 2,
+                planId: pendingPlan.planId,
+                approvalId: approval.approvalId,
+            },
+            pendingPlan,
+            approval,
+            time("12:00:02")
+        );
+
+        expect(() =>
+            mintBrokerBundleResponse(
+                {
+                    type: "mint-fill-bundle",
+                    protocolVersion: 1,
+                    planId: pendingPlan.planId,
+                    approvalId: approval.approvalId,
+                },
+                pendingPlan,
+                approval,
+                time("12:00:02")
+            )
+        ).to.throw("protocol v2");
         expect(() =>
             applyBrokerBundleResponse(
                 {
@@ -277,7 +335,36 @@ mochaSuite("Autofill broker", () => {
                 "outcome-unknown",
                 time("12:00:02")
             )
-        ).to.throw("expired");
+        ).to.throw("protocol v2");
+        expect(() =>
+            revokeBrokerBundleResponse(
+                {
+                    type: "revoke-fill-bundle",
+                    protocolVersion: 1,
+                    planId: pendingPlan.planId,
+                    bundleId: bundle.bundleId,
+                },
+                bundle
+            )
+        ).to.throw("protocol v2");
+    });
+
+    mochaTest("standing-policy approval remains a closed v2 response", () => {
+        const { pendingPlan } = makePlan();
+        const { response, approval } = approveBrokerPlanResponse(
+            { type: "approve", protocolVersion: 2, planId: pendingPlan.planId, approved: true },
+            pendingPlan,
+            time("12:00:01"),
+            { policyRevision: 3, revocationGeneration: 4, policyId: "policy_fixture" }
+        );
+        expect(response).to.deep.include({
+            schema: "elf.padloc-broker-response.v2",
+            kind: "approval-required",
+            protocolVersion: 2,
+            ok: true,
+        });
+        expect(response).not.to.have.property("approvalId");
+        expect(approval.authorityPolicyId).to.equal("policy_fixture");
     });
 });
 
@@ -300,9 +387,11 @@ const request = {
 const target = {
     tabId: 42,
     frameId: 0,
+    origin: "https://checkout.example.test",
     documentId: "document-1",
     formRef: "form-1",
     targetRevision: "revision-1",
+    sessionId: "session-1",
     topOrigin: "https://checkout.example.test",
     frameOrigin: "https://checkout.example.test",
 };
@@ -321,7 +410,7 @@ function makePlan() {
 
 function approve(pendingPlan) {
     return approveBrokerPlanResponse(
-        { type: "approve", protocolVersion: 1, planId: pendingPlan.planId, approved: true, ttlSeconds: 60 },
+        { type: "approve", protocolVersion: 2, planId: pendingPlan.planId, approved: true, ttlSeconds: 60 },
         pendingPlan,
         time("12:00:01")
     );

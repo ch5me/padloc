@@ -309,6 +309,57 @@ const INSPECTED_FIELD_KEYS = new Set(["selector", "role", "fieldRef"]);
 const PLAN_FIELD_KEYS = new Set(["fieldRef", "role", "sourceRef", "transactionOnly", "releaseClass"]);
 const RECEIPT_KEYS = new Set(["receiptId", "status", "filledFieldRefs", "modelDisclosure", "submittedByExecutor"]);
 const ERROR_KEYS = new Set(["schema", "code", "retryable", "safeMessage"]);
+const LEGACY_RESPONSE_KEYS = new Set([
+    "ok",
+    "protocolVersion",
+    "requestId",
+    "vaultState",
+    "reason",
+    "planId",
+    "approvalId",
+    "bundleId",
+    "grantId",
+    "expiresAt",
+    "maxUses",
+    "fields",
+    "bundleFields",
+    "target",
+    "receipt",
+    "observation",
+    "error",
+    "audit",
+    "authorizing",
+]);
+const LEGACY_AUDIT_KEYS = new Set([
+    "operation",
+    "sessionId",
+    "origin",
+    "fieldCount",
+    "valuePolicy",
+    "actor",
+    "profileId",
+    "vendor",
+    "rpId",
+    "topOrigin",
+    "decision",
+    "reason",
+    "approvalId",
+    "grantId",
+    "receiptId",
+    "reasonCode",
+    "flowId",
+    "nonce",
+]);
+const LEGACY_FIELD_KEYS = new Set([
+    "selector",
+    "role",
+    "fieldRef",
+    "sourceRef",
+    "transactionOnly",
+    "releaseClass",
+    "valuePreview",
+    "value",
+]);
 const RESPONSE_KINDS = new Set<AutofillBrokerResponseKind>([
     "status",
     "classified",
@@ -456,6 +507,25 @@ export function readProtocolV1Response(value: unknown): AutofillBrokerResponse {
     if (!isRecord(value) || value.protocolVersion !== 1) throw invalidResponse();
     if (typeof value.ok !== "boolean") throw invalidResponse();
     if (value.requestId !== undefined && !isNonEmptyString(value.requestId)) throw invalidResponse();
+    if (!Object.keys(value).every((key) => LEGACY_RESPONSE_KEYS.has(key))) throw invalidResponse();
+    if (value.vaultState !== undefined && !["locked", "unlocked", "unknown"].includes(String(value.vaultState))) {
+        throw invalidResponse();
+    }
+    if (value.reason !== undefined && value.reason !== null && typeof value.reason !== "string") {
+        throw invalidResponse();
+    }
+    if (value.target !== undefined && !isExactAutofillBrokerTarget(value.target)) throw invalidResponse();
+    if (value.audit !== undefined) parseLegacyAudit(value.audit);
+    if (value.fields !== undefined) parseLegacyMetadataFields(value.fields);
+    if (value.bundleFields !== undefined) parseLegacyMetadataFields(value.bundleFields);
+    if (value.receipt !== undefined) parseReceipt(value.receipt);
+    if (value.observation !== undefined) parseLegacyObservation(value.observation);
+    if (value.error !== undefined) parseError(value.error);
+    for (const key of ["planId", "approvalId", "bundleId", "grantId", "expiresAt"]) {
+        if (value[key] !== undefined && !isNonEmptyString(value[key])) throw invalidResponse();
+    }
+    if (value.maxUses !== undefined && !isNonNegativeInteger(value.maxUses)) throw invalidResponse();
+    if (value.authorizing !== undefined && value.authorizing !== false) throw invalidResponse();
     const legacy = value as unknown as AutofillBrokerResponse;
     return { ...legacy, authorizing: false };
 }
@@ -698,6 +768,93 @@ function hasExactlyKeys(value: Record<string, unknown>, keys: Set<string>): bool
 
 function expectKeys(value: Record<string, unknown>, keys: Set<string>): void {
     if (!Object.keys(value).every((key) => keys.has(key))) throw invalidResponse();
+}
+
+function parseLegacyAudit(value: unknown): void {
+    if (!isRecord(value) || !Object.keys(value).every((key) => LEGACY_AUDIT_KEYS.has(key))) throw invalidResponse();
+    for (const [key, entry] of Object.entries(value)) {
+        if (
+            [
+                "operation",
+                "sessionId",
+                "origin",
+                "valuePolicy",
+                "actor",
+                "profileId",
+                "vendor",
+                "rpId",
+                "topOrigin",
+                "decision",
+                "reason",
+                "approvalId",
+                "grantId",
+                "receiptId",
+                "reasonCode",
+                "flowId",
+                "nonce",
+            ].includes(key) &&
+            entry !== null &&
+            typeof entry !== "string"
+        ) {
+            throw invalidResponse();
+        }
+        if (key === "fieldCount" && !isNonNegativeInteger(entry)) throw invalidResponse();
+    }
+}
+
+function parseLegacyMetadataFields(value: unknown): void {
+    if (!Array.isArray(value)) throw invalidResponse();
+    for (const field of value) {
+        if (!isRecord(field) || !Object.keys(field).every((key) => LEGACY_FIELD_KEYS.has(key))) {
+            throw invalidResponse();
+        }
+        for (const [key, entry] of Object.entries(field)) {
+            if (key === "value") {
+                if (entry !== "") throw invalidResponse();
+                continue;
+            }
+            if (key === "transactionOnly") {
+                if (typeof entry !== "boolean") throw invalidResponse();
+                continue;
+            }
+            if (key === "releaseClass" && !["low", "secret", "high-risk"].includes(String(entry))) {
+                throw invalidResponse();
+            }
+            if (typeof entry !== "string" || !entry) throw invalidResponse();
+        }
+    }
+}
+
+function parseLegacyObservation(value: unknown): void {
+    if (!isRecord(value)) throw invalidResponse();
+    const allowed = new Set([
+        "documentId",
+        "state",
+        "genericObservation",
+        "observationRevision",
+        "reason",
+        "contaminatedAt",
+        "target",
+    ]);
+    if (!Object.keys(value).every((key) => allowed.has(key))) throw invalidResponse();
+    if (value.documentId !== undefined && !isNonEmptyString(value.documentId)) throw invalidResponse();
+    if (value.state !== undefined && !["clean", "potentially-private", "unknown"].includes(String(value.state))) {
+        throw invalidResponse();
+    }
+    if (
+        value.genericObservation !== undefined &&
+        !["allowed", "blocked", "requires-separate-disclosure"].includes(String(value.genericObservation))
+    ) {
+        throw invalidResponse();
+    }
+    if (value.observationRevision !== undefined && !isNonNegativeInteger(value.observationRevision)) {
+        throw invalidResponse();
+    }
+    if (value.reason !== undefined && value.reason !== null && typeof value.reason !== "string") {
+        throw invalidResponse();
+    }
+    if (value.contaminatedAt !== undefined && !isIsoDateString(value.contaminatedAt)) throw invalidResponse();
+    if (value.target !== undefined && !isExactAutofillBrokerTarget(value.target)) throw invalidResponse();
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

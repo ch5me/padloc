@@ -53,8 +53,15 @@ export class AutofillObservationLedger {
      * The reset operation is trusted extension state, not a page-originated
      * hint. Once a value-bearing write happened, the document stays private.
      */
-    async reset(target: AutofillBrokerTarget): Promise<AutofillBrokerObservationState> {
+    async reset(
+        requested: AutofillBrokerTarget,
+        inspected?: AutofillBrokerTarget
+    ): Promise<AutofillBrokerObservationState> {
         await this._load();
+        const target = inspected || requested;
+        if (inspected && !sameTargetIdentity(requested, inspected)) {
+            throw new Error("Autofill observation reset cannot mint clean for an invented document");
+        }
         const key = documentKey(target.tabId, target.frameId, target.documentId);
         const existing = this._entries.get(key);
         if (existing && !sameTargetIdentity(existing.target, target)) {

@@ -525,6 +525,44 @@ suite("Autofill broker protocol", () => {
         expect(protocol.isProtocolV1NonAuthorizing(legacy)).to.equal(true);
         expect(legacy.authorizing).to.equal(false);
     });
+
+    test("rejects unknown keys on protocol-v1 compatibility responses", () => {
+        expect(() =>
+            protocol.parseAutofillBrokerResponse({
+                ok: true,
+                protocolVersion: 1,
+                requestId: "legacy-unknown",
+                vaultState: "unlocked",
+                reason: null,
+                audit: { operation: "status", valuePolicy: "redacted" },
+                invented: "must-reject",
+            })
+        ).to.throw();
+    });
+
+    test("native host refuses protocol-v1 authorizing requests", () => {
+        const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-v1-authorizing-`);
+        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const response = nativeHostRequest(
+            hostPath,
+            {
+                type: "broker-request",
+                protocolVersion: 1,
+                request: {
+                    type: "approve",
+                    protocolVersion: 1,
+                    requestId: "native-approve",
+                    planId: "plan_fixture",
+                    approved: true,
+                },
+            },
+            stateDir
+        );
+
+        expect(response.ok).to.equal(false);
+        expect(response.reason).to.contain("authorizing");
+        expect(nativeHostRequest(hostPath, { type: "claim-broker-request" }, stateDir).pending).to.equal(null);
+    });
 });
 
 function nativeHostRequest(hostPath: string, request: unknown, stateDir: string) {

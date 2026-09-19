@@ -37,7 +37,7 @@ suite("Autofill observation policy", () => {
 
     test("trusted reset creates clean state, then private writes are irreversible", async () => {
         const ledger = new AutofillObservationLedger(new MemoryStorage());
-        const clean = await ledger.reset(target);
+        const clean = await ledger.reset(target, target);
         expect(clean).to.include({ state: "clean", genericObservation: "allowed", observationRevision: 1 });
         await ledger.markPotentiallyPrivate(target, "field-email", now);
         expect(await ledger.status(target)).to.include({
@@ -47,7 +47,7 @@ suite("Autofill observation policy", () => {
         });
         let rejected = false;
         try {
-            await ledger.reset(target);
+            await ledger.reset(target, target);
         } catch {
             rejected = true;
         }
@@ -56,10 +56,21 @@ suite("Autofill observation policy", () => {
 
     test("rejects a reset for a stale form or target revision", async () => {
         const ledger = new AutofillObservationLedger(new MemoryStorage());
-        await ledger.reset(target);
+        await ledger.reset(target, target);
         let rejected = false;
         try {
-            await ledger.reset({ ...target, targetRevision: "stale-revision" });
+            await ledger.reset({ ...target, targetRevision: "stale-revision" }, target);
+        } catch {
+            rejected = true;
+        }
+        expect(rejected).to.equal(true);
+    });
+
+    test("rejects a reset when the caller invents a document identity", async () => {
+        const ledger = new AutofillObservationLedger(new MemoryStorage());
+        let rejected = false;
+        try {
+            await ledger.reset({ ...target, documentId: "invented-document" }, target);
         } catch {
             rejected = true;
         }
@@ -71,9 +82,11 @@ const now = Date.parse("2026-09-18T12:00:00.000Z");
 const target = {
     tabId: 42,
     frameId: 0,
+    origin: "https://shop.example",
     documentId: "document-1",
     formRef: "form-1",
     targetRevision: "revision-1",
+    sessionId: "session-1",
     topOrigin: "https://shop.example",
     frameOrigin: "https://shop.example",
 };

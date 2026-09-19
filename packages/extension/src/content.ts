@@ -125,6 +125,8 @@ class ExtensionContent {
                 return Promise.resolve(this._fillFields(msg.mappings));
             case "inspectAgenticFields":
                 return Promise.resolve(this._inspectAgenticFields(msg.fields));
+            case "inspectAgenticBrowserTarget":
+                return Promise.resolve(this._inspectAgenticBrowserTarget());
             case "applyAgenticField":
                 return Promise.resolve(this._applyAgenticField(msg.target, msg.approvedFields, msg.field));
             // case "fillOnDrop":
@@ -352,6 +354,16 @@ class ExtensionContent {
         });
     }
 
+
+    private async _inspectAgenticBrowserTarget() {
+        if (location.origin === "null") return null;
+        return {
+            documentId: this._agenticDocumentId,
+            formRef: await agenticHash(`${this._agenticDocumentId}\0document`),
+            targetRevision: await agenticHash(`${this._agenticDocumentId}\0document`),
+            frameOrigin: location.origin,
+        };
+    }
     private async _inspectAgenticFields(fields: AgenticFieldProposal[]) {
         if (!Array.isArray(fields) || fields.length === 0 || location.origin === "null") return null;
         const inspected: AutofillBrokerInspectedField[] = [];

@@ -100,6 +100,7 @@ const pendingAutofillPromptPlanIds = new Set<string>();
 const pendingAutofillImportKeys = new Map<string, { importKeyId: string; consentNonce: string; expiresAt: string }>();
 const autofillPermissionRepository = new AutofillPermissionRepository(browser.storage.local);
 const autofillObservationLedger = new AutofillObservationLedger(fixtureSessionStorage());
+let autofillObservationOperation = Promise.resolve();
 let fixtureAutofillItems: Array<{ item: VaultItem }> = [];
 const FIXTURE_CIPHERTEXT_KEY = "pl_agenticAutofillFixtureCiphertext";
 const FIXTURE_SESSION_KEY = "pl_agenticAutofillFixtureKey";
@@ -1199,7 +1200,7 @@ async function handleApproveAgenticAutofill(
     const { response, approval } = approveBrokerPlanResponse(
         {
             type: "approve",
-            protocolVersion: 1,
+            protocolVersion: 2,
             requestId: `popup-${planId}`,
             planId,
             approved: true,
@@ -1317,6 +1318,15 @@ function requireExtensionUiSender(sender: Runtime.MessageSender): string {
 }
 
 async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, application: App) {
+    if (
+        request.protocolVersion !== 2 &&
+        ["approve", "mint-fill-bundle", "apply-fill-bundle", "revoke-fill-bundle", "autofill-observation-reset"].includes(
+            request.type
+        )
+    ) {
+        throw new Error(`Autofill ${request.type} requires protocol v2`);
+    }
+
     if (request.type === "status") {
         return {
             type: "agenticAutofillBrokerResponse",
@@ -1335,11 +1345,15 @@ async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, appli
         if (request.protocolVersion !== 2 || !request.target || !isExactAutofillBrokerTarget(request.target)) {
             throw new Error("Autofill observation reset requires an exact target descriptor");
         }
-        const tab = await browser.tabs.get(request.target.tabId);
-        if (!tab.url || exactHttpOrigin(tab.url) !== request.target.topOrigin) {
-            throw new Error("Autofill observation reset target changed");
-        }
-        const status = await autofillObservationLedger.reset(request.target);
+        const status = await serializeAutofillObservation(async () => {
+            const target = await inspectAgenticBrowserTargetForReset(request.target!);
+            const resetTarget = {
+                ...target,
+                sessionId: request.target!.sessionId,
+            };
+            const result = await autofillObservationLedger.reset(resetTarget, target);
+            return { result, target: resetTarget };
+        });
         return {
             type: "agenticAutofillBrokerResponse",
             response: {
@@ -1348,10 +1362,10 @@ async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, appli
                 protocolVersion: 2,
                 requestId: request.requestId || "missing-request-id",
                 ok: true,
-                target: request.target,
-                state: status.state,
-                observationRevision: status.observationRevision || 0,
-                genericObservation: status.genericObservation,
+                target: status.target,
+                state: status.result.state,
+                observationRevision: status.result.observationRevision || 0,
+                genericObservation: status.result.genericObservation,
             } as unknown as AutofillBrokerResponse,
         };
     }
@@ -1508,7 +1522,7 @@ async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, appli
             const { response: approvalResponse, approval } = approveBrokerPlanResponse(
                 {
                     type: "approve",
-                    protocolVersion: 1,
+                    protocolVersion: 2,
                     requestId: `policy-${pendingPlan.planId}`,
                     planId: pendingPlan.planId,
                     approved: true,
@@ -1523,13 +1537,8 @@ async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, appli
                 }
             );
             pendingAutofillApprovals.set(approval.approvalId, approval);
-            const authorized = { ...response, approvalId: approval.approvalId, expiresAt: approvalResponse.expiresAt };
-            if (request.protocolVersion === 2) {
-                void publishRedactedBrokerResponse(approvalResponse);
-                return { type: "agenticAutofillBrokerResponse", response: approvalResponse };
-            }
-            void publishRedactedBrokerResponse(authorized);
-            return { type: "agenticAutofillBrokerResponse", response: authorized };
+            void publishRedactedBrokerResponse(approvalResponse);
+            return { type: "agenticAutofillBrokerResponse", response: approvalResponse };
         }
         pendingAutofillPromptPlanIds.add(pendingPlan.planId);
         void publishRedactedBrokerResponse(response);
@@ -1537,23 +1546,7 @@ async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, appli
     }
 
     if (request.type === "approve") {
-        const plan = request.planId ? pendingAutofillPlans.get(request.planId) : null;
-        if (!plan) throw new Error("Autofill approval plan not found");
-        const authority = application.account
-            ? await autofillPermissionRepository.load(application.account.id)
-            : { revision: 0, revocationGeneration: 0 };
-        const { response, approval } = approveBrokerPlanResponse(
-            request,
-            plan,
-            Date.now(),
-            {
-                policyRevision: authority.revision,
-                revocationGeneration: authority.revocationGeneration,
-            }
-        );
-        pendingAutofillApprovals.set(approval.approvalId, approval);
-        void publishRedactedBrokerResponse(response);
-        return { type: "agenticAutofillBrokerResponse", response };
+        throw new Error("Autofill approval is extension-UI-only");
     }
 
     if (request.type === "mint-fill-bundle") {
@@ -1705,6 +1698,20 @@ async function buildPrivacyStatusResponse(request: AutofillBrokerRequest): Promi
     };
 }
 
+async function serializeAutofillObservation<T>(operation: () => Promise<T>): Promise<T> {
+    const previous = autofillObservationOperation;
+    let release!: () => void;
+    autofillObservationOperation = new Promise<void>((resolve) => {
+        release = resolve;
+    });
+    await previous;
+    try {
+        return await operation();
+    } finally {
+        release();
+    }
+}
+
 async function seedAgenticAutofillFixtures() {
     const encoder = new TextEncoder();
     const keyBytes = crypto.getRandomValues(new Uint8Array(32));
@@ -1774,6 +1781,41 @@ function fixtureBrokerItem(fixture: { itemName: string; username: string; passwo
     };
 }
 
+async function inspectAgenticBrowserTargetForReset(claimed: AutofillBrokerTarget): Promise<AutofillBrokerTarget> {
+    const tab = await browser.tabs.get(claimed.tabId);
+    if (!tab || tab.id === undefined || !tab.url) throw new Error("Autofill browser target unavailable");
+    if (tab.incognito) throw new Error("Autofill observation reset refuses private tabs");
+    const topOrigin = exactHttpOrigin(tab.url);
+    if (!topOrigin || topOrigin !== claimed.topOrigin) {
+        throw new Error("Autofill observation reset origin does not match the browser tab");
+    }
+    const inspection = (await browser.tabs.sendMessage(
+        tab.id,
+        { type: "inspectAgenticBrowserTarget" },
+        { frameId: claimed.frameId }
+    )) as { documentId?: string; formRef?: string; targetRevision?: string; frameOrigin?: string } | null;
+    if (!inspection || !inspection.documentId || !inspection.frameOrigin) {
+        throw new Error("Autofill observation reset inspection failed closed");
+    }
+    if (inspection.documentId !== claimed.documentId) {
+        throw new Error("Autofill observation reset cannot mint clean for an invented document");
+    }
+    if (inspection.frameOrigin !== claimed.frameOrigin) {
+        throw new Error("Autofill observation reset frame origin mismatch");
+    }
+    return {
+        tabId: tab.id,
+        frameId: claimed.frameId,
+        origin: inspection.frameOrigin,
+        documentId: inspection.documentId,
+        formRef: inspection.formRef || claimed.formRef,
+        targetRevision: inspection.targetRevision || claimed.targetRevision,
+        sessionId: claimed.sessionId,
+        topOrigin,
+        frameOrigin: inspection.frameOrigin,
+    };
+}
+
 async function inspectAgenticBrowserTarget(request: AutofillBrokerRequest): Promise<{
     target: AutofillBrokerTarget;
     fields: AutofillBrokerInspectedField[];
@@ -1815,61 +1857,63 @@ async function executeBrokerBundle(
     initialBundle: PendingBrokerBundle,
     application: App
 ): Promise<AutofillBrokerResponse> {
-    const startedAt = Date.now();
-    let bundle = initialBundle;
-    if (!application.account) throw new Error("Autofill permission account unavailable");
-    const permissionState = await autofillPermissionRepository.load(application.account.id);
-    const filledFieldRefs: string[] = [];
-    const approvedFields = bundle.fields.map(({ selector, role, fieldRef }) => ({ selector, role, fieldRef }));
-    const items = brokerItemsForBundle(application, bundle);
-    for (const field of bundle.fields) {
-        const attemptId = `${bundle.bundleId}:${field.fieldRef}`;
-        try {
-            await assertBrokerTargetCurrent(bundle, approvedFields);
-            bundle = reserveBrokerBundleFieldUse(bundle, field.fieldRef, attemptId, Date.now(), {
-                policyRevision: permissionState.revision,
-                revocationGeneration: permissionState.revocationGeneration,
-                onlineAuthorityCurrent: true,
-            });
-            pendingAutofillBundles.set(bundle.bundleId, bundle);
-            const value = await resolveBrokerBundleFieldValue(bundle, field.fieldRef, items);
-            await autofillObservationLedger.markPotentiallyPrivate(bundle.target, field.fieldRef);
-            const applied = await browser.tabs.sendMessage(
-                bundle.target.tabId,
-                {
-                    type: "applyAgenticField",
-                    target: bundle.target,
-                    approvedFields,
-                    field: { selector: field.selector, role: field.role, fieldRef: field.fieldRef, value },
-                },
-                { frameId: bundle.target.frameId }
-            );
-            if (applied !== true) throw new Error("Autofill field target changed before write");
-            bundle = completeBrokerBundleFieldUse(bundle, attemptId, "completed");
-            pendingAutofillBundles.set(bundle.bundleId, bundle);
-            filledFieldRefs.push(field.fieldRef);
-        } catch {
-            if (bundle.grantRecord.reservations[attemptId] === "executing") {
-                bundle = completeBrokerBundleFieldUse(bundle, attemptId, "outcome-unknown");
+    return serializeAutofillObservation(async () => {
+        const startedAt = Date.now();
+        let bundle = initialBundle;
+        if (!application.account) throw new Error("Autofill permission account unavailable");
+        const permissionState = await autofillPermissionRepository.load(application.account.id);
+        const filledFieldRefs: string[] = [];
+        const approvedFields = bundle.fields.map(({ selector, role, fieldRef }) => ({ selector, role, fieldRef }));
+        const items = brokerItemsForBundle(application, bundle);
+        for (const field of bundle.fields) {
+            const attemptId = `${bundle.bundleId}:${field.fieldRef}`;
+            try {
+                await assertBrokerTargetCurrent(bundle, approvedFields);
+                bundle = reserveBrokerBundleFieldUse(bundle, field.fieldRef, attemptId, Date.now(), {
+                    policyRevision: permissionState.revision,
+                    revocationGeneration: permissionState.revocationGeneration,
+                    onlineAuthorityCurrent: true,
+                });
                 pendingAutofillBundles.set(bundle.bundleId, bundle);
+                const value = await resolveBrokerBundleFieldValue(bundle, field.fieldRef, items);
+                await autofillObservationLedger.markPotentiallyPrivate(bundle.target, field.fieldRef);
+                const applied = await browser.tabs.sendMessage(
+                    bundle.target.tabId,
+                    {
+                        type: "applyAgenticField",
+                        target: bundle.target,
+                        approvedFields,
+                        field: { selector: field.selector, role: field.role, fieldRef: field.fieldRef, value },
+                    },
+                    { frameId: bundle.target.frameId }
+                );
+                if (applied !== true) throw new Error("Autofill field target changed before write");
+                bundle = completeBrokerBundleFieldUse(bundle, attemptId, "completed");
+                pendingAutofillBundles.set(bundle.bundleId, bundle);
+                filledFieldRefs.push(field.fieldRef);
+            } catch {
+                if (bundle.grantRecord.reservations[attemptId] === "executing") {
+                    bundle = completeBrokerBundleFieldUse(bundle, attemptId, "outcome-unknown");
+                    pendingAutofillBundles.set(bundle.bundleId, bundle);
+                }
+                break;
             }
-            break;
         }
-    }
-    const status =
-        filledFieldRefs.length === bundle.fields.length
-            ? "completed"
-            : filledFieldRefs.length > 0
-            ? "partial"
-            : "outcome-unknown";
-    const observation = await autofillObservationLedger.status(
-        bundle.target.tabId,
-        bundle.target.frameId,
-        bundle.target.documentId
-    );
-    const applied = applyBrokerBundleResponse(request, bundle, filledFieldRefs, status, startedAt);
-    if (request.protocolVersion === 2) return applied;
-    return { ...applied, observation };
+        const status =
+            filledFieldRefs.length === bundle.fields.length
+                ? "completed"
+                : filledFieldRefs.length > 0
+                ? "partial"
+                : "outcome-unknown";
+        const observation = await autofillObservationLedger.status(
+            bundle.target.tabId,
+            bundle.target.frameId,
+            bundle.target.documentId
+        );
+        const applied = applyBrokerBundleResponse(request, bundle, filledFieldRefs, status, startedAt);
+        if (request.protocolVersion === 2) return applied;
+        return { ...applied, observation };
+    });
 }
 
 async function assertBrokerTargetCurrent(

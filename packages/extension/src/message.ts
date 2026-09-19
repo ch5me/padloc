@@ -129,6 +129,7 @@ export type Message =
     | { type: "fillActive"; value: string }
     | { type: "fillFields"; mappings: FieldMappings }
     | { type: "inspectAgenticFields"; fields: AgenticFieldProposal[] }
+    | { type: "inspectAgenticBrowserTarget" }
     | {
           type: "applyAgenticField";
           target: AutofillBrokerTarget;

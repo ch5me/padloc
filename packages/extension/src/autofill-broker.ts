@@ -185,6 +185,7 @@ export function approveBrokerPlanResponse(
         revocationGeneration: 0,
     }
 ): { response: AutofillBrokerResponse; approval: BrokerApproval } {
+    if (request.protocolVersion !== 2) throw new Error("Autofill approval requires protocol v2");
     if (request.planId !== pendingPlan.planId) throw new Error("Autofill approval plan mismatch");
     if (request.approved !== true) throw new Error("Autofill approval requires user approval");
     if (request.binding) {
@@ -208,38 +209,19 @@ export function approveBrokerPlanResponse(
         }),
         authorityPolicyId: authority.policyId,
     };
-    if (request.protocolVersion === 2) {
-        return {
-            approval,
-            response: {
-                schema: AUTOFILL_BROKER_RESPONSE_SCHEMA,
-                kind: "approval-required",
-                protocolVersion: 2,
-                requestId: request.requestId || "missing-request-id",
-                ok: true,
-                target: exactTarget(pendingPlan.target),
-                planId: pendingPlan.planId,
-                reasonCode: "ALLOW_USER_APPROVED",
-                mode: "manual",
-            } as unknown as AutofillBrokerResponse,
-        };
-    }
     return {
         approval,
         response: {
+            schema: AUTOFILL_BROKER_RESPONSE_SCHEMA,
+            kind: "approval-required",
+            protocolVersion: 2,
+            requestId: request.requestId || "missing-request-id",
             ok: true,
-            protocolVersion: request.protocolVersion,
-            requestId: request.requestId,
-            vaultState: "unlocked",
-            reason: null,
+            target: exactTarget(pendingPlan.target),
             planId: pendingPlan.planId,
-            approvalId: approval.approvalId,
-            expiresAt: new Date(approval.expiresAt).toISOString(),
-            audit: audit("approve", pendingPlan.request, pendingPlan.fields.length, {
-                decision: "allow",
-                approvalId: approval.approvalId,
-            }),
-        },
+            reasonCode: authority.policyId ? "ALLOW_STANDING_POLICY" : "ALLOW_USER_APPROVED",
+            mode: authority.policyId ? "auto" : "manual",
+        } as unknown as AutofillBrokerResponse,
     };
 }
 
@@ -249,6 +231,7 @@ export function mintBrokerBundleResponse(
     approval: BrokerApproval,
     now = Date.now()
 ): { response: AutofillBrokerResponse; bundle: PendingBrokerBundle } {
+    if (request.protocolVersion !== 2) throw new Error("Autofill bundle mint requires protocol v2");
     if (request.planId !== pendingPlan.planId) throw new Error("Autofill bundle plan mismatch");
     if (request.approvalId !== approval.approvalId) throw new Error("Autofill bundle approval mismatch");
     if (approval.expiresAt <= now) throw new Error("Autofill approval expired");
@@ -290,44 +273,20 @@ export function mintBrokerBundleResponse(
         fields: pendingPlan.fields.map((field) => ({ ...field })),
         grantRecord: createAgentGrantRecord(grant),
     };
-    if (request.protocolVersion === 2) {
-        return {
-            bundle,
-            response: {
-                schema: AUTOFILL_BROKER_RESPONSE_SCHEMA,
-                kind: "granted",
-                protocolVersion: 2,
-                requestId: request.requestId || "missing-request-id",
-                ok: true,
-                target: exactTarget(pendingPlan.target),
-                grantId: grant.id,
-                planId: pendingPlan.planId,
-                expiresAt: new Date(approval.expiresAt).toISOString(),
-                maxUses: permissionRequest.maxUses,
-            } as unknown as AutofillBrokerResponse,
-        };
-    }
     return {
         bundle,
         response: {
+            schema: AUTOFILL_BROKER_RESPONSE_SCHEMA,
+            kind: "granted",
+            protocolVersion: 2,
+            requestId: request.requestId || "missing-request-id",
             ok: true,
-            protocolVersion: request.protocolVersion,
-            requestId: request.requestId,
-            vaultState: "unlocked",
-            reason: null,
-            planId: pendingPlan.planId,
-            approvalId: approval.approvalId,
-            bundleId,
+            target: exactTarget(pendingPlan.target),
             grantId: grant.id,
+            planId: pendingPlan.planId,
             expiresAt: new Date(approval.expiresAt).toISOString(),
-            target: pendingPlan.target,
-            audit: audit("mint-fill-bundle", pendingPlan.request, pendingPlan.fields.length, {
-                decision: "allow",
-                approvalId: approval.approvalId,
-                grantId: grant.id,
-                reasonCode: decision.reasonCode,
-            }),
-        },
+            maxUses: permissionRequest.maxUses,
+        } as unknown as AutofillBrokerResponse,
     };
 }
 
@@ -396,55 +355,32 @@ export function applyBrokerBundleResponse(
     status: "completed" | "partial" | "outcome-unknown",
     now = Date.now()
 ): AutofillBrokerResponse {
+    if (request.protocolVersion !== 2) throw new Error("Autofill bundle apply requires protocol v2");
     assertBundleRequest(request, bundle, now);
     const receiptId = opaqueId("receipt");
-    if (request.protocolVersion === 2) {
-        return {
-            schema: AUTOFILL_BROKER_RESPONSE_SCHEMA,
-            kind: "applied",
-            protocolVersion: 2,
-            requestId: request.requestId || "missing-request-id",
-            ok: status === "completed",
-            target: exactTarget(bundle.target),
-            grantId: bundle.grantRecord.grant.id,
-            receipt: {
-                receiptId,
-                status,
-                filledFieldRefs: [...filledFieldRefs],
-                modelDisclosure: "none",
-                submittedByExecutor: true,
-            },
-        } as unknown as AutofillBrokerResponse;
-    }
     return {
+        schema: AUTOFILL_BROKER_RESPONSE_SCHEMA,
+        kind: "applied",
+        protocolVersion: 2,
+        requestId: request.requestId || "missing-request-id",
         ok: status === "completed",
-        protocolVersion: request.protocolVersion,
-        requestId: request.requestId,
-        vaultState: "unlocked",
-        reason: status === "completed" ? null : "Autofill execution did not complete every approved field",
-        planId: bundle.planId,
-        approvalId: bundle.approvalId,
-        bundleId: bundle.bundleId,
+        target: exactTarget(bundle.target),
         grantId: bundle.grantRecord.grant.id,
-        target: bundle.target,
         receipt: {
             receiptId,
             status,
             filledFieldRefs: [...filledFieldRefs],
             modelDisclosure: "none",
-            submittedByExecutor: false,
+            submittedByExecutor: true,
         },
-        audit: audit("apply-fill-bundle", request, filledFieldRefs.length, {
-            grantId: bundle.grantRecord.grant.id,
-            receiptId,
-        }),
-    };
+    } as unknown as AutofillBrokerResponse;
 }
 
 export function revokeBrokerBundleResponse(
     request: AutofillBrokerRequest,
     bundle: PendingBrokerBundle
 ): { response: AutofillBrokerResponse; bundle: PendingBrokerBundle } {
+    if (request.protocolVersion !== 2) throw new Error("Autofill bundle revoke requires protocol v2");
     if (request.planId !== bundle.planId) throw new Error("Autofill revoke plan mismatch");
     if (request.bundleId !== bundle.bundleId) throw new Error("Autofill revoke bundle mismatch");
     if (request.binding) {
@@ -454,47 +390,18 @@ export function revokeBrokerBundleResponse(
         }
     }
     const revokedBundle = { ...bundle, grantRecord: revokeAgentGrant(bundle.grantRecord) };
-    const receiptId = opaqueId("receipt");
-    if (request.protocolVersion === 2) {
-        return {
-            bundle: revokedBundle,
-            response: {
-                schema: AUTOFILL_BROKER_RESPONSE_SCHEMA,
-                kind: "revoked",
-                protocolVersion: 2,
-                requestId: request.requestId || "missing-request-id",
-                ok: true,
-                target: exactTarget(bundle.target),
-                grantId: bundle.grantRecord.grant.id,
-                status: "revoked",
-            } as unknown as AutofillBrokerResponse,
-        };
-    }
     return {
         bundle: revokedBundle,
         response: {
+            schema: AUTOFILL_BROKER_RESPONSE_SCHEMA,
+            kind: "revoked",
+            protocolVersion: 2,
+            requestId: request.requestId || "missing-request-id",
             ok: true,
-            protocolVersion: request.protocolVersion,
-            requestId: request.requestId,
-            vaultState: "unlocked",
-            reason: null,
-            planId: bundle.planId,
-            approvalId: bundle.approvalId,
-            bundleId: bundle.bundleId,
+            target: exactTarget(bundle.target),
             grantId: bundle.grantRecord.grant.id,
-            target: bundle.target,
-            receipt: {
-                receiptId,
-                status: "revoked",
-                filledFieldRefs: [],
-                modelDisclosure: "none",
-                submittedByExecutor: false,
-            },
-            audit: audit("revoke-fill-bundle", request, 0, {
-                grantId: bundle.grantRecord.grant.id,
-                receiptId,
-            }),
-        },
+            status: "revoked",
+        } as unknown as AutofillBrokerResponse,
     };
 }
 
@@ -617,25 +524,23 @@ function publicPlanField(field: PendingBrokerPlanField): AutofillBrokerPlanField
 }
 
 function exactTarget(target: AutofillBrokerTarget) {
-    if (
-        !target.origin ||
-        !target.sessionId ||
-        target.origin !== target.frameOrigin ||
-        !target.topOrigin ||
-        !target.frameOrigin
-    ) {
+    const origin = target.origin;
+    const sessionId = target.sessionId;
+    const frameOrigin = target.frameOrigin || origin;
+    const topOrigin = target.topOrigin || origin;
+    if (!origin || !sessionId || origin !== frameOrigin || !topOrigin || !target.documentId || !target.formRef) {
         throw new Error("Autofill exact target binding is required");
     }
     return {
         tabId: target.tabId,
         frameId: target.frameId,
-        origin: target.origin,
+        origin,
         documentId: target.documentId,
         formRef: target.formRef,
         targetRevision: target.targetRevision,
-        sessionId: target.sessionId,
-        topOrigin: target.topOrigin,
-        frameOrigin: target.frameOrigin,
+        sessionId,
+        topOrigin,
+        frameOrigin,
     };
 }
 
