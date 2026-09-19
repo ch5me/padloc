@@ -75,10 +75,6 @@ function handleRequest(request) {
         vaultState: "locked",
         reason: type === "status" ? null : "Padloc vault locked or approval UI unavailable",
         audit: {
-            operation: type,
-            sessionId: binding && typeof binding.sessionId === "string" ? binding.sessionId : null,
-            origin: binding && typeof binding.origin === "string" ? binding.origin : null,
-            fieldCount: fields.length,
             valuePolicy: "redacted audit only; no raw autofill values or passkey secrets",
         },
     };
@@ -206,10 +202,6 @@ function statusResponse(ok, reason, extra = {}) {
         reason,
         ...extra,
         audit: {
-            operation: "status",
-            sessionId: null,
-            origin: null,
-            fieldCount: 0,
             valuePolicy: "redacted audit only; no raw autofill values or passkey secrets",
         },
     };

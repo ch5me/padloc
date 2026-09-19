@@ -44,6 +44,7 @@ suite("Autofill broker protocol", () => {
         const response = JSON.parse(result.stdout.subarray(4, 4 + length).toString("utf8"));
         expect(response.ok).to.equal(true);
         expect(response.vaultState).to.equal("locked");
+        expect(Object.keys(response.audit)).to.deep.equal(["valuePolicy"]);
         expect(response.audit.valuePolicy).to.equal("redacted audit only; no raw autofill values or passkey secrets");
     });
 
