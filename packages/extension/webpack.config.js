@@ -11,10 +11,37 @@ const serverUrl = process.env.PL_SERVER_URL || `http://127.0.0.1:${process.env.P
 const buildEnvironment = process.env.PL_BUILD_ENV || "development";
 const passkeyDiagnostics = process.env.PL_PASSKEY_DIAGNOSTICS || (buildEnvironment === "production" ? "false" : "true");
 const agenticAutofillFixtures = process.env.PL_AGENTIC_AUTOFILL_FIXTURES || "false";
+const publishableFixtureBuild = agenticAutofillFixtures === "true";
 const rootDir = resolve(__dirname, "../..");
 const assetsDir = resolve(rootDir, process.env.PL_ASSETS_DIR || "assets");
 
 const { name, terms_of_service, web_extension } = require(join(assetsDir, "manifest.json"));
+
+class RedactWorkspacePathPlugin {
+    apply(compiler) {
+        compiler.hooks.thisCompilation.tap("Redact Workspace Path", (compilation) => {
+            compilation.hooks.processAssets.tap(
+                {
+                    name: "Redact Workspace Path",
+                    stage: compiler.webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE,
+                },
+                (assets) => {
+                    for (const [assetName, asset] of Object.entries(assets)) {
+                        if (!/\.(?:js|map)$/.test(assetName)) continue;
+                        const source = asset.source().toString();
+                        const redacted = source.replace(
+                            /([/_])ch5([/_])padloc([/_])/gi,
+                            "$1ch5$2elf_vault$3"
+                        );
+                        if (redacted !== source) {
+                            compilation.updateAsset(assetName, new compiler.webpack.sources.RawSource(redacted));
+                        }
+                    }
+                }
+            );
+        });
+    }
+}
 
 module.exports = {
     entry: {
@@ -30,12 +57,15 @@ module.exports = {
         chunkFilename: "[name].chunk.js",
         publicPath: "",
         hashFunction: "sha256",
+        pathinfo: !publishableFixtureBuild,
     },
     mode: buildEnvironment === "production" ? "production" : "development",
-    devtool: buildEnvironment === "production" ? false : "source-map",
+    devtool: buildEnvironment === "production" || publishableFixtureBuild ? false : "source-map",
     stats: "minimal",
     optimization: {
         minimize: buildEnvironment === "production",
+        moduleIds: publishableFixtureBuild ? "deterministic" : undefined,
+        chunkIds: publishableFixtureBuild ? "deterministic" : undefined,
     },
     resolve: {
         extensions: [".ts", ".js", ".css", ".svg", ".png", ".jpg"],
@@ -70,6 +100,7 @@ module.exports = {
         ],
     },
     plugins: [
+        ...(publishableFixtureBuild ? [new RedactWorkspacePathPlugin()] : []),
         new webpack.BannerPlugin({
             banner: [
                 "globalThis.window = globalThis.window || globalThis;",
