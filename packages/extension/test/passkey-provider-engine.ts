@@ -1,7 +1,7 @@
 import { expect } from "chai";
-import { base64ToBytes, bytesToBase64, bytesToString } from "@padloc/core/src/encoding";
-import { PasskeyCredential } from "@padloc/core/src/passkey";
-import { derEcdsaSignatureToWebCrypto, PADLOC_AGENTIC_VAULT_AAGUID } from "@padloc/core/src/webauthn-authenticator";
+import { base64ToBytes, bytesToBase64, bytesToString } from "@elf-vault/core/src/encoding";
+import { PasskeyCredential } from "@elf-vault/core/src/passkey";
+import { derEcdsaSignatureToWebCrypto, ELF_VAULT_AGENTIC_VAULT_AAGUID } from "@elf-vault/core/src/webauthn-authenticator";
 import {
     describePasskeyOperation,
     executePasskeyOperation,
@@ -240,7 +240,7 @@ suite("Passkey provider engine", () => {
         expect(registrationAuthData[32] & 0x5d).to.equal(0x5d);
         expect(Array.from(registrationAuthData.slice(33, 37))).to.deep.equal([0, 0, 0, 0]);
         expect(Array.from(registrationAuthData.slice(37, 53))).to.deep.equal(
-            PADLOC_AGENTIC_VAULT_AAGUID.replace(/-/g, "")
+            ELF_VAULT_AGENTIC_VAULT_AAGUID.replace(/-/g, "")
                 .match(/../g)!
                 .map((byte) => Number.parseInt(byte, 16))
         );

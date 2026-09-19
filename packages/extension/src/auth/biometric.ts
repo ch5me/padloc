@@ -1,7 +1,7 @@
-import { App } from "@padloc/core/src/app";
-import { AuthPurpose } from "@padloc/core/src/auth";
-import { ErrorCode } from "@padloc/core/src/error";
-import { authenticate, getPlatformAuthType } from "@padloc/core/src/platform";
+import { App } from "@elf-vault/core/src/app";
+import { AuthPurpose } from "@elf-vault/core/src/auth";
+import { ErrorCode } from "@elf-vault/core/src/error";
+import { authenticate, getPlatformAuthType } from "@elf-vault/core/src/platform";
 
 export type BiometricReunlockResult = "unavailable" | "unlocked" | "expired" | "cancelled" | "failed";
 export type BiometricVerificationResult = "unavailable" | "verified" | "expired" | "cancelled" | "failed";

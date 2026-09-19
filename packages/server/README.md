@@ -1,4 +1,4 @@
-# @padloc/server
+# @elf-vault/server
 
 This package contains the Padloc backend server component.
 
@@ -20,7 +20,7 @@ For some examples of a Docker-based setup, check out our
 
 ### Directly through Node.js
 
-Currently the `@padloc/server` package is meant to be run from within the
+Currently the `@elf-vault/server` package is meant to be run from within the
 [Padloc monorepo](../../README.md). A standalone npm package is coming soon!
 
 First, clone and install the monorepo:
@@ -59,7 +59,7 @@ For more configuration options, please consult the
 Padloc comes with a lot of configuration options, most of which deal with
 selecting and configuring backends for certain aspects of the software.
 
-All configuration options for the `@padloc/server` package are defined in the
+All configuration options for the `@elf-vault/server` package are defined in the
 [src/config](src/config.ts) moule, and while we'll be discussing the most
 important ones here, looking at the source can be a great way to understand how
 configuration options are structured and parsed, and to familiarise yourself

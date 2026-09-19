@@ -1,4 +1,4 @@
-import { AuthClient, AuthType } from "@padloc/core/src/auth";
+import { AuthClient, AuthType } from "@elf-vault/core/src/auth";
 import {
     startAuthentication,
     startRegistration,

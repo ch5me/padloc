@@ -1,6 +1,6 @@
 import { expect } from "chai";
-import { AuthType } from "@padloc/core/src/auth";
-import { ErrorCode } from "@padloc/core/src/error";
+import { AuthType } from "@elf-vault/core/src/auth";
+import { ErrorCode } from "@elf-vault/core/src/error";
 import {
     shouldAttemptBiometricReunlock,
     unlockWithBiometric,

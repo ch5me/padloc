@@ -1,15 +1,15 @@
-import { Account, AccountID } from "@padloc/core/src/account";
-import { OrgInfo } from "@padloc/core/src/org";
-import { Err, ErrorCode } from "@padloc/core/src/error";
+import { Account, AccountID } from "@elf-vault/core/src/account";
+import { OrgInfo } from "@elf-vault/core/src/org";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
 import {
     Provisioner,
     Provisioning,
     ProvisioningStatus,
     OrgProvisioning as OrgProv,
     OrgSeatAllocation,
-} from "@padloc/core/src/provisioning";
-import { Session } from "@padloc/core/src/session";
-import { Storage } from "@padloc/core/src/storage";
+} from "@elf-vault/core/src/provisioning";
+import { Session } from "@elf-vault/core/src/session";
+import { Storage } from "@elf-vault/core/src/storage";
 
 function debugLog(...args: unknown[]) {
     typeof console !== "undefined" && console.debug("[OrgAwareProvisioner]", ...args);

@@ -1,6 +1,6 @@
-import { Vault } from "@padloc/core/src/vault";
-import { VaultItem, FIELD_DEFS, FieldType } from "@padloc/core/src/item";
-import { translate as $l } from "@padloc/locale/src/translate";
+import { Vault } from "@elf-vault/core/src/vault";
+import { VaultItem, FIELD_DEFS, FieldType } from "@elf-vault/core/src/item";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import * as imp from "../lib/import";
 import { prompt, alert } from "../lib/dialog";
 import { app } from "../globals";

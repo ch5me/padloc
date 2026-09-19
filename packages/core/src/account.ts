@@ -53,7 +53,7 @@ export const ACCOUNT_NAME_MAX_LENGTH = 100;
 export const ACCOUNT_EMAIL_MAX_LENGTH = 255;
 
 /**
- * The `Account` object represents an individual Padloc user and holds general
+ * The `Account` object represents an individual Elf Vault user and holds general
  * account information as well as cryptographic keys necessary for accessing
  * [[Vaults]] and signing/verifying [[Org]]anization details.
  *

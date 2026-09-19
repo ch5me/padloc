@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { EmailAuthMessage } from "@padloc/core/src/messenger";
+import { EmailAuthMessage } from "@elf-vault/core/src/messenger";
 import { ResendMessenger } from "../src/email/resend";
 import { redact, structuredLog } from "../src/observability/log-redaction";
 import { OrgAwareProvisioner } from "../src/provisioner/org-aware";

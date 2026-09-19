@@ -1,8 +1,8 @@
-import { VaultItem, Field, Tag, TagInfo, AuditType, FieldType } from "@padloc/core/src/item";
-import { Vault, VaultID } from "@padloc/core/src/vault";
-import { translate as $l } from "@padloc/locale/src/translate";
-import { debounce, wait, escapeRegex, truncate } from "@padloc/core/src/util";
-import { AttachmentInfo } from "@padloc/core/src/attachment";
+import { VaultItem, Field, Tag, TagInfo, AuditType, FieldType } from "@elf-vault/core/src/item";
+import { Vault, VaultID } from "@elf-vault/core/src/vault";
+import { translate as $l } from "@elf-vault/locale/src/translate";
+import { debounce, wait, escapeRegex, truncate } from "@elf-vault/core/src/util";
+import { AttachmentInfo } from "@elf-vault/core/src/attachment";
 import { StateMixin } from "../mixins/state";
 import { setClipboard } from "../lib/clipboard";
 import { app, router } from "../globals";

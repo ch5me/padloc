@@ -1,7 +1,7 @@
-import { translate as $l } from "@padloc/locale/src/translate";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { app } from "../globals";
 import { Dialog } from "./dialog";
-import { composeEmail } from "@padloc/core/src/platform";
+import { composeEmail } from "@elf-vault/core/src/platform";
 import { customElement } from "lit/decorators.js";
 import { css, html } from "lit";
 

@@ -1,6 +1,6 @@
-import { OrgMember } from "@padloc/core/src/org";
-import { Vault } from "@padloc/core/src/vault";
-import { translate as $l } from "@padloc/locale/src/translate";
+import { OrgMember } from "@elf-vault/core/src/org";
+import { Vault } from "@elf-vault/core/src/vault";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { shared } from "../styles";
 import { app } from "../globals";
 import { alert, prompt } from "../lib/dialog";

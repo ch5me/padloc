@@ -4,14 +4,14 @@ import {
     BasicProvisionerConfig,
     Provisioning,
     ProvisioningStatus,
-} from "@padloc/core/src/provisioning";
-import { getIdFromEmail } from "@padloc/core/src/util";
-import { Storage } from "@padloc/core/src/storage";
-import { ErrorCode } from "@padloc/core/src/error";
-import { Config, ConfigParam } from "@padloc/core/src/config";
+} from "@elf-vault/core/src/provisioning";
+import { getIdFromEmail } from "@elf-vault/core/src/util";
+import { Storage } from "@elf-vault/core/src/storage";
+import { ErrorCode } from "@elf-vault/core/src/error";
+import { Config, ConfigParam } from "@elf-vault/core/src/config";
 import { createServer, IncomingMessage, ServerResponse } from "http";
 import { readBody } from "../transport/http";
-import { AccountID } from "@padloc/core/src/account";
+import { AccountID } from "@elf-vault/core/src/account";
 
 export class DefaultAccountQuota extends Config implements AccountQuota {
     @ConfigParam("number")

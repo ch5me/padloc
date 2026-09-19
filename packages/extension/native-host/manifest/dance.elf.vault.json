@@ -1,0 +1,7 @@
+{
+  "name": "dance.elf.vault",
+  "description": "Elf Vault autofill broker",
+  "path": "/usr/local/bin/dance.elf.vault",
+  "type": "stdio",
+  "allowed_origins": ["chrome-extension://gncmiloofnlojbhlckjniipiglejppho/"]
+}

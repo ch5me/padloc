@@ -1,7 +1,7 @@
 import { css, html, LitElement } from "lit";
 import { customElement, property, state, query } from "lit/decorators.js";
-import { translate as $l } from "@padloc/locale/src/translate";
-import { VaultItem } from "@padloc/core/src/item";
+import { translate as $l } from "@elf-vault/locale/src/translate";
+import { VaultItem } from "@elf-vault/core/src/item";
 import { shared, mixins } from "../styles";
 import { app, router } from "../globals";
 import { StateMixin } from "../mixins/state";
@@ -24,15 +24,15 @@ import "./invite-recipient";
 import "./report";
 import "./support";
 import "./menu";
-import { registerPlatformAuthenticator, supportsPlatformAuthenticator } from "@padloc/core/src/platform";
-import { AuthPurpose } from "@padloc/core/src/auth";
-import { ProvisioningStatus } from "@padloc/core/src/provisioning";
+import { registerPlatformAuthenticator, supportsPlatformAuthenticator } from "@elf-vault/core/src/platform";
+import { AuthPurpose } from "@elf-vault/core/src/auth";
+import { ProvisioningStatus } from "@elf-vault/core/src/provisioning";
 import "./rich-content";
 import { alertDisabledFeature, displayProvisioning, getDefaultStatusLabel } from "../lib/provisioning";
 import { ItemsView } from "./items";
-import { wait, throttle } from "@padloc/core/src/util";
+import { wait, throttle } from "@elf-vault/core/src/util";
 import { auditVaults } from "../lib/audit";
-import { stringToBase64 } from "@padloc/core/src/encoding";
+import { stringToBase64 } from "@elf-vault/core/src/encoding";
 
 @customElement("pl-app")
 export class App extends ServiceWorker(StateMixin(AutoSync(ErrorHandling(AutoLock(Routing(LitElement)))))) {

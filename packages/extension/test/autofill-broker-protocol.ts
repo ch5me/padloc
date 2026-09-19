@@ -34,7 +34,7 @@ suite("Autofill broker protocol", () => {
         const request = Buffer.from(JSON.stringify({ type: "status", protocolVersion: 1, requestId: "req-2" }));
         const header = Buffer.alloc(4);
         header.writeUInt32LE(request.length, 0);
-        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const hostPath = resolve(currentDir, "../native-host/elf-vault-autofill-host.mjs");
         const result = spawnSync(process.execPath, [hostPath], {
             input: Buffer.concat([header, request]),
         });
@@ -66,7 +66,7 @@ suite("Autofill broker protocol", () => {
     });
 
     test("native host replies before Chrome closes the native messaging pipe", async () => {
-        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const hostPath = resolve(currentDir, "../native-host/elf-vault-autofill-host.mjs");
         const child = spawn(process.execPath, [hostPath], { stdio: ["pipe", "pipe", "pipe"] });
         const request = Buffer.from(JSON.stringify({ type: "status", protocolVersion: 1 }));
         const header = Buffer.alloc(4);
@@ -93,7 +93,7 @@ suite("Autofill broker protocol", () => {
     });
 
     test("native host handles multiple messages on one Chrome pipe", async () => {
-        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const hostPath = resolve(currentDir, "../native-host/elf-vault-autofill-host.mjs");
         const child = spawn(process.execPath, [hostPath], { stdio: ["pipe", "pipe", "pipe"] });
         const request = nativeMessageFrame({ type: "status", protocolVersion: 1 });
         child.stdin.write(Buffer.concat([request, request]));
@@ -106,7 +106,7 @@ suite("Autofill broker protocol", () => {
     });
 
     test("native host reads a fragmented message frame", async () => {
-        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const hostPath = resolve(currentDir, "../native-host/elf-vault-autofill-host.mjs");
         const child = spawn(process.execPath, [hostPath], { stdio: ["pipe", "pipe", "pipe"] });
         const request = nativeMessageFrame({ type: "status", protocolVersion: 1 });
 
@@ -121,7 +121,7 @@ suite("Autofill broker protocol", () => {
     });
 
     test("native host rejects oversized input frames", () => {
-        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const hostPath = resolve(currentDir, "../native-host/elf-vault-autofill-host.mjs");
         const header = Buffer.alloc(4);
         header.writeUInt32LE(1024 * 1024 + 1, 0);
         const result = spawnSync(process.execPath, [hostPath], { input: header });
@@ -132,7 +132,7 @@ suite("Autofill broker protocol", () => {
 
     test("native host replaces oversized responses with a bounded error", () => {
         const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-oversized-response-`);
-        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const hostPath = resolve(currentDir, "../native-host/elf-vault-autofill-host.mjs");
         writeFileSync(
             resolve(stateDir, "latest-redacted-response.json"),
             JSON.stringify({
@@ -152,7 +152,7 @@ suite("Autofill broker protocol", () => {
     });
 
     test("native host drains stdout before accepting more pipe output", async () => {
-        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const hostPath = resolve(currentDir, "../native-host/elf-vault-autofill-host.mjs");
         const child = spawn(process.execPath, [hostPath], { stdio: ["pipe", "pipe", "pipe"] });
         const frame = nativeMessageFrame({ type: "status", protocolVersion: 1 });
         child.stdout.pause();
@@ -191,7 +191,7 @@ suite("Autofill broker protocol", () => {
 
     test("native host caches only redacted broker responses", () => {
         const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-`);
-        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const hostPath = resolve(currentDir, "../native-host/elf-vault-autofill-host.mjs");
         const cached = nativeHostRequest(
             hostPath,
             {
@@ -234,7 +234,7 @@ suite("Autofill broker protocol", () => {
 
     test("native host rejects nested raw values from stale cached responses", () => {
         const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-stale-`);
-        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const hostPath = resolve(currentDir, "../native-host/elf-vault-autofill-host.mjs");
         writeFileSync(
             resolve(stateDir, "latest-redacted-response.json"),
             JSON.stringify({
@@ -261,7 +261,7 @@ suite("Autofill broker protocol", () => {
 
     test("native host rejects stale fields value aliases", () => {
         const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-fields-`);
-        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const hostPath = resolve(currentDir, "../native-host/elf-vault-autofill-host.mjs");
         writeFileSync(
             resolve(stateDir, "latest-redacted-response.json"),
             JSON.stringify({
@@ -284,7 +284,7 @@ suite("Autofill broker protocol", () => {
 
     test("native host rejects nested privateKey and secret payloads in cached responses", () => {
         const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-private-key-`);
-        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const hostPath = resolve(currentDir, "../native-host/elf-vault-autofill-host.mjs");
         const privateKey = nativeHostRequest(
             hostPath,
             {
@@ -326,7 +326,7 @@ suite("Autofill broker protocol", () => {
 
     test("native host rejects non-string value payloads", () => {
         const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-object-value-`);
-        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const hostPath = resolve(currentDir, "../native-host/elf-vault-autofill-host.mjs");
         const objectValue = nativeHostRequest(
             hostPath,
             {
@@ -360,7 +360,7 @@ suite("Autofill broker protocol", () => {
 
     test("native host rejects passkey secrets in queued printable paths", () => {
         const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-passkey-request-`);
-        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const hostPath = resolve(currentDir, "../native-host/elf-vault-autofill-host.mjs");
         const queued = nativeHostRequest(
             hostPath,
             {
@@ -387,7 +387,7 @@ suite("Autofill broker protocol", () => {
 
     test("native host caches redacted approval metadata", () => {
         const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-approval-`);
-        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const hostPath = resolve(currentDir, "../native-host/elf-vault-autofill-host.mjs");
         const cached = nativeHostRequest(
             hostPath,
             {
@@ -414,7 +414,7 @@ suite("Autofill broker protocol", () => {
 
     test("native host queues broker requests and returns matching redacted responses", () => {
         const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-queue-`);
-        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const hostPath = resolve(currentDir, "../native-host/elf-vault-autofill-host.mjs");
         const queued = nativeHostRequest(
             hostPath,
             {
@@ -475,7 +475,7 @@ suite("Autofill broker protocol", () => {
 
     test("native host forwards cached protocol-v2 privacy-status from broker-response", () => {
         const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-v2-privacy-`);
-        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const hostPath = resolve(currentDir, "../native-host/elf-vault-autofill-host.mjs");
         const target = {
             tabId: 1,
             frameId: 0,
@@ -488,7 +488,7 @@ suite("Autofill broker protocol", () => {
             frameOrigin: "https://checkout.example.test",
         };
         const privacy = {
-            schema: "elf.padloc-broker-response.v2",
+            schema: "dance.elf.vault.broker-response.v2",
             kind: "privacy-status",
             protocolVersion: 2,
             requestId: "privacy-native-1",
@@ -519,7 +519,7 @@ suite("Autofill broker protocol", () => {
     test("parses closed v2 privacy and receipt variants and rejects unknown nested keys", () => {
         const target = exactTarget();
         const privacy = {
-            schema: "elf.padloc-broker-response.v2",
+            schema: "dance.elf.vault.broker-response.v2",
             kind: "privacy-status",
             protocolVersion: 2,
             requestId: "privacy-1",
@@ -532,7 +532,7 @@ suite("Autofill broker protocol", () => {
         expect(protocol.assertAutofillBrokerResponseV2(privacy).kind).to.equal("privacy-status");
 
         const applied = {
-            schema: "elf.padloc-broker-response.v2",
+            schema: "dance.elf.vault.broker-response.v2",
             kind: "applied",
             protocolVersion: 2,
             requestId: "applied-1",
@@ -586,7 +586,7 @@ suite("Autofill broker protocol", () => {
 
     test("native host refuses protocol-v1 authorizing requests", () => {
         const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-v1-authorizing-`);
-        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const hostPath = resolve(currentDir, "../native-host/elf-vault-autofill-host.mjs");
         const response = nativeHostRequest(
             hostPath,
             {
@@ -615,7 +615,7 @@ function nativeHostRequest(hostPath: string, request: unknown, stateDir: string)
     header.writeUInt32LE(payload.length, 0);
     const result = spawnSync(process.execPath, [hostPath], {
         input: Buffer.concat([header, payload]),
-        env: { ...process.env, PADLOC_AGENTIC_AUTOFILL_STATE_DIR: stateDir },
+        env: { ...process.env, ELF_VAULT_AGENTIC_AUTOFILL_STATE_DIR: stateDir },
     });
     expect(result.status).to.equal(0);
     const length = result.stdout.readUInt32LE(0);

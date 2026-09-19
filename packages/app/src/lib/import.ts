@@ -1,6 +1,6 @@
-import { unmarshal, bytesToString } from "@padloc/core/src/encoding";
-import { PBES2Container } from "@padloc/core/src/container";
-import { validateLegacyContainer, parseLegacyContainer } from "@padloc/core/src/legacy";
+import { unmarshal, bytesToString } from "@elf-vault/core/src/encoding";
+import { PBES2Container } from "@elf-vault/core/src/container";
+import { validateLegacyContainer, parseLegacyContainer } from "@elf-vault/core/src/legacy";
 import {
     AutofillFieldRole,
     AutofillItemKind,
@@ -10,11 +10,11 @@ import {
     FieldType,
     guessFieldType,
     deriveAutofillItemKind,
-} from "@padloc/core/src/item";
-import { Err, ErrorCode } from "@padloc/core/src/error";
-import { uuid, capitalize } from "@padloc/core/src/util";
-import { translate as $l } from "@padloc/locale/src/translate";
-import { readFileAsText, readFileAsArrayBuffer } from "@padloc/core/src/attachment";
+} from "@elf-vault/core/src/item";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
+import { uuid, capitalize } from "@elf-vault/core/src/util";
+import { translate as $l } from "@elf-vault/locale/src/translate";
+import { readFileAsText, readFileAsArrayBuffer } from "@elf-vault/core/src/attachment";
 import {
     IMPORT_LOSS_SCHEMA,
     IMPORT_PROVENANCE_SCHEMA,
@@ -25,7 +25,7 @@ import {
     ImportLossReasonCode,
     ImportProvenance,
     ImportResult,
-} from "@padloc/core/src/import-result";
+} from "@elf-vault/core/src/import-result";
 
 import { OnePuxExport, OnePuxItem } from "./1pux-parser";
 import { BitwardenExport, BitwardenItem } from "./bitwarden-parser";
@@ -35,7 +35,7 @@ export interface ImportFormat {
         | "csv"
         | "padlock-legacy"
         | "lastpass"
-        | "padloc"
+        | "elf-vault"
         | "1pux"
         | "bitwarden"
         | "dashlane"
@@ -70,7 +70,7 @@ export const LASTPASS: ImportFormat = {
 };
 
 export const PBES2: ImportFormat = {
-    value: "padloc",
+    value: "elf-vault",
     label: "Encrypted Container",
 };
 
@@ -452,7 +452,7 @@ export async function isLastPass(file: File): Promise<boolean> {
     }
 }
 
-const ONEPUX_IMPORTER_VERSION = "padloc-1pux-import-v1";
+const ONEPUX_IMPORTER_VERSION = "elf-vault-1pux-import-v1";
 const FALLBACK_IMPORT_TIME = "1970-01-01T00:00:00.000Z";
 
 export interface OnePuxImportOptions {

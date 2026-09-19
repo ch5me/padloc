@@ -1,7 +1,7 @@
-import { Vault } from "@padloc/core/src/vault";
-import { translate as $l } from "@padloc/locale/src/translate";
-import { saveFile } from "@padloc/core/src/platform";
-import { stringToBytes } from "@padloc/core/src/encoding";
+import { Vault } from "@elf-vault/core/src/vault";
+import { translate as $l } from "@elf-vault/locale/src/translate";
+import { saveFile } from "@elf-vault/core/src/platform";
+import { stringToBytes } from "@elf-vault/core/src/encoding";
 import JSZip from "jszip";
 import { CSV, PBES2 } from "../lib/import";
 import { supportedFormats, asCSV, asPBES2Container } from "../lib/export";

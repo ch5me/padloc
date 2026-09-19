@@ -1,5 +1,5 @@
-import { translate as $l } from "@padloc/locale/src/translate";
-import { OrgMember } from "@padloc/core/src/org";
+import { translate as $l } from "@elf-vault/locale/src/translate";
+import { OrgMember } from "@elf-vault/core/src/org";
 import { StateMixin } from "../mixins/state";
 import { Routing } from "../mixins/routing";
 import { dialog, alert } from "../lib/dialog";
@@ -16,7 +16,7 @@ import { customElement, property, query, state } from "lit/decorators.js";
 import { html, LitElement } from "lit";
 import "./scroller";
 import "./button";
-import { base64ToString, stringToBase64 } from "@padloc/core/src/encoding";
+import { base64ToString, stringToBase64 } from "@elf-vault/core/src/encoding";
 
 @customElement("pl-org-members")
 export class OrgMembersView extends Routing(StateMixin(LitElement)) {

@@ -3,20 +3,20 @@
  * Tests vault CRUD, authz, and sync flows using raw API calls.
  * Uses reduced PBKDF2 iterations (10k) for faster test execution.
  */
-import { marshal, unmarshal, bytesToBase64 } from "@padloc/core/src/encoding";
-import { Err, ErrorCode } from "@padloc/core/src/error";
-import { uuid } from "@padloc/core/src/util";
-import { setPlatform, DeviceInfo, getCryptoProvider } from "@padloc/core/src/platform";
+import { marshal, unmarshal, bytesToBase64 } from "@elf-vault/core/src/encoding";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
+import { uuid } from "@elf-vault/core/src/util";
+import { setPlatform, DeviceInfo, getCryptoProvider } from "@elf-vault/core/src/platform";
 import { WorkerCryptoProvider } from "../src/crypto";
-import { MemoryStorage } from "@padloc/core/src/storage";
-import { Account } from "@padloc/core/src/account";
-import { Auth } from "@padloc/core/src/auth";
-import { Client as SRPClient } from "@padloc/core/src/srp";
-import { PBKDF2Params } from "@padloc/core/src/crypto";
-import { Request, Response } from "@padloc/core/src/transport";
-import { Session } from "@padloc/core/src/session";
-import { Vault } from "@padloc/core/src/vault";
-import { Org } from "@padloc/core/src/org";
+import { MemoryStorage } from "@elf-vault/core/src/storage";
+import { Account } from "@elf-vault/core/src/account";
+import { Auth } from "@elf-vault/core/src/auth";
+import { Client as SRPClient } from "@elf-vault/core/src/srp";
+import { PBKDF2Params } from "@elf-vault/core/src/crypto";
+import { Request, Response } from "@elf-vault/core/src/transport";
+import { Session } from "@elf-vault/core/src/session";
+import { Vault } from "@elf-vault/core/src/vault";
+import { Org } from "@elf-vault/core/src/org";
 
 const TEST_ITERATIONS = 10000;
 

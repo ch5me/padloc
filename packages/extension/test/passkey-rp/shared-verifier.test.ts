@@ -1,10 +1,10 @@
 import { expect } from "chai";
-import { PasskeyCounterPolicy } from "@padloc/core/src/passkey";
+import { PasskeyCounterPolicy } from "@elf-vault/core/src/passkey";
 import {
     buildPasskeyAssertionResponse,
     buildPasskeyRegistrationResponse,
     generatePasskeyCredential,
-} from "@padloc/core/src/webauthn-authenticator";
+} from "@elf-vault/core/src/webauthn-authenticator";
 import { verifyAssertion, verifyRegistration } from "./shared-verifier";
 import { ChallengeStore } from "./challenge-store";
 

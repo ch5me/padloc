@@ -53,13 +53,13 @@
 
 - `WebPlatform._getAuthClient` originally returned `webAuthnClient` for `AuthType.WebAuthnPlatform` and `AuthType.WebAuthnPortable`, but it was private and could not select extension-native clients. It is now protected and `ExtensionPlatform` explicitly selects its OAuth and WebAuthn clients.
 - The extension popup context exposes `navigator.credentials`, so it can invoke the browser/OS authenticator for CH5 Auth account authentication. This does not make the extension an arbitrary relying-party passkey provider.
-- `@simplewebauthn/browser` 5.4.0 and `@simplewebauthn/typescript-types` 5.4.0 resolved correctly from `@padloc/app/node_modules/` via the existing tsconfig path aliases and webpack alias resolution.
+- `@simplewebauthn/browser` 5.4.0 and `@simplewebauthn/typescript-types` 5.4.0 resolved correctly from `@elf-vault/app/node_modules/` via the existing tsconfig path aliases and webpack alias resolution.
 - `packages/core/src/auth.ts` defines `AuthType.WebAuthnPlatform` ("webauthn_platform") and `AuthType.WebAuthnPortable` ("webauthn_portable") — both match the server-side WebAuthn flow.
 - The legacy Node server has WebAuthn verification code, but the shipped Cloudflare Worker currently registers only Email and TOTP auth servers. WebAuthn cannot complete against the production Worker until a Worker-compatible verifier and configuration are wired.
 
 ### Implementation
 
-- `packages/extension/src/auth/webauthn.ts` — extension-scoped `WebAuthnClient` mirroring `@padloc/app/src/lib/auth/webauthn.ts`. Uses `@simplewebauthn/browser` directly via `browserSupportsWebauthn()`, `platformAuthenticatorIsAvailable()`, `startRegistration()`, `startAuthentication()`.
+- `packages/extension/src/auth/webauthn.ts` — extension-scoped `WebAuthnClient` mirroring `@elf-vault/app/src/lib/auth/webauthn.ts`. Uses `@simplewebauthn/browser` directly via `browserSupportsWebauthn()`, `platformAuthenticatorIsAvailable()`, `startRegistration()`, `startAuthentication()`.
 - `packages/extension/package.json` — added `@simplewebauthn/browser` 5.4.0 and `@simplewebauthn/typescript-types` 5.4.0 as dependencies; added `mocha` 9.2.2, `chai` 4.3.4, `@types/chai`, `@types/mocha` for test coverage.
 - `packages/extension/test/webauthn.ts` — smoke tests for `ExtensionPlatform.supportedAuthTypes` and `WebAuthnClient.supportsType` behavior.
 - `packages/extension/src/platform.ts` — explicitly selects the extension WebAuthn client for CH5 Auth account authentication.
@@ -194,7 +194,7 @@
         falls back to single-field on active input
     -   Added `fillFields` case in `_handleMessage`
 -   `packages/extension/src/background.ts`:
-    -   Added import of `FieldType` from `@padloc/core/src/item`
+    -   Added import of `FieldType` from `@elf-vault/core/src/item`
     -   Added `fillItemMultiField()` — extracts username/password/totp from item
         and sends `fillFields` message
     -   Rewrote `handleContextMenuClick()` with two regex patterns:

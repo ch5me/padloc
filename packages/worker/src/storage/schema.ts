@@ -1,7 +1,7 @@
 /**
  * Drizzle ORM schema for Padloc D1 storage.
  *
- * Each Storable in @padloc/core maps to one table. Encrypted blob columns store
+ * Each Storable in @elf-vault/core maps to one table. Encrypted blob columns store
  * serialized objects — no plaintext that the existing Postgres backend encrypts.
  *
  * Schema ownership map:

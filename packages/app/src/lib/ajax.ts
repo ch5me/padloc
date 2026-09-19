@@ -1,7 +1,7 @@
-import { Err, ErrorCode } from "@padloc/core/src/error";
-import { marshal, unmarshal } from "@padloc/core/src/encoding";
-import { Request, Response, Sender, RequestProgress } from "@padloc/core/src/transport";
-import { translate as $l } from "@padloc/locale/src/translate";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
+import { marshal, unmarshal } from "@elf-vault/core/src/encoding";
+import { Request, Response, Sender, RequestProgress } from "@elf-vault/core/src/transport";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 
 export type Method = "GET" | "POST" | "PUT" | "DELETE";
 

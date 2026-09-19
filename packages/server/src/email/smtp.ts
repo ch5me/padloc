@@ -1,8 +1,8 @@
-import { Message, MessageData, Messenger } from "@padloc/core/src/messenger";
+import { Message, MessageData, Messenger } from "@elf-vault/core/src/messenger";
 import { createTransport, Transporter, TransportOptions } from "nodemailer";
-import { Config, ConfigParam } from "@padloc/core/src/config";
+import { Config, ConfigParam } from "@elf-vault/core/src/config";
 import { readFileSync, readdirSync } from "fs";
-import { Err, ErrorCode } from "@padloc/core/src/error";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
 import { resolve } from "path";
 import dompurify from "../tools/dompurify";
 

@@ -3,7 +3,7 @@ const { spawnSync } = require("child_process");
 
 const nodeMajor = Number(process.versions.node.split(".")[0]);
 if (nodeMajor !== 24) {
-    console.error(`Padloc web extension builds require Node 24.x; got ${process.version}.`);
+    console.error(`Elf Vault web extension builds require Node 24.x; got ${process.version}.`);
     process.exit(1);
 }
 

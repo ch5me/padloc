@@ -1,6 +1,6 @@
 import "./popover";
 import "./org-nav";
-import { translate as $l } from "@padloc/locale/src/translate";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { StateMixin } from "../mixins/state";
 import { Routing } from "../mixins/routing";
 import { shared } from "../styles";
@@ -16,10 +16,10 @@ import "./scroller";
 import "./list";
 import { customElement, property } from "lit/decorators.js";
 import { css, html, LitElement } from "lit";
-import { ProvisioningStatus } from "@padloc/core/src/provisioning";
+import { ProvisioningStatus } from "@elf-vault/core/src/provisioning";
 import "./rich-content";
 import "./button";
-import { stringToBase64 } from "@padloc/core/src/encoding";
+import { stringToBase64 } from "@elf-vault/core/src/encoding";
 
 @customElement("pl-org-dashboard")
 export class OrgDashboard extends Routing(StateMixin(LitElement)) {

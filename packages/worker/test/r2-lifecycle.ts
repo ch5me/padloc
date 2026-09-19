@@ -1,6 +1,6 @@
 import { R2AttachmentStorage, MAX_ATTACHMENT_SIZE } from "../src/attachments/r2";
-import { Attachment } from "@padloc/core/src/attachment";
-import { VaultID } from "@padloc/core/src/vault";
+import { Attachment } from "@elf-vault/core/src/attachment";
+import { VaultID } from "@elf-vault/core/src/vault";
 
 export interface R2LifecycleResult {
     name: string;

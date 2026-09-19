@@ -1,6 +1,6 @@
 import { browser } from "webextension-polyfill-ts";
-import { AuthClient, AuthType } from "@padloc/core/src/auth";
-import { Err, ErrorCode } from "@padloc/core/src/error";
+import { AuthClient, AuthType } from "@elf-vault/core/src/auth";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
 
 /**
  * OAuth client for the Chrome extension using chrome.identity.launchWebAuthFlow.

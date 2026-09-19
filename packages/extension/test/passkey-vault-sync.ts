@@ -1,7 +1,7 @@
 import { expect } from "chai";
-import { App } from "@padloc/core/src/app";
-import { VaultItem } from "@padloc/core/src/item";
-import { Vault } from "@padloc/core/src/vault";
+import { App } from "@elf-vault/core/src/app";
+import { VaultItem } from "@elf-vault/core/src/item";
+import { Vault } from "@elf-vault/core/src/vault";
 
 function strictSyncHarness(syncResult: Vault | null, clearItemChange = false) {
     const vault = new Vault();

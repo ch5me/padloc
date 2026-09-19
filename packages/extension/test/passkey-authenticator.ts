@@ -1,14 +1,14 @@
 import { expect } from "chai";
-import { createVaultItem, ItemHistoryEntry, VaultItem } from "@padloc/core/src/item";
+import { createVaultItem, ItemHistoryEntry, VaultItem } from "@elf-vault/core/src/item";
 import {
     PasskeyCounterPolicy,
     PasskeyCredential,
     PasskeyEs256KeyMaterial,
     PasskeyEs256PrivateJwk,
     PasskeyEs256PublicJwk,
-} from "@padloc/core/src/passkey";
+} from "@elf-vault/core/src/passkey";
 import {
-    PADLOC_AGENTIC_VAULT_AAGUID,
+    ELF_VAULT_AGENTIC_VAULT_AAGUID,
     buildPasskeyAssertionResponse,
     buildPasskeyRegistrationResponse,
     derEcdsaSignatureToWebCrypto,
@@ -16,8 +16,8 @@ import {
     generatePasskeyCredential,
     validateRpIdForOrigin,
     webCryptoEcdsaSignatureToDer,
-} from "@padloc/core/src/webauthn-authenticator";
-import { bytesToBase64, bytesToString, hexToBytes } from "@padloc/core/src/encoding";
+} from "@elf-vault/core/src/webauthn-authenticator";
+import { bytesToBase64, bytesToString, hexToBytes } from "@elf-vault/core/src/encoding";
 
 const publicKeyJwk: PasskeyEs256PublicJwk = {
     kty: "EC",
@@ -151,7 +151,7 @@ suite("Passkey authenticator foundation", () => {
         // an all-zero AAGUID reads as a bare security key to relying parties (Google labeled
         // it "iCloud Keychain" before this was fixed).
         expect(result.authenticatorData.slice(37, 53)).to.deep.equal(
-            hexToBytes(PADLOC_AGENTIC_VAULT_AAGUID.replace(/-/g, ""))
+            hexToBytes(ELF_VAULT_AGENTIC_VAULT_AAGUID.replace(/-/g, ""))
         );
         expect(result.publicKeyCose[0]).to.equal(0xa5);
         expect(result.attestationObject[0]).to.equal(0xa3);

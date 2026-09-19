@@ -4,7 +4,7 @@ import { Scroller } from "./scroller";
 import { List } from "./list";
 import { customElement, property, query, queryAll } from "lit/decorators.js";
 import { css, html, LitElement, TemplateResult, render } from "lit";
-import { wait } from "@padloc/core/src/util";
+import { wait } from "@elf-vault/core/src/util";
 
 @customElement("pl-virtual-list")
 export class VirtualList<T> extends List {

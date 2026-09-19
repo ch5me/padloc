@@ -1,5 +1,5 @@
-import { Err, ErrorCode } from "@padloc/core/src/error";
-import { translate as $l } from "@padloc/locale/src/translate";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { app, router } from "../globals";
 import { alert } from "../lib/dialog";
 

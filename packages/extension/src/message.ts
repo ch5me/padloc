@@ -1,5 +1,5 @@
 import { browser } from "webextension-polyfill-ts";
-import { VaultItem } from "@padloc/core/src/item";
+import { VaultItem } from "@elf-vault/core/src/item";
 import {
     AutofillBrokerInspectedField,
     AutofillBrokerRequest,

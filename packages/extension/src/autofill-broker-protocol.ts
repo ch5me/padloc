@@ -1,9 +1,9 @@
-import { parseImportResult } from "@padloc/core/src/import-result";
+import { parseImportResult } from "@elf-vault/core/src/import-result";
 
 export const AUTOFILL_BROKER_PROTOCOL_VERSION = 2 as const;
 export const AUTOFILL_BROKER_PROTOCOL_V1 = 1 as const;
-export const AUTOFILL_BROKER_RESPONSE_SCHEMA = "elf.padloc-broker-response.v2" as const;
-export const AUTOFILL_BROKER_ERROR_SCHEMA = "elf.padloc-broker-error.v1" as const;
+export const AUTOFILL_BROKER_RESPONSE_SCHEMA = "dance.elf.vault.broker-response.v2" as const;
+export const AUTOFILL_BROKER_ERROR_SCHEMA = "dance.elf.vault.broker-error.v1" as const;
 
 export type AutofillBrokerOperation =
     | "status"

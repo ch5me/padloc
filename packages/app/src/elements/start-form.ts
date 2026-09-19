@@ -6,7 +6,7 @@ import { Logo } from "./logo";
 import "./icon";
 import { css, LitElement } from "lit";
 import { query, state } from "lit/decorators.js";
-import { base64ToString } from "@padloc/core/src/encoding";
+import { base64ToString } from "@elf-vault/core/src/encoding";
 
 export abstract class StartForm extends Routing(StateMixin(LitElement)) {
     static styles = [

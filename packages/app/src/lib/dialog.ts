@@ -1,4 +1,4 @@
-import { translate as $l } from "@padloc/locale/src/translate";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import "../elements/generator";
 import "../elements/alert-dialog";
 import "../elements/prompt-dialog";

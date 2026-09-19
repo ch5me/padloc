@@ -1,5 +1,5 @@
-import { translate as $l } from "@padloc/locale/src/translate";
-import { AuthPurpose } from "@padloc/core/src/auth";
+import { translate as $l } from "@elf-vault/locale/src/translate";
+import { AuthPurpose } from "@elf-vault/core/src/auth";
 import { app, router } from "../globals";
 import { StartForm } from "./start-form";
 import { Input } from "./input";
@@ -8,7 +8,7 @@ import { alert, choose, confirm } from "../lib/dialog";
 import { passwordStrength } from "../lib/util";
 import { customElement, query, state } from "lit/decorators.js";
 import { html } from "lit";
-import { authenticate } from "@padloc/core/src/platform";
+import { authenticate } from "@elf-vault/core/src/platform";
 
 @customElement("pl-recover")
 export class Recover extends StartForm {

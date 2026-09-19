@@ -1,5 +1,5 @@
 {
-    "name": "@padloc/pwa",
+    "name": "@elf-vault/pwa",
     "version": "4.3.0",
     "author": "Martin Kleinschrodt <martin@maklesoft.com>",
     "license": "GPL-3.0",
@@ -9,11 +9,6 @@
         "assets",
         "tsconfig.json"
     ],
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/padloc/padloc.git",
-        "directory": "packages/pwa"
-    },
     "engines": {
         "node": "24.x",
         "npm": "11.x"
@@ -45,7 +40,7 @@
     },
     "description": "Elf Vault Progressive Web App",
     "dependencies": {
-        "@padloc/app": "4.3.0",
-        "@padloc/core": "4.3.0"
+        "@elf-vault/app": "4.3.0",
+        "@elf-vault/core": "4.3.0"
     }
 }

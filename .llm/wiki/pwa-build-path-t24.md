@@ -7,12 +7,12 @@ The PWA build path was broken because:
 1. `packages/core/package.json` and `packages/locale/package.json` were
    **missing entirely** from the repo (no files at root of those directories).
 2. Without `package.json` files, `lerna bootstrap` could not create symlinks for
-   `@padloc/core` and `@padloc/locale` into dependent package `node_modules/`.
+   `@elf-vault/core` and `@elf-vault/locale` into dependent package `node_modules/`.
 3. `packages/app/node_modules` did not exist (no deps installed since bootstrap
    was incomplete).
 4. `packages/pwa/package.json` had no `"scripts"` section, so
-   `lerna run build --scope @padloc/pwa` was a no-op.
-5. `packages/pwa/node_modules/@padloc/` was empty — no local package resolution.
+   `lerna run build --scope @elf-vault/pwa` was a no-op.
+5. `packages/pwa/node_modules/@elf-vault/` was empty — no local package resolution.
 
 ## Fix Applied
 
@@ -20,11 +20,11 @@ The PWA build path was broken because:
 
 ```json
 {
-    "name": "@padloc/core",
+    "name": "@elf-vault/core",
     "version": "4.3.0",
     "private": true,
     "dependencies": {
-        "@padloc/locale": "4.3.0",
+        "@elf-vault/locale": "4.3.0",
         "date-fns": "2.22.1"
     }
 }
@@ -34,7 +34,7 @@ The PWA build path was broken because:
 
 ```json
 {
-    "name": "@padloc/locale",
+    "name": "@elf-vault/locale",
     "version": "4.3.0",
     "private": true
 }
@@ -49,21 +49,21 @@ build command is:
 NODE_OPTIONS=--openssl-legacy-provider webpack --config webpack.config.js
 ```
 
-### 4. Added `@padloc/app` and `@padloc/core` as dependencies in PWA
+### 4. Added `@elf-vault/app` and `@elf-vault/core` as dependencies in PWA
 
 ### 5. Ran scoped lerna bootstrap
 
 ```
-npx lerna bootstrap --scope '@padloc/pwa' --scope '@padloc/app' --scope '@padloc/core' --scope '@padloc/locale' --ignore-prepublish --no-ci
+npx lerna bootstrap --scope '@elf-vault/pwa' --scope '@elf-vault/app' --scope '@elf-vault/core' --scope '@elf-vault/locale' --ignore-prepublish --no-ci
 ```
 
 This created the symlink chain:
 
--   `packages/pwa/node_modules/@padloc/app` → `../../../app`
--   `packages/pwa/node_modules/@padloc/core` → `../../../core`
--   `packages/app/node_modules/@padloc/core` → `../../../core`
--   `packages/app/node_modules/@padloc/locale` → `../../../locale`
--   `packages/core/node_modules/@padloc/locale` → `../../../locale`
+-   `packages/pwa/node_modules/@elf-vault/app` → `../../../app`
+-   `packages/pwa/node_modules/@elf-vault/core` → `../../../core`
+-   `packages/app/node_modules/@elf-vault/core` → `../../../core`
+-   `packages/app/node_modules/@elf-vault/locale` → `../../../locale`
+-   `packages/core/node_modules/@elf-vault/locale` → `../../../locale`
 
 Also installed `packages/app/node_modules` deps: `lit`, `workbox-*`, `date-fns`,
 `lit-element`, etc.
@@ -93,7 +93,7 @@ fonts, manifest, favicon.
 root. The repo tree shows `src/`, `node_modules/`, and `vendor/` subdirectories
 but no root-level files. Git likely excluded them or they were never committed.
 Without `package.json`, lerna cannot identify them as packages to symlink, which
-cascades into all downstream packages failing to resolve `@padloc/*` imports.
+cascades into all downstream packages failing to resolve `@elf-vault/*` imports.
 
 ## Gotchas for T24
 

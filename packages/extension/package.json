@@ -1,5 +1,5 @@
 {
-    "name": "@padloc/extension",
+    "name": "@elf-vault/extension",
     "version": "4.3.0",
     "description": "Elf Vault Browser Extension",
     "author": "Martin Kleinschrodt <martin@maklesoft.com>",
@@ -10,11 +10,6 @@
         "assets",
         "tsconfig.json"
     ],
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/padloc/padloc.git",
-        "directory": "packages/pwa"
-    },
     "engines": {
         "node": "24.x",
         "npm": "11.x"

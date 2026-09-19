@@ -1,6 +1,6 @@
 import { Generator } from "./generator";
 import { html } from "lit";
-import { $l } from "@padloc/locale/src/translate";
+import { $l } from "@elf-vault/locale/src/translate";
 import { Dialog } from "./dialog";
 import { customElement, query } from "lit/decorators.js";
 import "./scroller";

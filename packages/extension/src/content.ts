@@ -1,5 +1,5 @@
 import { browser } from "webextension-polyfill-ts";
-// import { throttle } from "@padloc/core/src/util";
+// import { throttle } from "@elf-vault/core/src/util";
 import { AgenticFieldProposal, AgenticFieldWrite, FieldMappings, Message, CredentialData } from "./message";
 import { AutofillFieldRole, classifyAutofillField, isFillableInputType } from "./autofill-classifier";
 import { AutofillBrokerInspectedField, AutofillBrokerTarget } from "./autofill-broker-protocol";
@@ -777,9 +777,9 @@ function hasFillMappings(mappings: FieldMappings): boolean {
     return Object.values(mappings).some((value) => !!value);
 }
 
-const padlocContentWindow = window as Window & { extension?: ExtensionContent };
+const elfVaultContentWindow = window as Window & { extension?: ExtensionContent };
 
-if (typeof padlocContentWindow.extension === "undefined") {
-    padlocContentWindow.extension = new ExtensionContent();
-    padlocContentWindow.extension.init();
+if (typeof elfVaultContentWindow.extension === "undefined") {
+    elfVaultContentWindow.extension = new ExtensionContent();
+    elfVaultContentWindow.extension.init();
 }

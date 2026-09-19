@@ -1,9 +1,9 @@
-import { HashParams } from "@padloc/core/src/crypto";
-import { bytesToHex, stringToBytes } from "@padloc/core/src/encoding";
-import { AuditResult, AuditType, FieldType } from "@padloc/core/src/item";
-import { getCryptoProvider } from "@padloc/core/src/platform";
-import { Vault } from "@padloc/core/src/vault";
-import { $l } from "@padloc/locale/src/translate";
+import { HashParams } from "@elf-vault/core/src/crypto";
+import { bytesToHex, stringToBytes } from "@elf-vault/core/src/encoding";
+import { AuditResult, AuditType, FieldType } from "@elf-vault/core/src/item";
+import { getCryptoProvider } from "@elf-vault/core/src/platform";
+import { Vault } from "@elf-vault/core/src/vault";
+import { $l } from "@elf-vault/locale/src/translate";
 import { sub } from "date-fns";
 import { ListItem } from "../elements/items-list";
 import { app } from "../globals";

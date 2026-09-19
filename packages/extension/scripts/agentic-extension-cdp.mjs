@@ -27,9 +27,9 @@ const mode = args.get("mode") || "smoke";
 const port = args.get("port") || "9800";
 let extensionId = args.get("extension-id") || "";
 const extensionPath = args.get("extension-path") || new URL("../dist", import.meta.url).pathname;
-const PADLOC_AGENTIC_VAULT_AAGUID = "7a46cc38-26d9-47fe-9f3b-b52837c6020d";
-const PADLOC_AGENTIC_VAULT_TRANSPORTS = ["internal"];
-const PADLOC_AGENTIC_VAULT_AUTHENTICATOR_ATTACHMENT = "platform";
+const ELF_VAULT_AGENTIC_VAULT_AAGUID = "7a46cc38-26d9-47fe-9f3b-b52837c6020d";
+const ELF_VAULT_AGENTIC_VAULT_TRANSPORTS = ["internal"];
+const ELF_VAULT_AGENTIC_VAULT_AUTHENTICATOR_ATTACHMENT = "platform";
 
 class Cdp {
     nextId = 1;
@@ -181,12 +181,12 @@ async function clearStorage() {
                 await chrome.storage.local.clear();
                 await chrome.storage.session.clear();
                 await new Promise((resolve, reject) => {
-                    const req = indexedDB.deleteDatabase("padloc-agentic-passkey-signers");
+                    const req = indexedDB.deleteDatabase("elf-vault-agentic-passkey-signers");
                     req.onsuccess = () => resolve();
                     req.onerror = () => reject(req.error || new Error("failed to clear signer store"));
                     req.onblocked = () => reject(new Error("blocked clearing passkey signer store"));
                 });
-                const verifyReq = indexedDB.open("padloc-agentic-passkey-signers", 1);
+                const verifyReq = indexedDB.open("elf-vault-agentic-passkey-signers", 1);
                 await new Promise((resolve, reject) => {
                     verifyReq.onupgradeneeded = () => {
                         const db = verifyReq.result;
@@ -357,9 +357,9 @@ async function readiness() {
     if (!webAuthn.createHooked || !webAuthn.getHooked) reasons.push("webauthn_hooks_inactive");
 
     const passkeyIdentity = {
-        aaguid: PADLOC_AGENTIC_VAULT_AAGUID,
-        transports: [...PADLOC_AGENTIC_VAULT_TRANSPORTS],
-        authenticatorAttachment: PADLOC_AGENTIC_VAULT_AUTHENTICATOR_ATTACHMENT,
+        aaguid: ELF_VAULT_AGENTIC_VAULT_AAGUID,
+        transports: [...ELF_VAULT_AGENTIC_VAULT_TRANSPORTS],
+        authenticatorAttachment: ELF_VAULT_AGENTIC_VAULT_AUTHENTICATOR_ATTACHMENT,
         credPropsRk: true,
     };
     if (
@@ -467,7 +467,7 @@ async function readSignerStoreReadiness() {
         sessionId,
         `(async () => {
             if (!globalThis.indexedDB) return { available: false, hasKeys: false, keyCount: 0, error: "indexeddb_unavailable" };
-            const openRequest = indexedDB.open("padloc-agentic-passkey-signers", 1);
+            const openRequest = indexedDB.open("elf-vault-agentic-passkey-signers", 1);
             const db = await new Promise((resolve, reject) => {
                 openRequest.onupgradeneeded = () => {
                     const database = openRequest.result;
@@ -640,11 +640,11 @@ async function webAuthnProof() {
 }
 
 async function webAuthnIoProof() {
-    const username = `padloc-agentic-${Date.now()}-${Math.floor(Math.random() * 1000000)}@example.com`;
+    const username = `elf-vault-agentic-${Date.now()}-${Math.floor(Math.random() * 1000000)}@example.com`;
     const cleanup =
         args.get("preserve-rp-passkeys") === "true"
             ? { ok: true, rpId: "webauthn.io", skipped: true, deletedCount: 0 }
-            : await deletePasskeysForRpId("webauthn.io", "padloc-agentic-");
+            : await deletePasskeysForRpId("webauthn.io", "elf-vault-agentic-");
     if (!cleanup.ok) return { status: "webauthn-io-proof", ok: false, cleanup };
     const created = await cdp.send("Target.createTarget", { url: "about:blank" });
     const pageSession = await attach(created.targetId);
@@ -667,11 +667,11 @@ async function webAuthnIoProof() {
     try {
         const controls = await waitForWebAuthnIoState(pageSession, username, "controls", 15000);
         if (!controls.hasControls) {
-            const existingPadlocCredential =
+            const existingElfVaultCredential =
                 controls.loginSuccess &&
                 /7a46cc38-26d9-47fe-9f3b-b52837c6020d/.test(controls.text || "") &&
                 /"internal"/.test(controls.text || "");
-            pageState = existingPadlocCredential
+            pageState = existingElfVaultCredential
                 ? {
                       ...controls,
                       ok: true,
@@ -823,7 +823,7 @@ async function readWebAuthnIoState(sessionId, username) {
 }
 
 async function webAuthnMeProof() {
-    const username = `padloc-agentic-${Date.now()}-${Math.floor(Math.random() * 1000000)}@example.com`;
+    const username = `elf-vault-agentic-${Date.now()}-${Math.floor(Math.random() * 1000000)}@example.com`;
     const created = await cdp.send("Target.createTarget", { url: "about:blank" });
     const pageSession = await attach(created.targetId);
     await cdp.send("Page.enable", {}, pageSession);
@@ -1220,7 +1220,7 @@ async function startLocalWebAuthnRpServer() {
                     "content-type": "text/html; charset=utf-8",
                     "cache-control": "no-store",
                 });
-                res.end(`<!doctype html><title>Padloc Local WebAuthn RP</title><main>Padloc Local WebAuthn RP</main>`);
+                res.end(`<!doctype html><title>Elf Vault Local WebAuthn RP</title><main>Elf Vault Local WebAuthn RP</main>`);
                 return;
             }
             if (req.method === "GET" && url.pathname === "/register/options") {
@@ -1228,11 +1228,11 @@ async function startLocalWebAuthnRpServer() {
                 sendJson(res, 200, {
                     publicKey: {
                         challenge: state.registrationChallenge,
-                        rp: { id: state.rpId, name: "Padloc Local WebAuthn RP" },
+                        rp: { id: state.rpId, name: "Elf Vault Local WebAuthn RP" },
                         user: {
                             id: userId,
-                            name: "padloc-agentic-local-rp@example.test",
-                            displayName: "Padloc Agentic Local RP",
+                            name: "elf-vault-agentic-local-rp@example.test",
+                            displayName: "Elf Vault Agentic Local RP",
                         },
                         pubKeyCredParams: [{ type: "public-key", alg: -7 }],
                         timeout: 60000,
@@ -1647,9 +1647,9 @@ function readinessRedactionSelfTest() {
         signerStore: { available: true, hasKeys: true, keyCount: 1, error: "" },
         webAuthn: { probeOrigin: "https://example.com", createHooked: true, getHooked: true },
         passkeyIdentity: {
-            aaguid: PADLOC_AGENTIC_VAULT_AAGUID,
-            transports: [...PADLOC_AGENTIC_VAULT_TRANSPORTS],
-            authenticatorAttachment: PADLOC_AGENTIC_VAULT_AUTHENTICATOR_ATTACHMENT,
+            aaguid: ELF_VAULT_AGENTIC_VAULT_AAGUID,
+            transports: [...ELF_VAULT_AGENTIC_VAULT_TRANSPORTS],
+            authenticatorAttachment: ELF_VAULT_AGENTIC_VAULT_AUTHENTICATOR_ATTACHMENT,
             credPropsRk: true,
         },
         rpPolicy: { enforced: true, source: "per-passkey policy plus request binding", mismatchDecision: "deny" },
@@ -1659,7 +1659,7 @@ function readinessRedactionSelfTest() {
         assertReadinessRedacted(good);
         let rejectedForbiddenKey = false;
         try {
-            assertReadinessRedacted({ ...good, passkey: { signerHandle: "padloc-passkey-signer:raw" } });
+            assertReadinessRedacted({ ...good, passkey: { signerHandle: "elf-vault-passkey-signer:raw" } });
         } catch {
             rejectedForbiddenKey = true;
         }

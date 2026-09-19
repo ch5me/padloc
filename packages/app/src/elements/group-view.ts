@@ -1,5 +1,5 @@
-import { OrgMember, Group } from "@padloc/core/src/org";
-import { translate as $l } from "@padloc/locale/src/translate";
+import { OrgMember, Group } from "@elf-vault/core/src/org";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { shared } from "../styles";
 import { app } from "../globals";
 import { alert, confirm } from "../lib/dialog";
@@ -16,7 +16,7 @@ import { Input } from "./input";
 import "./toggle";
 import { css, html, LitElement } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
-import { AccountID } from "@padloc/core/src/account";
+import { AccountID } from "@elf-vault/core/src/account";
 
 @customElement("pl-group-view")
 export class GroupView extends Routing(StateMixin(LitElement)) {

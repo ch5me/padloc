@@ -1,5 +1,5 @@
 import { until } from "lit/directives/until.js";
-import { translate as $l } from "@padloc/locale/src/translate";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { formatDateFromNow } from "../lib/util";
 import { shared } from "../styles";
 import { app } from "../globals";
@@ -10,8 +10,8 @@ import { Button } from "./button";
 import "./icon";
 import "./scroller";
 import "./spinner";
-import { UnlockedOrg } from "@padloc/core/src/org";
-import { UnlockedAccount } from "@padloc/core/src/account";
+import { UnlockedOrg } from "@elf-vault/core/src/org";
+import { UnlockedAccount } from "@elf-vault/core/src/account";
 import { customElement, property, query, state } from "lit/decorators.js";
 import { css, html, LitElement } from "lit";
 import { checkFeatureDisabled } from "../lib/provisioning";

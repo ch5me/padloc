@@ -1,5 +1,5 @@
 {
-    "name": "@padloc/admin",
+    "name": "@elf-vault/admin",
     "version": "4.3.0",
     "author": "Martin Kleinschrodt <martin@maklesoft.com>",
     "license": "GPL-3.0",
@@ -8,11 +8,6 @@
         "src",
         "tsconfig.json"
     ],
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/padloc/padloc.git",
-        "directory": "packages/pwa"
-    },
     "engines": {
         "node": "24.x",
         "npm": "11.x"

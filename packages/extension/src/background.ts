@@ -1,10 +1,10 @@
 import { browser, Menus, Runtime } from "webextension-polyfill-ts";
-import { setPlatform } from "@padloc/core/src/platform";
-import { App } from "@padloc/core/src/app";
-import { debounce, uuid } from "@padloc/core/src/util";
-import { AutofillFieldRole, FieldType, Field, VaultItem } from "@padloc/core/src/item";
-import { PasskeyCredential, PasskeyCeremonyBinding } from "@padloc/core/src/passkey";
-import { bytesToBase64 } from "@padloc/core/src/encoding";
+import { setPlatform } from "@elf-vault/core/src/platform";
+import { App } from "@elf-vault/core/src/app";
+import { debounce, uuid } from "@elf-vault/core/src/util";
+import { AutofillFieldRole, FieldType, Field, VaultItem } from "@elf-vault/core/src/item";
+import { PasskeyCredential, PasskeyCeremonyBinding } from "@elf-vault/core/src/passkey";
+import { bytesToBase64 } from "@elf-vault/core/src/encoding";
 import { ExtensionWorkerPlatform } from "./worker-platform";
 import { FetchSender } from "./fetch-sender";
 import { AgenticAutofillApprovalPrompt, CredentialData, Message, SavePrompt, messageTab } from "./message";
@@ -190,13 +190,13 @@ const passkeyRuntimeDiagnostics = {
 };
 if (PASSKEY_DIAGNOSTICS_ENABLED) {
     (
-        globalThis as typeof globalThis & { padlocPasskeyDiagnostics?: typeof passkeyRuntimeDiagnostics }
-    ).padlocPasskeyDiagnostics = passkeyRuntimeDiagnostics;
+        globalThis as typeof globalThis & { elfVaultPasskeyDiagnostics?: typeof passkeyRuntimeDiagnostics }
+    ).elfVaultPasskeyDiagnostics = passkeyRuntimeDiagnostics;
 }
 
 nativeRuntime.onConnect.addListener((port) => {
     passkeyRuntimeDiagnostics.connectionCount += 1;
-    if (port.name !== "padloc-passkey-v1" || !port.sender?.tab) {
+    if (port.name !== "elf-vault-passkey-v1" || !port.sender?.tab) {
         passkeyRuntimeDiagnostics.lastStage = "port-rejected";
         return;
     }
@@ -267,7 +267,7 @@ function buildPasskeyFallback(
     sender: Runtime.MessageSender
 ): PasskeyResult {
     if (PASSKEY_DIAGNOSTICS_ENABLED) {
-        console.debug("[Padloc passkey] background request", msg.requestId, msg.operation);
+        console.debug("[Elf Vault passkey] background request", msg.requestId, msg.operation);
     }
     const verified = isPasskeyRuntimeRequest(msg) && bindPasskeyRequest(msg.origin, sender, msg) !== null;
     return {
@@ -320,7 +320,7 @@ async function beginPasskeyRequest(
         );
         passkeyRuntimeDiagnostics.lastStage = "approval-pending";
         if (PASSKEY_DIAGNOSTICS_ENABLED) {
-            console.info("[Padloc passkey] approval pending", msg.requestId, description.operation, description.rpId);
+            console.info("[Elf Vault passkey] approval pending", msg.requestId, description.operation, description.rpId);
         }
         void updateBadgeAndContextMenu();
     } catch (error) {
@@ -344,7 +344,7 @@ async function resolvePasskeyRequest(
                 respond(passkeyErrorResult(msg, "NotAllowedError", "The passkey request was not approved"));
             }
             if (PASSKEY_DIAGNOSTICS_ENABLED) {
-                console.info("[Padloc passkey] ceremony ended", msg.requestId, msg.operation, resolution.outcome);
+                console.info("[Elf Vault passkey] ceremony ended", msg.requestId, msg.operation, resolution.outcome);
             }
             return;
         }
@@ -393,7 +393,7 @@ async function resolvePasskeyRequest(
             credential,
         });
         if (PASSKEY_DIAGNOSTICS_ENABLED) {
-            console.info("[Padloc passkey] ceremony completed", msg.requestId, msg.operation);
+            console.info("[Elf Vault passkey] ceremony completed", msg.requestId, msg.operation);
         }
         passkeyRuntimeDiagnostics.lastStage = "completed";
     } catch (error) {
@@ -402,7 +402,7 @@ async function resolvePasskeyRequest(
         respond(passkeyErrorFromUnknown(msg, error));
         if (PASSKEY_DIAGNOSTICS_ENABLED) {
             console.warn(
-                "[Padloc passkey] ceremony failed",
+                "[Elf Vault passkey] ceremony failed",
                 msg.requestId,
                 msg.operation,
                 error instanceof Error ? error.name : "OperationError"
@@ -1994,7 +1994,7 @@ function isAgenticInspectionResult(value: unknown): value is {
 async function processPendingNativeBrokerRequest(application: App): Promise<void> {
     let claimed: unknown;
     try {
-        claimed = await browser.runtime.sendNativeMessage("me.ch5.padloc", {
+        claimed = await browser.runtime.sendNativeMessage("dance.elf.vault", {
             type: "claim-broker-request",
             protocolVersion: 1,
         });
@@ -2039,10 +2039,10 @@ async function processPendingNativeBrokerRequest(application: App): Promise<void
 }
 
 const brokerGlobal = globalThis as typeof globalThis & {
-    padlocAgenticAutofillBroker?: (request: AutofillBrokerRequest) => Promise<unknown>;
+    elfVaultAgenticAutofillBroker?: (request: AutofillBrokerRequest) => Promise<unknown>;
 };
 
-brokerGlobal.padlocAgenticAutofillBroker = async (request: AutofillBrokerRequest) => {
+brokerGlobal.elfVaultAgenticAutofillBroker = async (request: AutofillBrokerRequest) => {
     const response = await handleAgenticAutofillBroker(request, await getApp());
     return response.response;
 };
@@ -2056,7 +2056,7 @@ async function publishRedactedBrokerResponse(response: unknown): Promise<void> {
         ) {
             assertAutofillBrokerResponseV2(response);
         }
-        await browser.runtime.sendNativeMessage("me.ch5.padloc", {
+        await browser.runtime.sendNativeMessage("dance.elf.vault", {
             type: "cache-redacted-response",
             protocolVersion: 1,
             response,

@@ -1,5 +1,5 @@
 {
-    "name": "@padloc/core",
+    "name": "@elf-vault/core",
     "version": "4.3.0",
     "author": "Martin Kleinschrodt <martin@maklesoft.com>",
     "license": "GPL-3.0",
@@ -8,13 +8,8 @@
         "src",
         "vendor"
     ],
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/padloc/padloc.git",
-        "directory": "packages/core"
-    },
     "dependencies": {
-        "@padloc/locale": "4.3.0",
+        "@elf-vault/locale": "4.3.0",
         "date-fns": "2.22.1"
     },
     "description": "Padloc core logic package",

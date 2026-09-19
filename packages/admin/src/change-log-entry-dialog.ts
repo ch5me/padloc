@@ -1,11 +1,11 @@
-import { Dialog } from "@padloc/app/src/elements/dialog";
-import { css, customElement, html, state } from "@padloc/app/src/elements/lit";
-import { $l } from "@padloc/locale/src/translate";
-import "@padloc/app/src/elements/button";
+import { Dialog } from "@elf-vault/app/src/elements/dialog";
+import { css, customElement, html, state } from "@elf-vault/app/src/elements/lit";
+import { $l } from "@elf-vault/locale/src/translate";
+import "@elf-vault/app/src/elements/button";
 import { diffJson } from "diff";
-import "@padloc/app/src/elements/icon";
-import { highlightJson } from "@padloc/app/src/lib/util";
-import { ChangeLogEntry } from "@padloc/core/src/logging";
+import "@elf-vault/app/src/elements/icon";
+import { highlightJson } from "@elf-vault/app/src/lib/util";
+import { ChangeLogEntry } from "@elf-vault/core/src/logging";
 
 @customElement("pl-change-log-entry-dialog")
 export class ChangeLogEntryDialog extends Dialog<ChangeLogEntry, void> {

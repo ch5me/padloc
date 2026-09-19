@@ -1,4 +1,4 @@
-import { translate as $l } from "@padloc/locale/src/translate";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { Serializable } from "./encoding";
 import { CryptoProvider } from "./crypto";
 import { Err, ErrorCode } from "./error";
@@ -22,7 +22,7 @@ export class DeviceInfo extends Serializable {
     /** Unique device identifier */
     id: string = "";
 
-    /** Padloc version installed on the device */
+    /** Elf Vault version installed on the device */
     appVersion: string = "";
 
     vendorVersion: string = "";

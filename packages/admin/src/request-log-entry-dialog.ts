@@ -1,10 +1,10 @@
-import { Dialog } from "@padloc/app/src/elements/dialog";
-import { css, customElement, html, state } from "@padloc/app/src/elements/lit";
-import { RequestLogEntry } from "@padloc/core/src/logging";
-import { $l } from "@padloc/locale/src/translate";
-import "@padloc/app/src/elements/button";
-import "@padloc/app/src/elements/icon";
-import { highlightJson } from "@padloc/app/src/lib/util";
+import { Dialog } from "@elf-vault/app/src/elements/dialog";
+import { css, customElement, html, state } from "@elf-vault/app/src/elements/lit";
+import { RequestLogEntry } from "@elf-vault/core/src/logging";
+import { $l } from "@elf-vault/locale/src/translate";
+import "@elf-vault/app/src/elements/button";
+import "@elf-vault/app/src/elements/icon";
+import { highlightJson } from "@elf-vault/app/src/lib/util";
 
 @customElement("pl-request-log-entry-dialog")
 export class RequestLogEntryDialog extends Dialog<RequestLogEntry, void> {

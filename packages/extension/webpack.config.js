@@ -35,15 +35,15 @@ module.exports = {
     devtool: buildEnvironment === "production" ? false : "source-map",
     stats: "minimal",
     optimization: {
-        minimize: false,
+        minimize: buildEnvironment === "production",
     },
     resolve: {
         extensions: [".ts", ".js", ".css", ".svg", ".png", ".jpg"],
         alias: {
             assets: assetsDir,
-            "@padloc/core": resolve(rootDir, "packages/core"),
-            "@padloc/app": resolve(rootDir, "packages/app"),
-            "@padloc/locale": resolve(rootDir, "packages/locale"),
+            "@elf-vault/core": resolve(rootDir, "packages/core"),
+            "@elf-vault/app": resolve(rootDir, "packages/app"),
+            "@elf-vault/locale": resolve(rootDir, "packages/locale"),
         },
     },
     module: {
@@ -73,12 +73,12 @@ module.exports = {
         new webpack.BannerPlugin({
             banner: [
                 "globalThis.window = globalThis.window || globalThis;",
-                "globalThis.padlocAgenticAutofillBroker = globalThis.padlocAgenticAutofillBroker || (async (request = {}) => ({",
+                "globalThis.elfVaultAgenticAutofillBroker = globalThis.elfVaultAgenticAutofillBroker || (async (request = {}) => ({",
                 "    ok: false,",
                 "    protocolVersion: 1,",
                 "    requestId: request.requestId,",
                 "    vaultState: 'locked',",
-                "    reason: 'Padloc background app not initialized; fail-closed redacted broker prelude',",
+                "    reason: 'Elf Vault background app not initialized; fail-closed redacted broker prelude',",
                 "    audit: { operation: request.type || 'status', valuePolicy: 'redacted status only; no raw autofill values' },",
                 "}));",
             ].join("\n"),

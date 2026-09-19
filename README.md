@@ -55,15 +55,15 @@ This repo is split into multiple packages:
 
 | Package Name                            | Description                                                                                      |
 | --------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| [@padloc/core](packages/core)           | Core Logic                                                                                       |
-| [@padloc/app](packages/app)             | Web-based UI components                                                                          |
-| [@padloc/worker](packages/worker)       | The Cloudflare Worker backend                                                                    |
-| [@padloc/pwa](packages/pwa)             | The Web Client, a [Progressive Web App](https://developers.google.com/web/progressive-web-apps). |
-| [@padloc/locale](packages/locale)       | Package containing translations and other localization-related things                            |
-| [@padloc/electron](packages/electron)   | The Desktop App, built with Electron                                                             |
-| [@padloc/cordova](packages/cordova)     | Cordova project for building iOS and Android app.                                                |
-| [@padloc/tauri](packages/tauri)         | Cross-platform native app, powered by [Tauri](https://github.com/tauri-apps/tauri)               |
-| [@padloc/extension](packages/extension) | Padloc browser extension                                                                         |
+| [@elf-vault/core](packages/core)           | Core Logic                                                                                       |
+| [@elf-vault/app](packages/app)             | Web-based UI components                                                                          |
+| [@elf-vault/worker](packages/worker)       | The Cloudflare Worker backend                                                                    |
+| [@elf-vault/pwa](packages/pwa)             | The Web Client, a [Progressive Web App](https://developers.google.com/web/progressive-web-apps). |
+| [@elf-vault/locale](packages/locale)       | Package containing translations and other localization-related things                            |
+| [@elf-vault/electron](packages/electron)   | The Desktop App, built with Electron                                                             |
+| [@elf-vault/cordova](packages/cordova)     | Cordova project for building iOS and Android app.                                                |
+| [@elf-vault/tauri](packages/tauri)         | Cross-platform native app, powered by [Tauri](https://github.com/tauri-apps/tauri)               |
+| [@elf-vault/extension](packages/extension) | Padloc browser extension                                                                         |
 
 ## Run Locally
 
@@ -229,7 +229,7 @@ And to remove one:
 scope=[package_name] npm run remove [dependency]
 ```
 
-For example, here is how you would add `typescript` to the `@padloc/server`
+For example, here is how you would add `typescript` to the `@elf-vault/server`
 package:
 
 ```sh

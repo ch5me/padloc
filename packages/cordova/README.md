@@ -1,4 +1,4 @@
-# @padloc/cordova
+# @elf-vault/cordova
 
 This package contains the sources to build the mobile apps for Elf Vault.
 

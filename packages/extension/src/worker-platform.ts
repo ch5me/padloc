@@ -1,5 +1,5 @@
-import { WebCryptoProvider } from "@padloc/app/src/lib/crypto";
-import { DeviceInfo, StubPlatform } from "@padloc/core/src/platform";
+import { WebCryptoProvider } from "@elf-vault/app/src/lib/crypto";
+import { DeviceInfo, StubPlatform } from "@elf-vault/core/src/platform";
 import { ExtensionStorage } from "./storage";
 
 /** Minimal, DOM-free platform used by the MV3 background service worker. */

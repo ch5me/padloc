@@ -1,5 +1,5 @@
 /**
- * inventory-api.ts — Extracts API handler definitions from @padloc/core/src/api.ts
+ * inventory-api.ts — Extracts API handler definitions from @elf-vault/core/src/api.ts
  *
  * Produces:
  *   .sisyphus/contract/api-inventory.json
@@ -401,7 +401,7 @@ const learningsMd = [
     "- Single HTTP POST endpoint serves all API methods.",
     "- Request envelope: `{ method: string, params?: any[], auth?: RequestAuthentication, device?: DeviceInfo }`",
     "- Response envelope: `{ result: any, error?: { code: string, message: string }, auth?: RequestAuthentication }`",
-    "- Request/response serialization via `marshal/unmarshal` in `@padloc/core/src/encoding`.",
+    "- Request/response serialization via `marshal/unmarshal` in `@elf-vault/core/src/encoding`.",
     "- Authentication via session-based signature verification (not HTTP headers/cookies).",
     "- All errors returned in `Response.error` field with HTTP 200, except transport-level errors (400/405).",
     "",

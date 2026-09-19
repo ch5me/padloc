@@ -2,11 +2,11 @@ import "./scroller";
 import { html, LitElement } from "lit";
 import { StateMixin } from "../mixins/state";
 import { router } from "../globals";
-import { translate as $l } from "@padloc/locale/src/translate";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { customElement } from "lit/decorators.js";
 import { shared } from "../styles";
 import "./rich-content";
-import { ProvisioningStatus } from "@padloc/core/src/provisioning";
+import { ProvisioningStatus } from "@elf-vault/core/src/provisioning";
 
 @customElement("pl-settings-billing")
 export class SettingsBilling extends StateMixin(LitElement) {

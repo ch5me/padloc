@@ -22,7 +22,7 @@ import { Err, ErrorCode } from "./error";
  * StubCryptoProvider is a stub implementation of the [[CryptoProvider]]
  * interface mainly used for testing. All methods merely emulate the behavior
  * of an actual implementation in a way that makes it compatible for use
- * with the rest of the **@padloc/core** package. Needless to say, this
+ * with the rest of the **@elf-vault/core** package. Needless to say, this
  * class is **NOT SECURE AND SHOULD NEVER BE USED IN A PRODUCTION ENVIRONMENT**.
  */
 export class StubCryptoProvider implements CryptoProvider {

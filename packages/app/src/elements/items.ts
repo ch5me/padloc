@@ -5,8 +5,8 @@ import { ItemsList, ItemsFilter } from "./items-list";
 import "./item-view";
 import { customElement, property, query } from "lit/decorators.js";
 import { html } from "lit";
-import { wait } from "@padloc/core/src/util";
-import { AuditType } from "@padloc/core/src/item";
+import { wait } from "@elf-vault/core/src/util";
+import { AuditType } from "@elf-vault/core/src/item";
 
 @customElement("pl-items")
 export class ItemsView extends Routing(StateMixin(View)) {

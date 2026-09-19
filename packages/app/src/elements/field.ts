@@ -1,5 +1,5 @@
-import { Field, FieldType, FIELD_DEFS, AuditResult, AuditType } from "@padloc/core/src/item";
-import { translate as $l } from "@padloc/locale/src/translate";
+import { Field, FieldType, FIELD_DEFS, AuditResult, AuditType } from "@elf-vault/core/src/item";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { shared } from "../styles";
 import "./icon";
 import { Input } from "./input";
@@ -11,8 +11,8 @@ import "./button";
 import { Drawer } from "./drawer";
 import { customElement, property, query, state } from "lit/decorators.js";
 import { css, html, LitElement } from "lit";
-import { generatePassphrase } from "@padloc/core/src/diceware";
-import { randomString, charSets, wait } from "@padloc/core/src/util";
+import { generatePassphrase } from "@elf-vault/core/src/diceware";
+import { randomString, charSets, wait } from "@elf-vault/core/src/util";
 import { app } from "../globals";
 import { descriptionForAudit, iconForAudit, titleTextForAudit } from "../lib/audit";
 import "./popover";

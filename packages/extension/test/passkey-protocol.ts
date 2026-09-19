@@ -42,9 +42,9 @@ suite("Passkey page bridge protocol", () => {
         const json = serializedWebAuthnCredentialToJSON({
             id: "AQID",
             type: "public-key",
-            rawId: { __padlocWebAuthnType: "buffer", base64url: "AQID" },
+            rawId: { __elfVaultWebAuthnType: "buffer", base64url: "AQID" },
             response: {
-                clientDataJSON: { __padlocWebAuthnType: "buffer", base64url: "BAUG" },
+                clientDataJSON: { __elfVaultWebAuthnType: "buffer", base64url: "BAUG" },
             },
         });
 
@@ -56,13 +56,13 @@ suite("Passkey page bridge protocol", () => {
         const credential = reconstructCredential({
             id: "AQID",
             type: "public-key",
-            rawId: { __padlocWebAuthnType: "buffer", base64url: "AQID" },
+            rawId: { __elfVaultWebAuthnType: "buffer", base64url: "AQID" },
             authenticatorAttachment: "platform",
             response: {
-                clientDataJSON: { __padlocWebAuthnType: "buffer", base64url: "AQ" },
-                attestationObject: { __padlocWebAuthnType: "buffer", base64url: "Ag" },
-                authenticatorData: { __padlocWebAuthnType: "buffer", base64url: "Aw" },
-                publicKey: { __padlocWebAuthnType: "buffer", base64url: "BA" },
+                clientDataJSON: { __elfVaultWebAuthnType: "buffer", base64url: "AQ" },
+                attestationObject: { __elfVaultWebAuthnType: "buffer", base64url: "Ag" },
+                authenticatorData: { __elfVaultWebAuthnType: "buffer", base64url: "Aw" },
+                publicKey: { __elfVaultWebAuthnType: "buffer", base64url: "BA" },
                 publicKeyAlgorithm: -7,
                 transports: ["internal"],
             },
@@ -80,9 +80,9 @@ suite("Passkey page bridge protocol", () => {
             get: async () => null,
         } as any;
         expect(installPasskeyCanaryInterceptor("https://unrelated.example", credentials)).to.equal(false);
-        expect(Boolean(credentials.__padlocPasskeyInterceptorV1)).to.equal(false);
+        expect(Boolean(credentials.__elfVaultPasskeyInterceptorV1)).to.equal(false);
         expect(installPasskeyCanaryInterceptor("https://accounts.google.com", credentials)).to.equal(true);
-        expect(Boolean(credentials.__padlocPasskeyInterceptorV1)).to.equal(true);
+        expect(Boolean(credentials.__elfVaultPasskeyInterceptorV1)).to.equal(true);
     });
 
     test("accepts only typed requests and has no page-supplied origin field", () => {

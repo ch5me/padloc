@@ -1,4 +1,4 @@
-import { Vault } from "@padloc/core/src/vault";
+import { Vault } from "@elf-vault/core/src/vault";
 import {
     VaultItem,
     Field,
@@ -7,8 +7,8 @@ import {
     FieldType,
     AutofillItemKind,
     AutofillFieldRole,
-} from "@padloc/core/src/item";
-import { translate as $l } from "@padloc/locale/src/translate";
+} from "@elf-vault/core/src/item";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { app, router } from "../globals";
 import { Select } from "./select";
 import { Dialog } from "./dialog";

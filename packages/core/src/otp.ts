@@ -85,7 +85,7 @@ export async function generateSecret() {
 export function generateURL({
     secret,
     account,
-    issuer = "Padloc",
+    issuer = "Elf Vault",
     type = "totp",
     interval = 30,
     digits = 6,

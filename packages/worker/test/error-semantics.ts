@@ -1,9 +1,9 @@
 import { sanitizeError, errorResponse } from "../src/error";
-import { Err, ErrorCode } from "@padloc/core/src/error";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
 import { IdempotencyStore, hashRequestBody } from "../src/idempotency";
 import { WorkerReceiver, WorkerReceiverConfig } from "../src/transport";
-import { Request as PlRequest, Response as PlResponse } from "@padloc/core/src/transport";
-import { marshal } from "@padloc/core/src/encoding";
+import { Request as PlRequest, Response as PlResponse } from "@elf-vault/core/src/transport";
+import { marshal } from "@elf-vault/core/src/encoding";
 
 interface ErrorResponseBody {
     error: {

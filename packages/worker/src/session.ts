@@ -1,5 +1,5 @@
-import { Session, SessionID } from "@padloc/core/src/session";
-import { Err, ErrorCode } from "@padloc/core/src/error";
+import { Session, SessionID } from "@elf-vault/core/src/session";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
 import { Env } from "./env";
 
 export interface SessionRecord {

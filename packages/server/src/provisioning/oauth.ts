@@ -4,13 +4,13 @@ import {
     BasicProvisionerConfig,
     Provisioning,
     ProvisioningStatus,
-} from "@padloc/core/src/provisioning";
-import { getIdFromEmail } from "@padloc/core/src/util";
-import { Storage } from "@padloc/core/src/storage";
-import { ConfigParam } from "@padloc/core/src/config";
+} from "@elf-vault/core/src/provisioning";
+import { getIdFromEmail } from "@elf-vault/core/src/util";
+import { Storage } from "@elf-vault/core/src/storage";
+import { ConfigParam } from "@elf-vault/core/src/config";
 import { request } from "../transport/http";
-import { AccountID } from "@padloc/core/src/account";
-import { Auth } from "@padloc/core/src/auth";
+import { AccountID } from "@elf-vault/core/src/account";
+import { Auth } from "@elf-vault/core/src/auth";
 import { OauthConfig, OauthUserInfo } from "../auth/oauth";
 
 export class OauthProvisionerConfig extends BasicProvisionerConfig {

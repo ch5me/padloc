@@ -8,7 +8,7 @@ import "./icon";
 import "./list";
 import "./popover";
 import { htmlToMarkdown, markdownToHtml } from "../lib/markdown";
-import { $l } from "@padloc/locale/src/translate";
+import { $l } from "@elf-vault/locale/src/translate";
 import "./textarea";
 import { Textarea } from "./textarea";
 import "./select";

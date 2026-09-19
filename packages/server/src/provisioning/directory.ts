@@ -3,9 +3,9 @@ import {
     BasicProvisionerConfig,
     DefaultAccountProvisioning,
     ProvisioningStatus,
-} from "@padloc/core/src/provisioning";
-import { Storage } from "@padloc/core/src/storage";
-import { DirectoryGroup, DirectoryProvider, DirectorySubscriber, DirectoryUser } from "@padloc/core/src/directory";
+} from "@elf-vault/core/src/provisioning";
+import { Storage } from "@elf-vault/core/src/storage";
+import { DirectoryGroup, DirectoryProvider, DirectorySubscriber, DirectoryUser } from "@elf-vault/core/src/directory";
 
 export class DirectoryProvisionerConfig extends BasicProvisionerConfig {}
 

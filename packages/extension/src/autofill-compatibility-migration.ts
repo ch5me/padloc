@@ -3,7 +3,7 @@ import {
     ImportResult,
     parseImportProvenance,
     parseImportResult,
-} from "@padloc/core/src/import-result";
+} from "@elf-vault/core/src/import-result";
 
 export const ENCRYPTED_AUTOFILL_PROFILE_ENVELOPE_SCHEMA =
     "elf.encrypted-autofill-profile-envelope.v1" as const;
@@ -11,7 +11,7 @@ export const IMPORT_BEGIN_SCHEMA = "elf.import-begin-request.v1" as const;
 export const IMPORT_BEGIN_RESULT_SCHEMA = "elf.import-begin-result.v1" as const;
 export const IMPORT_COMMIT_SCHEMA = "elf.import-commit-request.v1" as const;
 export const IMPORT_COMMIT_RESULT_SCHEMA = "elf.import-commit-result.v1" as const;
-export const IMPORT_WRAP_ALGORITHM = "padloc-import-key-v1" as const;
+export const IMPORT_WRAP_ALGORITHM = "elf-vault-import-key-v1" as const;
 
 export interface EncryptedAutofillProfileEnvelope {
     schema: typeof ENCRYPTED_AUTOFILL_PROFILE_ENVELOPE_SCHEMA;

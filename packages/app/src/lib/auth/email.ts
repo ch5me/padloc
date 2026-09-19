@@ -1,6 +1,6 @@
-import { AuthClient, AuthType } from "@padloc/core/src/auth";
+import { AuthClient, AuthType } from "@elf-vault/core/src/auth";
 import { getDialog } from "../dialog";
-import { translate as $l } from "@padloc/locale/src/translate";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { html } from "lit";
 import "../../elements/prompt-dialog";
 import { PromptDialog } from "../../elements/prompt-dialog";

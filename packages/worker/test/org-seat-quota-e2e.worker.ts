@@ -19,30 +19,30 @@
  * Adapted directly from multi-org-isolation-e2e.worker.ts's harness (real Client, real SRP auth,
  * real createServer over a LocalSender, no mocks).
  */
-import { setPlatform, DeviceInfo, StubPlatform } from "@padloc/core/src/platform";
+import { setPlatform, DeviceInfo, StubPlatform } from "@elf-vault/core/src/platform";
 import { WorkerCryptoProvider } from "../src/crypto";
-import { Client } from "@padloc/core/src/client";
-import { Account, UnlockedAccount } from "@padloc/core/src/account";
-import { Org, UnlockedOrg } from "@padloc/core/src/org";
-import { Auth } from "@padloc/core/src/auth";
-import { Client as SRPClient } from "@padloc/core/src/srp";
+import { Client } from "@elf-vault/core/src/client";
+import { Account, UnlockedAccount } from "@elf-vault/core/src/account";
+import { Org, UnlockedOrg } from "@elf-vault/core/src/org";
+import { Auth } from "@elf-vault/core/src/auth";
+import { Client as SRPClient } from "@elf-vault/core/src/srp";
 import {
     Sender,
     Request as TransportRequest,
     RequestProgress,
     Response as CoreResponse,
-} from "@padloc/core/src/transport";
-import { Err, ErrorCode } from "@padloc/core/src/error";
-import { uuid } from "@padloc/core/src/util";
-import { Invite } from "@padloc/core/src/invite";
-import { GetInviteParams } from "@padloc/core/src/api";
+} from "@elf-vault/core/src/transport";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
+import { uuid } from "@elf-vault/core/src/util";
+import { Invite } from "@elf-vault/core/src/invite";
+import { GetInviteParams } from "@elf-vault/core/src/api";
 import { createServer } from "../src/server-factory";
 import { OrgAwareProvisioner } from "../src/provisioner/org-aware";
 import { D1Storage } from "../src/storage/d1";
 import { WorkerReceiver, WorkerReceiverConfig } from "../src/transport";
-import { Request as PlRequest, Response as PlResponse } from "@padloc/core/src/transport";
-import { CreateAccountParams, StartCreateSessionParams, CompleteCreateSessionParams } from "@padloc/core/src/api";
-import { marshal, unmarshal } from "@padloc/core/src/encoding";
+import { Request as PlRequest, Response as PlResponse } from "@elf-vault/core/src/transport";
+import { CreateAccountParams, StartCreateSessionParams, CompleteCreateSessionParams } from "@elf-vault/core/src/api";
+import { marshal, unmarshal } from "@elf-vault/core/src/encoding";
 import { AccountLockDO } from "../src/locks/account-lock";
 
 export { AccountLockDO };

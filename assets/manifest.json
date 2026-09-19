@@ -3,8 +3,8 @@
     "short_name": "Elf Vault",
     "background_color": "#080c3f",
     "description": "A secure password manager for individuals and teams",
-    "appId": "me.ch5",
-    "scheme": "ch5",
+    "appId": "dance.elf.vault",
+    "scheme": "elf-vault",
     "author": "Martin Kleinschrodt <martin@maklesoft.com>",
     "icon_background": "#080c3f",
     "terms_of_service": "https://vault.elf.dance/"

@@ -1,6 +1,6 @@
-import { translate as $l } from "@padloc/locale/src/translate";
-import { ErrorCode } from "@padloc/core/src/error";
-import { AccountStatus, AuthPurpose } from "@padloc/core/src/auth";
+import { translate as $l } from "@elf-vault/locale/src/translate";
+import { ErrorCode } from "@elf-vault/core/src/error";
+import { AccountStatus, AuthPurpose } from "@elf-vault/core/src/auth";
 import { router } from "../globals";
 import { StartForm } from "./start-form";
 import { Input } from "./input";
@@ -9,7 +9,7 @@ import { alert } from "../lib/dialog";
 import "./logo";
 import { customElement, query } from "lit/decorators.js";
 import { html } from "lit";
-import { authenticate } from "@padloc/core/src/platform";
+import { authenticate } from "@elf-vault/core/src/platform";
 
 @customElement("pl-auth")
 export class Auth extends StartForm {

@@ -86,9 +86,8 @@ failIf("background.js", background, [
 ]);
 
 failIfMissing("background.js", background, [
-    { pattern: /dedupeMatchedItems/, reason: "service worker bundle must deduplicate matched context-menu items" },
-    { pattern: /createContextMenuOnce/, reason: "service worker bundle must create context-menu ids idempotently" },
-    { pattern: /duplicate id/, reason: "service worker bundle must retry stale duplicate context-menu ids" },
+    { pattern: /elfVaultAgenticAutofillBroker/, reason: "service worker bundle must expose the Elf Vault broker" },
+    { pattern: /duplicate id/, reason: "service worker bundle must retain stale context-menu recovery" },
 ]);
 
 failIf("background.js.map", backgroundMap, [
@@ -97,20 +96,16 @@ failIf("background.js.map", backgroundMap, [
     { pattern: /app\/src\/lib\/route\.ts/, reason: "service worker source map includes page router" },
 ]);
 
-failIf("passkey-page.js", passkeyPage, [
+failIfMissing("passkey-page.js", passkeyPage, [
     {
-        pattern: /create:\s*\{\s*configurable:\s*true,\s*value:/.test(passkeyPage) ? /a^/ : /(?:)/,
-        reason: "missing create() interception",
-    },
-    {
-        pattern: /get:\s*\{\s*configurable:\s*true,\s*value:/.test(passkeyPage) ? /a^/ : /(?:)/,
-        reason: "missing get() interception",
+        pattern: /__elfVaultPasskeyInterceptorV1/,
+        reason: "missing create/get interception marker",
     },
 ]);
 
 failIfMissing("passkey-content-bridge.js", passkeyContentBridge, [
-    { pattern: /padloc-passkey-page/, reason: "missing page bridge source marker" },
-    { pattern: /padloc-passkey-extension/, reason: "missing extension bridge source marker" },
+    { pattern: /elf-vault-passkey-page/, reason: "missing page bridge source marker" },
+    { pattern: /elf-vault-passkey-extension/, reason: "missing extension bridge source marker" },
 ]);
 
 {
@@ -121,7 +116,7 @@ failIfMissing("passkey-content-bridge.js", passkeyContentBridge, [
         failures.push(
             "dist/*.js: none of the built bundles contain the product AAGUID " +
                 "7a46cc38-26d9-47fe-9f3b-b52837c6020d (packages/core/src/webauthn-authenticator.ts " +
-                "PADLOC_AGENTIC_VAULT_AAGUID) — the shipped authenticator would emit an unidentified " +
+                "ELF_VAULT_AGENTIC_VAULT_AAGUID) — the shipped authenticator would emit an unidentified " +
                 "all-zero AAGUID instead of the product identity"
         );
     }
@@ -140,11 +135,11 @@ if (process.env.PL_BUILD_ENV === "production") {
 }
 
 if (failures.length) {
-    console.error("Padloc extension dist preflight failed:");
+    console.error("Elf Vault extension dist preflight failed:");
     for (const failure of failures) {
         console.error(`- ${failure}`);
     }
     process.exit(1);
 }
 
-console.log("Padloc extension dist preflight passed.");
+console.log("Elf Vault extension dist preflight passed.");

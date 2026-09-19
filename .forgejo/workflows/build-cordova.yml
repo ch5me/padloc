@@ -67,7 +67,7 @@ jobs:
             - name: Archive Signed APK (Android)
               uses: actions/upload-artifact@v4
               with:
-                  name: padloc-android-${{ github.sha }}-signed.apk
+                  name: elf-vault-android-${{ github.sha }}-signed.apk
                   path: packages/cordova/platforms/android/app/build/outputs/apk/release/app-release.apk
                   if-no-files-found: error
             - name: Delete android-upload-key.keystore
@@ -92,6 +92,6 @@ jobs:
             - name: Archive Unsigned App (iOS)
               uses: actions/upload-artifact@v4
               with:
-                  name: padloc-ios-${{ github.sha }}-unsigned.app
-                  path: packages/cordova/platforms/ios/build/emulator/Padloc.app
+                  name: elf-vault-ios-${{ github.sha }}-unsigned.app
+                  path: packages/cordova/platforms/ios/build/emulator/Elf Vault.app
                   if-no-files-found: error

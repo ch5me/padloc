@@ -7,8 +7,8 @@ import { dirname, join } from "node:path";
 
 const PROTOCOL_VERSION = 1;
 const STATE_DIR =
-    process.env.PADLOC_AGENTIC_AUTOFILL_STATE_DIR ||
-    join(homedir(), ".local", "share", "ch5-autofill", "padloc-bridge");
+    process.env.ELF_VAULT_AGENTIC_AUTOFILL_STATE_DIR ||
+    join(homedir(), ".local", "share", "ch5-autofill", "elf-vault-bridge");
 const LATEST_RESPONSE_PATH = join(STATE_DIR, "latest-redacted-response.json");
 const PENDING_REQUEST_PATH = join(STATE_DIR, "pending-broker-request.json");
 const AUDIT_LOG_PATH = join(STATE_DIR, "broker-audit.jsonl");
@@ -73,7 +73,7 @@ function handleRequest(request) {
         protocolVersion: PROTOCOL_VERSION,
         requestId: typeof request.requestId === "string" ? request.requestId : undefined,
         vaultState: "locked",
-        reason: type === "status" ? null : "Padloc vault locked or approval UI unavailable",
+        reason: type === "status" ? null : "Elf Vault locked or approval UI unavailable",
         audit: {
             valuePolicy: "redacted audit only; no raw autofill values or passkey secrets",
         },
@@ -111,7 +111,7 @@ function enqueueBrokerRequest(request) {
     return statusResponse(true, null, {
         requestId,
         pending: true,
-        reason: "broker request queued for Padloc extension native-messaging pickup",
+        reason: "broker request queued for Elf Vault extension native-messaging pickup",
     });
 }
 
@@ -278,7 +278,7 @@ function isClosedBrokerResponseV2(response) {
         return false;
     }
     if (
-        response.schema !== "elf.padloc-broker-response.v2" ||
+        response.schema !== "dance.elf.vault.broker-response.v2" ||
         response.protocolVersion !== 2 ||
         typeof response.requestId !== "string" ||
         typeof response.ok !== "boolean" ||
@@ -395,7 +395,7 @@ function isError(error) {
         isObject(error) &&
         (hasExactlyKeys(error, ["schema", "code", "retryable"]) ||
             hasExactlyKeys(error, ["schema", "code", "retryable", "safeMessage"])) &&
-        error.schema === "elf.padloc-broker-error.v1" &&
+        error.schema === "dance.elf.vault.broker-error.v1" &&
         [
             "LOCKED",
             "DENIED",

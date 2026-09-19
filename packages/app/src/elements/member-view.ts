@@ -1,5 +1,5 @@
-import { OrgRole, Group, OrgMemberStatus } from "@padloc/core/src/org";
-import { translate as $l } from "@padloc/locale/src/translate";
+import { OrgRole, Group, OrgMemberStatus } from "@elf-vault/core/src/org";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { shared } from "../styles";
 import { app } from "../globals";
 import { alert, confirm } from "../lib/dialog";
@@ -15,7 +15,7 @@ import "./list";
 import "./toggle";
 import { customElement, property, query, state } from "lit/decorators.js";
 import { css, html, LitElement } from "lit";
-import { base64ToString } from "@padloc/core/src/encoding";
+import { base64ToString } from "@elf-vault/core/src/encoding";
 
 @customElement("pl-member-view")
 export class MemberView extends Routing(StateMixin(LitElement)) {

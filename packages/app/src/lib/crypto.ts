@@ -14,9 +14,9 @@ import {
     RSAEncryptionParams,
     HashParams,
     RSASigningParams,
-} from "@padloc/core/src/crypto";
-import { Err, ErrorCode } from "@padloc/core/src/error";
-import SJCLProvider from "@padloc/core/src/sjcl";
+} from "@elf-vault/core/src/crypto";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
+import SJCLProvider from "@elf-vault/core/src/sjcl";
 
 const webCryptoGlobal = globalThis.crypto;
 const webCrypto = webCryptoGlobal && webCryptoGlobal.subtle;

@@ -1,5 +1,5 @@
 {
-    "name": "@padloc/electron",
+    "name": "@elf-vault/electron",
     "version": "4.3.0",
     "description": "Electron Wrapper for Elf Vault",
     "main": "main.js",
@@ -9,10 +9,6 @@
         "build": "npm run prepare-build && webpack && electron-builder --config build/build.json",
         "build:ci": "npm run prepare-build && webpack && electron-builder --config build/build.json --linux dir --publish never",
         "build:flatpak": "npm run prepare-build && webpack && electron-builder --config build/build-flatpak.json"
-    },
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/padloc/padloc.git"
     },
     "engines": {
         "node": "24.x",

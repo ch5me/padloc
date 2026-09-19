@@ -1,4 +1,4 @@
-import type { Field, VaultItem } from "@padloc/core/src/item";
+import type { Field, VaultItem } from "@elf-vault/core/src/item";
 import {
     AgentDataClass,
     AgentExecutionGrantRecord,
@@ -23,7 +23,7 @@ import {
     buildLockedBrokerResponse,
     buildUnlockedBrokerStatusResponse,
 } from "./autofill-broker-protocol";
-import { getAutofillReleaseClass, isAutofillFieldRole } from "@padloc/core/src/item";
+import { getAutofillReleaseClass, isAutofillFieldRole } from "@elf-vault/core/src/item";
 
 export interface BrokerItemSource {
     item: VaultItem;
@@ -100,7 +100,7 @@ export function buildUnsupportedBrokerOperationResponse(request: AutofillBrokerR
             requestId: request.requestId || "missing-request-id",
             ok: false,
             error: {
-                schema: "elf.padloc-broker-error.v1",
+                schema: "dance.elf.vault.broker-error.v1",
                 code: "UNSUPPORTED",
                 retryable: false,
                 safeMessage: isSubmit

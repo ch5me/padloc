@@ -1,6 +1,6 @@
-import { Vault } from "@padloc/core/src/vault";
-import { VaultItem } from "@padloc/core/src/item";
-import { translate as $l } from "@padloc/locale/src/translate";
+import { Vault } from "@elf-vault/core/src/vault";
+import { VaultItem } from "@elf-vault/core/src/item";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { app } from "../globals";
 import { Select } from "./select";
 import { Dialog } from "./dialog";

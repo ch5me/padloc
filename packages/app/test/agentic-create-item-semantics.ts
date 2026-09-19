@@ -8,7 +8,7 @@ import {
     ITEM_TEMPLATES,
     deriveAutofillItemKind,
     normalizeAutofillFields,
-} from "@padloc/core/src/item";
+} from "@elf-vault/core/src/item";
 
 suite("agentic create-item semantics", () => {
     test("propagates template kind and roles through the creation boundary", () => {

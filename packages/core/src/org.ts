@@ -187,7 +187,7 @@ export class OrgDirectorySettings extends Serializable {
 export const ORG_NAME_MAX_LENGTH = 100;
 
 /**
- * Organizations are the central component of Padlocs secure data sharing architecture.
+ * Organizations are the central component of Elf Vault's secure data sharing architecture.
  *
  * All shared [[Vault]]s are provisioned and managed in the context of an organization,
  * while the [[Org]] class itself is responsible for managing, signing and verifying

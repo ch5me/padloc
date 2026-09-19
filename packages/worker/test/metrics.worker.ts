@@ -1,4 +1,4 @@
-import { Request as PlRequest, Response as PlResponse } from "@padloc/core/src/transport";
+import { Request as PlRequest, Response as PlResponse } from "@elf-vault/core/src/transport";
 import { WorkerReceiver, WorkerReceiverConfig } from "../src/transport";
 import { resetMetricsForTests } from "../src/metrics";
 

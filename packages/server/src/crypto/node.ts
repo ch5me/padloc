@@ -31,8 +31,8 @@ import {
     HashParams,
     RSASigningParams,
     PBKDF2Params,
-} from "@padloc/core/src/crypto";
-import { Err, ErrorCode } from "@padloc/core/src/error";
+} from "@elf-vault/core/src/crypto";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
 
 // Converts hash algorithm name to a format that node can understand
 // E.g.: "SHA-256" => "sha256"

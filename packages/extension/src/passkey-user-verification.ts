@@ -3,7 +3,7 @@ import {
     isFreshPasskeyUserVerification,
     PASSKEY_USER_VERIFICATION_MAX_AGE_MS,
     PasskeyUserVerificationGrant,
-} from "@padloc/core/src/passkey";
+} from "@elf-vault/core/src/passkey";
 
 export type PasskeyUserVerificationResult = "verified" | "password-required" | "cancelled";
 

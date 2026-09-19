@@ -1,8 +1,8 @@
 import { Pool } from "pg";
-import { Storable, StorableConstructor, Storage, StorageListOptions, StorageQuery } from "@padloc/core/src/storage";
-import { ConfigParam } from "@padloc/core/src/config";
-import { Config } from "@padloc/core/src/config";
-import { Err, ErrorCode } from "@padloc/core/src/error";
+import { Storable, StorableConstructor, Storage, StorageListOptions, StorageQuery } from "@elf-vault/core/src/storage";
+import { ConfigParam } from "@elf-vault/core/src/config";
+import { Config } from "@elf-vault/core/src/config";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
 import { readFileSync } from "fs";
 import { resolve } from "path";
 

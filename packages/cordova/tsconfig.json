@@ -6,9 +6,9 @@
         "emitDecoratorMetadata": true,
         "baseUrl": ".",
         "paths": {
-            "@padloc/core/*": ["../core/*"],
-            "@padloc/app/*": ["../app/*"],
-            "@padloc/locale/*": ["../locale/*"]
+            "@elf-vault/core/*": ["../core/*"],
+            "@elf-vault/app/*": ["../app/*"],
+            "@elf-vault/locale/*": ["../locale/*"]
         },
         "outDir": "build",
         "sourceMap": true,

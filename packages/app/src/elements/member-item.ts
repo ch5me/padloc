@@ -1,5 +1,5 @@
-import { Org, OrgMember, OrgMemberStatus, OrgRole } from "@padloc/core/src/org";
-import { translate as $l } from "@padloc/locale/src/translate";
+import { Org, OrgMember, OrgMemberStatus, OrgRole } from "@elf-vault/core/src/org";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { shared } from "../styles";
 import "./randomart";
 import "./icon";

@@ -14,8 +14,8 @@ import {
     RSAPublicKey,
     RSASigningParams,
     SymmetricKey,
-} from "@padloc/core/src/crypto";
-import { Err, ErrorCode } from "@padloc/core/src/error";
+} from "@elf-vault/core/src/crypto";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
 
 function subtle() {
     return globalThis.crypto.subtle;

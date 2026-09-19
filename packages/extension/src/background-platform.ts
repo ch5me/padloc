@@ -1,6 +1,6 @@
-import { AuthType } from "@padloc/core/src/auth";
-import { DeviceInfo, StubPlatform } from "@padloc/core/src/platform";
-import { WebCryptoProvider } from "@padloc/app/src/lib/crypto";
+import { AuthType } from "@elf-vault/core/src/auth";
+import { DeviceInfo, StubPlatform } from "@elf-vault/core/src/platform";
+import { WebCryptoProvider } from "@elf-vault/app/src/lib/crypto";
 import { ExtensionStorage } from "./storage";
 
 export class BackgroundExtensionPlatform extends StubPlatform {

@@ -1,7 +1,7 @@
-import { AuthClient, AuthType } from "@padloc/core/src/auth";
-import { Err, ErrorCode } from "@padloc/core/src/error";
-import { wait } from "@padloc/core/src/util";
-import { $l } from "@padloc/locale/src/translate";
+import { AuthClient, AuthType } from "@elf-vault/core/src/auth";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
+import { wait } from "@elf-vault/core/src/util";
+import { $l } from "@elf-vault/locale/src/translate";
 import { html } from "lit";
 import { alert } from "../dialog";
 import { openPopup } from "../util";
@@ -22,7 +22,7 @@ export class OauthClient implements AuthClient {
                 authWindow.focus();
             } else {
                 authWindow = openPopup(authUrl, {
-                    name: "padloc_auth_openid",
+                    name: "elf_vault_auth_openid",
                 });
                 const url = new URL(authUrl);
                 // If the window is still `null`, it may be because the browser requires windows
@@ -38,7 +38,7 @@ export class OauthClient implements AuthClient {
                         icon: "share",
                         doneHandler: () => {
                             authWindow = openPopup(authUrl, {
-                                name: "padloc_auth_openid",
+                                name: "elf_vault_auth_openid",
                             });
                         },
                     });
@@ -57,7 +57,7 @@ export class OauthClient implements AuthClient {
             }, 1000);
 
             messageHandler = (e: MessageEvent<{ type: string; url: string }>) => {
-                if (e.data?.type !== "padloc_oauth_redirect") {
+                if (e.data?.type !== "elf_vault_oauth_redirect") {
                     return;
                 }
                 try {
@@ -94,7 +94,7 @@ export class OauthClient implements AuthClient {
             client: {
                 authWindow: window.open(
                     "",
-                    "padloc_auth_openid",
+                    "elf_vault_auth_openid",
                     "toolbar=0,scrollbars=1,status=1,resizable=1,location=1,menuBar=0,width=500,height=800"
                 ),
             },

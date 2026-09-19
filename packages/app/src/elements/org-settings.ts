@@ -1,5 +1,5 @@
 import "./scroller";
-import { translate as $l } from "@padloc/locale/src/translate";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { StateMixin } from "../mixins/state";
 import { Routing } from "../mixins/routing";
 import { alert, prompt, confirm } from "../lib/dialog";

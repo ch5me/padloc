@@ -33,7 +33,7 @@ const launchExtensionContext = (userDataDir: string) =>
 
 const test = base.extend<ExtensionFixtures>({
     userDataDir: async ({}, use) => {
-        const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "padloc-extension-test-"));
+        const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "elf-vault-extension-test-"));
         await use(userDataDir);
         fs.rmSync(userDataDir, { recursive: true, force: true });
     },
@@ -97,11 +97,11 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
 
     test("background worker initializes its runtime bridge", async ({ extensionWorker }) => {
         await expect
-            .poll(() => extensionWorker.evaluate(() => (globalThis as any).padlocPasskeyDiagnostics?.lastStage))
+            .poll(() => extensionWorker.evaluate(() => (globalThis as any).elfVaultPasskeyDiagnostics?.lastStage))
             .toBe("idle");
         const diagnostics = await extensionWorker.evaluate(() => ({
-            brokerType: typeof (globalThis as any).padlocAgenticAutofillBroker,
-            passkeyDiagnostics: (globalThis as any).padlocPasskeyDiagnostics,
+            brokerType: typeof (globalThis as any).elfVaultAgenticAutofillBroker,
+            passkeyDiagnostics: (globalThis as any).elfVaultPasskeyDiagnostics,
             runtimeId: chrome.runtime.id,
         }));
         expect(diagnostics.runtimeId).toBeTruthy();
@@ -153,7 +153,7 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
         page,
     }) => {
         await page.goto(LOGIN_URL);
-        await page.waitForFunction(() => Boolean((navigator.credentials as any).__padlocPasskeyInterceptorV1), null, {
+        await page.waitForFunction(() => Boolean((navigator.credentials as any).__elfVaultPasskeyInterceptorV1), null, {
             timeout: 3_000,
         });
         const result = await page.evaluate(
@@ -164,7 +164,7 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
                         3_000
                     );
                     window.addEventListener("message", (event) => {
-                        if (event.data?.source !== "padloc-passkey-extension" || event.data?.kind !== "result") return;
+                        if (event.data?.source !== "elf-vault-passkey-extension" || event.data?.kind !== "result") return;
                         const detail = event.data.detail;
                         if (detail?.requestId !== "browser-bridge-smoke") return;
                         window.clearTimeout(timeout);
@@ -172,14 +172,14 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
                     });
                     window.postMessage(
                         {
-                            source: "padloc-passkey-page",
+                            source: "elf-vault-passkey-page",
                             kind: "request",
                             detail: {
                                 protocolVersion: 1,
                                 requestId: "browser-bridge-smoke",
                                 operation: "get",
                                 options: {
-                                    challenge: { __padlocWebAuthnType: "buffer", base64url: "AA" },
+                                    challenge: { __elfVaultWebAuthnType: "buffer", base64url: "AA" },
                                     timeout: 1_000,
                                 },
                                 origin: "https://attacker.invalid",
@@ -420,16 +420,16 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
         await popup.evaluate(
             ({ email: accountEmail, password: masterPassword }) => {
                 const application = (window as any).app;
-                (window as any).__padlocLoginResult = null;
+                (window as any).__elfVaultLoginResult = null;
                 void application
                     .login({
                         email: accountEmail,
                         password: masterPassword,
                     })
                     .then(
-                        () => ((window as any).__padlocLoginResult = { ok: true }),
+                        () => ((window as any).__elfVaultLoginResult = { ok: true }),
                         (error: Error) =>
-                            ((window as any).__padlocLoginResult = {
+                            ((window as any).__elfVaultLoginResult = {
                                 ok: false,
                                 name: error.name,
                                 message: error.message,
@@ -442,7 +442,7 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
         );
         await popup.waitForFunction(() => {
             const application = (window as any).app;
-            const loginResult = (window as any).__padlocLoginResult;
+            const loginResult = (window as any).__elfVaultLoginResult;
             if (loginResult?.ok === false) throw new Error(JSON.stringify(loginResult));
             return (
                 application?.state.loggedIn === true &&
@@ -452,9 +452,9 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
         });
 
         await page.goto(LOGIN_URL);
-        await page.waitForFunction(() => Boolean((navigator.credentials as any).__padlocPasskeyInterceptorV1));
+        await page.waitForFunction(() => Boolean((navigator.credentials as any).__elfVaultPasskeyInterceptorV1));
         await page.evaluate((accountEmail) => {
-            const state = ((window as any).__padlocPasskeyCanary = {});
+            const state = ((window as any).__elfVaultPasskeyCanary = {});
             const registrationChallenge = crypto.getRandomValues(new Uint8Array(32));
             state.registrationChallenge = Array.from(registrationChallenge);
             void navigator.credentials
@@ -463,12 +463,12 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
                         challenge: registrationChallenge,
                         rp: {
                             id: "ch5.me",
-                            name: '<img src=x onerror="globalThis.__padlocPromptInjected=true"> CH5 Passkey Canary',
+                            name: '<img src=x onerror="globalThis.__elfVaultPromptInjected=true"> CH5 Passkey Canary',
                         },
                         user: {
                             id: new TextEncoder().encode(accountEmail),
                             name: accountEmail,
-                            displayName: "<script>globalThis.__padlocPromptInjected=true</script>",
+                            displayName: "<script>globalThis.__elfVaultPromptInjected=true</script>",
                         },
                         pubKeyCredParams: [{ type: "public-key", alg: -7 }],
                         authenticatorSelection: {
@@ -491,7 +491,7 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
         }, email);
 
         await page.waitForTimeout(1_000);
-        const earlyCreateResult = await page.evaluate(() => (window as any).__padlocPasskeyCanary.createResult);
+        const earlyCreateResult = await page.evaluate(() => (window as any).__elfVaultPasskeyCanary.createResult);
         if (earlyCreateResult) {
             throw new Error(`Passkey create returned before approval: ${JSON.stringify(earlyCreateResult)}`);
         }
@@ -499,8 +499,8 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
             context.serviceWorkers().find((worker) => worker.url().startsWith(`chrome-extension://${extensionId}/`)) ||
             extensionWorker;
         const passkeyWorkerState = await currentExtensionWorker.evaluate(() => ({
-            diagnostics: (globalThis as any).padlocPasskeyDiagnostics,
-            brokerType: typeof (globalThis as any).padlocAgenticAutofillBroker,
+            diagnostics: (globalThis as any).elfVaultPasskeyDiagnostics,
+            brokerType: typeof (globalThis as any).elfVaultAgenticAutofillBroker,
             runtimeId: chrome.runtime.id,
         }));
         expect(passkeyWorkerState, "Background passkey diagnostics must be available").toMatchObject({
@@ -525,18 +525,18 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
         await popup.evaluate(async () => {
             await (document.querySelector("pl-extension-app") as any)._checkForPasskeyApproval();
         });
-        expect(await popup.evaluate(() => (window as any).__padlocPromptInjected)).toBeUndefined();
+        expect(await popup.evaluate(() => (window as any).__elfVaultPromptInjected)).toBeUndefined();
         await expect(popup.locator(".save-prompt-overlay img[src='x']")).toHaveCount(0);
         await expect(popup.locator(".save-prompt-overlay script")).toHaveCount(0);
         await expect(popup.locator(".save-prompt-overlay")).toContainText("<img src=x onerror=");
-        await expect(popup.locator(".save-prompt-overlay")).toContainText("<script>globalThis.__padlocPromptInjected");
+        await expect(popup.locator(".save-prompt-overlay")).toContainText("<script>globalThis.__elfVaultPromptInjected");
         await popup.evaluate(() => {
             (document.querySelector("pl-extension-app") as any)._lastFreshUserVerificationAt = 0;
         });
         await popup.locator("#passkey-approve").click({ timeout: 5_000 });
         await popup.waitForFunction(() => (window as any).app?.state.locked === true);
         expect(
-            await page.evaluate(() => (window as any).__padlocPasskeyCanary.createResult),
+            await page.evaluate(() => (window as any).__elfVaultPasskeyCanary.createResult),
             "Password fallback must not approve the pending ceremony"
         ).toBeUndefined();
         expect(
@@ -553,10 +553,10 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
         await popup.waitForFunction(() => (window as any).app?.state.locked === false);
         await expect(popup.locator("#passkey-approve")).toBeVisible({ timeout: 10_000 });
         await popup.locator("#passkey-approve").click();
-        await page.waitForFunction(() => Boolean((window as any).__padlocPasskeyCanary.createResult), null, {
+        await page.waitForFunction(() => Boolean((window as any).__elfVaultPasskeyCanary.createResult), null, {
             timeout: 30_000,
         });
-        const createResult = await page.evaluate(() => (window as any).__padlocPasskeyCanary.createResult);
+        const createResult = await page.evaluate(() => (window as any).__elfVaultPasskeyCanary.createResult);
         expect(createResult).toMatchObject({
             ok: true,
             credential: {
@@ -566,7 +566,7 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
             },
         });
         const registrationChallenge = new Uint8Array(
-            await page.evaluate(() => (window as any).__padlocPasskeyCanary.registrationChallenge)
+            await page.evaluate(() => (window as any).__elfVaultPasskeyCanary.registrationChallenge)
         );
         const registered = verifyRegistration({
             clientDataJSON: Buffer.from(createResult.credential.response.clientDataJSON, "base64url"),
@@ -581,7 +581,7 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
         });
 
         await page.evaluate(() => {
-            const state = (window as any).__padlocPasskeyCanary;
+            const state = (window as any).__elfVaultPasskeyCanary;
             const registration = state.registration as PublicKeyCredential;
             const assertionChallenge = crypto.getRandomValues(new Uint8Array(32));
             state.assertionChallenge = Array.from(assertionChallenge);
@@ -660,10 +660,10 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
             await (document.querySelector("pl-extension-app") as any)._checkForPasskeyApproval();
         });
         await popup.locator("#passkey-approve").click();
-        await page.waitForFunction(() => Boolean((window as any).__padlocPasskeyCanary.getResult), null, {
+        await page.waitForFunction(() => Boolean((window as any).__elfVaultPasskeyCanary.getResult), null, {
             timeout: 30_000,
         });
-        const getResult = await page.evaluate(() => (window as any).__padlocPasskeyCanary.getResult);
+        const getResult = await page.evaluate(() => (window as any).__elfVaultPasskeyCanary.getResult);
         expect(getResult).toEqual({
             ok: true,
             verified: true,
@@ -674,7 +674,7 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
             credential: expect.any(Object),
         });
         const assertionChallenge = new Uint8Array(
-            await page.evaluate(() => (window as any).__padlocPasskeyCanary.assertionChallenge)
+            await page.evaluate(() => (window as any).__elfVaultPasskeyCanary.assertionChallenge)
         );
         const assertionCredential = getResult.credential;
         expect(
@@ -700,7 +700,7 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
         for (const [index, accountEmail] of additionalAccounts.entries()) {
             await page.evaluate(
                 ({ accountEmail: nextAccount, userIndex }) => {
-                    const state = (window as any).__padlocPasskeyCanary;
+                    const state = (window as any).__elfVaultPasskeyCanary;
                     state.additionalCreateResult = null;
                     void navigator.credentials
                         .create({
@@ -740,14 +740,14 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
             });
             await popup.locator("#passkey-approve").click();
             await page.waitForFunction(
-                () => Boolean((window as any).__padlocPasskeyCanary.additionalCreateResult),
+                () => Boolean((window as any).__elfVaultPasskeyCanary.additionalCreateResult),
                 null,
                 {
                     timeout: 30_000,
                 }
             );
             expect(
-                await page.evaluate(() => (window as any).__padlocPasskeyCanary.additionalCreateResult)
+                await page.evaluate(() => (window as any).__elfVaultPasskeyCanary.additionalCreateResult)
             ).toMatchObject({
                 ok: true,
             });
@@ -755,7 +755,7 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
 
         const selectedAccount = additionalAccounts[2];
         await page.evaluate(() => {
-            const state = (window as any).__padlocPasskeyCanary;
+            const state = (window as any).__elfVaultPasskeyCanary;
             state.selectionGetResult = null;
             void navigator.credentials
                 .get({
@@ -788,13 +788,13 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
         await expect(popup.locator(".passkey-selection-option")).toHaveCount(5, { timeout: 10_000 });
         await popup.locator(".passkey-selection-option", { hasText: selectedAccount }).click();
         await popup.locator("#passkey-selection-confirm").click();
-        await page.waitForFunction(() => Boolean((window as any).__padlocPasskeyCanary.selectionGetResult), null, {
+        await page.waitForFunction(() => Boolean((window as any).__elfVaultPasskeyCanary.selectionGetResult), null, {
             timeout: 30_000,
         });
-        expect(await page.evaluate(() => (window as any).__padlocPasskeyCanary.selectionGetResult)).toEqual({
+        expect(await page.evaluate(() => (window as any).__elfVaultPasskeyCanary.selectionGetResult)).toEqual({
             ok: true,
-            id: await page.evaluate(() => (window as any).__padlocPasskeyCanary.registrations[3].id),
-            expectedId: await page.evaluate(() => (window as any).__padlocPasskeyCanary.registrations[3].id),
+            id: await page.evaluate(() => (window as any).__elfVaultPasskeyCanary.registrations[3].id),
+            expectedId: await page.evaluate(() => (window as any).__elfVaultPasskeyCanary.registrations[3].id),
         });
 
         const persisted = await popup.evaluate(async () => {
@@ -864,7 +864,7 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
             );
             await restartedPage.goto(LOGIN_URL);
             await restartedPage.waitForFunction(() =>
-                Boolean((navigator.credentials as any).__padlocPasskeyInterceptorV1)
+                Boolean((navigator.credentials as any).__elfVaultPasskeyInterceptorV1)
             );
             const restartChallenge = Array.from(crypto.getRandomValues(new Uint8Array(32)));
             await restartedPage.evaluate(
@@ -879,7 +879,7 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
                             ),
                             (character) => character.charCodeAt(0)
                         );
-                    const state = ((window as any).__padlocRestartAssertion = {});
+                    const state = ((window as any).__elfVaultRestartAssertion = {});
                     void navigator.credentials
                         .get({
                             publicKey: {
@@ -905,8 +905,8 @@ test.describe("Extension smoke — unpacked extension runtime", () => {
                 await (document.querySelector("pl-extension-app") as any)._checkForPasskeyApproval();
             });
             await restartedPopup.locator("#passkey-approve").click();
-            await restartedPage.waitForFunction(() => Boolean((window as any).__padlocRestartAssertion.result));
-            const restartResult = await restartedPage.evaluate(() => (window as any).__padlocRestartAssertion.result);
+            await restartedPage.waitForFunction(() => Boolean((window as any).__elfVaultRestartAssertion.result));
+            const restartResult = await restartedPage.evaluate(() => (window as any).__elfVaultRestartAssertion.result);
             expect(restartResult.ok).toBe(true);
             expect(
                 verifyAssertion({

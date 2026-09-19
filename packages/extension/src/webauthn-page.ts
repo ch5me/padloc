@@ -2,7 +2,7 @@ type PublicKeyCredentialDescriptorLike = {
     id?: BufferSource;
 };
 
-type PadlocWebAuthnRequest =
+type ElfVaultWebAuthnRequest =
     | {
           kind: "create";
           requestId: string;
@@ -33,7 +33,7 @@ type PadlocWebAuthnRequest =
           allowCredentialIds?: string[];
       };
 
-type PadlocWebAuthnCredentialResponse = {
+type ElfVaultWebAuthnCredentialResponse = {
     id: string;
     rawId: string;
     type: "public-key";
@@ -51,8 +51,8 @@ type PadlocWebAuthnCredentialResponse = {
     };
 };
 
-type PadlocWebAuthnResponse =
-    | { ok: true; requestId: string; credential: PadlocWebAuthnCredentialResponse }
+type ElfVaultWebAuthnResponse =
+    | { ok: true; requestId: string; credential: ElfVaultWebAuthnCredentialResponse }
     | { ok: false; requestId: string; error: { name?: string; message?: string } };
 
 const BRIDGE_REQUEST_EVENT = "padloc-webauthn-request";
@@ -68,16 +68,16 @@ const originalCreate =
         : undefined;
 const originalGet =
     typeof credentialContainer?.get === "function" ? credentialContainer.get.bind(credentialContainer) : undefined;
-const pendingRequests = new Map<string, (response: PadlocWebAuthnResponse) => void>();
-const padlocWindow = window as Window & { __padlocWebAuthnPageInstalledChannel?: string };
+const pendingRequests = new Map<string, (response: ElfVaultWebAuthnResponse) => void>();
+const elfVaultWindow = window as Window & { __elfVaultWebAuthnPageInstalledChannel?: string };
 
 if (
-    padlocWindow.__padlocWebAuthnPageInstalledChannel !== BRIDGE_CHANNEL &&
+    elfVaultWindow.__elfVaultWebAuthnPageInstalledChannel !== BRIDGE_CHANNEL &&
     credentialContainer &&
     typeof originalCreate === "function" &&
     typeof originalGet === "function"
 ) {
-    padlocWindow.__padlocWebAuthnPageInstalledChannel = BRIDGE_CHANNEL;
+    elfVaultWindow.__elfVaultWebAuthnPageInstalledChannel = BRIDGE_CHANNEL;
     navigator.credentials.create = async function create(
         options?: CredentialCreationOptions
     ): Promise<Credential | null> {
@@ -86,7 +86,7 @@ if (
             return originalCreate(options);
         }
         const request = buildCreateRequest(publicKey);
-        const response = await dispatchPadlocWebAuthn(request);
+        const response = await dispatchElfVaultWebAuthn(request);
         if (!response.ok) {
             throw webAuthnDomException(response.error, "Passkey registration was not approved by Elf Vault");
         }
@@ -99,7 +99,7 @@ if (
             return originalGet(options);
         }
         const request = await buildGetRequest(publicKey);
-        const response = await dispatchPadlocWebAuthn(request);
+        const response = await dispatchElfVaultWebAuthn(request);
         if (!response.ok) {
             throw webAuthnDomException(response.error, "Passkey assertion was not approved by Elf Vault");
         }
@@ -109,7 +109,7 @@ if (
     installPublicKeyCredentialCapabilityHooks();
 
     window.addEventListener("message", (event) => {
-        const data = event.data as { source?: string; type?: string; response?: PadlocWebAuthnResponse };
+        const data = event.data as { source?: string; type?: string; response?: ElfVaultWebAuthnResponse };
         if (data?.source !== BRIDGE_CONTENT_SOURCE || data.type !== BRIDGE_RESPONSE_EVENT) return;
         const detail = data.response;
         if (!detail?.requestId) return;
@@ -120,7 +120,7 @@ if (
     });
 }
 
-function buildCreateRequest(publicKey: PublicKeyCredentialCreationOptions): PadlocWebAuthnRequest {
+function buildCreateRequest(publicKey: PublicKeyCredentialCreationOptions): ElfVaultWebAuthnRequest {
     const rpId = publicKey.rp.id || location.hostname;
     const algorithm = chooseSupportedAlgorithm(publicKey.pubKeyCredParams);
     if (!algorithm) {
@@ -152,7 +152,7 @@ function buildCreateRequest(publicKey: PublicKeyCredentialCreationOptions): Padl
     };
 }
 
-async function buildGetRequest(publicKey: PublicKeyCredentialRequestOptions): Promise<PadlocWebAuthnRequest> {
+async function buildGetRequest(publicKey: PublicKeyCredentialRequestOptions): Promise<ElfVaultWebAuthnRequest> {
     const rpId = publicKey.rpId || location.hostname;
     const originContext = getOriginContext();
     const clientDataJSON = buildClientDataJson("webauthn.get", publicKey.challenge, originContext);
@@ -176,7 +176,7 @@ async function buildGetRequest(publicKey: PublicKeyCredentialRequestOptions): Pr
     };
 }
 
-function dispatchPadlocWebAuthn(request: PadlocWebAuthnRequest): Promise<PadlocWebAuthnResponse> {
+function dispatchElfVaultWebAuthn(request: ElfVaultWebAuthnRequest): Promise<ElfVaultWebAuthnResponse> {
     return new Promise((resolve) => {
         pendingRequests.set(request.requestId, resolve);
         window.postMessage(
@@ -202,7 +202,7 @@ function dispatchPadlocWebAuthn(request: PadlocWebAuthnRequest): Promise<PadlocW
 }
 
 function toPublicKeyCredential(
-    credential: PadlocWebAuthnCredentialResponse,
+    credential: ElfVaultWebAuthnCredentialResponse,
     responseKind: "attestation" | "assertion"
 ) {
     const rawId = base64UrlToBytes(credential.rawId);

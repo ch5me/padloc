@@ -1,6 +1,6 @@
-import { randomString, chars } from "@padloc/core/src/util";
-import { generatePassphrase, AVAILABLE_LANGUAGES } from "@padloc/core/src/diceware";
-import { translate as $l } from "@padloc/locale/src/translate";
+import { randomString, chars } from "@elf-vault/core/src/util";
+import { generatePassphrase, AVAILABLE_LANGUAGES } from "@elf-vault/core/src/diceware";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { animateElement } from "../lib/animation";
 import { app } from "../globals";
 import { Slider } from "./slider";

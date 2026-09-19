@@ -1,7 +1,7 @@
-import { translate as $l } from "@padloc/locale/src/translate";
-import { VaultItemID } from "@padloc/core/src/item";
-import { Attachment, AttachmentInfo } from "@padloc/core/src/attachment";
-import { saveFile } from "@padloc/core/src/platform";
+import { translate as $l } from "@elf-vault/locale/src/translate";
+import { VaultItemID } from "@elf-vault/core/src/item";
+import { Attachment, AttachmentInfo } from "@elf-vault/core/src/attachment";
+import { saveFile } from "@elf-vault/core/src/platform";
 import { app } from "../globals";
 import { mixins } from "../styles";
 import { mediaType, fileIcon, fileSize } from "../lib/util";

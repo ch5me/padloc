@@ -1,4 +1,4 @@
-import { setPlatform } from "@padloc/core/src/platform";
+import { setPlatform } from "@elf-vault/core/src/platform";
 import { ExtensionPlatform } from "./platform";
 
 function focusWindow() {

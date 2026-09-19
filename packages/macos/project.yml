@@ -1,6 +1,6 @@
 name: CH5AuthPasskeyProvider
 options:
-  bundleIdPrefix: me.ch5.auth.dev
+  bundleIdPrefix: dance.elf.vault.dev
   deploymentTarget:
     macOS: "15.0"
 settings:
@@ -18,7 +18,7 @@ targets:
       - NativeCore
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: me.ch5.auth.dev.nativecore
+        PRODUCT_BUNDLE_IDENTIFIER: dance.elf.vault.dev.nativecore
         GENERATE_INFOPLIST_FILE: YES
         CODE_SIGNING_ALLOWED: NO
   CH5AuthCredentialProvider:
@@ -47,7 +47,7 @@ targets:
         com.apple.security.app-sandbox: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: me.ch5.auth.dev.passkeys.provider
+        PRODUCT_BUNDLE_IDENTIFIER: dance.elf.vault.dev.passkeys.provider
         PRODUCT_NAME: CH5AuthCredentialProvider
         SKIP_INSTALL: YES
   CH5AuthHost:
@@ -72,7 +72,7 @@ targets:
         com.apple.security.app-sandbox: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: me.ch5.auth.dev.passkeys
+        PRODUCT_BUNDLE_IDENTIFIER: dance.elf.vault.dev.passkeys
         PRODUCT_NAME: Elf Vault Passkeys
   CH5AuthNativeCoreTests:
     type: bundle.unit-test
@@ -83,7 +83,7 @@ targets:
       - target: CH5AuthNativeCore
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: me.ch5.auth.dev.nativecore.tests
+        PRODUCT_BUNDLE_IDENTIFIER: dance.elf.vault.dev.nativecore.tests
 schemes:
   CH5AuthHost:
     build:

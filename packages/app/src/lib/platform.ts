@@ -1,8 +1,8 @@
-import { Platform, StubPlatform, DeviceInfo } from "@padloc/core/src/platform";
-import { bytesToBase64 } from "@padloc/core/src/encoding";
+import { Platform, StubPlatform, DeviceInfo } from "@elf-vault/core/src/platform";
+import { bytesToBase64 } from "@elf-vault/core/src/encoding";
 import { WebCryptoProvider } from "./crypto";
 import { LocalStorage } from "./storage";
-import { AuthClient, AuthPurpose, AuthRequestStatus, AuthType } from "@padloc/core/src/auth";
+import { AuthClient, AuthPurpose, AuthRequestStatus, AuthType } from "@elf-vault/core/src/auth";
 import { webAuthnClient } from "./auth/webauthn";
 import {
     StartRegisterAuthenticatorResponse,
@@ -11,10 +11,10 @@ import {
     CompleteAuthRequestParams,
     StartRegisterAuthenticatorParams,
     StartAuthRequestResponse,
-} from "@padloc/core/src/api";
+} from "@elf-vault/core/src/api";
 import { app } from "../globals";
-import { Err, ErrorCode } from "@padloc/core/src/error";
-import { translate as $l } from "@padloc/locale/src/translate";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import "../elements/qr-code";
 import { OauthClient } from "./auth/oauth";
 import { TotpAuthCLient } from "./auth/totp";

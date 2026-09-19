@@ -1,4 +1,4 @@
-import { loadLanguage, translate as $l } from "@padloc/locale/src/translate";
+import { loadLanguage, translate as $l } from "@elf-vault/locale/src/translate";
 import { Storable } from "./storage";
 import { Serializable, Serialize, AsDate, AsSerializable, bytesToBase64, stringToBytes, equalBytes } from "./encoding";
 import { Invite, InvitePurpose } from "./invite";
@@ -276,7 +276,7 @@ export class AppState extends Storable {
 
 /**
  * The `App` class is *the* user-facing top level component encapsulating all
- * functionality of the Padloc client app. It is responsible for managing
+ * functionality of the Elf Vault client app. It is responsible for managing
  * state, client-side persistence and synchronization with the [[Server]] and
  * exposes methods for manipulating a users [[Account]], [[Org]]anizations and
  * [[Vault]]s.
@@ -288,11 +288,11 @@ export class AppState extends Storable {
  *
  * ### Encryption
  *
- * The `@padloc/core` module does not provide or depend on any specific
+ * The `@elf-vault/core` module does not provide or depend on any specific
  * implementation of cryptographic primitives but instead relies on
  * the [[CryptoProvider]] interface to provide those.
  *
- * Users of the [[App]] class (and of the `@padloc/core` package in general)
+ * Users of the [[App]] class (and of the `@elf-vault/core` package in general)
  * are responsible for ensuring that a secure implemenation of the
  * [[CryptoProvider]] interface is available before using any methods that
  * require cryptographic functionality. This is done through the
@@ -319,8 +319,8 @@ export class AppState extends Storable {
  * ### Initialization Example
  *
  * ```ts
- * @import { setProvider } from "@padloc/core/src/crypto";
- * @import { setPlatform } from "@padloc/core/src/platform";
+ * @import { setProvider } from "@elf-vault/core/src/crypto";
+ * @import { setPlatform } from "@elf-vault/core/src/platform";
  *
  * setProvider(new NodeCryptoProvider());
  * setPlatform(new NodePlatform());
@@ -648,7 +648,7 @@ export class App {
      */
 
     /**
-     * Creates a new Padloc [[Account]] and signs in the user.
+     * Creates a new Elf Vault [[Account]] and signs in the user.
      */
     async signup({
         /** The desired email address */
@@ -1605,7 +1605,7 @@ export class App {
                 source: "create-item",
                 sourceId: item.id,
                 importedAt: new Date().toISOString(),
-                importerVersion: "padloc-core-create-item-v1",
+                importerVersion: "elf-vault-core-create-item-v1",
             };
         }
         if (this.account) {

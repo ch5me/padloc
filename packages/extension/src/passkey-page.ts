@@ -160,7 +160,7 @@ async function requestFromExtension(
 }
 
 export function installPasskeyPageInterceptor(credentials: CredentialsContainer = navigator.credentials): void {
-    const marker = "__padlocPasskeyInterceptorV1";
+    const marker = "__elfVaultPasskeyInterceptorV1";
     if ((credentials as any)[marker]) return;
 
     const nativeCreate = credentials.create.bind(credentials) as CredentialMethod;
@@ -197,7 +197,7 @@ export function serializedWebAuthnCredentialToJSON(serialized: SerializedPublicK
         if (Array.isArray(value)) return value.map(toJSONValue);
         if (value && typeof value === "object") {
             const record = value as Record<string, unknown>;
-            if (record.__padlocWebAuthnType === "buffer" && typeof record.base64url === "string") {
+            if (record.__elfVaultWebAuthnType === "buffer" && typeof record.base64url === "string") {
                 return record.base64url;
             }
             return Object.fromEntries(Object.entries(record).map(([key, child]) => [key, toJSONValue(child)]));

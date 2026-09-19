@@ -1,5 +1,5 @@
-import { Platform } from "@padloc/core/src/platform";
-import { WebPlatform } from "@padloc/app/src/lib/platform";
+import { Platform } from "@elf-vault/core/src/platform";
+import { WebPlatform } from "@elf-vault/app/src/lib/platform";
 
 export class TauriPlatform extends WebPlatform implements Platform {
     async getDeviceInfo() {

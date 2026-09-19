@@ -201,7 +201,7 @@ When `EMAIL_BACKEND=mock` (or unset in local/dev):
 
 -   Emails are logged to console (`console.log`).
 -   No network calls to Resend.
--   In tests: `StubMessenger` from `@padloc/core/src/messenger` is used
+-   In tests: `StubMessenger` from `@elf-vault/core/src/messenger` is used
     directly.
 -   In Worker dev: a `MockResendSender` class returns `{ id: "mock_id_xxx" }`
     without making HTTP requests.

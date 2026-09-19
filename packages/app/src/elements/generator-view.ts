@@ -1,4 +1,4 @@
-import { translate as $l } from "@padloc/locale/src/translate";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { app } from "../globals";
 import { StateMixin } from "../mixins/state";
 import { View } from "./view";

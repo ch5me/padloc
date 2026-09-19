@@ -1,4 +1,4 @@
-import { setPlatform } from "@padloc/core/src/platform";
+import { setPlatform } from "@elf-vault/core/src/platform";
 import { TauriPlatform } from "./platform";
 
 function createApp() {
@@ -9,7 +9,7 @@ function createApp() {
 (async () => {
     setPlatform(new TauriPlatform());
 
-    await import("@padloc/app/src/elements/app");
+    await import("@elf-vault/app/src/elements/app");
 
     if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", createApp);

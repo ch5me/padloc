@@ -1,12 +1,12 @@
 // import { browser } from "webextension-polyfill-ts";
-// // import { totp } from "@padloc/core/src/otp";
-// // import { base32ToBytes } from "@padloc/core/src/encoding";
-// import { config } from "@padloc/app/src/styles";
-// import { BaseElement, html, property, css, element, query } from "@padloc/app/src/elements/base";
-// import { VaultItem } from "@padloc/core/src/item";
-// import { getPlatform } from "@padloc/core/src/platform";
-// import { throttle } from "@padloc/core/src/util";
-// import "@padloc/app/src/elements/icon";
+// // import { totp } from "@elf-vault/core/src/otp";
+// // import { base32ToBytes } from "@elf-vault/core/src/encoding";
+// import { config } from "@elf-vault/app/src/styles";
+// import { BaseElement, html, property, css, element, query } from "@elf-vault/app/src/elements/base";
+// import { VaultItem } from "@elf-vault/core/src/item";
+// import { getPlatform } from "@elf-vault/core/src/platform";
+// import { throttle } from "@elf-vault/core/src/util";
+// import "@elf-vault/app/src/elements/icon";
 
 // @element("pl-extension-toolbar")
 // export class ExtensionToolbar extends BaseElement {

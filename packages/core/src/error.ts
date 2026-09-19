@@ -1,5 +1,5 @@
 /**
- * Error codes used within Padloc
+ * Error codes used within Elf Vault
  */
 export enum ErrorCode {
     // Crypto Errors

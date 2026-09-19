@@ -11,7 +11,7 @@ Docker container, Node.js emulation, or sidecar process in the architecture.
 
 ## Rationale
 
-Padloc v4 ships as a Node.js server (`@padloc/server`) that uses LevelDB,
+Padloc v4 ships as a Node.js server (`@elf-vault/server`) that uses LevelDB,
 MongoDB, PostgreSQL, or S3 for persistence, and SMTP for email delivery. The
 migration replaces all Node.js dependencies with Cloudflare-native equivalents:
 

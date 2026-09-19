@@ -58,7 +58,7 @@ import {
 import { Server as SRPServer, SRPSession } from "./srp";
 import { DeviceInfo, getCryptoProvider } from "./platform";
 import { getIdFromEmail, uuid, removeTrailingSlash } from "./util";
-import { loadLanguage, translate as $l } from "@padloc/locale/src/translate";
+import { loadLanguage, translate as $l } from "@elf-vault/locale/src/translate";
 import { ChangeLogEntry, ChangeLogger, Logger, RequestLogEntry, RequestLogger, VoidLogger } from "./logging";
 import { PBES2Container } from "./container";
 import { KeyStoreEntry } from "./key-store";
@@ -1768,7 +1768,7 @@ export class Controller extends API {
         }
 
         if (!this.legacyServer) {
-            throw new Err(ErrorCode.NOT_SUPPORTED, "This Padloc instance does not support this feature!");
+            throw new Err(ErrorCode.NOT_SUPPORTED, "This Elf Vault instance does not support this feature!");
         }
 
         const data = await this.legacyServer.getStore(email);
@@ -1784,7 +1784,7 @@ export class Controller extends API {
 
     async deleteLegacyAccount() {
         if (!this.legacyServer) {
-            throw new Err(ErrorCode.NOT_SUPPORTED, "This Padloc instance does not support this feature!");
+            throw new Err(ErrorCode.NOT_SUPPORTED, "This Elf Vault instance does not support this feature!");
         }
 
         const { account } = this._requireAuth();
@@ -2157,7 +2157,7 @@ export class Controller extends API {
 }
 
 /**
- * The Padloc server acts as a central repository for [[Account]]s, [[Org]]s
+ * The Elf Vault server acts as a central repository for [[Account]]s, [[Org]]s
  * and [[Vault]]s. [[Server]] handles authentication, enforces user privileges
  * and acts as a mediator for key exchange between clients.
  *

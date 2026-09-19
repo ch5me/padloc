@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # proof:crypto — Core crypto parity verification lane
-# Proves: @padloc/core crypto primitives match expected Cloudflare bindings
+# Proves: @elf-vault/core crypto primitives match expected Cloudflare bindings
 #         (subtlecrypto API availability, argon2id availability, HMAC-SHA256).
 #
 # Required env/bindings:
@@ -19,7 +19,7 @@ set -euo pipefail
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   echo "Usage: npm run proof:crypto"
   echo ""
-  echo "Proves: @padloc/core crypto primitives match expected Cloudflare bindings"
+  echo "Proves: @elf-vault/core crypto primitives match expected Cloudflare bindings"
   echo "        (subtlecrypto API availability, argon2id availability, HMAC-SHA256)."
   echo ""
   echo "Required env/bindings:"
@@ -46,7 +46,7 @@ FAILURES=0
 echo ""
 echo "Running core crypto tests..."
 
-# Run @padloc/core crypto tests
+# Run @elf-vault/core crypto tests
 if npm test --workspaces --include-workspace-root --if-present -- --grep "crypto" 2>/dev/null; then
   echo -e "${GREEN}PASS${NC}: Core crypto tests passed."
 else

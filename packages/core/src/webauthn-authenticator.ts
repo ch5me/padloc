@@ -10,14 +10,14 @@ import {
 const ES256_ALGORITHM = { name: "ECDSA", namedCurve: "P-256", hash: "SHA-256" };
 const CREDENTIAL_ID_LENGTH = 32;
 /**
- * Product-owned AAGUID for Padloc/Elf Vault generated credentials. An all-zero
+ * Product-owned AAGUID for Elf Vault/Elf Vault generated credentials. An all-zero
  * AAGUID reads as unidentified/security-key-like to relying parties (Google
  * labeled it "iCloud Keychain"); this stable value lets RPs recognize and
  * label Elf Vault credentials. Not currently FIDO Metadata Service registered
  * — see docs/agentic-oauth-fleet-passkey-findings-and-test-plan.md.
  */
-export const PADLOC_AGENTIC_VAULT_AAGUID = "7a46cc38-26d9-47fe-9f3b-b52837c6020d";
-const AAGUID = hexToBytes(PADLOC_AGENTIC_VAULT_AAGUID.replace(/-/g, ""));
+export const ELF_VAULT_AGENTIC_VAULT_AAGUID = "7a46cc38-26d9-47fe-9f3b-b52837c6020d";
+const AAGUID = hexToBytes(ELF_VAULT_AGENTIC_VAULT_AAGUID.replace(/-/g, ""));
 
 export interface PasskeyCredentialOptions {
     rpId: string;

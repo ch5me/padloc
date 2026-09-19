@@ -4,8 +4,8 @@ import {
     EmailAuthMessage,
     JoinOrgInviteMessage,
     ConfirmMembershipInviteMessage,
-} from "@padloc/core/src/messenger";
-import { Err, ErrorCode } from "@padloc/core/src/error";
+} from "@elf-vault/core/src/messenger";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
 import { getTemplate, interpolate } from "./templates";
 
 export class ResendMessenger {

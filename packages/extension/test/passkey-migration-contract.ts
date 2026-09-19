@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { readFileSync } from "fs";
 import { resolve } from "path";
-import { PasskeyCredential, PasskeyCeremonyBinding } from "@padloc/core/src/passkey";
+import { PasskeyCredential, PasskeyCeremonyBinding } from "@elf-vault/core/src/passkey";
 import {
     executePasskeyOperation,
     PasskeyCredentialRepository,

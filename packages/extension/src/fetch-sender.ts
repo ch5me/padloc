@@ -1,6 +1,6 @@
-import { marshal, unmarshal } from "@padloc/core/src/encoding";
-import { Err, ErrorCode } from "@padloc/core/src/error";
-import { Request, RequestProgress, Response, Sender } from "@padloc/core/src/transport";
+import { marshal, unmarshal } from "@elf-vault/core/src/encoding";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
+import { Request, RequestProgress, Response, Sender } from "@elf-vault/core/src/transport";
 
 /** HTTP transport for extension service workers. It deliberately has no DOM or Lit dependencies. */
 export class FetchSender implements Sender {

@@ -1,4 +1,4 @@
-import { Group } from "@padloc/core/src/org";
+import { Group } from "@elf-vault/core/src/org";
 import { StateMixin } from "../mixins/state";
 import { Routing } from "../mixins/routing";
 import { shared } from "../styles";

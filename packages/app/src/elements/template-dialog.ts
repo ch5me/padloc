@@ -1,7 +1,7 @@
 import "./icon";
 import { customElement } from "lit/decorators.js";
-import { ItemTemplate, ITEM_TEMPLATES } from "@padloc/core/src/item";
-import { translate as $l } from "@padloc/locale/src/translate";
+import { ItemTemplate, ITEM_TEMPLATES } from "@elf-vault/core/src/item";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { css, html } from "lit";
 import { Dialog } from "./dialog";
 

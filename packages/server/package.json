@@ -1,5 +1,5 @@
 {
-    "name": "@padloc/server",
+    "name": "@elf-vault/server",
     "version": "4.3.0",
     "description": "Padloc server component",
     "private": true,
@@ -45,11 +45,6 @@
         "stripe": "8.212.0",
         "ts-node": "10.1.0",
         "typescript": "4.4.3"
-    },
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/padloc/padloc.git",
-        "directory": "packages/server"
     },
     "engines": {
         "node": "24.x",

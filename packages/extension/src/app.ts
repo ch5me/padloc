@@ -1,9 +1,9 @@
 import { browser } from "webextension-polyfill-ts";
 import { css } from "lit";
-import { App } from "@padloc/app/src/elements/app";
-import { debounce } from "@padloc/core/src/util";
-import { Storable } from "@padloc/core/src/storage";
-import { VaultItem } from "@padloc/core/src/item";
+import { App } from "@elf-vault/app/src/elements/app";
+import { debounce } from "@elf-vault/core/src/util";
+import { Storable } from "@elf-vault/core/src/storage";
+import { VaultItem } from "@elf-vault/core/src/item";
 import { shouldAttemptBiometricReunlock, unlockWithBiometric, verifyUserPresenceWithBiometric } from "./auth/biometric";
 import {
     AgenticAutofillApprovalPrompt,

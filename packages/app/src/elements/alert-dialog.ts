@@ -1,4 +1,4 @@
-import { translate as $l } from "@padloc/locale/src/translate";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { html, css, TemplateResult } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { Dialog } from "./dialog";

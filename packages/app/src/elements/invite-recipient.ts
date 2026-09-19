@@ -1,6 +1,6 @@
 import { until } from "lit/directives/until.js";
-import { translate as $l } from "@padloc/locale/src/translate";
-import { Invite } from "@padloc/core/src/invite";
+import { translate as $l } from "@elf-vault/locale/src/translate";
+import { Invite } from "@elf-vault/core/src/invite";
 import { formatDateFromNow } from "../lib/util";
 import { shared } from "../styles";
 import { app } from "../globals";

@@ -17,7 +17,7 @@ interface RuntimeRequestHandle {
     cancel(): void;
 }
 
-const PASSKEY_DOCUMENT_ID_MARKER = "__padlocPasskeyDocumentIdV1";
+const PASSKEY_DOCUMENT_ID_MARKER = "__elfVaultPasskeyDocumentIdV1";
 
 function bridgeRequestId(): string {
     const randomUUID = (crypto as Crypto & { randomUUID?: () => string }).randomUUID;
@@ -45,7 +45,7 @@ function sendRuntimeMessage(message: unknown, timeoutMs: number): RuntimeRequest
     let cancel: () => void = () => undefined;
     const response = new Promise((resolve, reject) => {
         let settled = false;
-        const port = runtime.connect({ name: "padloc-passkey-v1" });
+        const port = runtime.connect({ name: "elf-vault-passkey-v1" });
         const finish = (action: () => void) => {
             if (settled) return;
             settled = true;
@@ -86,7 +86,7 @@ function bridgeDocumentId(target: Window): string {
 
 export function installPasskeyContentBridge(target: Window = window): void {
     if (target.top && target.top !== target) return;
-    const marker = "__padlocPasskeyContentBridgeV1";
+    const marker = "__elfVaultPasskeyContentBridgeV1";
     if ((target as any)[marker]) return;
     Object.defineProperty(target, marker, { value: true });
     const pending = new Map<string, { bridgeRequestId: string; cancel(): void }>();
@@ -109,7 +109,7 @@ export function installPasskeyContentBridge(target: Window = window): void {
         if (pending.has(detail.requestId)) return;
         const runtimeRequestId = bridgeRequestId();
         if (PASSKEY_DIAGNOSTICS_ENABLED) {
-            console.debug("[Padloc passkey] forwarding request", runtimeRequestId, detail.operation);
+            console.debug("[Elf Vault passkey] forwarding request", runtimeRequestId, detail.operation);
         }
 
         const timeoutMs = passkeyRequestTtlMs(detail.options);
@@ -154,13 +154,13 @@ export function installPasskeyContentBridge(target: Window = window): void {
                           reason: "provider-unavailable",
                       };
                 if (PASSKEY_DIAGNOSTICS_ENABLED) {
-                    console.debug("[Padloc passkey] returning result", runtimeRequestId, result.outcome);
+                    console.debug("[Elf Vault passkey] returning result", runtimeRequestId, result.outcome);
                 }
                 target.postMessage({ source: PASSKEY_EXTENSION_MESSAGE_SOURCE, kind: "result", detail: result }, "*");
             })
             .catch((error: Error) => {
                 if (PASSKEY_DIAGNOSTICS_ENABLED) {
-                    console.debug("[Padloc passkey] runtime transport failed", runtimeRequestId, error.message);
+                    console.debug("[Elf Vault passkey] runtime transport failed", runtimeRequestId, error.message);
                 }
                 target.postMessage(
                     {

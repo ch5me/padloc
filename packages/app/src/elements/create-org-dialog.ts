@@ -1,5 +1,5 @@
-import { translate as $l } from "@padloc/locale/src/translate";
-import { Org, ORG_NAME_MAX_LENGTH } from "@padloc/core/src/org";
+import { translate as $l } from "@elf-vault/locale/src/translate";
+import { Org, ORG_NAME_MAX_LENGTH } from "@elf-vault/core/src/org";
 import { app } from "../globals";
 import { Dialog } from "./dialog";
 import { Button } from "./button";

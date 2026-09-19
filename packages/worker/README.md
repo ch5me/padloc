@@ -1,4 +1,4 @@
-# @padloc/worker
+# @elf-vault/worker
 
 Cloudflare Worker backend for Padloc.
 

@@ -3,7 +3,7 @@ import "./scroller";
 import { html, LitElement } from "lit";
 import { StateMixin } from "../mixins/state";
 import { router } from "../globals";
-import { translate as $l } from "@padloc/locale/src/translate";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { customElement, state } from "lit/decorators.js";
 import { shared } from "../styles";
 import "./popover";
@@ -12,7 +12,7 @@ import "./sortable-list";
 import "./color-input";
 import { ColorInput } from "./color-input";
 import { Routing } from "../mixins/routing";
-import { TagInfo } from "@padloc/core/src/item";
+import { TagInfo } from "@elf-vault/core/src/item";
 import { confirm, prompt } from "../lib/dialog";
 
 @customElement("pl-settings-tags")

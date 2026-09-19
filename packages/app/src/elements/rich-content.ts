@@ -1,4 +1,4 @@
-import { openExternalUrl } from "@padloc/core/src/platform";
+import { openExternalUrl } from "@elf-vault/core/src/platform";
 import { sanitize } from "dompurify";
 import { html, LitElement } from "lit";
 import { customElement, property } from "lit/decorators.js";

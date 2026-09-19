@@ -157,7 +157,7 @@ function assertFixtureScalarAndCardinalityContract(value: Record<string, any>): 
 
     for (const [index, response] of value.brokerResponses.entries()) {
         expect(response.schema, `brokerResponses[${index}].schema`).to.equal(
-            "elf.padloc-broker-response.v2",
+            "dance.elf.vault.broker-response.v2",
         );
         expect(response.protocolVersion, `brokerResponses[${index}].protocolVersion`).to.equal(2);
         expect(response.requestId, `brokerResponses[${index}].requestId`).to.be.a("string").and.not
@@ -235,7 +235,7 @@ function assertResponseScalarContract(response: Record<string, any>, path: strin
         );
     }
     if (response.error) {
-        expect(response.error.schema, `${path}.error.schema`).to.equal("elf.padloc-broker-error.v1");
+        expect(response.error.schema, `${path}.error.schema`).to.equal("dance.elf.vault.broker-error.v1");
         expect(response.error.retryable, `${path}.error.retryable`).to.be.a("boolean");
         expect(response.error.code, `${path}.error.code`).to.be.a("string").and.not.empty;
     }
@@ -277,7 +277,7 @@ function assertEnvelopeScalarContract(value: Record<string, any>, path: string):
     expect(value.formatVersion, `${path}.formatVersion`).to.equal(1);
     expect(value.ciphertext, `${path}.ciphertext`).to.be.a("string").and.not.empty;
     expect(value.wrappedKey, `${path}.wrappedKey`).to.be.a("string").and.not.empty;
-    expect(value.wrapAlgorithm, `${path}.wrapAlgorithm`).to.equal("padloc-import-key-v1");
+    expect(value.wrapAlgorithm, `${path}.wrapAlgorithm`).to.equal("elf-vault-import-key-v1");
     expect(value.recordCountHint, `${path}.recordCountHint`)
         .to.be.a("number")
         .and.satisfy((entry: number) => Number.isInteger(entry) && entry >= 0);

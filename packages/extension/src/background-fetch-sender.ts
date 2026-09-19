@@ -1,6 +1,6 @@
-import { marshal, unmarshal } from "@padloc/core/src/encoding";
-import { Err, ErrorCode } from "@padloc/core/src/error";
-import { Request, RequestProgress, Response as TransportResponse, Sender } from "@padloc/core/src/transport";
+import { marshal, unmarshal } from "@elf-vault/core/src/encoding";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
+import { Request, RequestProgress, Response as TransportResponse, Sender } from "@elf-vault/core/src/transport";
 
 export class BackgroundFetchSender implements Sender {
     constructor(public url: string) {}

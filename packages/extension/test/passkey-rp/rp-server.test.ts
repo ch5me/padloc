@@ -1,11 +1,11 @@
 import { strict as assert } from "assert";
 import { once } from "events";
-import { PasskeyCounterPolicy } from "@padloc/core/src/passkey";
+import { PasskeyCounterPolicy } from "@elf-vault/core/src/passkey";
 import {
     buildPasskeyAssertionResponse,
     buildPasskeyRegistrationResponse,
     generatePasskeyCredential,
-} from "@padloc/core/src/webauthn-authenticator";
+} from "@elf-vault/core/src/webauthn-authenticator";
 
 const { createRpServer } = require("./rp-server.cjs");
 

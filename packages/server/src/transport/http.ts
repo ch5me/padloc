@@ -1,11 +1,11 @@
 import { createServer, IncomingMessage } from "http";
-import { Receiver, Request, Sender, Response } from "@padloc/core/src/transport";
-import { marshal, unmarshal } from "@padloc/core/src/encoding";
-import { Err, ErrorCode } from "@padloc/core/src/error";
+import { Receiver, Request, Sender, Response } from "@elf-vault/core/src/transport";
+import { marshal, unmarshal } from "@elf-vault/core/src/encoding";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
 import { getLocation } from "../geoip";
 import { request as requestHttps } from "https";
 import { request as requestHttp } from "http";
-import { Config, ConfigParam } from "@padloc/core/src/config";
+import { Config, ConfigParam } from "@elf-vault/core/src/config";
 
 export function readBody(request: IncomingMessage, maxSize = 1e7): Promise<string> {
     return new Promise((resolve, reject) => {

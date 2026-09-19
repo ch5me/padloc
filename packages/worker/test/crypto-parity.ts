@@ -6,7 +6,7 @@ import {
     PBKDF2Params,
     RSAEncryptionParams,
     RSASigningParams,
-} from "@padloc/core/src/crypto";
+} from "@elf-vault/core/src/crypto";
 import {
     base64ToBytes,
     bytesToHex,
@@ -14,7 +14,7 @@ import {
     hexToBytes,
     marshal,
     stringToBytes,
-} from "@padloc/core/src/encoding";
+} from "@elf-vault/core/src/encoding";
 
 export interface CryptoParityResult {
     name: string;

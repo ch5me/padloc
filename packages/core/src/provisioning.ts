@@ -43,7 +43,7 @@ export class AccountQuota extends Serializable {
  * to populate [[OrgProvisioning.quota]].members; a caller with plan authority (an admin surface
  * today, the Firefly Teams/Enterprise seat-billing integration in a later goal) writes it.
  *
- * Deliberately padloc-internal: this class has no knowledge of billing, Stripe, or Firefly. It is
+ * Deliberately elf-vault-internal: this class has no knowledge of billing, Stripe, or Firefly. It is
  * the seam a later goal wires up, not the wiring itself.
  */
 export class OrgSeatAllocation extends Storable {

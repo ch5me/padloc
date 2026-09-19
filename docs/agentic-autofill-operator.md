@@ -58,8 +58,8 @@ Pilot order: synthetic proof → one login → one address/profile → one payme
 
 ## Diagnostics
 
-- Padloc extension native host: `me.ch5.padloc`
-- Broker responses are closed `elf.padloc-broker-response.v2`. Unknown keys are rejected. Protocol-v1 is readable only as non-authorizing data.
+- Padloc extension native host: `dance.elf.vault`
+- Broker responses are closed `dance.elf.vault.broker-response.v2`. Unknown keys are rejected. Protocol-v1 is readable only as non-authorizing data.
 - Privacy states: `unknown` / `clean` / `potentially-private`. Trusted reset cannot clean a document after private writes.
 
 ## Deferred

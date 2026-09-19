@@ -327,7 +327,7 @@ async function start() {
         sessionId,
         `(async () => {
             ${domHelpers}
-            window.__padlocAgenticSignupError = "";
+            window.__elfVaultAgenticSignupError = "";
             const login = await loginSignup();
             if (!login) return { ok: false, reason: "login signup component missing", href: location.href };
             const input = login._emailInput || login.renderRoot?.querySelector("#emailInput") || bySelector("#emailInput");
@@ -338,7 +338,7 @@ async function start() {
                 return { ok: false, reason: "login signup submit method missing", state: signupState(login) };
             }
             void login._submitEmail().catch((error) => {
-                window.__padlocAgenticSignupError = error && error.message ? error.message : String(error);
+                window.__elfVaultAgenticSignupError = error && error.message ? error.message : String(error);
             });
             return { ok: true, state: signupState(login) };
         })()`
@@ -350,7 +350,7 @@ async function start() {
             ${domHelpers}
             const prompt = await emailPrompt();
             const login = await loginSignup();
-            const error = window.__padlocAgenticSignupError || "";
+            const error = window.__elfVaultAgenticSignupError || "";
             return { ok: Boolean(prompt) || Boolean(error), promptOpen: Boolean(prompt), error, state: signupState(login) };
         })()`,
         30000,
@@ -381,7 +381,7 @@ async function complete() {
             sessionId,
             `(async () => {
                 ${domHelpers}
-                window.__padlocAgenticSignupError = "";
+                window.__elfVaultAgenticSignupError = "";
                 const prompt = await emailPrompt();
                 if (!prompt) return { ok: false, reason: "email prompt missing" };
                 const codeInput = prompt._input || prompt.renderRoot?.querySelector("pl-input");
@@ -429,7 +429,7 @@ async function complete() {
     }
     if (signupReady.state?.loggedIn && signupReady.state?.locked && !signupReady.state?.page) {
         throw new Error(
-            `extension is locked on existing Padloc account ${
+            `extension is locked on existing Elf Vault account ${
                 signupReady.state.accountEmail || "(unknown)"
             }; reset extension storage before signup`
         );
@@ -442,8 +442,8 @@ async function complete() {
             sessionId,
             `(async () => {
                 ${domHelpers}
-                window.__padlocAgenticSignupError = "";
-                window.__padlocAgenticLoginStage = "preparing";
+                window.__elfVaultAgenticSignupError = "";
+                window.__elfVaultAgenticLoginStage = "preparing";
                 const login = await loginSignup();
                 if (!login || typeof login.app?.login !== "function") {
                     return { ok: false, reason: "app login method missing", state: signupState(login) };
@@ -462,7 +462,7 @@ async function complete() {
                 await settle(login);
                 void (async () => {
                     try {
-                        window.__padlocAgenticLoginStage = "logging_in";
+                        window.__elfVaultAgenticLoginStage = "logging_in";
                         await login.app.login({
                             email: ${JSON.stringify(email)},
                             password: ${JSON.stringify(masterPassword)},
@@ -470,10 +470,10 @@ async function complete() {
                             addTrustedDevice: false,
                             asAdmin: login.asAdmin
                         });
-                        window.__padlocAgenticLoginStage = "complete";
+                        window.__elfVaultAgenticLoginStage = "complete";
                     } catch (error) {
-                        window.__padlocAgenticLoginStage = "failed";
-                        window.__padlocAgenticSignupError =
+                        window.__elfVaultAgenticLoginStage = "failed";
+                        window.__elfVaultAgenticSignupError =
                             error && error.message ? error.message : String(error);
                     }
                 })();
@@ -485,11 +485,11 @@ async function complete() {
             sessionId,
             `(() => {
                 const app = document.querySelector("pl-extension-app");
-                const error = window.__padlocAgenticSignupError || "";
+                const error = window.__elfVaultAgenticSignupError || "";
                 return {
                     ok: Boolean(app?.app?.state?.loggedIn && !app?.app?.state?.locked) || Boolean(error),
                     error,
-                    stage: window.__padlocAgenticLoginStage || "",
+                    stage: window.__elfVaultAgenticLoginStage || "",
                     loggedIn: Boolean(app?.app?.state?.loggedIn),
                     locked: Boolean(app?.app?.state?.locked),
                     accountEmail: app?.app?.account?.email || null,
@@ -503,7 +503,7 @@ async function complete() {
         const loginStatus = await evalPage(
             sessionId,
             `(() => ({
-                error: window.__padlocAgenticSignupError || "",
+                error: window.__elfVaultAgenticSignupError || "",
                 loggedIn: Boolean(document.querySelector("pl-extension-app")?.app?.state?.loggedIn),
                 locked: Boolean(document.querySelector("pl-extension-app")?.app?.state?.locked)
             }))()`
@@ -595,7 +595,7 @@ async function complete() {
             ${domHelpers}
             const login = await loginSignup();
             if (!login) return { ok: false, reason: "login signup component missing" };
-            window.__padlocAgenticSignupError = "";
+            window.__elfVaultAgenticSignupError = "";
             const repeat = login._repeatPasswordInput || login.renderRoot?.querySelector("#repeatPasswordInput") || bySelector("#repeatPasswordInput");
             if (!repeat) return { ok: false, reason: "repeat password input missing", state: signupState(login) };
             setValue(repeat, login._password || "");
@@ -606,8 +606,8 @@ async function complete() {
             try {
                 await login._confirmPassword();
             } catch (error) {
-                window.__padlocAgenticSignupError = error && error.message ? error.message : String(error);
-                return { ok: false, reason: window.__padlocAgenticSignupError, state: signupState(login) };
+                window.__elfVaultAgenticSignupError = error && error.message ? error.message : String(error);
+                return { ok: false, reason: window.__elfVaultAgenticSignupError, state: signupState(login) };
             }
             return { ok: true, state: signupState(login) };
         })()`

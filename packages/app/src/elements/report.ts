@@ -1,5 +1,5 @@
-import { translate as $l } from "@padloc/locale/src/translate";
-import { AuditType, VaultItem } from "@padloc/core/src/item";
+import { translate as $l } from "@elf-vault/locale/src/translate";
+import { AuditType, VaultItem } from "@elf-vault/core/src/item";
 import { customElement, state } from "lit/decorators.js";
 import { css, html } from "lit";
 import { app } from "../globals";
@@ -7,9 +7,9 @@ import { StateMixin } from "../mixins/state";
 import { Routing } from "../mixins/routing";
 import { View } from "./view";
 import { descriptionForAudit, iconForAudit, titleTextForAudit } from "../lib/audit";
-import { Vault } from "@padloc/core/src/vault";
+import { Vault } from "@elf-vault/core/src/vault";
 import "./popover";
-import { Org } from "@padloc/core/src/org";
+import { Org } from "@elf-vault/core/src/org";
 import "./rich-content";
 
 @customElement("pl-report")

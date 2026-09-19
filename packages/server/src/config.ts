@@ -1,14 +1,14 @@
-import { Config, ConfigParam } from "@padloc/core/src/config";
-import { ServerConfig } from "@padloc/core/src/server";
+import { Config, ConfigParam } from "@elf-vault/core/src/config";
+import { ServerConfig } from "@elf-vault/core/src/server";
 import { FSAttachmentStorageConfig } from "./attachments/fs";
 import { S3AttachmentStorageConfig } from "./attachments/s3";
 import { SMTPConfig } from "./email/smtp";
 import { WebAuthnConfig } from "./auth/webauthn";
 import { LevelDBStorageConfig } from "./storage/leveldb";
 import { MongoDBStorageConfig } from "./storage/mongodb";
-import { AuthType } from "@padloc/core/src/auth";
+import { AuthType } from "@elf-vault/core/src/auth";
 import { OauthConfig } from "./auth/oauth";
-import { TotpAuthConfig } from "@padloc/core/src/auth/totp";
+import { TotpAuthConfig } from "@elf-vault/core/src/auth/totp";
 import { StripeProvisionerConfig } from "./provisioning/stripe";
 import { DirectoryProvisionerConfig } from "./provisioning/directory";
 import { MixpanelConfig } from "./logging/mixpanel";
@@ -17,8 +17,8 @@ import { PostgresConfig } from "./storage/postgres";
 import dotenv from "dotenv";
 import { resolve } from "path";
 import { ScimServerConfig } from "./scim";
-import { BasicProvisionerConfig } from "@padloc/core/src/provisioning";
-import { ChangeLoggerConfig, RequestLoggerConfig } from "@padloc/core/src/logging";
+import { BasicProvisionerConfig } from "@elf-vault/core/src/provisioning";
+import { ChangeLoggerConfig, RequestLoggerConfig } from "@elf-vault/core/src/logging";
 import { OauthProvisionerConfig } from "./provisioning/oauth";
 
 export class TransportConfig extends Config {

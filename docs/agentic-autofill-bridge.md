@@ -98,7 +98,7 @@ No raw names, addresses, PAN, expiry, or CVV.
 
 -   Protocol types: `packages/extension/src/autofill-broker-protocol.ts`
 -   Broker planner/bundler: `packages/extension/src/autofill-broker.ts`
--   Native host: `packages/extension/native-host/padloc-autofill-host.mjs`
+-   Native host: `packages/extension/native-host/elf-vault-autofill-host.mjs`
 -   Extension permission: `nativeMessaging`
 -   Background message: `agenticAutofillBroker`
 -   Popup approval prompt: `getAgenticAutofillApprovalPrompt` ->
@@ -184,9 +184,9 @@ cd /Users/hassoncs/src/ch5/magic-browser
 pnpm run build
 node dist/cli.js setup-agentic-chromium --tier chromium --padloc-root /Users/hassoncs/src/ch5/padloc --extension-id <id> --write
 MAGIC_BROWSER_LOAD_EXTENSION=/Users/hassoncs/src/ch5/padloc/packages/extension/dist node dist/cli.js session start example.public_smoke --adapter local-cdp
-node dist/cli.js session extension-status <session-id> --extension-id <id> --native-host me.ch5.padloc
-node dist/cli.js session padloc-broker-request <session-id> --transport native --extension-id <id> --native-host me.ch5.padloc --request-json '{"type":"status","protocolVersion":1}'
-node dist/cli.js session padloc-broker-request <session-id> --transport native --extension-id <id> --native-host me.ch5.padloc --request-file <redacted-broker-request.json> --wait-ms 65000
+node dist/cli.js session extension-status <session-id> --extension-id <id> --native-host dance.elf.vault
+node dist/cli.js session padloc-broker-request <session-id> --transport native --extension-id <id> --native-host dance.elf.vault --request-json '{"type":"status","protocolVersion":1}'
+node dist/cli.js session padloc-broker-request <session-id> --transport native --extension-id <id> --native-host dance.elf.vault --request-file <redacted-broker-request.json> --wait-ms 65000
 ```
 
 Run focused package tests from `packages/extension`, not the repo root:

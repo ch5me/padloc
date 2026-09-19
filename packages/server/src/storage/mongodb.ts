@@ -1,8 +1,8 @@
 import { MongoClient, Db, Collection, CreateCollectionOptions, ObjectId, Filter, FindOptions } from "mongodb";
-import { Storage, Storable, StorableConstructor, StorageListOptions, StorageQuery } from "@padloc/core/src/storage";
-import { Err, ErrorCode } from "@padloc/core/src/error";
+import { Storage, Storable, StorableConstructor, StorageListOptions, StorageQuery } from "@elf-vault/core/src/storage";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
 import path from "path";
-import { Config, ConfigParam } from "@padloc/core/src/config";
+import { Config, ConfigParam } from "@elf-vault/core/src/config";
 
 export class MongoDBStorageConfig extends Config {
     @ConfigParam()

@@ -7,8 +7,8 @@
         "lib": ["es2020", "dom"],
         "types": ["@cloudflare/workers-types", "@types/node"],
         "paths": {
-            "@padloc/core/*": ["../core/*"],
-            "@padloc/locale/*": ["../locale/*"],
+            "@elf-vault/core/*": ["../core/*"],
+            "@elf-vault/locale/*": ["../locale/*"],
             "@ch5me/elf-auth-client": ["./src/types/elf-auth-client.d.ts"]
         }
     },

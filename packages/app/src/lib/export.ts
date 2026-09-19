@@ -1,6 +1,6 @@
-import { VaultItem } from "@padloc/core/src/item";
-import { PBES2Container } from "@padloc/core/src/container";
-import { marshal, stringToBytes } from "@padloc/core/src/encoding";
+import { VaultItem } from "@elf-vault/core/src/item";
+import { PBES2Container } from "@elf-vault/core/src/container";
+import { marshal, stringToBytes } from "@elf-vault/core/src/encoding";
 import { loadPapa, ImportFormat, CSV, PBES2 } from "./import";
 
 export const supportedFormats: ImportFormat[] = [CSV, PBES2];

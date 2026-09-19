@@ -1,4 +1,4 @@
-import { Authenticator, AuthServer, AuthRequest, AuthType } from "@padloc/core/src/auth";
+import { Authenticator, AuthServer, AuthRequest, AuthType } from "@elf-vault/core/src/auth";
 import {
     generateRegistrationOptions,
     verifyRegistrationResponse,
@@ -12,10 +12,10 @@ import {
     PublicKeyCredentialRequestOptionsJSON,
     AuthenticationCredentialJSON,
 } from "@simplewebauthn/typescript-types";
-import { Err, ErrorCode } from "@padloc/core/src/error";
-import { base64ToBytes, bytesToBase64 } from "@padloc/core/src/encoding";
-import { Auth } from "@padloc/core/src/auth";
-import { Config, ConfigParam } from "@padloc/core/src/config";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
+import { base64ToBytes, bytesToBase64 } from "@elf-vault/core/src/encoding";
+import { Auth } from "@elf-vault/core/src/auth";
+import { Config, ConfigParam } from "@elf-vault/core/src/config";
 
 export class WebAuthnConfig extends Config {
     constructor(init: Partial<WebAuthnConfig> = {}) {

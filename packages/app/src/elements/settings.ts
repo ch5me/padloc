@@ -1,4 +1,4 @@
-import { translate as $l } from "@padloc/locale/src/translate";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { app } from "../globals";
 import { StateMixin } from "../mixins/state";
 import { View } from "./view";
@@ -18,7 +18,7 @@ import "./settings-display";
 import "./settings-billing";
 import "./settings-extension";
 import "./settings-tags";
-import { ProvisioningStatus } from "@padloc/core/src/provisioning";
+import { ProvisioningStatus } from "@elf-vault/core/src/provisioning";
 
 @customElement("pl-settings")
 export class Settings extends StateMixin(Routing(View)) {

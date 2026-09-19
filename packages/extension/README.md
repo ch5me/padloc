@@ -1,4 +1,4 @@
-# @padloc/extension <!-- oc:id=sec_aa -->
+# @elf-vault/extension <!-- oc:id=sec_aa -->
 
 The Padloc browser extension — a Chrome MV3 unpacked extension with full auth
 parity, multi-field autofill, save/update credential prompts, and biometric
@@ -21,7 +21,7 @@ re-unlock.
 
 ## Setup <!-- oc:id=sec_ac -->
 
-The `@padloc/extension` package is meant to be used from within the
+The `@elf-vault/extension` package is meant to be used from within the
 [Padloc monorepo](../../README.md).
 
 ```sh

@@ -1,10 +1,10 @@
-# @padloc/electron
+# @elf-vault/electron
 
 Elf Vault Desktop app, built with [Electron](https://www.electronjs.org/)
 
 ## Setup
 
-The `@padloc/electron` package is meant to be used from within the
+The `@elf-vault/electron` package is meant to be used from within the
 [Elf Vault monorepo](../../README.md).
 
 ```sh

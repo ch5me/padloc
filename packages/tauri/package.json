@@ -1,5 +1,5 @@
 {
-    "name": "@padloc/tauri",
+    "name": "@elf-vault/tauri",
     "version": "4.3.0",
     "description": "Tauri Wrapper for Elf Vault",
     "main": "index.js",
@@ -34,8 +34,8 @@
         "webpack-dev-server": "4.7.4"
     },
     "dependencies": {
-        "@padloc/app": "4.3.0",
-        "@padloc/core": "4.3.0",
+        "@elf-vault/app": "4.3.0",
+        "@elf-vault/core": "4.3.0",
         "@tauri-apps/api": "1.1.0"
     },
     "engines": {

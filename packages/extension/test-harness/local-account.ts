@@ -1,11 +1,11 @@
-import { Account } from "@padloc/core/src/account";
-import { Auth } from "@padloc/core/src/auth";
-import { marshal, unmarshal } from "@padloc/core/src/encoding";
-import { ErrorCode, Err } from "@padloc/core/src/error";
-import { DeviceInfo, setPlatform } from "@padloc/core/src/platform";
-import { Client as SRPClient } from "@padloc/core/src/srp";
-import { MemoryStorage } from "@padloc/core/src/storage";
-import { Request, Response } from "@padloc/core/src/transport";
+import { Account } from "@elf-vault/core/src/account";
+import { Auth } from "@elf-vault/core/src/auth";
+import { marshal, unmarshal } from "@elf-vault/core/src/encoding";
+import { ErrorCode, Err } from "@elf-vault/core/src/error";
+import { DeviceInfo, setPlatform } from "@elf-vault/core/src/platform";
+import { Client as SRPClient } from "@elf-vault/core/src/srp";
+import { MemoryStorage } from "@elf-vault/core/src/storage";
+import { Request, Response } from "@elf-vault/core/src/transport";
 import { WorkerCryptoProvider } from "../../worker/src/crypto";
 
 const TEST_ITERATIONS = 10_000;
@@ -39,7 +39,7 @@ async function callApi(workerUrl: string, method: string, params: unknown[]): Pr
 }
 
 /** Create a local-only account with reduced PBKDF2 cost so browser E2E setup stays bounded. */
-export async function createLocalPadlocAccount(
+export async function createLocalElfVaultAccount(
     workerUrl: string,
     email: string,
     password: string,
@@ -73,7 +73,7 @@ if (require.main === module) {
     if (!workerUrl || !email || !password || !deviceId) {
         throw new Error("Expected worker URL, email, password, and trusted device ID");
     }
-    void createLocalPadlocAccount(workerUrl, email, password, deviceId).catch((error) => {
+    void createLocalElfVaultAccount(workerUrl, email, password, deviceId).catch((error) => {
         console.error(error instanceof Error ? `${error.name}: ${error.message}` : String(error));
         process.exitCode = 1;
     });

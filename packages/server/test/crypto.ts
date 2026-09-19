@@ -1,6 +1,6 @@
 import { test, suite } from "mocha";
 import { assert } from "chai";
-import { cryptoProviderSpec } from "@padloc/core/src/spec/crypto";
+import { cryptoProviderSpec } from "@elf-vault/core/src/spec/crypto";
 import { NodeCryptoProvider } from "../src/crypto/node";
 
 const spec = cryptoProviderSpec(new NodeCryptoProvider());

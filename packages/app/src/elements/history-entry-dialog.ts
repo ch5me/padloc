@@ -1,12 +1,12 @@
-import { translate as $l } from "@padloc/locale/src/translate";
-import { FIELD_DEFS } from "@padloc/core/src/item";
+import { translate as $l } from "@elf-vault/locale/src/translate";
+import { FIELD_DEFS } from "@elf-vault/core/src/item";
 import { confirm } from "../lib/dialog";
 import { Dialog } from "./dialog";
 import { html, css } from "lit";
 import { customElement } from "lit/decorators.js";
 import { formatDateFromNow, formatDateTime } from "../lib/util";
-import { VaultItem } from "@padloc/core/src/item";
-import { Vault } from "@padloc/core/src/vault";
+import { VaultItem } from "@elf-vault/core/src/item";
+import { Vault } from "@elf-vault/core/src/vault";
 import { app } from "../globals";
 import { until } from "lit/directives/until.js";
 

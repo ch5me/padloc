@@ -1,7 +1,7 @@
 /**
  * D1Storage — SQLite storage via Drizzle ORM.
  *
- * Implements the @padloc/core Storage interface:
+ * Implements the @elf-vault/core Storage interface:
  *   save / get / delete / clear / list / count
  *
  * Serialization strategy:
@@ -15,9 +15,9 @@ import { eq, and, or, not, asc, desc, sql, SQLWrapper, getTableName } from "driz
 import { drizzle } from "drizzle-orm/d1";
 import { SQLiteColumn } from "drizzle-orm/sqlite-core";
 
-import { Storable, StorableConstructor, Storage, StorageListOptions, StorageQuery } from "@padloc/core/src/storage";
-import { Err, ErrorCode } from "@padloc/core/src/error";
-import { hexToBytes } from "@padloc/core/src/encoding";
+import { Storable, StorableConstructor, Storage, StorageListOptions, StorageQuery } from "@elf-vault/core/src/storage";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
+import { hexToBytes } from "@elf-vault/core/src/encoding";
 
 import {
     accounts,

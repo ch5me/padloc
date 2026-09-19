@@ -410,7 +410,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = me.ch5.auth.dev.nativecore;
+				PRODUCT_BUNDLE_IDENTIFIER = dance.elf.vault.dev.nativecore;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
 				VERSIONING_SYSTEM = "apple-generic";
@@ -427,7 +427,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = me.ch5.auth.dev.nativecore.tests;
+				PRODUCT_BUNDLE_IDENTIFIER = dance.elf.vault.dev.nativecore.tests;
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -449,7 +449,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = me.ch5.auth.dev.nativecore;
+				PRODUCT_BUNDLE_IDENTIFIER = dance.elf.vault.dev.nativecore;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
 				VERSIONING_SYSTEM = "apple-generic";
@@ -467,7 +467,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = me.ch5.auth.dev.passkeys.provider;
+				PRODUCT_BUNDLE_IDENTIFIER = dance.elf.vault.dev.passkeys.provider;
 				PRODUCT_NAME = CH5AuthCredentialProvider;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -484,7 +484,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = me.ch5.auth.dev.nativecore.tests;
+				PRODUCT_BUNDLE_IDENTIFIER = dance.elf.vault.dev.nativecore.tests;
 				SDKROOT = macosx;
 			};
 			name = Release;
@@ -500,7 +500,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = me.ch5.auth.dev.passkeys.provider;
+				PRODUCT_BUNDLE_IDENTIFIER = dance.elf.vault.dev.passkeys.provider;
 				PRODUCT_NAME = CH5AuthCredentialProvider;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -518,7 +518,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = me.ch5.auth.dev.passkeys;
+				PRODUCT_BUNDLE_IDENTIFIER = dance.elf.vault.dev.passkeys;
 				PRODUCT_NAME = "Elf Vault Passkeys";
 				SDKROOT = macosx;
 			};
@@ -594,7 +594,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = me.ch5.auth.dev.passkeys;
+				PRODUCT_BUNDLE_IDENTIFIER = dance.elf.vault.dev.passkeys;
 				PRODUCT_NAME = "Elf Vault Passkeys";
 				SDKROOT = macosx;
 			};

@@ -1,7 +1,7 @@
-import { getWordList } from "@padloc/locale/src/wordlists";
+import { getWordList } from "@elf-vault/locale/src/wordlists";
 import { randomNumber } from "./util";
 
-export { AVAILABLE_LANGUAGES } from "@padloc/locale/src/wordlists";
+export { AVAILABLE_LANGUAGES } from "@elf-vault/locale/src/wordlists";
 
 /**
  * Generates a passphrase consisting of a number of words randomly selected

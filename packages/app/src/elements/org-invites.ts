@@ -1,5 +1,5 @@
-import { translate as $l } from "@padloc/locale/src/translate";
-import { Invite } from "@padloc/core/src/invite";
+import { translate as $l } from "@elf-vault/locale/src/translate";
+import { Invite } from "@elf-vault/core/src/invite";
 import { StateMixin } from "../mixins/state";
 import { Routing } from "../mixins/routing";
 import { dialog, alert } from "../lib/dialog";

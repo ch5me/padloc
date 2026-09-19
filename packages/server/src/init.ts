@@ -1,17 +1,17 @@
-import { Server } from "@padloc/core/src/server";
-import { setPlatform } from "@padloc/core/src/platform";
-import { ChangeLogger, Logger, MultiLogger, RequestLogger, VoidLogger } from "@padloc/core/src/logging";
-import { Storage } from "@padloc/core/src/storage";
+import { Server } from "@elf-vault/core/src/server";
+import { setPlatform } from "@elf-vault/core/src/platform";
+import { ChangeLogger, Logger, MultiLogger, RequestLogger, VoidLogger } from "@elf-vault/core/src/logging";
+import { Storage } from "@elf-vault/core/src/storage";
 import { NodePlatform } from "./platform/node";
 import { HTTPReceiver } from "./transport/http";
 import { LevelDBStorage, LevelDBStorageConfig } from "./storage/leveldb";
 import { S3AttachmentStorage } from "./attachments/s3";
 import { NodeLegacyServer } from "./legacy";
-import { AuthServer, AuthType } from "@padloc/core/src/auth";
+import { AuthServer, AuthType } from "@elf-vault/core/src/auth";
 import { WebAuthnConfig, WebAuthnServer } from "./auth/webauthn";
 import { SMTPSender } from "./email/smtp";
 import { MongoDBStorage } from "./storage/mongodb";
-import { ConsoleMessenger, PlainMessage } from "@padloc/core/src/messenger";
+import { ConsoleMessenger, PlainMessage } from "@elf-vault/core/src/messenger";
 import { FSAttachmentStorage, FSAttachmentStorageConfig } from "./attachments/fs";
 import {
     AttachmentStorageConfig,
@@ -23,22 +23,22 @@ import {
     PadlocConfig,
     RequestLogConfig,
 } from "./config";
-import { MemoryStorage, VoidStorage } from "@padloc/core/src/storage";
-import { MemoryAttachmentStorage } from "@padloc/core/src/attachment";
-import { BasicProvisioner, BasicProvisionerConfig } from "@padloc/core/src/provisioning";
+import { MemoryStorage, VoidStorage } from "@elf-vault/core/src/storage";
+import { MemoryAttachmentStorage } from "@elf-vault/core/src/attachment";
+import { BasicProvisioner, BasicProvisionerConfig } from "@elf-vault/core/src/provisioning";
 import { OauthServer } from "./auth/oauth";
-import { TotpAuthConfig, TotpAuthServer } from "@padloc/core/src/auth/totp";
-import { EmailAuthServer } from "@padloc/core/src/auth/email";
-import { PublicKeyAuthServer } from "@padloc/core/src/auth/public-key";
+import { TotpAuthConfig, TotpAuthServer } from "@elf-vault/core/src/auth/totp";
+import { EmailAuthServer } from "@elf-vault/core/src/auth/email";
+import { PublicKeyAuthServer } from "@elf-vault/core/src/auth/public-key";
 import { StripeProvisioner } from "./provisioning/stripe";
 import { resolve, join } from "path";
 import { MongoDBLogger } from "./logging/mongodb";
 import { MixpanelLogger } from "./logging/mixpanel";
 import { PostgresStorage } from "./storage/postgres";
-import { stripPropertiesRecursive, uuid, removeTrailingSlash } from "@padloc/core/src/util";
+import { stripPropertiesRecursive, uuid, removeTrailingSlash } from "@elf-vault/core/src/util";
 import { DirectoryProvisioner } from "./provisioning/directory";
 import { ScimServer, ScimServerConfig } from "./scim";
-import { DirectoryProvider, DirectorySync } from "@padloc/core/src/directory";
+import { DirectoryProvider, DirectorySync } from "@elf-vault/core/src/directory";
 import { PostgresLogger } from "./logging/postgres";
 import { LevelDBLogger } from "./logging/leveldb";
 import { OauthProvisioner, OauthProvisionerConfig } from "./provisioning/oauth";

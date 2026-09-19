@@ -1,9 +1,9 @@
-import { AuthClient, AuthType } from "@padloc/core/src/auth";
-import { generateURL } from "@padloc/core/src/otp";
+import { AuthClient, AuthType } from "@elf-vault/core/src/auth";
+import { generateURL } from "@elf-vault/core/src/otp";
 import { html } from "lit-html";
 import { app } from "../../globals";
 import { prompt } from "../dialog";
-import { $l } from "@padloc/locale/src/translate";
+import { $l } from "@elf-vault/locale/src/translate";
 
 export class TotpAuthCLient implements AuthClient {
     supportsType(type: AuthType) {

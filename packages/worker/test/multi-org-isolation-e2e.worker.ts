@@ -10,27 +10,27 @@
  * Adapted directly from vault-crud-e2e.worker.ts's harness (real Client, real SRP auth, real
  * createServer over a LocalSender) rather than reinventing test plumbing.
  */
-import { setPlatform, DeviceInfo, StubPlatform } from "@padloc/core/src/platform";
+import { setPlatform, DeviceInfo, StubPlatform } from "@elf-vault/core/src/platform";
 import { WorkerCryptoProvider } from "../src/crypto";
-import { Client } from "@padloc/core/src/client";
-import { Account } from "@padloc/core/src/account";
-import { Vault } from "@padloc/core/src/vault";
-import { Org } from "@padloc/core/src/org";
-import { Auth } from "@padloc/core/src/auth";
-import { Client as SRPClient } from "@padloc/core/src/srp";
+import { Client } from "@elf-vault/core/src/client";
+import { Account } from "@elf-vault/core/src/account";
+import { Vault } from "@elf-vault/core/src/vault";
+import { Org } from "@elf-vault/core/src/org";
+import { Auth } from "@elf-vault/core/src/auth";
+import { Client as SRPClient } from "@elf-vault/core/src/srp";
 import {
     Sender,
     Request as TransportRequest,
     RequestProgress,
     Response as CoreResponse,
-} from "@padloc/core/src/transport";
-import { Err, ErrorCode } from "@padloc/core/src/error";
-import { uuid } from "@padloc/core/src/util";
+} from "@elf-vault/core/src/transport";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
+import { uuid } from "@elf-vault/core/src/util";
 import { createServer } from "../src/server-factory";
 import { WorkerReceiver, WorkerReceiverConfig } from "../src/transport";
-import { Request as PlRequest, Response as PlResponse } from "@padloc/core/src/transport";
-import { CreateAccountParams, StartCreateSessionParams, CompleteCreateSessionParams } from "@padloc/core/src/api";
-import { marshal, unmarshal } from "@padloc/core/src/encoding";
+import { Request as PlRequest, Response as PlResponse } from "@elf-vault/core/src/transport";
+import { CreateAccountParams, StartCreateSessionParams, CompleteCreateSessionParams } from "@elf-vault/core/src/api";
+import { marshal, unmarshal } from "@elf-vault/core/src/encoding";
 import { AccountLockDO } from "../src/locks/account-lock";
 
 export { AccountLockDO };

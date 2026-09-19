@@ -1,6 +1,6 @@
-import { Config, ConfigParam } from "@padloc/core/src/config";
-import { LogEvent, Logger, LoggerListOptions } from "@padloc/core/src/logging";
-import { Context } from "@padloc/core/src/server";
+import { Config, ConfigParam } from "@elf-vault/core/src/config";
+import { LogEvent, Logger, LoggerListOptions } from "@elf-vault/core/src/logging";
+import { Context } from "@elf-vault/core/src/server";
 import { Mixpanel, init } from "mixpanel";
 
 export class MixpanelConfig extends Config {

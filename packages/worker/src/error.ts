@@ -1,4 +1,4 @@
-import { Err, ErrorCode } from "@padloc/core/src/error";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
 
 const SENSITIVE_PATTERNS = [
     /(?:near|at)\s+"?\w*(?:sqlite|sql|syntax|constraint|unique|foreign|primary|index)/i,

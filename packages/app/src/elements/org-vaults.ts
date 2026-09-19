@@ -1,4 +1,4 @@
-import { VaultID } from "@padloc/core/src/vault";
+import { VaultID } from "@elf-vault/core/src/vault";
 import { StateMixin } from "../mixins/state";
 import { Routing } from "../mixins/routing";
 import { app } from "../globals";

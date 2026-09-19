@@ -1,7 +1,7 @@
-import { Attachment } from "@padloc/core/src/attachment";
-import { VaultID } from "@padloc/core/src/vault";
-import { AccountID } from "@padloc/core/src/account";
-import { Err, ErrorCode } from "@padloc/core/src/error";
+import { Attachment } from "@elf-vault/core/src/attachment";
+import { VaultID } from "@elf-vault/core/src/vault";
+import { AccountID } from "@elf-vault/core/src/account";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
 import { R2AttachmentStorage } from "../src/attachments/r2";
 
 interface AttachmentRow {
@@ -150,7 +150,7 @@ async function makeAtt(id: string, vault: VaultID, data: Uint8Array): Promise<At
     att.name = `test-${id}.bin`;
     att.size = data.length;
     att.type = "application/octet-stream";
-    const { getCryptoProvider } = await import("@padloc/core/src/platform");
+    const { getCryptoProvider } = await import("@elf-vault/core/src/platform");
     (att as any)._key = await getCryptoProvider().generateKey({ algorithm: "AES", keySize: 256 } as any);
     await att.setData(data);
     return att;

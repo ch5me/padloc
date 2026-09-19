@@ -39,7 +39,7 @@ for.
 
 ### proof:crypto
 
-**What it proves**: `@padloc/core` crypto primitives are compatible with
+**What it proves**: `@elf-vault/core` crypto primitives are compatible with
 Cloudflare Workers runtime (subtlecrypto API, argon2id availability,
 HMAC-SHA256).
 

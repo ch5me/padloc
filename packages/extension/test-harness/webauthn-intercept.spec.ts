@@ -4,7 +4,7 @@ import os from "os";
 import path from "path";
 
 const EXT_DIST = path.resolve(__dirname, "../dist");
-const HEADFUL = process.env.PADLOC_EXTENSION_HEADFUL === "1";
+const HEADFUL = process.env.ELF_VAULT_EXTENSION_HEADFUL === "1";
 
 test("main-world WebAuthn create is intercepted before native browser handling", async () => {
     const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "padloc-webauthn-intercept-"));
@@ -60,8 +60,8 @@ test("main-world WebAuthn create is intercepted before native browser handling",
 
         await page.evaluate(() => {
             const controller = new AbortController();
-            (window as any).__padlocInterceptController = controller;
-            (window as any).__padlocInterceptResult = navigator.credentials
+            (window as any).__elfVaultInterceptController = controller;
+            (window as any).__elfVaultInterceptResult = navigator.credentials
                 .create({
                     signal: controller.signal,
                     publicKey: {
@@ -84,11 +84,11 @@ test("main-world WebAuthn create is intercepted before native browser handling",
                 }));
         });
         await expect
-            .poll(() => worker.evaluate(() => (globalThis as any).padlocPasskeyDiagnostics?.lastStage))
+            .poll(() => worker.evaluate(() => (globalThis as any).elfVaultPasskeyDiagnostics?.lastStage))
             .toBe("approval-pending");
         const intercepted = await page.evaluate(async () => {
-            (window as any).__padlocInterceptController.abort();
-            return (window as any).__padlocInterceptResult;
+            (window as any).__elfVaultInterceptController.abort();
+            return (window as any).__elfVaultInterceptResult;
         });
 
         expect(intercepted).toMatchObject({

@@ -1,13 +1,13 @@
-import { Storage } from "@padloc/core/src/storage";
-import { Config, ConfigParam } from "@padloc/core/src/config";
-import { Org, OrgID } from "@padloc/core/src/org";
-import { DirectoryProvider, DirectorySubscriber, DirectoryUser, DirectoryGroup } from "@padloc/core/src/directory";
+import { Storage } from "@elf-vault/core/src/storage";
+import { Config, ConfigParam } from "@elf-vault/core/src/config";
+import { Org, OrgID } from "@elf-vault/core/src/org";
+import { DirectoryProvider, DirectorySubscriber, DirectoryUser, DirectoryGroup } from "@elf-vault/core/src/directory";
 import { createServer, IncomingMessage, ServerResponse } from "http";
-import { getCryptoProvider } from "@padloc/core/src/platform";
-import { base64ToBytes } from "@padloc/core/src/encoding";
-import { setPath, uuid } from "@padloc/core/src/util";
+import { getCryptoProvider } from "@elf-vault/core/src/platform";
+import { base64ToBytes } from "@elf-vault/core/src/encoding";
+import { setPath, uuid } from "@elf-vault/core/src/util";
 import { readBody } from "./transport/http";
-import { OrgProvisioning } from "@padloc/core/src/provisioning";
+import { OrgProvisioning } from "@elf-vault/core/src/provisioning";
 
 export class ScimServerConfig extends Config {
     @ConfigParam()

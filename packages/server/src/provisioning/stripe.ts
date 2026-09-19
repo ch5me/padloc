@@ -1,7 +1,7 @@
 import Stripe from "stripe";
-import { Storage } from "@padloc/core/src/storage";
+import { Storage } from "@elf-vault/core/src/storage";
 import { readBody } from "../transport/http";
-import { ConfigParam } from "@padloc/core/src/config";
+import { ConfigParam } from "@elf-vault/core/src/config";
 import {
     AccountFeatures,
     AccountQuota,
@@ -14,16 +14,16 @@ import {
     AccountProvisioning,
     Provisioning,
     BasicProvisionerConfig,
-} from "@padloc/core/src/provisioning";
-import { uuid } from "@padloc/core/src/util";
-import { Org, OrgInfo } from "@padloc/core/src/org";
+} from "@elf-vault/core/src/provisioning";
+import { uuid } from "@elf-vault/core/src/util";
+import { Org, OrgInfo } from "@elf-vault/core/src/org";
 import { createServer, IncomingMessage, ServerResponse } from "http";
-import { getCryptoProvider } from "@padloc/core/src/platform";
-import { base64ToBytes, bytesToBase64, stringToBytes } from "@padloc/core/src/encoding";
-import { HMACKeyParams, HMACParams } from "@padloc/core/src/crypto";
+import { getCryptoProvider } from "@elf-vault/core/src/platform";
+import { base64ToBytes, bytesToBase64, stringToBytes } from "@elf-vault/core/src/encoding";
+import { HMACKeyParams, HMACParams } from "@elf-vault/core/src/crypto";
 import { URLSearchParams } from "url";
-import { Account } from "@padloc/core/src/account";
-import { Session } from "@padloc/core/src/session";
+import { Account } from "@elf-vault/core/src/account";
+import { Session } from "@elf-vault/core/src/session";
 
 export class StripeProvisionerConfig extends BasicProvisionerConfig {
     @ConfigParam("string", true)

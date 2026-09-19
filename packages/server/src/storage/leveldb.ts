@@ -8,9 +8,9 @@ import {
     filterByQuery,
     sortBy,
     StorageQuery,
-} from "@padloc/core/src/storage";
-import { Err, ErrorCode } from "@padloc/core/src/error";
-import { Config, ConfigParam } from "@padloc/core/src/config";
+} from "@elf-vault/core/src/storage";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
+import { Config, ConfigParam } from "@elf-vault/core/src/config";
 
 export class LevelDBStorageConfig extends Config {
     @ConfigParam()

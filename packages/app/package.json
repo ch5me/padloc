@@ -1,5 +1,5 @@
 {
-    "name": "@padloc/app",
+    "name": "@elf-vault/app",
     "version": "4.3.0",
     "author": "Martin Kleinschrodt <martin@maklesoft.com>",
     "license": "GPL-3.0",
@@ -10,18 +10,13 @@
         "types",
         "tsconfig.json"
     ],
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/padloc/padloc.git",
-        "directory": "packages/app"
-    },
     "engines": {
         "node": "24.x",
         "npm": "11.x"
     },
     "dependencies": {
-        "@padloc/core": "4.3.0",
-        "@padloc/locale": "4.3.0",
+        "@elf-vault/core": "4.3.0",
+        "@elf-vault/locale": "4.3.0",
         "@simplewebauthn/browser": "5.4.0",
         "@simplewebauthn/typescript-types": "5.4.0",
         "@tiptap/core": "2.0.0-beta.182",

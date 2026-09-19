@@ -1,4 +1,4 @@
-import { DeviceInfo, StubPlatform } from "@padloc/core/src/platform";
+import { DeviceInfo, StubPlatform } from "@elf-vault/core/src/platform";
 import { WorkerCryptoProvider } from "./crypto";
 
 export class WorkerPlatform extends StubPlatform {

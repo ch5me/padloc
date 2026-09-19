@@ -1,24 +1,24 @@
-import { css, customElement, html, query, state } from "@padloc/app/src/elements/lit";
-import { View } from "@padloc/app/src/elements/view";
-import { $l } from "@padloc/locale/src/translate";
-import "@padloc/app/src/elements/icon";
-import { StateMixin } from "@padloc/app/src/mixins/state";
-import { Routing } from "@padloc/app/src/mixins/routing";
-import { ListParams, ListResponse } from "@padloc/core/src/api";
-import "@padloc/app/src/elements/scroller";
-import "@padloc/app/src/elements/list";
-import "@padloc/app/src/elements/button";
-import "@padloc/app/src/elements/input";
-import "@padloc/app/src/elements/popover";
-import { Input } from "@padloc/app/src/elements/input";
-import "@padloc/app/src/elements/spinner";
-import { alert } from "@padloc/app/src/lib/dialog";
-import "@padloc/app/src/elements/select";
-import { Select } from "@padloc/app/src/elements/select";
-import { Account } from "@padloc/core/src/account";
-import { singleton } from "@padloc/app/src/lib/singleton";
+import { css, customElement, html, query, state } from "@elf-vault/app/src/elements/lit";
+import { View } from "@elf-vault/app/src/elements/view";
+import { $l } from "@elf-vault/locale/src/translate";
+import "@elf-vault/app/src/elements/icon";
+import { StateMixin } from "@elf-vault/app/src/mixins/state";
+import { Routing } from "@elf-vault/app/src/mixins/routing";
+import { ListParams, ListResponse } from "@elf-vault/core/src/api";
+import "@elf-vault/app/src/elements/scroller";
+import "@elf-vault/app/src/elements/list";
+import "@elf-vault/app/src/elements/button";
+import "@elf-vault/app/src/elements/input";
+import "@elf-vault/app/src/elements/popover";
+import { Input } from "@elf-vault/app/src/elements/input";
+import "@elf-vault/app/src/elements/spinner";
+import { alert } from "@elf-vault/app/src/lib/dialog";
+import "@elf-vault/app/src/elements/select";
+import { Select } from "@elf-vault/app/src/elements/select";
+import { Account } from "@elf-vault/core/src/account";
+import { singleton } from "@elf-vault/app/src/lib/singleton";
 import { AccountDialog } from "./account-dialog";
-import { OrgInfo } from "@padloc/core/src/org";
+import { OrgInfo } from "@elf-vault/core/src/org";
 
 @customElement("pl-admin-accounts")
 export class Accounts extends StateMixin(Routing(View)) {

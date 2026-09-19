@@ -1,7 +1,7 @@
 import { styleMap } from "lit/directives/style-map.js";
-import { hotp } from "@padloc/core/src/otp";
-import { base32ToBytes } from "@padloc/core/src/encoding";
-import { translate as $l } from "@padloc/locale/src/translate";
+import { hotp } from "@elf-vault/core/src/otp";
+import { base32ToBytes } from "@elf-vault/core/src/encoding";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { shared } from "../styles";
 import "./icon";
 import { customElement, property, state } from "lit/decorators.js";

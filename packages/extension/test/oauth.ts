@@ -6,7 +6,7 @@ import sinon from "sinon";
 import { browser } from "webextension-polyfill-ts";
 import { ExtensionPlatform } from "../src/platform";
 import { oauthClient, OauthClient } from "../src/auth/oauth";
-import { ErrorCode } from "@padloc/core/src/error";
+import { ErrorCode } from "@elf-vault/core/src/error";
 
 suite("ExtensionPlatform OAuth", () => {
     let sandbox: sinon.SinonSandbox;

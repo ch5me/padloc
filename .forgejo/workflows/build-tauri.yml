@@ -76,34 +76,34 @@ jobs:
               uses: actions/upload-artifact@v4
               if: matrix.config.os == 'ubuntu-latest'
               with:
-                  name: padloc-linux-${{ github.sha }}-unsigned.AppImage
+                  name: elf-vault-linux-${{ github.sha }}-unsigned.AppImage
                   path: packages/tauri/src-tauri/target/debug/bundle/appimage/padloc*.AppImage
                   if-no-files-found: error
             - name: Archive deb
               uses: actions/upload-artifact@v4
               if: matrix.config.os == 'ubuntu-latest'
               with:
-                  name: padloc-linux-${{ github.sha }}-unsigned.deb
+                  name: elf-vault-linux-${{ github.sha }}-unsigned.deb
                   path: packages/tauri/src-tauri/target/debug/bundle/deb/*.deb
                   if-no-files-found: error
             - name: Archive dmg
               uses: actions/upload-artifact@v4
               if: matrix.config.os == 'macos-arm64'
               with:
-                  name: padloc-macos-${{ matrix.config.arch }}-${{ github.sha }}-unsigned.dmg
+                  name: elf-vault-macos-${{ matrix.config.arch }}-${{ github.sha }}-unsigned.dmg
                   path: packages/tauri/src-tauri/target/debug/bundle/dmg/*.dmg
                   if-no-files-found: error
             - name: Archive app
               uses: actions/upload-artifact@v4
               if: matrix.config.os == 'macos-arm64'
               with:
-                  name: padloc-macos-${{ matrix.config.arch }}-${{ github.sha }}-unsigned.app
+                  name: elf-vault-macos-${{ matrix.config.arch }}-${{ github.sha }}-unsigned.app
                   path: packages/tauri/src-tauri/target/debug/bundle/macos/*.app
                   if-no-files-found: error
             - name: Archive msi
               uses: actions/upload-artifact@v4
               if: matrix.config.os == 'windows-latest'
               with:
-                  name: padloc-windows-${{ github.sha }}-unsigned.msi
+                  name: elf-vault-windows-${{ github.sha }}-unsigned.msi
                   path: packages/tauri/src-tauri/target/debug/bundle/msi/*.msi
                   if-no-files-found: error

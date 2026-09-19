@@ -49,7 +49,7 @@ jobs:
             #   if: github.event.inputs.environment == 'Beta' || github.event.inputs.environment == 'Production'
             #   uses: actions/upload-artifact@v4
             #   with:
-            #       name: padloc-web-extension-${{ github.sha }}-signed.xpi
+            #       name: elf-vault-web-extension-${{ github.sha }}-signed.xpi
             #       path: packages/extension/dist/web-ext-artifacts/*.xpi
             #       if-no-files-found: error
             - name: Archive Unsigned Web Extension (Chrome/Edge/Firefox)
@@ -57,7 +57,7 @@ jobs:
               continue-on-error: true
               uses: actions/upload-artifact@v4
               with:
-                  name: padloc-web-extension-${{ github.sha }}-unsigned.zip
+                  name: elf-vault-web-extension-${{ github.sha }}-unsigned.zip
                   path: packages/extension/padloc.zip
                   if-no-files-found: error
             - name: Sign for Chrome/Edge
@@ -79,7 +79,7 @@ jobs:
                   printf '%s' "$PL_WEB_EXTENSION_CHROME_CRX_PRIVATE_KEY" > "$RUNNER_TEMP/chrome-extension.pem"
                   scripts/package-chrome-crx.sh \
                     --extension-dir packages/extension/dist \
-                    --crx-file packages/extension/padloc-signed.crx \
+                    --crx-file packages/extension/elf-vault-signed.crx \
                     --private-key-file "$RUNNER_TEMP/chrome-extension.pem"
                   echo "signed=true" >> "$output_file"
             - name: Archive Signed Web Extension (Chrome/Edge)
@@ -87,6 +87,6 @@ jobs:
               continue-on-error: true
               uses: actions/upload-artifact@v4
               with:
-                  name: padloc-web-extension-${{ github.sha }}-signed.crx
-                  path: packages/extension/padloc-signed.crx
+                  name: elf-vault-web-extension-${{ github.sha }}-signed.crx
+                  path: packages/extension/elf-vault-signed.crx
                   if-no-files-found: error

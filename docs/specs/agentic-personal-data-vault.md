@@ -227,12 +227,12 @@ keychain helper wraps the profile key, only the envelope crosses native
 transport, and Padloc decrypts after unlock and returns `ImportResult`.
 
 `PadlocBrokerResponse` for authorizing work is the closed discriminated
-union `elf.padloc-broker-response.v2` keyed by `kind`: `status`,
+union `dance.elf.vault.broker-response.v2` keyed by `kind`: `status`,
 `classified`, `plan`, `approval-required`, `granted`, `applied`, `revoked`,
 `privacy-status`, `import-result`, `error`. Required on all variants:
 `schema`, `kind`, `protocolVersion`, `requestId`, `ok`. Exact target is
 required except `status` and `error`. Structured errors use
-`elf.padloc-broker-error.v1` with `code`, `retryable`, optional
+`dance.elf.vault.broker-error.v1` with `code`, `retryable`, optional
 `safeMessage`, and codes `LOCKED`, `DENIED`, `ASK_REQUIRED`,
 `TARGET_MISMATCH`, `STALE`, `UNKNOWN_PRIVACY`, `POTENTIALLY_PRIVATE`,
 `INVALID_REQUEST`, `UNKNOWN_KEY`, `UNSUPPORTED`, `EXPIRED`, `REVOKED`.
@@ -304,7 +304,7 @@ only with a recorded sha256; hash drift fails.
 
 ### Broker variant field tables (C2 remainder)
 
-Every `elf.padloc-broker-response.v2` object is closed. Unknown keys are
+Every `dance.elf.vault.broker-response.v2` object is closed. Unknown keys are
 rejected. No variant may include field values, secrets, keys, or ciphertext
 dumps.
 
@@ -326,7 +326,7 @@ Shared required fields: `schema`, `kind`, `protocolVersion=2`, `requestId`,
 | `revoked` | `target`, `grantId`, `status=revoked` | | |
 | `privacy-status` | `target`, `state`, `observationRevision`, `genericObservation` | | `state` is `unknown`/`clean`/`potentially-private` |
 | `import-result` | `result` | `target` | `result` is `elf.import-result.v1` |
-| `error` | `error` | `target` | `error` is `elf.padloc-broker-error.v1` |
+| `error` | `error` | `target` | `error` is `dance.elf.vault.broker-error.v1` |
 
 Handshake closed shapes:
 
@@ -344,7 +344,7 @@ profile key.
 `elf.import-commit-result.v1` required: `schema`, `kind=import-result`,
 `requestId`, `ok`, `result` (`elf.import-result.v1`).
 
-Handshake errors use `elf.padloc-broker-error.v1`. Canonical fixture
+Handshake errors use `dance.elf.vault.broker-error.v1`. Canonical fixture
 `contract.v1.json` must include one example of every variant and both
 handshake round-trips.
 
@@ -396,12 +396,12 @@ Receipt: `receiptId` string; `status` enum
 string; `modelDisclosure` enum `none`/`approved`; `submittedByExecutor`
 boolean.
 
-Error object: `schema` string constant `elf.padloc-broker-error.v1`; `code`
+Error object: `schema` string constant `dance.elf.vault.broker-error.v1`; `code`
 enum string from the frozen list; `retryable` boolean; `safeMessage` optional
 string.
 
 Handshake failure is not a separate schema. Both `import-begin` and
-`import-commit` failures return `elf.padloc-broker-response.v2` with
+`import-commit` failures return `dance.elf.vault.broker-response.v2` with
 `kind=error`, `ok=false`, required `error`, optional `target`. Success
 responses are the named `import-begin-result` and `import-commit-result`
 objects above, each with `ok=true`. Canonical fixture

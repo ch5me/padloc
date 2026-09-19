@@ -1,7 +1,7 @@
-import { translate as $l } from "@padloc/locale/src/translate";
-import { VaultItemID } from "@padloc/core/src/item";
-import { Attachment } from "@padloc/core/src/attachment";
-import { ErrorCode } from "@padloc/core/src/error";
+import { translate as $l } from "@elf-vault/locale/src/translate";
+import { VaultItemID } from "@elf-vault/core/src/item";
+import { Attachment } from "@elf-vault/core/src/attachment";
+import { ErrorCode } from "@elf-vault/core/src/error";
 import { app } from "../globals";
 import { fileIcon, fileSize } from "../lib/util";
 import { Dialog } from "./dialog";

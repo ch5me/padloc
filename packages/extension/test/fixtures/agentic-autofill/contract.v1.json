@@ -71,7 +71,7 @@
     "formatVersion": 1,
     "ciphertext": "AAECAwQFBgcICQ==",
     "wrappedKey": "CgsMDQ4PEBESExQVFg==",
-    "wrapAlgorithm": "padloc-import-key-v1",
+    "wrapAlgorithm": "elf-vault-import-key-v1",
     "sourceProvenance": {
       "schema": "elf.import-provenance.v1",
       "source": "compatibility-envelope",
@@ -331,7 +331,7 @@
       "kind": "import-begin-result",
       "requestId": "fixture-import-begin-1",
       "ok": true,
-      "wrapAlgorithm": "padloc-import-key-v1",
+      "wrapAlgorithm": "elf-vault-import-key-v1",
       "importPublicKey": "fixture-import-public-key",
       "importKeyId": "fixture-import-key-1",
       "expiresAt": "2026-01-01T00:05:00.000Z"
@@ -359,7 +359,7 @@
         "formatVersion": 1,
         "ciphertext": "AAECAwQFBgcICQ==",
         "wrappedKey": "CgsMDQ4PEBESExQVFg==",
-        "wrapAlgorithm": "padloc-import-key-v1",
+        "wrapAlgorithm": "elf-vault-import-key-v1",
         "sourceProvenance": {
           "schema": "elf.import-provenance.v1",
           "source": "compatibility-envelope",

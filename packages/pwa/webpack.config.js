@@ -76,9 +76,9 @@ module.exports = {
         extensions: [".ts", ".js", ".css", ".svg", ".png", ".jpg"],
         alias: {
             assets: assetsDir,
-            "@padloc/core": resolve(rootDir, "packages/core"),
-            "@padloc/app": resolve(rootDir, "packages/app"),
-            "@padloc/locale": resolve(rootDir, "packages/locale"),
+            "@elf-vault/core": resolve(rootDir, "packages/core"),
+            "@elf-vault/app": resolve(rootDir, "packages/app"),
+            "@elf-vault/locale": resolve(rootDir, "packages/locale"),
         },
     },
     module: {

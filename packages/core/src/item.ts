@@ -1,4 +1,4 @@
-import { translate as $l } from "@padloc/locale/src/translate";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { base32ToBytes, Serializable, AsSerializable, AsDate, Serialize } from "./encoding";
 import { totp } from "./otp";
 import { uuid } from "./util";

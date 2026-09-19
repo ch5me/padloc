@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { suite, test } from "mocha";
-import { AutofillFieldRole, AutofillItemKind, FieldType } from "@padloc/core/src/item";
-import { IMPORT_RESULT_SCHEMA, parseImportResult } from "@padloc/core/src/import-result";
+import { AutofillFieldRole, AutofillItemKind, FieldType } from "@elf-vault/core/src/item";
+import { IMPORT_RESULT_SCHEMA, parseImportResult } from "@elf-vault/core/src/import-result";
 import { import1PuxExport } from "../src/lib/import";
 import { OnePuxExport } from "../src/lib/1pux-parser";
 

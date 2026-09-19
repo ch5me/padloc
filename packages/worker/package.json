@@ -1,13 +1,13 @@
 {
-    "name": "@padloc/worker",
+    "name": "@elf-vault/worker",
     "version": "4.3.0",
     "description": "Padloc Cloudflare Worker backend",
     "private": true,
     "license": "GPLv3",
     "dependencies": {
         "@ch5me/elf-auth-client": "0.3.2",
-        "@padloc/core": "4.3.0",
-        "@padloc/locale": "4.3.0",
+        "@elf-vault/core": "4.3.0",
+        "@elf-vault/locale": "4.3.0",
         "drizzle-orm": "^0.38.0"
     },
     "devDependencies": {
@@ -47,11 +47,6 @@
         "dev:crypto-parity": "wrangler dev test/crypto-parity.worker.ts --local --ip 127.0.0.1 --port 18787",
         "test:hq-instrumentation": "node test/run-hq-instrumentation.mjs",
         "test:hq-local-smoke": "node test/run-hq-local-smoke.mjs"
-    },
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/padloc/padloc.git",
-        "directory": "packages/worker"
     },
     "engines": {
         "node": "24.x",

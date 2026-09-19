@@ -2,7 +2,7 @@ import {
     PasskeyCeremonyBinding,
     PasskeyCeremonyTarget,
     validatePasskeyCeremonyBinding,
-} from "@padloc/core/src/passkey";
+} from "@elf-vault/core/src/passkey";
 
 export interface PasskeyRequestSender {
     url?: string;

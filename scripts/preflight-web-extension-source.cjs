@@ -61,10 +61,10 @@ function resolveImport(fromFile, specifier) {
     }
 
     const aliases = [
-        ["@padloc/app/src/", "packages/app/src/"],
-        ["@padloc/core/src/", "packages/core/src/"],
-        ["@padloc/extension/src/", "packages/extension/src/"],
-        ["@padloc/locale/src/", "packages/locale/src/"],
+        ["@elf-vault/app/src/", "packages/app/src/"],
+        ["@elf-vault/core/src/", "packages/core/src/"],
+        ["@elf-vault/extension/src/", "packages/extension/src/"],
+        ["@elf-vault/locale/src/", "packages/locale/src/"],
     ];
 
     for (const [prefix, target] of aliases) {
@@ -301,14 +301,14 @@ function checkExtensionUiSource() {
     const cdpHelperSource = read("packages/extension/scripts/agentic-extension-cdp.mjs");
     if (
         cdpHelperSource.includes("chrome.storage.local.clear") &&
-        !cdpHelperSource.includes('indexedDB.deleteDatabase("padloc-agentic-passkey-signers")')
+        !cdpHelperSource.includes('indexedDB.deleteDatabase("elf-vault-agentic-passkey-signers")')
     ) {
         failures.push(
             "packages/extension/scripts/agentic-extension-cdp.mjs: clear-storage must also clear passkey signer IndexedDB"
         );
     }
     if (
-        cdpHelperSource.includes('indexedDB.deleteDatabase("padloc-agentic-passkey-signers")') &&
+        cdpHelperSource.includes('indexedDB.deleteDatabase("elf-vault-agentic-passkey-signers")') &&
         !cdpHelperSource.includes("blocked clearing passkey signer store")
     ) {
         failures.push(
@@ -316,7 +316,7 @@ function checkExtensionUiSource() {
         );
     }
     if (
-        cdpHelperSource.includes('indexedDB.deleteDatabase("padloc-agentic-passkey-signers")') &&
+        cdpHelperSource.includes('indexedDB.deleteDatabase("elf-vault-agentic-passkey-signers")') &&
         !cdpHelperSource.includes("passkey signer store still contains keys after clear")
     ) {
         failures.push(
@@ -376,11 +376,11 @@ checkWebAuthnPageSource();
 checkExtensionUiSource();
 
 if (failures.length) {
-    console.error("Padloc extension source preflight failed:");
+    console.error("Elf Vault extension source preflight failed:");
     for (const failure of failures) {
         console.error(`- ${failure}`);
     }
     process.exit(1);
 }
 
-console.log("Padloc extension source preflight passed.");
+console.log("Elf Vault extension source preflight passed.");

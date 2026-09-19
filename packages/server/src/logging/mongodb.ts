@@ -1,5 +1,5 @@
-import { Logger, LogEvent, LoggerListOptions } from "@padloc/core/src/logging";
-import { Context } from "@padloc/core/src/server";
+import { Logger, LogEvent, LoggerListOptions } from "@elf-vault/core/src/logging";
+import { Context } from "@elf-vault/core/src/server";
 import { ObjectId } from "mongodb";
 import { MongoDBStorage } from "../storage/mongodb";
 

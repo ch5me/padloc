@@ -1,6 +1,6 @@
-import { WebPlatform } from "@padloc/app/src/lib/platform";
-import { StartAuthRequestResponse, StartRegisterAuthenticatorResponse } from "@padloc/core/src/api";
-import { AuthClient, AuthType } from "@padloc/core/src/auth";
+import { WebPlatform } from "@elf-vault/app/src/lib/platform";
+import { StartAuthRequestResponse, StartRegisterAuthenticatorResponse } from "@elf-vault/core/src/api";
+import { AuthClient, AuthType } from "@elf-vault/core/src/auth";
 import { ExtensionStorage } from "./storage";
 import { oauthClient } from "./auth/oauth";
 import { webAuthnClient } from "./auth/webauthn";

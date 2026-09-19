@@ -1,5 +1,5 @@
 {
-    "name": "@padloc/cordova",
+    "name": "@elf-vault/cordova",
     "version": "4.3.0",
     "displayName": "Elf Vault",
     "private": true,

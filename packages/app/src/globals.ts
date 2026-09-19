@@ -1,5 +1,5 @@
-import { App } from "@padloc/core/src/app";
-import { getPlatform } from "@padloc/core/src/platform";
+import { App } from "@elf-vault/core/src/app";
+import { getPlatform } from "@elf-vault/core/src/platform";
 import { Router } from "./lib/route";
 import { AjaxSender } from "./lib/ajax";
 

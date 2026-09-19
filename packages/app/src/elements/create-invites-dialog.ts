@@ -1,6 +1,6 @@
-import { translate as $l } from "@padloc/locale/src/translate";
-import { Org } from "@padloc/core/src/org";
-import { Invite } from "@padloc/core/src/invite";
+import { translate as $l } from "@elf-vault/locale/src/translate";
+import { Org } from "@elf-vault/core/src/org";
+import { Invite } from "@elf-vault/core/src/invite";
 import { app } from "../globals";
 import { Input } from "./input";
 import { Dialog } from "./dialog";

@@ -1,4 +1,4 @@
-import { AuthClient, AuthType } from "@padloc/core/src/auth";
+import { AuthClient, AuthType } from "@elf-vault/core/src/auth";
 import {
     startAuthentication,
     startRegistration,
@@ -18,7 +18,7 @@ import {
  * provides the full browser `navigator.credentials` API that WebAuthn
  * requires; MV3 service workers may not support it.
  *
- * Mirrors `@padloc/app/src/lib/auth/webauthn.ts` so that the extension
+ * Mirrors `@elf-vault/app/src/lib/auth/webauthn.ts` so that the extension
  * does not depend on the app package at runtime.
  */
 export class WebAuthnClient implements AuthClient {

@@ -11,22 +11,22 @@ import {
     DeviceInfo,
     supportsPlatformAuthenticator,
     getPlatform,
-} from "@padloc/core/src/platform";
+} from "@elf-vault/core/src/platform";
 import { app, router } from "../globals";
 import { prompt, alert, confirm, choose } from "../lib/dialog";
-import { translate as $l } from "@padloc/locale/src/translate";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { ToggleButton } from "./toggle-button";
 import { customElement, query } from "lit/decorators.js";
 import { shared } from "../styles";
 import { Slider } from "./slider";
-import { UpdateAuthParams } from "@padloc/core/src/api";
+import { UpdateAuthParams } from "@elf-vault/core/src/api";
 import { Routing } from "../mixins/routing";
-import { AuthPurpose, AuthType, AuthenticatorInfo, AuthenticatorStatus } from "@padloc/core/src/auth";
+import { AuthPurpose, AuthType, AuthenticatorInfo, AuthenticatorStatus } from "@elf-vault/core/src/auth";
 import { formatDate, formatDateFromNow, passwordStrength } from "../lib/util";
 import { until } from "lit/directives/until.js";
 import { Button } from "./button";
-import { SessionInfo } from "@padloc/core/src/session";
-import { KeyStoreEntryInfo } from "@padloc/core/src/key-store";
+import { SessionInfo } from "@elf-vault/core/src/session";
+import { KeyStoreEntryInfo } from "@elf-vault/core/src/key-store";
 import { alertDisabledFeature } from "../lib/provisioning";
 import { auditVaults } from "../lib/audit";
 import "./icon";

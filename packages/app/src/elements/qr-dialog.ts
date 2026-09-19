@@ -1,5 +1,5 @@
-import { translate as $l } from "@padloc/locale/src/translate";
-import { scanQR, stopScanQR } from "@padloc/core/src/platform";
+import { translate as $l } from "@elf-vault/locale/src/translate";
+import { scanQR, stopScanQR } from "@elf-vault/core/src/platform";
 import { mixins } from "../styles";
 import { alert } from "../lib/dialog";
 import { Dialog } from "./dialog";

@@ -1,5 +1,5 @@
-import { Storage, Storable, StorableConstructor, StorageListOptions, StorageQuery } from "@padloc/core/src/storage";
-import { Err, ErrorCode } from "@padloc/core/src/error";
+import { Storage, Storable, StorableConstructor, StorageListOptions, StorageQuery } from "@elf-vault/core/src/storage";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
 import localStorage from "localforage";
 
 export class LocalStorage implements Storage {

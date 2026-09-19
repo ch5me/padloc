@@ -9,8 +9,8 @@
  * manifest by default.
  */
 import { D1Storage } from "../src/storage/d1";
-import { Storable } from "@padloc/core/src/storage";
-import { ErrorCode } from "@padloc/core/src/error";
+import { Storable } from "@elf-vault/core/src/storage";
+import { ErrorCode } from "@elf-vault/core/src/error";
 // miniflare and better-sqlite3 types are in storage-contract.d.ts
 /// <reference path="./storage-contract.d.ts" />
 

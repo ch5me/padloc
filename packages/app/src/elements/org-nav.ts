@@ -1,4 +1,4 @@
-import { translate as $l } from "@padloc/locale/src/translate";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { Routing } from "../mixins/routing";
 import { app } from "../globals";
 import { customElement, property, state } from "lit/decorators.js";

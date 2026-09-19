@@ -1,6 +1,6 @@
-import { translate as $l } from "@padloc/locale/src/translate";
-import { ErrorCode } from "@padloc/core/src/error";
-import { Vault } from "@padloc/core/src/vault";
+import { translate as $l } from "@elf-vault/locale/src/translate";
+import { ErrorCode } from "@elf-vault/core/src/error";
+import { Vault } from "@elf-vault/core/src/vault";
 import { app } from "../globals";
 import { shared } from "../styles";
 import { alert } from "../lib/dialog";
@@ -16,7 +16,7 @@ import { customElement, property, state } from "lit/decorators.js";
 import { css, html, LitElement } from "lit";
 import { formatDateFromNow } from "../lib/util";
 import { until } from "lit/directives/until.js";
-import { ProvisioningStatus } from "@padloc/core/src/provisioning";
+import { ProvisioningStatus } from "@elf-vault/core/src/provisioning";
 import "./icon";
 
 const orgPages = [

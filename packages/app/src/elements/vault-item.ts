@@ -1,5 +1,5 @@
-import { Org } from "@padloc/core/src/org";
-import { VaultID } from "@padloc/core/src/vault";
+import { Org } from "@elf-vault/core/src/org";
+import { VaultID } from "@elf-vault/core/src/vault";
 import { html, LitElement } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { shared } from "../styles";

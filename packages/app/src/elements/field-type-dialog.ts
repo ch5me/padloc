@@ -1,5 +1,5 @@
-import { FieldDef, FIELD_DEFS } from "@padloc/core/src/item";
-import { translate as $l } from "@padloc/locale/src/translate";
+import { FieldDef, FIELD_DEFS } from "@elf-vault/core/src/item";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { Dialog } from "./dialog";
 import "./button";
 import "./scroller";

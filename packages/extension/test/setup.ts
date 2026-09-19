@@ -188,7 +188,7 @@ Object.defineProperty(globalThis, "crypto", {
 });
 Object.defineProperty(globalThis, "navigator", {
     configurable: true,
-    value: { userAgent: "Padloc extension unit test", language: "en" },
+    value: { userAgent: "Elf Vault extension unit test", language: "en" },
 });
 
 Object.assign(globalThis as any, {

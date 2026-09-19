@@ -1,6 +1,6 @@
 export const PASSKEY_PROTOCOL_VERSION = 1 as const;
-export const PASSKEY_PAGE_MESSAGE_SOURCE = "padloc-passkey-page";
-export const PASSKEY_EXTENSION_MESSAGE_SOURCE = "padloc-passkey-extension";
+export const PASSKEY_PAGE_MESSAGE_SOURCE = "elf-vault-passkey-page";
+export const PASSKEY_EXTENSION_MESSAGE_SOURCE = "elf-vault-passkey-extension";
 const MAX_PASSKEY_REQUEST_JSON_LENGTH = 256 * 1024;
 export const PASSKEY_MIN_TTL_MS = 1_000;
 export const PASSKEY_MAX_TTL_MS = 120_000;
@@ -8,7 +8,7 @@ export const PASSKEY_MAX_TTL_MS = 120_000;
 export type PasskeyOperation = "create" | "get";
 
 export interface SerializedBuffer {
-    __padlocWebAuthnType: "buffer";
+    __elfVaultWebAuthnType: "buffer";
     base64url: string;
 }
 
@@ -108,12 +108,12 @@ function decodeBase64Url(value: string): ArrayBuffer {
 
 export function serializeWebAuthnValue(value: unknown, seen = new WeakSet<object>()): unknown {
     if (value instanceof ArrayBuffer) {
-        return { __padlocWebAuthnType: "buffer", base64url: encodeBase64Url(new Uint8Array(value)) };
+        return { __elfVaultWebAuthnType: "buffer", base64url: encodeBase64Url(new Uint8Array(value)) };
     }
     if (ArrayBuffer.isView(value)) {
         const view = value as ArrayBufferView;
         return {
-            __padlocWebAuthnType: "buffer",
+            __elfVaultWebAuthnType: "buffer",
             base64url: encodeBase64Url(new Uint8Array(view.buffer, view.byteOffset, view.byteLength)),
         };
     }
@@ -137,7 +137,7 @@ export function deserializeWebAuthnValue(value: unknown): unknown {
     if (Array.isArray(value)) return value.map(deserializeWebAuthnValue);
     if (value && typeof value === "object") {
         const record = value as Record<string, unknown>;
-        if (record.__padlocWebAuthnType === "buffer" && typeof record.base64url === "string") {
+        if (record.__elfVaultWebAuthnType === "buffer" && typeof record.base64url === "string") {
             return decodeBase64Url(record.base64url);
         }
         const deserialized: Record<string, unknown> = {};
@@ -292,7 +292,7 @@ export function isPasskeyResult(value: unknown, requestId?: string): value is Pa
         typeof credential.id === "string" &&
         credential.type === "public-key" &&
         !!credential.rawId &&
-        credential.rawId.__padlocWebAuthnType === "buffer" &&
+        credential.rawId.__elfVaultWebAuthnType === "buffer" &&
         typeof credential.rawId.base64url === "string" &&
         !!credential.response &&
         typeof credential.response === "object"

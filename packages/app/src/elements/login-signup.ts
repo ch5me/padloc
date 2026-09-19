@@ -1,7 +1,7 @@
 import "./password-input";
-import { translate as $l } from "@padloc/locale/src/translate";
-import { ErrorCode } from "@padloc/core/src/error";
-import { AccountStatus, AuthPurpose } from "@padloc/core/src/auth";
+import { translate as $l } from "@elf-vault/locale/src/translate";
+import { ErrorCode } from "@elf-vault/core/src/error";
+import { AccountStatus, AuthPurpose } from "@elf-vault/core/src/auth";
 import { router } from "../globals";
 import { StartForm } from "./start-form";
 import { Input } from "./input";
@@ -10,23 +10,23 @@ import { alert, choose, dialog, prompt, confirm } from "../lib/dialog";
 import "./logo";
 import { customElement, property, query, state } from "lit/decorators.js";
 import { css, html } from "lit";
-import { completeAuthRequest, startAuthRequest } from "@padloc/core/src/platform";
+import { completeAuthRequest, startAuthRequest } from "@elf-vault/core/src/platform";
 import { mixins } from "../styles";
 import { isTouch, passwordStrength } from "../lib/util";
-import { generatePassphrase } from "@padloc/core/src/diceware";
+import { generatePassphrase } from "@elf-vault/core/src/diceware";
 import { GeneratorDialog } from "./generator-dialog";
 import "./scroller";
 import { Drawer } from "./drawer";
-import { AccountProvisioning, ProvisioningStatus } from "@padloc/core/src/provisioning";
+import { AccountProvisioning, ProvisioningStatus } from "@elf-vault/core/src/provisioning";
 import "./rich-content";
 import { displayProvisioning } from "../lib/provisioning";
-import { StartAuthRequestResponse } from "@padloc/core/src/api";
+import { StartAuthRequestResponse } from "@elf-vault/core/src/api";
 import { Confetti } from "./confetti";
 import { singleton } from "../lib/singleton";
-import { PBES2Container } from "@padloc/core/src/container";
+import { PBES2Container } from "@elf-vault/core/src/container";
 import { importLegacyContainer } from "../lib/import";
-import { ACCOUNT_EMAIL_MAX_LENGTH, ACCOUNT_NAME_MAX_LENGTH } from "@padloc/core/src/account";
-import { base64ToString } from "@padloc/core/src/encoding";
+import { ACCOUNT_EMAIL_MAX_LENGTH, ACCOUNT_NAME_MAX_LENGTH } from "@elf-vault/core/src/account";
+import { base64ToString } from "@elf-vault/core/src/encoding";
 
 @customElement("pl-login-signup")
 export class LoginOrSignup extends StartForm {
@@ -584,7 +584,7 @@ export class LoginOrSignup extends StartForm {
         const choice = await alert(
             $l(
                 "You don't have an Elf Vault account yet but we've found " +
-                    "an account from the legacy Padloc 4 version. " +
+                    "an account from the legacy Elf Vault 4 version. " +
                     "Would you like to migrate your account to Elf Vault now?"
             ),
             {

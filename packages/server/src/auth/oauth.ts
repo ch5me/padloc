@@ -1,11 +1,11 @@
-import { Auth } from "@padloc/core/src/auth";
-import { Config, ConfigParam } from "@padloc/core/src/config";
-import { AuthRequest, AuthServer, AuthType, Authenticator } from "@padloc/core/src/auth";
+import { Auth } from "@elf-vault/core/src/auth";
+import { Config, ConfigParam } from "@elf-vault/core/src/config";
+import { AuthRequest, AuthServer, AuthType, Authenticator } from "@elf-vault/core/src/auth";
 import { request } from "../transport/http";
-import { Err, ErrorCode } from "@padloc/core/src/error";
-import { bytesToBase64, stringToBytes } from "@padloc/core/src/encoding";
-import { getCryptoProvider } from "@padloc/core/src/platform";
-import { HashParams } from "@padloc/core/src/crypto";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
+import { bytesToBase64, stringToBytes } from "@elf-vault/core/src/encoding";
+import { getCryptoProvider } from "@elf-vault/core/src/platform";
+import { HashParams } from "@elf-vault/core/src/crypto";
 
 export class OauthConfig extends Config {
     @ConfigParam()

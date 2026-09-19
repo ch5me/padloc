@@ -5,7 +5,7 @@ The Elf Vault Web Client, a
 
 ## Setup
 
-Currently the `@padloc/pwa` package is meant to be used from within the
+Currently the `@elf-vault/pwa` package is meant to be used from within the
 [Elf Vault monorepo](../../README.md). A standalone npm package is coming soon!
 
 ```sh

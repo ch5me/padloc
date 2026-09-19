@@ -1,5 +1,5 @@
-import { AttachmentInfo } from "@padloc/core/src/attachment";
-import { translate as $l } from "@padloc/locale/src/translate";
+import { AttachmentInfo } from "@elf-vault/core/src/attachment";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { fileIcon, fileSize } from "../lib/util";
 import { shared } from "../styles";
 import "./button";

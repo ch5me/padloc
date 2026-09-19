@@ -1,5 +1,5 @@
-import { Tag } from "@padloc/core/src/item";
-import { $l } from "@padloc/locale/src/translate";
+import { Tag } from "@elf-vault/core/src/item";
+import { $l } from "@elf-vault/locale/src/translate";
 import { css, html, LitElement } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
 import { app, router } from "../globals";

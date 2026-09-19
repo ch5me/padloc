@@ -1,6 +1,6 @@
-import { Receiver, Request, Sender, Response as CoreResponse } from "@padloc/core/src/transport";
-import { marshal, unmarshal } from "@padloc/core/src/encoding";
-import { Err, ErrorCode } from "@padloc/core/src/error";
+import { Receiver, Request, Sender, Response as CoreResponse } from "@elf-vault/core/src/transport";
+import { marshal, unmarshal } from "@elf-vault/core/src/encoding";
+import { Err, ErrorCode } from "@elf-vault/core/src/error";
 import { IdempotencyStore, hashRequestBody } from "./idempotency";
 import { sanitizeError } from "./error";
 import { RateLimiter } from "./rate-limiter";

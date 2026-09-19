@@ -4,7 +4,7 @@ import { html, LitElement } from "lit";
 import { StateMixin } from "../mixins/state";
 import { router } from "../globals";
 import { dialog } from "../lib/dialog";
-import { translate as $l } from "@padloc/locale/src/translate";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { customElement, query } from "lit/decorators.js";
 import { shared } from "../styles";
 import { ImportDialog } from "./import-dialog";

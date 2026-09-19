@@ -1,4 +1,4 @@
-import { bytesToBase64 } from "@padloc/core/src/encoding";
+import { bytesToBase64 } from "@elf-vault/core/src/encoding";
 import {
     isFreshPasskeyUserVerification,
     PasskeyCeremonyBinding,
@@ -6,13 +6,13 @@ import {
     PasskeyCredential,
     PasskeyEs256KeyMaterial,
     validatePasskeyCeremonyBinding,
-} from "@padloc/core/src/passkey";
+} from "@elf-vault/core/src/passkey";
 import {
     buildPasskeyAssertionResponse,
     buildPasskeyRegistrationResponse,
     generatePasskeyCredential,
     validateRpIdForOrigin,
-} from "@padloc/core/src/webauthn-authenticator";
+} from "@elf-vault/core/src/webauthn-authenticator";
 import {
     deserializeWebAuthnValue,
     PagePasskeyRequest,
@@ -548,7 +548,7 @@ function requireBytes(value: unknown, name: string, maximumLength?: number): Uin
 }
 
 function serializedBuffer(bytes: Uint8Array): SerializedBuffer {
-    return { __padlocWebAuthnType: "buffer", base64url: bytesToBase64(bytes) };
+    return { __elfVaultWebAuthnType: "buffer", base64url: bytesToBase64(bytes) };
 }
 
 function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {

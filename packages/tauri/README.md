@@ -5,7 +5,7 @@ Native cross-platform app, powered by
 
 ## Setup
 
-The `@padloc/tauri` package is meant to be used from within the
+The `@elf-vault/tauri` package is meant to be used from within the
 [Elf Vault monorepo](../../README.md).
 
 ```sh

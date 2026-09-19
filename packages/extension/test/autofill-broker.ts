@@ -359,7 +359,7 @@ mochaSuite("Autofill broker", () => {
             { policyRevision: 3, revocationGeneration: 4, policyId: "policy_fixture" }
         );
         expect(response).to.deep.include({
-            schema: "elf.padloc-broker-response.v2",
+            schema: "dance.elf.vault.broker-response.v2",
             kind: "approval-required",
             protocolVersion: 2,
             ok: true,

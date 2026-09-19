@@ -14,7 +14,7 @@ Planned generated pages. All listed Markdown files are concept pages with OKF fr
 - `architecture/core-lifecycle.md` — `App`, persisted `AppState`, load/save/reload, lock/unlock, synchronization, and UI readiness invariants.
 - `architecture/authentication.md` — Email, TOTP, WebAuthn/passkey, public-key, OAuth, recovery, provisioning, device trust, session issuance, and authentication-flow tests.
 - `architecture/core-domain-api.md` — Core RPC/API methods and authorization-sensitive account, vault, organization, invite, provisioning, seat, and synchronization behavior.
-- `architecture/localization.md` — `@padloc/locale` runtime translations, extraction, generated artifacts, wordlists, consumers, and drift validation.
+- `architecture/localization.md` — `@elf-vault/locale` runtime translations, extraction, generated artifacts, wordlists, consumers, and drift validation.
 - `architecture/admin-application.md` — Admin application entrypoint, guarded routes, account/org/log surfaces, shared package relationships, and build/runtime checks.
 - `architecture/firefly-integration.md` — Firefly SSO verification and vault-organization seat synchronization, route security, data flow, and ownership boundary.
 - `architecture/worker-composition.md` — Cloudflare Worker entrypoint, lazy server construction, special routes, `server-factory.ts`, and dependency fallbacks.

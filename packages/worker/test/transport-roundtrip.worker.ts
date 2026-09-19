@@ -1,5 +1,5 @@
 import { WorkerReceiver, WorkerReceiverConfig } from "../src/transport";
-import { Request as PlRequest, Response as PlResponse } from "@padloc/core/src/transport";
+import { Request as PlRequest, Response as PlResponse } from "@elf-vault/core/src/transport";
 
 export default {
     async fetch(request: Request, env: any, ctx: ExecutionContext): Promise<Response> {

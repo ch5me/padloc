@@ -5,12 +5,12 @@ import {
     Feature,
     OrgFeature,
     RichContent,
-} from "@padloc/core/src/provisioning";
-import { $l } from "@padloc/locale/src/translate";
+} from "@elf-vault/core/src/provisioning";
+import { $l } from "@elf-vault/locale/src/translate";
 import { html } from "lit";
 import { alert } from "./dialog";
 import "../elements/rich-content";
-import { openExternalUrl } from "@padloc/core/src/platform";
+import { openExternalUrl } from "@elf-vault/core/src/platform";
 
 export function checkFeatureDisabled(feature: Feature): boolean;
 export function checkFeatureDisabled(feature: OrgFeature, isOwner: boolean): boolean;

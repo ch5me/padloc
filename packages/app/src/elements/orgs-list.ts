@@ -1,11 +1,11 @@
-import { translate as $l } from "@padloc/locale/src/translate";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import { StateMixin } from "../mixins/state";
 import { app, router } from "../globals";
 import { View } from "./view";
 import "./icon";
 import { customElement } from "lit/decorators.js";
 import { css, html } from "lit";
-import { ProvisioningStatus } from "@padloc/core/src/provisioning";
+import { ProvisioningStatus } from "@elf-vault/core/src/provisioning";
 
 @customElement("pl-orgs-list")
 export class OrgsList extends StateMixin(View) {

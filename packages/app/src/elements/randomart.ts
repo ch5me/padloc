@@ -1,11 +1,11 @@
-import { randomArt } from "@padloc/core/src/randomart";
-import { getCryptoProvider as getProvider } from "@padloc/core/src/platform";
+import { randomArt } from "@elf-vault/core/src/randomart";
+import { getCryptoProvider as getProvider } from "@elf-vault/core/src/platform";
 import { svg } from "lit";
 import { until } from "lit/directives/until.js";
 import { customElement, property } from "lit/decorators.js";
 import { css, html, LitElement } from "lit";
-import { bytesToHex } from "@padloc/core/src/encoding";
-import { translate as $l } from "@padloc/locale/src/translate";
+import { bytesToHex } from "@elf-vault/core/src/encoding";
+import { translate as $l } from "@elf-vault/locale/src/translate";
 import "./popover";
 import { shared } from "../styles";
 
