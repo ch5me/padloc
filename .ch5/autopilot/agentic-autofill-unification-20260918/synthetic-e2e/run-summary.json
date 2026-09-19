@@ -8,7 +8,7 @@
     "ok": true,
     "schema": "ch5.agentic-autofill.synthetic-e2e.helper.v1",
     "evidenceDir": "/Users/hassoncs/worktrees/ch5/padloc/agentic-autofill-unification-20260918/.ch5/autopilot/agentic-autofill-unification-20260918/synthetic-e2e",
-    "tokenFile": "/var/folders/xv/zrjs1jvj5cdckty3cn9kjt140000gn/T/padloc-agentic-autofill-32098/raw-synthetic-values.json",
+    "tokenFile": "/var/folders/xv/zrjs1jvj5cdckty3cn9kjt140000gn/T/padloc-agentic-autofill-54399/raw-synthetic-values.json",
     "fixtureUrl": "http://127.0.0.1:<ephemeral>/checkout",
     "steps": [
       "extension.setup",
@@ -69,8 +69,8 @@
     ],
     "tokenCount": 2,
     "tokenDigests": [
-      "df5b7acc1b087a58",
-      "ffd0d6d5bdeeafa7"
+      "8c5325b382bddad0",
+      "2d540780504b0f6e"
     ],
     "violations": []
   },

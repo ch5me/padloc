@@ -21,7 +21,7 @@
     "codeReview": "pass-independent-g017e",
     "specConformance": "pass-independent-g017e",
     "ultraqa": "pass",
-    "delivery": "pending-no-ff-main-by-run-policy"
+    "delivery": "pass-ff-main-no-ci-wait"
   },
   "iterations": {
     "clarify": 0,
@@ -50,7 +50,7 @@
     },
     "criticAdapter": "codex-exec-luna-max"
   },
-  "updatedAt": "2026-09-19T06:29:59Z",
+  "updatedAt": "2026-09-19T06:46:36Z",
   "posture": "personal-dev",
   "assuranceCeiling": "runtime_observed",
   "executionAdapter": "codex-exec-luna-max",
@@ -109,10 +109,10 @@
     "magicBrowser": "65f6e688"
   },
   "g009": {
-    "status": "canonical-e2e-pass",
-    "proof": "helper 38 steps; checker ok; run-summary ok=true; violations []",
-    "padloc": "35ca1635",
-    "magicBrowser": "2264cfe2"
+    "status": "canonical-e2e-pass-after-ff-main",
+    "proof": "fresh helper 38 steps; checker ok; violations []",
+    "padloc": "cbd59dd3",
+    "magicBrowser": "224f9197"
   },
   "g010": {
     "status": "implemented-pushed",
