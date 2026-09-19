@@ -284,6 +284,7 @@ export function mintBrokerBundleResponse(
             target: exactTarget(pendingPlan.target),
             grantId: grant.id,
             planId: pendingPlan.planId,
+            bundleId,
             expiresAt: new Date(approval.expiresAt).toISOString(),
             maxUses: permissionRequest.maxUses,
         } as unknown as AutofillBrokerResponse,

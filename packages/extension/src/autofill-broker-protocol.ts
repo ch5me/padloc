@@ -245,6 +245,7 @@ export interface AutofillBrokerGrantedResponseV2 extends AutofillBrokerResponseV
     planId: string;
     expiresAt: string;
     maxUses: number;
+    bundleId?: string;
 }
 
 export interface AutofillBrokerAppliedResponseV2 extends AutofillBrokerResponseV2Base {
@@ -623,7 +624,8 @@ function parseApprovalRequiredResponse(value: Record<string, unknown>): Autofill
 }
 
 function parseGrantedResponse(value: Record<string, unknown>): AutofillBrokerGrantedResponseV2 {
-    expectKeys(value, new Set([...RESPONSE_SHARED_KEYS, "kind", "target", "grantId", "planId", "expiresAt", "maxUses"]));
+    expectKeys(value, new Set([...RESPONSE_SHARED_KEYS, "kind", "target", "grantId", "planId", "expiresAt", "maxUses", "bundleId"]));
+    if (value.bundleId !== undefined && !isNonEmptyString(value.bundleId)) throw invalidResponse();
     if (
         !isExactAutofillBrokerTarget(value.target) ||
         !isNonEmptyString(value.grantId) ||

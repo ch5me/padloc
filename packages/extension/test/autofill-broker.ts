@@ -106,6 +106,7 @@ mochaSuite("Autofill broker", () => {
 
         expect(response.grantId).to.match(/^grant_/);
         expect(response.kind).to.equal("granted");
+        expect(response.bundleId).to.equal(minted.bundleId);
         expect(minted.bundleId).to.match(/^bundle_/);
         expect(JSON.stringify(response)).not.to.contain("sentinel@example.test");
         expect(JSON.stringify(response)).not.to.contain("#email");
