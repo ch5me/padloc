@@ -149,6 +149,9 @@ function cacheRedactedResponse(request) {
     if (!response) {
         return statusResponse(false, "cache-redacted-response requires response");
     }
+    if (response.protocolVersion === 2 && !isClosedBrokerResponseV2(response)) {
+        return statusResponse(false, "refused non-closed broker response");
+    }
     const unsafe = findRawBundleValue(response);
     if (unsafe) {
         return statusResponse(false, "refused non-redacted sensitive payload");
@@ -173,6 +176,9 @@ function cacheRedactedResponse(request) {
 function latestRedactedResponse(request) {
     try {
         const cached = JSON.parse(readFileSync(LATEST_RESPONSE_PATH, "utf8"));
+        if (cached && cached.response && cached.response.protocolVersion === 2 && !isClosedBrokerResponseV2(cached.response)) {
+            return statusResponse(false, "cached response is not a closed broker response");
+        }
         const unsafe = findRawBundleValue(cached);
         if (unsafe) {
             return statusResponse(false, "cached response contains non-redacted sensitive payload");
@@ -248,4 +254,245 @@ function appendAuditRecord(response) {
         valuePolicy: typeof audit.valuePolicy === "string" ? audit.valuePolicy : null,
     };
     writeFileSync(AUDIT_LOG_PATH, `${JSON.stringify(record)}\n`, { flag: "a", mode: 0o600 });
+}
+
+function isClosedBrokerResponseV2(response) {
+    if (!isObject(response)) return false;
+    const shared = ["schema", "kind", "protocolVersion", "requestId", "ok"];
+    if (
+        !hasExactlyKeys(response, shared.concat(["target", "vaultState"])) &&
+        !hasExactlyKeys(response, shared.concat(["vaultState"])) &&
+        !hasExactlyKeys(response, shared.concat(["target", "fields"])) &&
+        !hasExactlyKeys(response, shared.concat(["target", "planId", "fields", "expiresAt"])) &&
+        !hasExactlyKeys(response, shared.concat(["target", "planId", "reasonCode", "mode"])) &&
+        !hasExactlyKeys(response, shared.concat(["target", "grantId", "planId", "expiresAt", "maxUses"])) &&
+        !hasExactlyKeys(response, shared.concat(["target", "grantId", "receipt"])) &&
+        !hasExactlyKeys(response, shared.concat(["target", "grantId", "status"])) &&
+        !hasExactlyKeys(response, shared.concat(["target", "state", "observationRevision", "genericObservation"])) &&
+        !hasExactlyKeys(response, shared.concat(["result", "target"])) &&
+        !hasExactlyKeys(response, shared.concat(["result"])) &&
+        !hasExactlyKeys(response, shared.concat(["error", "target"])) &&
+        !hasExactlyKeys(response, shared.concat(["error"]))
+    ) {
+        return false;
+    }
+    if (
+        response.schema !== "elf.padloc-broker-response.v2" ||
+        response.protocolVersion !== 2 ||
+        typeof response.requestId !== "string" ||
+        typeof response.ok !== "boolean" ||
+        typeof response.kind !== "string"
+    ) {
+        return false;
+    }
+    if (response.target !== undefined && !isExactTarget(response.target)) return false;
+    if (response.kind === "status") return ["locked", "unlocked", "unknown"].includes(response.vaultState);
+    if (response.kind === "classified") {
+        return (
+            Array.isArray(response.fields) &&
+            response.fields.every(
+                (field) => isObject(field) && hasExactlyKeys(field, ["selector", "role", "fieldRef"]) &&
+                    [field.selector, field.role, field.fieldRef].every((value) => typeof value === "string" && value)
+            )
+        );
+    }
+    if (response.kind === "plan") {
+        return (
+            typeof response.planId === "string" &&
+            typeof response.expiresAt === "string" &&
+            Array.isArray(response.fields) &&
+            response.fields.every(
+                (field) =>
+                    isObject(field) &&
+                    hasExactlyKeys(field, ["fieldRef", "role", "sourceRef", "transactionOnly", "releaseClass"]) &&
+                    typeof field.fieldRef === "string" &&
+                    typeof field.role === "string" &&
+                    typeof field.sourceRef === "string" &&
+                    typeof field.transactionOnly === "boolean" &&
+                    ["low", "secret", "high-risk"].includes(field.releaseClass)
+            )
+        );
+    }
+    if (response.kind === "approval-required") {
+        return (
+            typeof response.planId === "string" &&
+            typeof response.reasonCode === "string" &&
+            ["plan", "manual", "auto", "dontAsk"].includes(response.mode)
+        );
+    }
+    if (response.kind === "granted") {
+        return (
+            typeof response.grantId === "string" &&
+            typeof response.planId === "string" &&
+            typeof response.expiresAt === "string" &&
+            Number.isInteger(response.maxUses) &&
+            response.maxUses >= 0
+        );
+    }
+    if (response.kind === "applied") {
+        return typeof response.grantId === "string" && isReceipt(response.receipt);
+    }
+    if (response.kind === "revoked") {
+        return typeof response.grantId === "string" && response.status === "revoked";
+    }
+    if (response.kind === "privacy-status") {
+        return (
+            ["unknown", "clean", "potentially-private"].includes(response.state) &&
+            Number.isInteger(response.observationRevision) &&
+            response.observationRevision >= 0 &&
+            ["allowed", "blocked", "requires-separate-disclosure"].includes(response.genericObservation)
+        );
+    }
+    if (response.kind === "import-result") {
+        return isImportResult(response.result);
+    }
+    if (response.kind === "error") {
+        return isError(response.error);
+    }
+    return false;
+}
+
+function isExactTarget(target) {
+    return (
+        isObject(target) &&
+        hasExactlyKeys(target, [
+            "tabId",
+            "frameId",
+            "origin",
+            "documentId",
+            "formRef",
+            "targetRevision",
+            "sessionId",
+            "topOrigin",
+            "frameOrigin",
+        ]) &&
+        Number.isInteger(target.tabId) &&
+        target.tabId >= 0 &&
+        Number.isInteger(target.frameId) &&
+        target.frameId >= 0 &&
+        [target.origin, target.documentId, target.formRef, target.targetRevision, target.sessionId, target.topOrigin, target.frameOrigin].every(
+            (value) => typeof value === "string" && value
+        )
+    );
+}
+
+function isReceipt(receipt) {
+    return (
+        isObject(receipt) &&
+        hasExactlyKeys(receipt, ["receiptId", "status", "filledFieldRefs", "modelDisclosure", "submittedByExecutor"]) &&
+        typeof receipt.receiptId === "string" &&
+        ["completed", "partial", "revoked", "outcome-unknown"].includes(receipt.status) &&
+        Array.isArray(receipt.filledFieldRefs) &&
+        receipt.filledFieldRefs.every((value) => typeof value === "string" && value) &&
+        ["none", "approved"].includes(receipt.modelDisclosure) &&
+        typeof receipt.submittedByExecutor === "boolean"
+    );
+}
+
+function isError(error) {
+    return (
+        isObject(error) &&
+        (hasExactlyKeys(error, ["schema", "code", "retryable"]) ||
+            hasExactlyKeys(error, ["schema", "code", "retryable", "safeMessage"])) &&
+        error.schema === "elf.padloc-broker-error.v1" &&
+        [
+            "LOCKED",
+            "DENIED",
+            "ASK_REQUIRED",
+            "TARGET_MISMATCH",
+            "STALE",
+            "UNKNOWN_PRIVACY",
+            "POTENTIALLY_PRIVATE",
+            "INVALID_REQUEST",
+            "UNKNOWN_KEY",
+            "UNSUPPORTED",
+            "EXPIRED",
+            "REVOKED",
+        ].includes(error.code) &&
+        typeof error.retryable === "boolean" &&
+        (error.safeMessage === undefined || (typeof error.safeMessage === "string" && error.safeMessage))
+    );
+}
+
+function isImportResult(result) {
+    if (
+        !isObject(result) ||
+        !hasExactlyKeys(result, [
+            "schema",
+            "imported",
+            "normalized",
+            "skipped",
+            "lossy",
+            "provenance",
+            "losses",
+            "sourceIdentifiers",
+        ]) ||
+        result.schema !== "elf.import-result.v1" ||
+        ![result.imported, result.normalized, result.skipped, result.lossy].every(
+            (value) => Number.isInteger(value) && value >= 0
+        ) ||
+        !isImportProvenance(result.provenance) ||
+        !Array.isArray(result.losses) ||
+        !result.losses.every(isImportLoss) ||
+        !Array.isArray(result.sourceIdentifiers) ||
+        !result.sourceIdentifiers.every((value) => typeof value === "string" && value)
+    ) {
+        return false;
+    }
+    return true;
+}
+
+function isImportProvenance(value) {
+    if (!isObject(value)) return false;
+    const keys = ["schema", "source", "sourceId", "importedAt", "importerVersion"];
+    const optionalKeys = keys.concat(["sourceItemId"]);
+    if (!Object.keys(value).every((key) => optionalKeys.includes(key))) return false;
+    return (
+        value.schema === "elf.import-provenance.v1" &&
+        ["1pux", "compatibility-envelope", "create-item", "synthetic"].includes(value.source) &&
+        typeof value.sourceId === "string" &&
+        value.sourceId &&
+        typeof value.importedAt === "string" &&
+        value.importedAt &&
+        typeof value.importerVersion === "string" &&
+        value.importerVersion &&
+        (value.sourceItemId === undefined || value.sourceItemId === null || (typeof value.sourceItemId === "string" && value.sourceItemId))
+    );
+}
+
+function isImportLoss(value) {
+    if (!isObject(value)) return false;
+    const keys = ["schema", "sourceItemId", "category", "outcome", "reasonCode"];
+    const optionalKeys = keys.concat(["note"]);
+    if (!Object.keys(value).every((key) => optionalKeys.includes(key))) return false;
+    return (
+        value.schema === "elf.import-loss.v1" &&
+        typeof value.sourceItemId === "string" &&
+        value.sourceItemId &&
+        ["passkey", "attachment", "document", "history", "sharing", "totp-parameters", "unsupported-field", "trashed", "unknown-kind"].includes(
+            value.category
+        ) &&
+        ["skipped", "lossy-normalized"].includes(value.outcome) &&
+        [
+            "UNSUPPORTED_PASSKEY",
+            "UNSUPPORTED_ATTACHMENT",
+            "UNSUPPORTED_DOCUMENT",
+            "UNSUPPORTED_HISTORY",
+            "UNSUPPORTED_SHARING",
+            "NONEXACT_TOTP_PARAMETERS",
+            "UNSUPPORTED_FIELD",
+            "TRASHED_ITEM",
+            "UNKNOWN_KIND",
+        ].includes(value.reasonCode) &&
+        (value.note === undefined || value.note === null || (typeof value.note === "string" && value.note))
+    );
+}
+
+function hasExactlyKeys(value, keys) {
+    const actual = Object.keys(value);
+    return actual.length === keys.length && actual.every((key) => keys.includes(key));
+}
+
+function isObject(value) {
+    return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }

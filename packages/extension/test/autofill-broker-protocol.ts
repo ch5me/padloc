@@ -6,6 +6,7 @@ import { tmpdir } from "os";
 import { suite, test } from "mocha";
 
 const { buildLockedBrokerResponse, buildUnlockedBrokerStatusResponse } = require("../src/autofill-broker-protocol");
+const protocol = require("../src/autofill-broker-protocol");
 const currentDir = __dirname;
 
 suite("Autofill broker protocol", () => {
@@ -470,6 +471,60 @@ suite("Autofill broker protocol", () => {
         expect(response.cached.response.requestId).to.equal("req-native-1");
         expect(JSON.stringify(response)).not.to.contain("sentinel@example.test");
     });
+
+    test("parses closed v2 privacy and receipt variants and rejects unknown nested keys", () => {
+        const target = exactTarget();
+        const privacy = {
+            schema: "elf.padloc-broker-response.v2",
+            kind: "privacy-status",
+            protocolVersion: 2,
+            requestId: "privacy-1",
+            ok: true,
+            target,
+            state: "clean",
+            observationRevision: 1,
+            genericObservation: "allowed",
+        };
+        expect(protocol.assertAutofillBrokerResponseV2(privacy).kind).to.equal("privacy-status");
+
+        const applied = {
+            schema: "elf.padloc-broker-response.v2",
+            kind: "applied",
+            protocolVersion: 2,
+            requestId: "applied-1",
+            ok: true,
+            target,
+            grantId: "grant-1",
+            receipt: {
+                receiptId: "receipt-1",
+                status: "completed",
+                filledFieldRefs: ["field-1"],
+                modelDisclosure: "none",
+                submittedByExecutor: true,
+            },
+        };
+        expect(protocol.assertAutofillBrokerResponseV2(applied).kind).to.equal("applied");
+        expect(() =>
+            protocol.assertAutofillBrokerResponseV2({
+                ...applied,
+                receipt: { ...applied.receipt, nested: "unknown" },
+            })
+        ).to.throw();
+    });
+
+    test("keeps protocol v1 readable only as non-authorizing compatibility data", () => {
+        const legacy = protocol.parseAutofillBrokerResponse({
+            ok: true,
+            protocolVersion: 1,
+            requestId: "legacy-1",
+            vaultState: "unlocked",
+            reason: null,
+            grantId: "legacy-grant",
+            audit: { operation: "status", valuePolicy: "redacted" },
+        });
+        expect(protocol.isProtocolV1NonAuthorizing(legacy)).to.equal(true);
+        expect(legacy.authorizing).to.equal(false);
+    });
 });
 
 function nativeHostRequest(hostPath: string, request: unknown, stateDir: string) {
@@ -517,4 +572,18 @@ function readNativeResponses(
         });
         child.once("error", reject);
     });
+}
+
+function exactTarget() {
+    return {
+        tabId: 7,
+        frameId: 0,
+        origin: "https://checkout.example.test",
+        documentId: "document-1",
+        formRef: "form-1",
+        targetRevision: "revision-1",
+        sessionId: "session-1",
+        topOrigin: "https://checkout.example.test",
+        frameOrigin: "https://checkout.example.test",
+    };
 }

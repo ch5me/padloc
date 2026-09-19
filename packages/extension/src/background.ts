@@ -10,12 +10,17 @@ import { FetchSender } from "./fetch-sender";
 import { AgenticAutofillApprovalPrompt, CredentialData, Message, SavePrompt, messageTab } from "./message";
 import { clearSessionMasterKey, configureSessionStorage, getSessionMasterKey } from "./storage";
 import {
+    AUTOFILL_BROKER_RESPONSE_SCHEMA,
     AutofillBrokerInspectedField,
     AutofillBrokerObservationState,
     AutofillBrokerRequest,
     AutofillBrokerResponse,
     AutofillBrokerTarget,
+    ExactAutofillBrokerTarget,
+    buildV2ErrorResponse,
     buildLockedBrokerResponse,
+    assertAutofillBrokerResponseV2,
+    isExactAutofillBrokerTarget,
 } from "./autofill-broker-protocol";
 import {
     applyBrokerBundleResponse,
@@ -62,6 +67,13 @@ import {
     setAutofillApprovalMode,
 } from "./autofill-permission-store";
 import { AutofillObservationLedger } from "./autofill-observation-policy";
+import {
+    beginCompatibilityImport,
+    commitCompatibilityImport,
+    ImportKeyCustody,
+    parseImportBeginRequest,
+    parseImportCommitRequest,
+} from "./autofill-compatibility-migration";
 
 setPlatform(new ExtensionWorkerPlatform());
 
@@ -85,6 +97,7 @@ const pendingAutofillApprovals = new Map<string, BrokerApproval>();
 const pendingAutofillBundles = new Map<string, PendingBrokerBundle>();
 const pendingAutofillPromptNonces = new Map<string, { nonce: string; senderUrl: string }>();
 const pendingAutofillPromptPlanIds = new Set<string>();
+const pendingAutofillImportKeys = new Map<string, { importKeyId: string; consentNonce: string; expiresAt: string }>();
 const autofillPermissionRepository = new AutofillPermissionRepository(browser.storage.local);
 const autofillObservationLedger = new AutofillObservationLedger(fixtureSessionStorage());
 let fixtureAutofillItems: Array<{ item: VaultItem }> = [];
@@ -94,6 +107,29 @@ type FixtureSessionStorage = {
     get(key: string): Promise<Record<string, unknown>>;
     set(items: Record<string, unknown>): Promise<void>;
     remove(keys: string | string[]): Promise<void>;
+};
+
+const autofillImportCustody: ImportKeyCustody = {
+    async begin(consentNonce, requestId) {
+        const importKeyId = `import-key_${randomApprovalPromptNonce()}`;
+        const expiresAt = new Date(Date.now() + 60_000).toISOString();
+        pendingAutofillImportKeys.set(importKeyId, { importKeyId, consentNonce, expiresAt });
+        const publicKeyBytes = crypto.getRandomValues(new Uint8Array(32));
+        return {
+            importKeyId,
+            expiresAt,
+            importPublicKey: `${requestId}.${bytesToBase64(publicKeyBytes)}`,
+        };
+    },
+    async commit(envelope, key) {
+        const pending = pendingAutofillImportKeys.get(key.importKeyId);
+        if (!pending || pending.consentNonce !== key.consentNonce || pending.expiresAt <= new Date().toISOString()) {
+            throw new Error("Import key custody is unavailable");
+        }
+        if (envelope.consentNonce !== key.consentNonce) throw new Error("Import consent nonce mismatch");
+        pendingAutofillImportKeys.delete(key.importKeyId);
+        throw new Error("Encrypted profile decryption is unavailable in this executor");
+    },
 };
 
 function fixtureSessionStorage(): FixtureSessionStorage {
@@ -1295,6 +1331,73 @@ async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, appli
         return { type: "agenticAutofillBrokerResponse", response: await buildPrivacyStatusResponse(request) };
     }
 
+    if (request.type === "autofill-observation-reset") {
+        if (request.protocolVersion !== 2 || !request.target || !isExactAutofillBrokerTarget(request.target)) {
+            throw new Error("Autofill observation reset requires an exact target descriptor");
+        }
+        const tab = await browser.tabs.get(request.target.tabId);
+        if (!tab.url || exactHttpOrigin(tab.url) !== request.target.topOrigin) {
+            throw new Error("Autofill observation reset target changed");
+        }
+        const status = await autofillObservationLedger.reset(request.target);
+        return {
+            type: "agenticAutofillBrokerResponse",
+            response: {
+                schema: AUTOFILL_BROKER_RESPONSE_SCHEMA,
+                kind: "privacy-status",
+                protocolVersion: 2,
+                requestId: request.requestId || "missing-request-id",
+                ok: true,
+                target: request.target,
+                state: status.state,
+                observationRevision: status.observationRevision || 0,
+                genericObservation: status.genericObservation,
+            } as unknown as AutofillBrokerResponse,
+        };
+    }
+
+    if (request.type === "import-begin" || request.type === "import-commit") {
+        if (request.protocolVersion !== 2) throw new Error("Compatibility import requires protocol v2");
+        if (request.type === "import-begin") {
+            const begun = await beginCompatibilityImport(
+                parseImportBeginRequest({
+                    schema: "elf.import-begin-request.v1",
+                    operation: "import-begin",
+                    requestId: request.requestId || "missing-request-id",
+                    consentNonce: request.consentNonce,
+                }),
+                autofillImportCustody
+            );
+            return {
+                type: "agenticAutofillBrokerResponse",
+                response: begun as unknown as AutofillBrokerResponse,
+            };
+        }
+        const envelopeRequest = parseImportCommitRequest({
+            schema: "elf.import-commit-request.v1",
+            operation: "import-commit",
+            requestId: request.requestId || "missing-request-id",
+            envelope: request.envelope,
+        });
+        const envelopeKey = envelopeRequest.envelope.consentNonce;
+        const pendingKey = Array.from(pendingAutofillImportKeys.values()).find(
+            (candidate) => candidate.consentNonce === envelopeKey
+        );
+        if (!pendingKey) throw new Error("Import key custody is unavailable");
+        const result = await commitCompatibilityImport(envelopeRequest, autofillImportCustody, pendingKey);
+        return {
+            type: "agenticAutofillBrokerResponse",
+            response: {
+                schema: AUTOFILL_BROKER_RESPONSE_SCHEMA,
+                kind: "import-result",
+                protocolVersion: 2,
+                requestId: request.requestId || "missing-request-id",
+                ok: true,
+                result,
+            } as unknown as AutofillBrokerResponse,
+        };
+    }
+
     if (application.state.locked || !application.state.loggedIn) {
         return {
             type: "agenticAutofillBrokerResponse",
@@ -1319,11 +1422,51 @@ async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, appli
             inspection.fields,
             { userId: application.account.id, sessionId: application.session.id }
         );
+        if (request.type === "classify") {
+            pendingAutofillPlans.delete(pendingPlan.planId);
+            const classified =
+                request.protocolVersion === 2
+                    ? ({
+                          schema: AUTOFILL_BROKER_RESPONSE_SCHEMA,
+                          kind: "classified",
+                          protocolVersion: 2,
+                          requestId: request.requestId || "missing-request-id",
+                          ok: true,
+                          target: exactTargetForBackground(pendingPlan.target),
+                          fields: inspection.fields,
+                      } as unknown as AutofillBrokerResponse)
+                    : response;
+            void publishRedactedBrokerResponse(classified);
+            return { type: "agenticAutofillBrokerResponse", response: classified };
+        }
         pendingAutofillPlans.set(pendingPlan.planId, pendingPlan);
         const permissionState = await autofillPermissionRepository.load(application.account.id);
         const authorityDecision = decideAutofillPlanAuthority(permissionState, pendingPlan);
         if (request.type === "permissions-explain") {
             pendingAutofillPlans.delete(pendingPlan.planId);
+            if (request.protocolVersion === 2) {
+                const explained = authorityDecision.outcome === "deny"
+                    ? buildV2ErrorResponse(
+                          request.requestId || "missing-request-id",
+                          "DENIED",
+                          false,
+                          authorityDecision.reasonCode,
+                          exactTargetForBackground(pendingPlan.target)
+                      )
+                    : ({
+                          schema: AUTOFILL_BROKER_RESPONSE_SCHEMA,
+                          kind: "approval-required",
+                          protocolVersion: 2,
+                          requestId: request.requestId || "missing-request-id",
+                          ok: true,
+                          target: exactTargetForBackground(pendingPlan.target),
+                          planId: pendingPlan.planId,
+                          reasonCode: authorityDecision.reasonCode,
+                          mode: permissionState.mode,
+                      } as unknown as AutofillBrokerResponse);
+                void publishRedactedBrokerResponse(explained);
+                return { type: "agenticAutofillBrokerResponse", response: explained };
+            }
             const explained: AutofillBrokerResponse = {
                 ...response,
                 ok: authorityDecision.outcome === "allow" || authorityDecision.outcome === "plan",
@@ -1381,6 +1524,10 @@ async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, appli
             );
             pendingAutofillApprovals.set(approval.approvalId, approval);
             const authorized = { ...response, approvalId: approval.approvalId, expiresAt: approvalResponse.expiresAt };
+            if (request.protocolVersion === 2) {
+                void publishRedactedBrokerResponse(approvalResponse);
+                return { type: "agenticAutofillBrokerResponse", response: approvalResponse };
+            }
             void publishRedactedBrokerResponse(authorized);
             return { type: "agenticAutofillBrokerResponse", response: authorized };
         }
@@ -1390,12 +1537,32 @@ async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, appli
     }
 
     if (request.type === "approve") {
-        throw new Error("Autofill approval requires Elf Vault approval UI");
+        const plan = request.planId ? pendingAutofillPlans.get(request.planId) : null;
+        if (!plan) throw new Error("Autofill approval plan not found");
+        const authority = application.account
+            ? await autofillPermissionRepository.load(application.account.id)
+            : { revision: 0, revocationGeneration: 0 };
+        const { response, approval } = approveBrokerPlanResponse(
+            request,
+            plan,
+            Date.now(),
+            {
+                policyRevision: authority.revision,
+                revocationGeneration: authority.revocationGeneration,
+            }
+        );
+        pendingAutofillApprovals.set(approval.approvalId, approval);
+        void publishRedactedBrokerResponse(response);
+        return { type: "agenticAutofillBrokerResponse", response };
     }
 
     if (request.type === "mint-fill-bundle") {
         const plan = request.planId ? pendingAutofillPlans.get(request.planId) : null;
-        const approval = request.approvalId ? pendingAutofillApprovals.get(request.approvalId) : null;
+        const approval =
+            (request.approvalId ? pendingAutofillApprovals.get(request.approvalId) : null) ||
+            (request.protocolVersion === 2
+                ? Array.from(pendingAutofillApprovals.values()).find((candidate) => candidate.planId === request.planId) || null
+                : null);
         if (!plan) throw new Error("Autofill bundle plan not found");
         if (!approval) throw new Error("Autofill bundle approval not found");
         const { response, bundle } = mintBrokerBundleResponse(request, plan, approval);
@@ -1439,6 +1606,15 @@ function buildAutofillPolicyDecisionResponse(
     reasonCode: string,
     policyId?: string
 ): AutofillBrokerResponse {
+    if (request.protocolVersion === 2) {
+        return buildV2ErrorResponse(
+            request.requestId || "missing-request-id",
+            reasonCode === "ASK_MISSING_AUTHORITY" ? "ASK_REQUIRED" : "DENIED",
+            reasonCode === "ASK_MISSING_AUTHORITY",
+            reason,
+            exactTargetForBackground(plan.target)
+        ) as unknown as AutofillBrokerResponse;
+    }
     return {
         ok: false,
         protocolVersion: 1,
@@ -1467,6 +1643,34 @@ function buildAutofillPolicyDecisionResponse(
 }
 
 async function buildPrivacyStatusResponse(request: AutofillBrokerRequest): Promise<AutofillBrokerResponse> {
+    if (request.protocolVersion === 2) {
+        const target = request.target;
+        if (!target || !isExactAutofillBrokerTarget(target)) {
+            throw new Error("Autofill privacy-status requires an exact target descriptor");
+        }
+        if (request.binding && request.binding.sessionId !== target.sessionId) {
+            throw new Error("Autofill privacy-status session binding mismatch");
+        }
+        if (request.binding && request.binding.origin !== target.origin) {
+            throw new Error("Autofill privacy-status origin binding mismatch");
+        }
+        const tab = await browser.tabs.get(target.tabId);
+        if (!tab.url || exactHttpOrigin(tab.url) !== target.topOrigin) {
+            throw new Error("Autofill privacy-status top-level target changed");
+        }
+        const observation = await autofillObservationLedger.status(target);
+        return {
+            schema: AUTOFILL_BROKER_RESPONSE_SCHEMA,
+            kind: "privacy-status",
+            protocolVersion: 2,
+            requestId: request.requestId || "missing-request-id",
+            ok: true,
+            target,
+            state: observation.state,
+            observationRevision: observation.observationRevision || 0,
+            genericObservation: observation.genericObservation,
+        } as unknown as AutofillBrokerResponse;
+    }
     const tab = await getActiveTab();
     const topOrigin = tab?.url ? exactHttpOrigin(tab.url) : null;
     const frameId = parseBrokerFrameId(request.binding?.frameId);
@@ -1595,9 +1799,11 @@ async function inspectAgenticBrowserTarget(request: AutofillBrokerRequest): Prom
     const target: AutofillBrokerTarget = {
         tabId: tab.id,
         frameId,
+        origin: inspection.frameOrigin,
         documentId: inspection.documentId,
         formRef: inspection.formRef,
         targetRevision: inspection.targetRevision,
+        sessionId: request.binding.sessionId,
         topOrigin,
         frameOrigin: inspection.frameOrigin,
     };
@@ -1661,10 +1867,9 @@ async function executeBrokerBundle(
         bundle.target.frameId,
         bundle.target.documentId
     );
-    return {
-        ...applyBrokerBundleResponse(request, bundle, filledFieldRefs, status, startedAt),
-        observation,
-    };
+    const applied = applyBrokerBundleResponse(request, bundle, filledFieldRefs, status, startedAt);
+    if (request.protocolVersion === 2) return applied;
+    return { ...applied, observation };
 }
 
 async function assertBrokerTargetCurrent(
@@ -1689,6 +1894,7 @@ async function assertBrokerTargetCurrent(
         inspection.formRef !== bundle.target.formRef ||
         inspection.targetRevision !== bundle.target.targetRevision ||
         inspection.frameOrigin !== bundle.target.frameOrigin ||
+        (bundle.target.origin && inspection.frameOrigin !== bundle.target.origin) ||
         JSON.stringify(inspection.fields) !== JSON.stringify(approvedFields)
     ) {
         throw new Error("Autofill target changed after approval");
@@ -1721,6 +1927,11 @@ function exactHttpOrigin(value: string): string | null {
     } catch {
         return null;
     }
+}
+
+function exactTargetForBackground(target: AutofillBrokerTarget): ExactAutofillBrokerTarget {
+    if (!isExactAutofillBrokerTarget(target)) throw new Error("Autofill exact target binding is required");
+    return target;
 }
 
 function isAgenticInspectionResult(value: unknown): value is {
@@ -1771,20 +1982,31 @@ async function processPendingNativeBrokerRequest(application: App): Promise<void
         await handleAgenticAutofillBroker(request as AutofillBrokerRequest, application);
     } catch (error) {
         const failedRequest = request as AutofillBrokerRequest;
-        await publishRedactedBrokerResponse({
-            ok: false,
-            protocolVersion: 1,
-            requestId: typeof failedRequest.requestId === "string" ? failedRequest.requestId : undefined,
-            vaultState: application.state.locked ? "locked" : "unknown",
-            reason: error instanceof Error ? error.message : "Elf Vault native broker request failed",
-            audit: {
-                operation: failedRequest.type || "status",
-                sessionId: failedRequest.binding?.sessionId || null,
-                origin: failedRequest.binding?.origin || null,
-                fieldCount: failedRequest.fields?.length || 0,
-                valuePolicy: "redacted audit only; no raw autofill values or passkey secrets",
-            },
-        });
+        const response =
+            failedRequest.protocolVersion === 2
+                ? buildV2ErrorResponse(
+                      typeof failedRequest.requestId === "string"
+                          ? failedRequest.requestId
+                          : "missing-request-id",
+                      "INVALID_REQUEST",
+                      true,
+                      "Elf Vault native broker request failed"
+                  )
+                : {
+                      ok: false,
+                      protocolVersion: 1,
+                      requestId: typeof failedRequest.requestId === "string" ? failedRequest.requestId : undefined,
+                      vaultState: application.state.locked ? "locked" : "unknown",
+                      reason: error instanceof Error ? error.message : "Elf Vault native broker request failed",
+                      audit: {
+                          operation: failedRequest.type || "status",
+                          sessionId: failedRequest.binding?.sessionId || null,
+                          origin: failedRequest.binding?.origin || null,
+                          fieldCount: failedRequest.fields?.length || 0,
+                          valuePolicy: "redacted audit only; no raw autofill values or passkey secrets",
+                      },
+                  };
+        await publishRedactedBrokerResponse(response);
     }
 }
 
@@ -1799,6 +2021,13 @@ brokerGlobal.padlocAgenticAutofillBroker = async (request: AutofillBrokerRequest
 
 async function publishRedactedBrokerResponse(response: unknown): Promise<void> {
     try {
+        if (
+            response &&
+            typeof response === "object" &&
+            (response as { protocolVersion?: unknown }).protocolVersion === 2
+        ) {
+            assertAutofillBrokerResponseV2(response);
+        }
         await browser.runtime.sendNativeMessage("me.ch5.padloc", {
             type: "cache-redacted-response",
             protocolVersion: 1,

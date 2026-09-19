@@ -94,4 +94,32 @@ suite("Autofill classifier", () => {
     test("ignores hidden fields", () => {
         expect(classifyAutofillField(field({ type: "hidden", name: "email" }))).to.equal(null);
     });
+
+    test("covers government, financial, and login URL roles", () => {
+        expect(classifyAutofillField(field({ name: "ssn" }))).to.equal(AutofillFieldRole.GovernmentSsn);
+        expect(classifyAutofillField(field({ name: "passport number" }))).to.equal(
+            AutofillFieldRole.GovernmentPassportNumber
+        );
+        expect(classifyAutofillField(field({ name: "driver license number" }))).to.equal(
+            AutofillFieldRole.GovernmentDriversLicenseNumber
+        );
+        expect(classifyAutofillField(field({ name: "national id" }))).to.equal(
+            AutofillFieldRole.GovernmentNationalId
+        );
+        expect(classifyAutofillField(field({ name: "account number" }))).to.equal(
+            AutofillFieldRole.FinancialAccountNumber
+        );
+        expect(classifyAutofillField(field({ name: "routing number" }))).to.equal(
+            AutofillFieldRole.FinancialRoutingNumber
+        );
+        expect(classifyAutofillField(field({ name: "iban" }))).to.equal(AutofillFieldRole.FinancialIban);
+        expect(classifyAutofillField(field({ name: "bic" }))).to.equal(AutofillFieldRole.FinancialBic);
+        expect(classifyAutofillField(field({ type: "url", autocomplete: "url" }))).to.equal(
+            AutofillFieldRole.LoginUrl
+        );
+    });
+
+    test("fails closed for ambiguous username/email metadata", () => {
+        expect(classifyAutofillField(field({ name: "username email" }))).to.equal(null);
+    });
 });

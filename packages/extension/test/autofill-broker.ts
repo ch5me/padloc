@@ -112,6 +112,33 @@ mochaSuite("Autofill broker", () => {
         expect(bundle.grantRecord.reservations["attempt-1"]).to.equal("executing");
     });
 
+    mochaTest("requires reservation before resolving and never resolves two values concurrently", async () => {
+        const { pendingPlan } = makePlan();
+        const { approval } = approve(pendingPlan);
+        const { bundle: minted } = mintBrokerBundleResponse(
+            {
+                type: "mint-fill-bundle",
+                protocolVersion: 1,
+                planId: pendingPlan.planId,
+                approvalId: approval.approvalId,
+            },
+            pendingPlan,
+            approval,
+            time("12:00:02")
+        );
+        let rejected = false;
+        try {
+            await resolveBrokerBundleFieldValue(minted, minted.fields[0].fieldRef, items());
+        } catch {
+            rejected = true;
+        }
+        expect(rejected).to.equal(true);
+        const first = reserveBrokerBundleFieldUse(minted, minted.fields[0].fieldRef, "attempt-1", time("12:00:03"));
+        expect(() =>
+            reserveBrokerBundleFieldUse(first, minted.fields[1].fieldRef, "attempt-2", time("12:00:03"))
+        ).to.throw();
+    });
+
     mochaTest("rechecks use limits for every field and returns receipt-only completion", async () => {
         const { pendingPlan } = makePlan();
         const { approval } = approve(pendingPlan);

@@ -34,6 +34,37 @@ suite("Autofill observation policy", () => {
         await ledger.clearTab(42);
         expect(await ledger.status(42, 0, "document-1")).to.include({ state: "unknown" });
     });
+
+    test("trusted reset creates clean state, then private writes are irreversible", async () => {
+        const ledger = new AutofillObservationLedger(new MemoryStorage());
+        const clean = await ledger.reset(target);
+        expect(clean).to.include({ state: "clean", genericObservation: "allowed", observationRevision: 1 });
+        await ledger.markPotentiallyPrivate(target, "field-email", now);
+        expect(await ledger.status(target)).to.include({
+            state: "potentially-private",
+            genericObservation: "blocked",
+            observationRevision: 2,
+        });
+        let rejected = false;
+        try {
+            await ledger.reset(target);
+        } catch {
+            rejected = true;
+        }
+        expect(rejected).to.equal(true);
+    });
+
+    test("rejects a reset for a stale form or target revision", async () => {
+        const ledger = new AutofillObservationLedger(new MemoryStorage());
+        await ledger.reset(target);
+        let rejected = false;
+        try {
+            await ledger.reset({ ...target, targetRevision: "stale-revision" });
+        } catch {
+            rejected = true;
+        }
+        expect(rejected).to.equal(true);
+    });
 });
 
 const now = Date.parse("2026-09-18T12:00:00.000Z");
