@@ -366,6 +366,20 @@ mochaSuite("Autofill broker", () => {
         expect(response).not.to.have.property("approvalId");
         expect(approval.authorityPolicyId).to.equal("policy_fixture");
     });
+
+    mochaTest("extension UI approve response can carry an opaque approvalId", () => {
+        const { pendingPlan } = makePlan();
+        const { response, approval } = approveBrokerPlanResponse(
+            { type: "approve", protocolVersion: 2, planId: pendingPlan.planId, approved: true },
+            pendingPlan,
+            time("12:00:01")
+        );
+        const uiResponse = { ...response, approvalId: approval.approvalId };
+        expect(uiResponse.approvalId).to.equal(approval.approvalId);
+        expect(uiResponse).to.include({ kind: "approval-required", ok: true, planId: pendingPlan.planId });
+        expect(uiResponse).not.to.have.property("approved");
+        expect(uiResponse).not.to.have.property("ttlSeconds");
+    });
 });
 
 const request = {

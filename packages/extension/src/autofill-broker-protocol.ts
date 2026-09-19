@@ -235,6 +235,7 @@ export interface AutofillBrokerApprovalRequiredResponseV2 extends AutofillBroker
     planId: string;
     reasonCode: string;
     mode: "plan" | "manual" | "auto" | "dontAsk";
+    approvalId?: string;
 }
 
 export interface AutofillBrokerGrantedResponseV2 extends AutofillBrokerResponseV2Base {
@@ -608,7 +609,8 @@ function parsePlanResponse(value: Record<string, unknown>): AutofillBrokerPlanRe
 }
 
 function parseApprovalRequiredResponse(value: Record<string, unknown>): AutofillBrokerApprovalRequiredResponseV2 {
-    expectKeys(value, new Set([...RESPONSE_SHARED_KEYS, "kind", "target", "planId", "reasonCode", "mode"]));
+    expectKeys(value, new Set([...RESPONSE_SHARED_KEYS, "kind", "target", "planId", "reasonCode", "mode", "approvalId"]));
+    if (value.approvalId !== undefined && !isNonEmptyString(value.approvalId)) throw invalidResponse();
     if (
         !isExactAutofillBrokerTarget(value.target) ||
         !isNonEmptyString(value.planId) ||

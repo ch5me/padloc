@@ -1215,8 +1215,12 @@ async function handleApproveAgenticAutofill(
         }
     );
     pendingAutofillApprovals.set(approval.approvalId, approval);
-    void publishRedactedBrokerResponse(response);
-    return { type: "agenticAutofillBrokerResponse", response };
+    const uiResponse = {
+        ...response,
+        approvalId: approval.approvalId,
+    } as typeof response;
+    void publishRedactedBrokerResponse(uiResponse);
+    return { type: "agenticAutofillBrokerResponse", response: uiResponse };
 }
 
 async function handleDismissAgenticAutofill(
