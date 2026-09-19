@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { AutofillObservationLedger } from "../src/autofill-observation-policy";
+import { AutofillObservationLedger, resolveInspectedResetTarget } from "../src/autofill-observation-policy";
 
 suite("Autofill observation policy", () => {
     test("marks a document potentially private before any generic observation", async () => {
@@ -73,6 +73,77 @@ suite("Autofill observation policy", () => {
             await ledger.reset({ ...target, documentId: "invented-document" }, target);
         } catch {
             rejected = true;
+        }
+        expect(rejected).to.equal(true);
+    });
+
+    test("keeps claimed form identity when inspected documentId matches", () => {
+        const documentLevelHash = "hash(document-1\\0document)";
+        const resolved = resolveInspectedResetTarget(
+            target,
+            {
+                documentId: target.documentId,
+                formRef: documentLevelHash,
+                targetRevision: documentLevelHash,
+                frameOrigin: target.frameOrigin,
+            },
+            { tabId: target.tabId, incognito: false, topOrigin: target.topOrigin }
+        );
+        expect(resolved.formRef).to.equal(target.formRef);
+        expect(resolved.targetRevision).to.equal(target.targetRevision);
+        expect(resolved.documentId).to.equal(target.documentId);
+        expect(resolved.frameOrigin).to.equal(target.frameOrigin);
+    });
+
+    test("rejects inspected reset for an invented documentId", () => {
+        let rejected = false;
+        try {
+            resolveInspectedResetTarget(
+                target,
+                {
+                    documentId: "invented-document",
+                    formRef: "form-1",
+                    targetRevision: "revision-1",
+                    frameOrigin: target.frameOrigin,
+                },
+                { tabId: target.tabId, incognito: false, topOrigin: target.topOrigin }
+            );
+        } catch (error) {
+            rejected = error instanceof Error && error.message.includes("invented document");
+        }
+        expect(rejected).to.equal(true);
+    });
+
+    test("rejects inspected reset for a private tab", () => {
+        let rejected = false;
+        try {
+            resolveInspectedResetTarget(
+                target,
+                {
+                    documentId: target.documentId,
+                    frameOrigin: target.frameOrigin,
+                },
+                { tabId: target.tabId, incognito: true, topOrigin: target.topOrigin }
+            );
+        } catch (error) {
+            rejected = error instanceof Error && error.message.includes("private tabs");
+        }
+        expect(rejected).to.equal(true);
+    });
+
+    test("rejects inspected reset when the tab origin does not match", () => {
+        let rejected = false;
+        try {
+            resolveInspectedResetTarget(
+                target,
+                {
+                    documentId: target.documentId,
+                    frameOrigin: target.frameOrigin,
+                },
+                { tabId: target.tabId, incognito: false, topOrigin: "https://other.example" }
+            );
+        } catch (error) {
+            rejected = error instanceof Error && error.message.includes("origin does not match");
         }
         expect(rejected).to.equal(true);
     });

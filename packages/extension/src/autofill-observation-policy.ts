@@ -225,6 +225,56 @@ function migrateLegacyEntry(value: unknown): ObservationEntry | null {
     };
 }
 
+export interface InspectedResetDocument {
+    documentId?: string;
+    formRef?: string;
+    targetRevision?: string;
+    frameOrigin?: string;
+}
+
+export interface InspectedResetTabFacts {
+    tabId: number;
+    incognito: boolean;
+    topOrigin: string;
+}
+
+/**
+ * Trusted reset may confirm the live document, but it must not replace a
+ * form-level identity with document-level hashes from inspectAgenticBrowserTarget.
+ */
+export function resolveInspectedResetTarget(
+    claimed: AutofillBrokerTarget,
+    inspection: InspectedResetDocument | null | undefined,
+    tab: InspectedResetTabFacts
+): AutofillBrokerTarget {
+    if (tab.incognito) {
+        throw new Error("Autofill observation reset refuses private tabs");
+    }
+    if (!tab.topOrigin || tab.topOrigin !== claimed.topOrigin) {
+        throw new Error("Autofill observation reset origin does not match the browser tab");
+    }
+    if (!inspection || !inspection.documentId || !inspection.frameOrigin) {
+        throw new Error("Autofill observation reset inspection failed closed");
+    }
+    if (inspection.documentId !== claimed.documentId) {
+        throw new Error("Autofill observation reset cannot mint clean for an invented document");
+    }
+    if (inspection.frameOrigin !== claimed.frameOrigin) {
+        throw new Error("Autofill observation reset frame origin mismatch");
+    }
+    return {
+        tabId: tab.tabId,
+        frameId: claimed.frameId,
+        origin: inspection.frameOrigin,
+        documentId: inspection.documentId,
+        formRef: claimed.formRef,
+        targetRevision: claimed.targetRevision,
+        sessionId: claimed.sessionId,
+        topOrigin: tab.topOrigin,
+        frameOrigin: inspection.frameOrigin,
+    };
+}
+
 function documentKey(tabId: number, frameId: number, documentId: string): string {
     return `${tabId}:${frameId}:${documentId}`;
 }

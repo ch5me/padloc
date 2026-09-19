@@ -66,7 +66,7 @@ import {
     revokeAutofillPolicy,
     setAutofillApprovalMode,
 } from "./autofill-permission-store";
-import { AutofillObservationLedger } from "./autofill-observation-policy";
+import { AutofillObservationLedger, resolveInspectedResetTarget } from "./autofill-observation-policy";
 import {
     beginCompatibilityImport,
     commitCompatibilityImport,
@@ -1784,36 +1784,16 @@ function fixtureBrokerItem(fixture: { itemName: string; username: string; passwo
 async function inspectAgenticBrowserTargetForReset(claimed: AutofillBrokerTarget): Promise<AutofillBrokerTarget> {
     const tab = await browser.tabs.get(claimed.tabId);
     if (!tab || tab.id === undefined || !tab.url) throw new Error("Autofill browser target unavailable");
-    if (tab.incognito) throw new Error("Autofill observation reset refuses private tabs");
-    const topOrigin = exactHttpOrigin(tab.url);
-    if (!topOrigin || topOrigin !== claimed.topOrigin) {
-        throw new Error("Autofill observation reset origin does not match the browser tab");
-    }
     const inspection = (await browser.tabs.sendMessage(
         tab.id,
         { type: "inspectAgenticBrowserTarget" },
         { frameId: claimed.frameId }
     )) as { documentId?: string; formRef?: string; targetRevision?: string; frameOrigin?: string } | null;
-    if (!inspection || !inspection.documentId || !inspection.frameOrigin) {
-        throw new Error("Autofill observation reset inspection failed closed");
-    }
-    if (inspection.documentId !== claimed.documentId) {
-        throw new Error("Autofill observation reset cannot mint clean for an invented document");
-    }
-    if (inspection.frameOrigin !== claimed.frameOrigin) {
-        throw new Error("Autofill observation reset frame origin mismatch");
-    }
-    return {
+    return resolveInspectedResetTarget(claimed, inspection, {
         tabId: tab.id,
-        frameId: claimed.frameId,
-        origin: inspection.frameOrigin,
-        documentId: inspection.documentId,
-        formRef: inspection.formRef || claimed.formRef,
-        targetRevision: inspection.targetRevision || claimed.targetRevision,
-        sessionId: claimed.sessionId,
-        topOrigin,
-        frameOrigin: inspection.frameOrigin,
-    };
+        incognito: Boolean(tab.incognito),
+        topOrigin: exactHttpOrigin(tab.url) || "",
+    });
 }
 
 async function inspectAgenticBrowserTarget(request: AutofillBrokerRequest): Promise<{
