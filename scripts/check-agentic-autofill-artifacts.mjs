@@ -105,7 +105,7 @@ function checkRedactedSummary() {
     .filter(Boolean);
   const requiredSteps = [
     "extension.setup",
-    "padloc.unlock-and-seed",
+    "vault.unlock-and-seed",
     "bootstrap.clean-required",
     "broker.classified",
     "broker.plan",
@@ -116,8 +116,8 @@ function checkRedactedSummary() {
     "proof.redacted",
     "broker.revoked",
     "broker.stale-grant-blocked",
-    "padloc.locked",
-    "padloc.service-worker-restart",
+    "vault.locked",
+    "vault.service-worker-restart",
     "broker.restart-stale-blocked",
   ];
   const seen = new Set(events.map((event) => event.step));
