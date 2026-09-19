@@ -7,6 +7,7 @@ export const AUTOFILL_BROKER_ERROR_SCHEMA = "dance.elf.vault.broker-error.v1" as
 
 export type AutofillBrokerOperation =
     | "status"
+    | "inspect-target"
     | "classify"
     | "plan-fill"
     | "approve"
@@ -45,6 +46,7 @@ export interface AutofillBrokerRequest {
     protocolVersion: 1 | 2;
     requestId?: string;
     binding?: AutofillBrokerBinding;
+    inspectTarget?: AutofillBrokerTargetInspection;
     fields?: Array<{
         selector: string;
         label?: string;
@@ -82,6 +84,26 @@ export interface AutofillBrokerTarget {
     sessionId: string;
     topOrigin: string;
     frameOrigin: string;
+}
+
+export interface AutofillBrokerTargetInspection {
+    tabId: number;
+    frameId: number;
+    sessionId: string;
+    topOrigin: string;
+}
+
+export interface AutofillBrokerTargetInspectionMetadata {
+    documentId: string;
+    formRef: string;
+    targetRevision: string;
+    frameOrigin: string;
+}
+
+export interface AutofillBrokerTargetInspectionTab {
+    id?: number;
+    url?: string;
+    incognito?: boolean;
 }
 
 export interface ExactAutofillBrokerTarget {
@@ -307,6 +329,8 @@ const TARGET_KEYS = new Set([
     "topOrigin",
     "frameOrigin",
 ]);
+const TARGET_INSPECTION_KEYS = new Set(["tabId", "frameId", "sessionId", "topOrigin"]);
+const TARGET_INSPECTION_METADATA_KEYS = new Set(["documentId", "formRef", "targetRevision", "frameOrigin"]);
 const INSPECTED_FIELD_KEYS = new Set(["selector", "role", "fieldRef"]);
 const PLAN_FIELD_KEYS = new Set(["fieldRef", "role", "sourceRef", "transactionOnly", "releaseClass"]);
 const RECEIPT_KEYS = new Set(["receiptId", "status", "filledFieldRefs", "modelDisclosure", "submittedByExecutor"]);
@@ -480,6 +504,74 @@ export function isExactAutofillBrokerTarget(value: unknown): value is ExactAutof
         isExactHttpOrigin(value.frameOrigin) &&
         value.origin === value.frameOrigin
     );
+}
+
+export function isExactAutofillBrokerTargetInspection(
+    value: unknown
+): value is AutofillBrokerTargetInspection {
+    if (!isRecord(value) || !hasExactlyKeys(value, TARGET_INSPECTION_KEYS)) return false;
+    return (
+        isNonNegativeInteger(value.tabId) &&
+        isNonNegativeInteger(value.frameId) &&
+        isNonEmptyString(value.sessionId) &&
+        isExactHttpOrigin(value.topOrigin)
+    );
+}
+
+export function isExactAutofillBrokerTargetInspectionMetadata(
+    value: unknown
+): value is AutofillBrokerTargetInspectionMetadata {
+    if (!isRecord(value) || !hasExactlyKeys(value, TARGET_INSPECTION_METADATA_KEYS)) return false;
+    return (
+        isNonEmptyString(value.documentId) &&
+        isNonEmptyString(value.formRef) &&
+        isNonEmptyString(value.targetRevision) &&
+        isExactHttpOrigin(value.frameOrigin)
+    );
+}
+
+export function validateAutofillBrokerTargetInspectionTab(
+    inspection: AutofillBrokerTargetInspection,
+    tab: AutofillBrokerTargetInspectionTab | null | undefined
+): void {
+    if (!isExactAutofillBrokerTargetInspection(inspection)) throw new Error("Autofill target inspection is invalid");
+    if (!tab || tab.id !== inspection.tabId) throw new Error("Autofill browser target tab mismatch");
+    if (tab.incognito) throw new Error("Autofill browser target cannot be incognito");
+    if (!tab.url) throw new Error("Autofill browser target unavailable");
+    let tabOrigin: string;
+    try {
+        const url = new URL(tab.url);
+        if (url.protocol !== "https:" && url.protocol !== "http:") throw new Error("unsupported origin");
+        tabOrigin = url.origin;
+    } catch {
+        throw new Error("Autofill browser target top-level origin changed");
+    }
+    if (tabOrigin !== inspection.topOrigin) {
+        throw new Error("Autofill browser target top-level origin changed");
+    }
+}
+
+export function assembleAutofillBrokerTarget(
+    inspection: AutofillBrokerTargetInspection,
+    metadata: AutofillBrokerTargetInspectionMetadata
+): ExactAutofillBrokerTarget {
+    if (
+        !isExactAutofillBrokerTargetInspection(inspection) ||
+        !isExactAutofillBrokerTargetInspectionMetadata(metadata)
+    ) {
+        throw invalidResponse();
+    }
+    return {
+        tabId: inspection.tabId,
+        frameId: inspection.frameId,
+        origin: metadata.frameOrigin,
+        documentId: metadata.documentId,
+        formRef: metadata.formRef,
+        targetRevision: metadata.targetRevision,
+        sessionId: inspection.sessionId,
+        topOrigin: inspection.topOrigin,
+        frameOrigin: metadata.frameOrigin,
+    };
 }
 
 export function parseAutofillBrokerResponse(value: unknown): AutofillBrokerResponseV2 | AutofillBrokerResponse {

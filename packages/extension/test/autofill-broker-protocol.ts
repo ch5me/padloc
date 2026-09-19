@@ -10,6 +10,130 @@ const protocol = require("../src/autofill-broker-protocol");
 const currentDir = __dirname;
 
 suite("Autofill broker protocol", () => {
+    test("accepts an exact metadata-only target inspection request and assembles its target", () => {
+        const inspection = {
+            tabId: 7,
+            frameId: 2,
+            sessionId: "session-inspect",
+            topOrigin: "https://checkout.example.test",
+        };
+        const metadata = {
+            documentId: "document-1",
+            formRef: "form-1",
+            targetRevision: "revision-1",
+            frameOrigin: "https://checkout.example.test",
+        };
+
+        expect(protocol.isExactAutofillBrokerTargetInspection(inspection)).to.equal(true);
+        expect(
+            protocol.isExactAutofillBrokerTargetInspectionMetadata(metadata)
+        ).to.equal(true);
+        expect(() =>
+            protocol.validateAutofillBrokerTargetInspectionTab(inspection, {
+                id: 7,
+                url: "https://checkout.example.test/cart",
+                incognito: false,
+            })
+        ).not.to.throw();
+        const target = protocol.assembleAutofillBrokerTarget(inspection, metadata);
+        expect(target).to.deep.equal({
+            tabId: 7,
+            frameId: 2,
+            origin: "https://checkout.example.test",
+            documentId: "document-1",
+            formRef: "form-1",
+            targetRevision: "revision-1",
+            sessionId: "session-inspect",
+            topOrigin: "https://checkout.example.test",
+            frameOrigin: "https://checkout.example.test",
+        });
+        expect(
+            protocol.assertAutofillBrokerResponseV2({
+                schema: "elf.padloc-broker-response.v2",
+                kind: "status",
+                protocolVersion: 2,
+                requestId: "inspect-response",
+                ok: true,
+                vaultState: "locked",
+                target,
+            }).kind
+        ).to.equal("status");
+    });
+
+    test("rejects target inspection input that is not the closed metadata shape", () => {
+        expect(
+            protocol.isExactAutofillBrokerTargetInspection({
+                tabId: 7,
+                frameId: 0,
+                sessionId: "session-inspect",
+                topOrigin: "https://checkout.example.test",
+                origin: "https://checkout.example.test",
+            })
+        ).to.equal(false);
+        expect(
+            protocol.isExactAutofillBrokerTargetInspection({
+                tabId: 7,
+                frameId: 0,
+                sessionId: "session-inspect",
+                topOrigin: "chrome://settings",
+            })
+        ).to.equal(false);
+        expect(() =>
+            protocol.validateAutofillBrokerTargetInspectionTab(
+                {
+                    tabId: 7,
+                    frameId: 0,
+                    sessionId: "session-inspect",
+                    topOrigin: "https://checkout.example.test",
+                },
+                { id: 8, url: "https://checkout.example.test/cart", incognito: false }
+            )
+        ).to.throw("tab mismatch");
+        expect(() =>
+            protocol.validateAutofillBrokerTargetInspectionTab(
+                {
+                    tabId: 7,
+                    frameId: 0,
+                    sessionId: "session-inspect",
+                    topOrigin: "https://checkout.example.test",
+                },
+                { id: 7, url: "https://checkout.example.test/cart", incognito: true }
+            )
+        ).to.throw("incognito");
+        expect(() =>
+            protocol.validateAutofillBrokerTargetInspectionTab(
+                {
+                    tabId: 7,
+                    frameId: 0,
+                    sessionId: "session-inspect",
+                    topOrigin: "https://checkout.example.test",
+                },
+                { id: 7, url: "https://other.example.test/cart", incognito: false }
+            )
+        ).to.throw("origin changed");
+    });
+
+    test("routes target inspection through the exact tab and frame without active-tab lookup or privacy ledger work", () => {
+        const source = readFileSync(resolve(currentDir, "../src/background.ts"), "utf8");
+        const inspectStart = source.indexOf('if (request.type === "inspect-target")');
+        const lockGuard = source.indexOf(
+            "if (application.state.locked || !application.state.loggedIn)",
+            inspectStart
+        );
+        const statusBranch = source.indexOf('if (request.type === "status")', inspectStart);
+        expect(inspectStart).to.be.greaterThan(-1);
+        expect(lockGuard).to.be.greaterThan(inspectStart);
+        expect(statusBranch).to.be.greaterThan(inspectStart);
+        const inspectBlock = source.slice(inspectStart, statusBranch);
+        expect(inspectBlock).to.contain("browser.tabs.get(inspection.tabId)");
+        expect(inspectBlock).to.contain("browser.tabs.sendMessage(");
+        expect(inspectBlock).to.contain("frameId: inspection.frameId");
+        expect(inspectBlock).to.contain('{ type: "inspectAgenticBrowserTarget" }');
+        expect(inspectBlock).not.to.contain("getActiveTab");
+        expect(inspectBlock).not.to.contain("tabs.query");
+        expect(inspectBlock).not.to.contain("autofillObservationLedger");
+    });
+
     test("builds redacted locked response", () => {
         const response = buildLockedBrokerResponse({
             type: "plan-fill",

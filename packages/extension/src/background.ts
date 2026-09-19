@@ -17,10 +17,14 @@ import {
     AutofillBrokerResponse,
     AutofillBrokerTarget,
     ExactAutofillBrokerTarget,
+    assembleAutofillBrokerTarget,
     buildV2ErrorResponse,
     buildLockedBrokerResponse,
     assertAutofillBrokerResponseV2,
     isExactAutofillBrokerTarget,
+    isExactAutofillBrokerTargetInspection,
+    isExactAutofillBrokerTargetInspectionMetadata,
+    validateAutofillBrokerTargetInspectionTab,
 } from "./autofill-broker-protocol";
 import {
     applyBrokerBundleResponse,
@@ -1329,6 +1333,44 @@ async function handleAgenticAutofillBroker(request: AutofillBrokerRequest, appli
         )
     ) {
         throw new Error(`Autofill ${request.type} requires protocol v2`);
+    }
+
+    if (request.type === "inspect-target") {
+        if (
+            request.protocolVersion !== 2 ||
+            !request.inspectTarget ||
+            !isExactAutofillBrokerTargetInspection(request.inspectTarget)
+        ) {
+            throw new Error("Autofill target inspection requires an exact metadata-only target");
+        }
+        const inspection = request.inspectTarget;
+        const tab = await browser.tabs.get(inspection.tabId);
+        validateAutofillBrokerTargetInspectionTab(inspection, tab);
+        const metadata = (await browser.tabs.sendMessage(
+            inspection.tabId,
+            { type: "inspectAgenticBrowserTarget" },
+            { frameId: inspection.frameId }
+        )) as unknown;
+        if (!isExactAutofillBrokerTargetInspectionMetadata(metadata)) {
+            throw new Error("Autofill browser target inspection failed closed");
+        }
+        const target = assembleAutofillBrokerTarget(inspection, metadata);
+        return {
+            type: "agenticAutofillBrokerResponse",
+            response: {
+                schema: AUTOFILL_BROKER_RESPONSE_SCHEMA,
+                kind: "status",
+                protocolVersion: 2,
+                requestId: request.requestId || "missing-request-id",
+                ok: true,
+                vaultState: application.state.locked
+                    ? "locked"
+                    : application.state.loggedIn
+                    ? "unlocked"
+                    : "unknown",
+                target,
+            } as unknown as AutofillBrokerResponse,
+        };
     }
 
     if (request.type === "status") {
