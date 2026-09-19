@@ -6,9 +6,9 @@ import { spawnSync } from "node:child_process";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 
-const padlocRoot = resolve(new URL("..", import.meta.url).pathname);
+const vaultRoot = resolve(new URL("..", import.meta.url).pathname);
 const evidenceDir = join(
-  padlocRoot,
+  vaultRoot,
   ".ch5",
   "autopilot",
   "agentic-autofill-unification-20260918",
@@ -17,9 +17,9 @@ const evidenceDir = join(
 const args = parseArgs(process.argv.slice(2));
 const magicBrowserRoot = resolve(required(args, "magic-browser-tree"));
 const helperPath = join(magicBrowserRoot, "scripts", "synthetic-agentic-autofill-e2e.mjs");
-const checkerPath = join(padlocRoot, "scripts", "check-agentic-autofill-artifacts.mjs");
-const padlocFixture = join(
-  padlocRoot,
+const checkerPath = join(vaultRoot, "scripts", "check-agentic-autofill-artifacts.mjs");
+const vaultFixture = join(
+  vaultRoot,
   "scripts",
   "fixtures",
   "agentic-autofill",
@@ -32,7 +32,7 @@ const magicBrowserFixture = join(
   "agentic-autofill",
   "synthetic-login.html",
 );
-const tempDir = join(tmpdir(), `padloc-agentic-autofill-${process.pid}`);
+const tempDir = join(tmpdir(), `elf-vault-agentic-autofill-${process.pid}`);
 const runnerEvents = [];
 let tokenFile;
 
@@ -44,7 +44,7 @@ try {
   mkdirSync(evidenceDir, { recursive: true, mode: 0o700 });
   mkdirSync(tempDir, { recursive: true, mode: 0o700 });
 
-  const fixtureHash = assertFixtureParity(padlocFixture, magicBrowserFixture);
+  const fixtureHash = assertFixtureParity(vaultFixture, magicBrowserFixture);
   const apiUrl = ensureApi();
   record("api.ready", { apiUrl, fixtureHash });
 
@@ -52,7 +52,7 @@ try {
     process.execPath,
     ["scripts/build-web-extension.cjs"],
     {
-      cwd: padlocRoot,
+      cwd: vaultRoot,
       env: {
         ...process.env,
         PL_SERVER_URL: apiUrl,
@@ -60,15 +60,15 @@ try {
       },
     },
   );
-  if (build.status !== 0) throw new Error("Padloc synthetic extension build failed");
+  if (build.status !== 0) throw new Error("Elf Vault synthetic extension build failed");
   record("extension.build", { exitCode: build.status });
 
   const helper = run(
     process.execPath,
     [
       helperPath,
-      "--padloc-root",
-      padlocRoot,
+      "--elf-vault-root",
+      vaultRoot,
       "--evidence-dir",
       evidenceDir,
       "--token-file",
@@ -77,6 +77,7 @@ try {
       apiUrl,
       "--fixture",
       magicBrowserFixture,
+      ...(args.headed === "true" ? ["--headed", "true"] : []),
     ],
     {
       cwd: magicBrowserRoot,
@@ -165,9 +166,9 @@ try {
 }
 
 function ensureApi() {
-  const up = run("ch5-svc", ["up", "api"], { cwd: padlocRoot });
+  const up = run("ch5-svc", ["up", "api"], { cwd: vaultRoot });
   if (up.status !== 0) throw new Error("ch5-svc could not start the local API");
-  const status = run("ch5-svc", ["status", "--json"], { cwd: padlocRoot });
+  const status = run("ch5-svc", ["status", "--json"], { cwd: vaultRoot });
   if (status.status !== 0) throw new Error("ch5-svc status failed");
   const parsed = parseJsonOutput(status.stdout);
   const api = parsed?.daemons?.find((daemon) => daemon.name === "api");
@@ -199,7 +200,7 @@ function runChecker(checkerPathValue, rawTokenPath, channelFiles) {
       "--argv-file",
       channelFiles.helperArgv,
     ],
-    { cwd: padlocRoot },
+    { cwd: vaultRoot },
   );
 }
 
@@ -243,7 +244,7 @@ function record(step, details) {
 
 function run(command, commandArgs, options = {}) {
   const result = spawnSync(command, commandArgs, {
-    cwd: options.cwd || padlocRoot,
+    cwd: options.cwd || vaultRoot,
     env: options.env || process.env,
     encoding: "utf8",
     maxBuffer: 1024 * 1024 * 20,
