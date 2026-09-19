@@ -3,5 +3,8 @@
   "description": "Elf Vault autofill broker",
   "path": "/usr/local/bin/dance.elf.vault",
   "type": "stdio",
-  "allowed_origins": ["chrome-extension://gncmiloofnlojbhlckjniipiglejppho/"]
+  "allowed_origins": [
+    "chrome-extension://gncmiloofnlojbhlckjniipiglejppho/",
+    "chrome-extension://fnpommfpaajmhbmbcfokeaokcgpjghhd/"
+  ]
 }
