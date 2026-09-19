@@ -146,6 +146,10 @@ function brokerResponse(request) {
     if (requestId && latest.cached.response.requestId !== requestId) {
         return statusResponse(false, "broker response not ready", { requestId, pending: true });
     }
+    const inner = latest.cached.response;
+    if (inner && inner.protocolVersion === 2) {
+        return inner;
+    }
     return latest;
 }
 
@@ -269,8 +273,8 @@ function isClosedBrokerResponseV2(response) {
         !hasExactlyKeys(response, shared.concat(["vaultState"])) &&
         !hasExactlyKeys(response, shared.concat(["target", "fields"])) &&
         !hasExactlyKeys(response, shared.concat(["target", "planId", "fields", "expiresAt"])) &&
-        !hasExactlyKeys(response, shared.concat(["target", "planId", "reasonCode", "mode"])) &&
-        !hasExactlyKeys(response, shared.concat(["target", "grantId", "planId", "expiresAt", "maxUses"])) &&
+        !hasAllowedKeys(response, shared.concat(["target", "planId", "reasonCode", "mode"]), ["approvalId"]) &&
+        !hasAllowedKeys(response, shared.concat(["target", "grantId", "planId", "expiresAt", "maxUses"]), ["bundleId"]) &&
         !hasExactlyKeys(response, shared.concat(["target", "grantId", "receipt"])) &&
         !hasExactlyKeys(response, shared.concat(["target", "grantId", "status"])) &&
         !hasExactlyKeys(response, shared.concat(["target", "state", "observationRevision", "genericObservation"])) &&
@@ -496,6 +500,12 @@ function isImportLoss(value) {
 function hasExactlyKeys(value, keys) {
     const actual = Object.keys(value);
     return actual.length === keys.length && actual.every((key) => keys.includes(key));
+}
+
+function hasAllowedKeys(value, required, optional = []) {
+    const allowed = new Set([...(required || []), ...(optional || [])]);
+    const actual = Object.keys(value);
+    return required.every((key) => key in value) && actual.every((key) => allowed.has(key));
 }
 
 function isObject(value) {

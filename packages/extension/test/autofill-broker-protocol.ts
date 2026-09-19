@@ -472,6 +472,49 @@ suite("Autofill broker protocol", () => {
         expect(JSON.stringify(response)).not.to.contain("sentinel@example.test");
     });
 
+    test("native host forwards cached protocol-v2 privacy-status from broker-response", () => {
+        const stateDir = mkdtempSync(`${tmpdir()}/padloc-bridge-v2-privacy-`);
+        const hostPath = resolve(currentDir, "../native-host/padloc-autofill-host.mjs");
+        const target = {
+            tabId: 1,
+            frameId: 0,
+            origin: "https://checkout.example.test",
+            documentId: "document-1",
+            formRef: "form-1",
+            targetRevision: "revision-1",
+            sessionId: "session-1",
+            topOrigin: "https://checkout.example.test",
+            frameOrigin: "https://checkout.example.test",
+        };
+        const privacy = {
+            schema: "elf.padloc-broker-response.v2",
+            kind: "privacy-status",
+            protocolVersion: 2,
+            requestId: "privacy-native-1",
+            ok: true,
+            target,
+            state: "unknown",
+            observationRevision: 0,
+            genericObservation: "requires-separate-disclosure",
+        };
+        const cached = nativeHostRequest(
+            hostPath,
+            { type: "cache-redacted-response", protocolVersion: 1, response: privacy },
+            stateDir
+        );
+        const response = nativeHostRequest(
+            hostPath,
+            { type: "broker-response", protocolVersion: 1, requestId: "privacy-native-1" },
+            stateDir
+        );
+        expect(cached.ok).to.equal(true);
+        expect(response.kind).to.equal("privacy-status");
+        expect(response.protocolVersion).to.equal(2);
+        expect(response.state).to.equal("unknown");
+        expect(response).not.to.have.property("vaultState");
+        expect(response).not.to.have.property("audit");
+    });
+
     test("parses closed v2 privacy and receipt variants and rejects unknown nested keys", () => {
         const target = exactTarget();
         const privacy = {
