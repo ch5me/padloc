@@ -50,7 +50,7 @@
     },
     "criticAdapter": "codex-exec-luna-max"
   },
-  "updatedAt": "2026-09-18T23:26:29.739+00:00",
+  "updatedAt": "2026-09-19T01:25:36Z",
   "posture": "personal-dev",
   "assuranceCeiling": "runtime_observed",
   "executionAdapter": "codex-exec-luna-max",
@@ -62,7 +62,7 @@
   "planRevision": 5,
   "architectR5Verdict": "approve",
   "readyNodeIds": [
-    "G001"
+    "G008"
   ],
   "g001": {
     "status": "implemented-local-tests-pass",
@@ -80,5 +80,33 @@
   "g003": {
     "status": "implemented-local-tests-pass",
     "proof": "30 mocha tests passing"
+  },
+  "executionStatusPath": ".ch5/autopilot/agentic-autofill-unification-20260918/execution-status.md",
+  "omxRunId": "run-20260919T004500Z-db581607",
+  "g005": {
+    "status": "implemented-local-tests-pass",
+    "proof": "49 mocha tests passing",
+    "sha": "090dae97"
+  },
+  "g007": {
+    "status": "implemented-local-tests-pass-pushed",
+    "proof": "44 bun tests pass",
+    "sha": "eb6ec79d",
+    "branch": "grove/agentic-autofill-unification-20260918/magic-browser"
+  },
+  "remainingPackets": [
+    "g006-prompt.md",
+    "g008-prompt.md",
+    "g009-prompt.md",
+    "g010-prompt.md"
+  ],
+  "nativeSubagentNote": "this-session-has-spawn_agent; previous-run used codex-exec because native tools were unavailable",
+  "g006": {
+    "status": "implemented-local-tests-pass-pushed",
+    "proof": "23 bun tests pass",
+    "sha": "18e55e76"
+  },
+  "g008": {
+    "status": "dispatching"
   }
 }
