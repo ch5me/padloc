@@ -1,0 +1,22 @@
+{
+  "schema": "ch5.agentic-autofill.synthetic-e2e.artifact-check.v1",
+  "ok": true,
+  "evidenceDir": ".ch5/autopilot/agentic-autofill-unification-20260918/synthetic-e2e",
+  "scannedFiles": 13,
+  "artifactFiles": 7,
+  "channels": [
+    "stdout",
+    "stderr",
+    "logs",
+    "argv",
+    "screenshots",
+    "artifacts",
+    "receipts"
+  ],
+  "tokenCount": 2,
+  "tokenDigests": [
+    "df5b7acc1b087a58",
+    "ffd0d6d5bdeeafa7"
+  ],
+  "violations": []
+}

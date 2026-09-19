@@ -1,0 +1,11 @@
+{
+  "schema": "ch5.autopilot.code-review.v1",
+  "runId": "agentic-autofill-unification-20260918",
+  "reviewedAt": "2026-09-19T06:27:20Z",
+  "subject": {"padloc":"35ca1635","magicBrowser":"2264cfe2"},
+  "independence": "sol-high-g017e-excerpt-code-reviewer",
+  "recommendation": "APPROVE",
+  "architectStatus": "CLEAR",
+  "architectureInvariantGate": {"status":"passed","invariants":[]},
+  "findings": []
+}

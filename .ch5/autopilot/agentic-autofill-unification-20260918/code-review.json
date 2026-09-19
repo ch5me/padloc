@@ -1,0 +1,169 @@
+{
+  "schema": "agentic-autofill-code-review.v1",
+  "reviewedAt": "2026-09-18",
+  "verdict": "fix-first",
+  "recommendation": "fix-first",
+  "scope": {
+    "padloc": {
+      "path": "/Users/hassoncs/worktrees/ch5/padloc/agentic-autofill-unification-20260918",
+      "base": "origin/main",
+      "head": "45c5bfc4865f6e1403241821e7783421f9ff6be7"
+    },
+    "magicBrowser": {
+      "path": "/Users/hassoncs/worktrees/ch5/magic-browser/agentic-autofill-unification-20260918",
+      "base": "origin/main",
+      "head": "6c9eb87fc2b7d8be1037543ff8cb3502643d30d8"
+    },
+    "spec": "padloc/docs/specs/agentic-personal-data-vault.md",
+    "goals": [
+      "G001",
+      "G002",
+      "G003",
+      "G004",
+      "G005",
+      "G006",
+      "G007",
+      "G008",
+      "G009",
+      "G010"
+    ]
+  },
+  "findings": [
+    {
+      "id": "CR-001",
+      "severity": "critical",
+      "defect": "The CDP-exposed global broker accepts caller-controlled approve=true and manufactures the confirmed request digest without a trusted extension-UI nonce or recent password/biometric verification. A caller can plan, approve, mint, and apply a fill grant.",
+      "evidence": [
+        "padloc/packages/extension/src/background.ts:1539-1556",
+        "padloc/packages/extension/src/background.ts:2013-2019",
+        "padloc/packages/extension/src/autofill-broker.ts:188-205",
+        "padloc/packages/extension/src/agent-permission-engine.ts:421-439"
+      ],
+      "requiredFix": "Make broker approve non-authorizing. Only the sender-validated extension UI, with a one-time prompt nonce and trusted fresh verification for high-risk roles, may create approval/fresh-verification state."
+    },
+    {
+      "id": "CR-002",
+      "severity": "critical",
+      "defect": "Protocol-v1 authorizing operations still mutate approval/grant state and can execute DOM writes. Marking a returned v1 response authorizing=false in consumers does not undo extension-side authorization.",
+      "evidence": [
+        "padloc/packages/extension/src/background.ts:1539-1573",
+        "padloc/packages/extension/src/autofill-broker.ts:227-243",
+        "padloc/packages/extension/src/autofill-broker.ts:310-332",
+        "padloc/packages/extension/src/autofill-broker.ts:334-498"
+      ],
+      "requiredFix": "Reject v1 approve, mint, apply, revoke, and privacy-authorizing operations at the Padloc broker entry point. Keep v1 only for explicitly enumerated compatibility reads and prove no state mutation or DOM write."
+    },
+    {
+      "id": "CR-003",
+      "severity": "critical",
+      "defect": "A broker caller can manufacture a clean privacy record for an invented document identity. Reset checks only descriptor shape and same top-level origin, then the ledger indexes caller-supplied tab/frame/document data and returns clean.",
+      "evidence": [
+        "padloc/packages/extension/src/background.ts:1334-1355",
+        "padloc/packages/extension/src/autofill-observation-policy.ts:56-76",
+        "padloc/packages/extension/src/background.ts:1645-1662",
+        "padloc/packages/extension/src/background.ts:2013-2019"
+      ],
+      "requiredFix": "Move reset behind a trusted extension action, resolve actual tab/frame/document/form identity from the content script, and serialize reset against fill reservations. Reject a private tab plus invented documentId."
+    },
+    {
+      "id": "CR-004",
+      "severity": "high",
+      "defect": "Privacy authorization is optional at multiple consuming boundaries. Attached screenshots bypass the gate, extension page.fetch/page.observe do not query privacy-status.v2, inspect-js calls evaluateGuarded without an observation gate, and session_health_check is absent from the generic observation allowlist while snapshotting and evaluating page text.",
+      "evidence": [
+        "magic-browser/packages/extension-app/src/background/screenshot.ts:85-93",
+        "magic-browser/packages/extension-app/src/background/service-worker.ts:853-906",
+        "magic-browser/src/cli/session.ts:7385-7394",
+        "magic-browser/src/cli/session.ts:7284-7291",
+        "magic-browser/src/worker/typed-tools.ts:161-182",
+        "magic-browser/src/worker/typed-tools.ts:3523-3622"
+      ],
+      "requiredFix": "Require exact-target privacy authorization inside each shared observation executor, including attached bridge commands, screenshot, observe, fetch, eval, body/network, and health paths. Add private/unknown negative proofs across those real entrances."
+    },
+    {
+      "id": "CR-005",
+      "severity": "high",
+      "defect": "The worker gate authorizes the caller-supplied target before execution resolves or recreates the owned CDP target. Recovery can therefore observe a different tab/document than the clean target that was authorized.",
+      "evidence": [
+        "magic-browser/src/worker/typed-tools.ts:184-215",
+        "magic-browser/src/worker/typed-tools.ts:479-506"
+      ],
+      "requiredFix": "Resolve and attach the actual owned target first, obtain its current exact Padloc identity, authorize immediately before observation, and invalidate/reacquire proof after recovery or navigation."
+    },
+    {
+      "id": "CR-006",
+      "severity": "high",
+      "defect": "Model-facing form tools still accept raw values and return page-derived text. form_fill and form_set accept values and write directly through CDP; form_submit exposes alert messages; form_run_task preserves bodyPreview and success text. These paths bypass the Padloc broker and can carry secrets.",
+      "evidence": [
+        "magic-browser/src/worker/typed-tools.ts:3136-3196",
+        "magic-browser/src/worker/typed-tools.ts:3199-3222",
+        "magic-browser/src/runtime/form.ts:2502-2545",
+        "magic-browser/src/runtime/form.ts:2612-2669"
+      ],
+      "requiredFix": "Remove raw value inputs from model-facing form tools, route personal-data writes through opaque Padloc references/local execution, and make mutation results closed metadata-only schemas without alert/body/success payloads."
+    },
+    {
+      "id": "CR-007",
+      "severity": "high",
+      "defect": "Magic Browser still exports a parallel local personal-data authority that decrypts its local vault, resolves values, mints bundles containing raw entries, and applies them. CLI routing changed, but the production module surface still permits internal callers to use the old authority.",
+      "evidence": [
+        "magic-browser/src/runtime/autofill-vault.ts:279-283",
+        "magic-browser/src/runtime/autofill-broker.ts:132-161",
+        "magic-browser/src/runtime/autofill-broker.ts:163-233"
+      ],
+      "requiredFix": "Delete or quarantine decrypt/mint/apply APIs from production paths. Retain only ciphertext-only compatibility-envelope wrapping and provenance/loss reporting."
+    },
+    {
+      "id": "CR-008",
+      "severity": "high",
+      "defect": "Standing-policy v2 success constructs an internal protocol-v1 approval and returns it to a v2 caller. The v2 mint fallback finds the approval by planId but mintBrokerBundleResponse still requires request.approvalId to equal the approval id, so the automatic v2 path is inconsistent and can fail closed or emit the wrong contract.",
+      "evidence": [
+        "padloc/packages/extension/src/background.ts:1507-1532",
+        "padloc/packages/extension/src/background.ts:1559-1568",
+        "padloc/packages/extension/src/autofill-broker.ts:252-281"
+      ],
+      "requiredFix": "Use one explicit v2 plan-to-grant transition with a private approval record and a closed v2 response. Do not construct or return a v1 approval for a v2 request."
+    },
+    {
+      "id": "CR-009",
+      "severity": "high",
+      "defect": "Raw-value redaction is key-name based and incomplete. The Magic Browser scanner and native host do not treat password, token, pan, cvv, or similar keys as sensitive; v1 responses are not closed. A cached or legacy response can therefore carry a raw secret under an unrecognized key.",
+      "evidence": [
+        "magic-browser/src/runtime/padloc-broker.ts:349-350",
+        "magic-browser/src/runtime/padloc-broker.ts:911-925",
+        "magic-browser/packages/extension/native-host/padloc-autofill-host.mjs:209-229",
+        "padloc/packages/extension/src/autofill-broker-protocol.ts:452-460"
+      ],
+      "requiredFix": "Reject all legacy response payloads except an explicit closed compatibility schema, and use closed schemas plus recursive value-free validation rather than a narrow sensitive-key regex."
+    },
+    {
+      "id": "CR-010",
+      "severity": "medium",
+      "defect": "The required privacy-inventory proof is not wired. Magic Browser proof.yaml runs only old action-attempt and agent-window tests, omits the frozen screenshot/observe/fetch/eval/network/CDP/form inventory, and has no browser-observation-safety evidence directory in this tree.",
+      "evidence": [
+        "magic-browser/.ch5/proof.yaml:6-21",
+        "magic-browser/.ch5/artifacts/proof/browser-observation-safety (missing)"
+      ],
+      "requiredFix": "Add exhaustive post-fill negative tests and wire the proof trigger/evidence for every frozen observation primitive."
+    }
+  ],
+  "coverage": {
+    "G001": "No standalone blocking import/model defect found; shared item/provenance changes are value-free.",
+    "G002": "Loss reporting covers unsupported categories without exposing field values; downstream broker/privacy defects still block the mission.",
+    "G003": "Passkey ceremony binding and re-enrollment shape are present; no new autonomous credential rotation/revocation found. Runtime proof remains unknown.",
+    "G004": "Blocked by CR-001: approval and high-risk verification are caller-forgeable.",
+    "G005": "Blocked by CR-002 and CR-003: native/extension broker still authorizes v1 and trusts caller-supplied privacy reset identity.",
+    "G006": "Blocked by CR-007 and CR-008: local authority remains exported and the automatic v2 transition is inconsistent.",
+    "G007": "Blocked by CR-003 through CR-006: privacy gate is bypassable and target binding is not tied to the consuming CDP target.",
+    "G008": "Fixture/parser work is present, but proof wiring does not cover the complete inventory; see CR-010.",
+    "G009": "Canonical synthetic runner exists but was not executed in this review; it cannot prove the bypassing entrances safe.",
+    "G010": "Documentation correctly gates real-data pilot on synthetic proof and independent review; those gates are not met."
+  },
+  "credentialMutation": {
+    "found": false,
+    "note": "No new working-credential rotation, revocation, reissue, supersession, or autonomous removal operation was established in the reviewed diffs."
+  },
+  "independentReviews": {
+    "security": "REQUEST CHANGES",
+    "architecture": "BLOCK"
+  }
+}

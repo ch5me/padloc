@@ -1,0 +1,42 @@
+{
+  "schema": "ch5.autopilot.code-review-synthesis.v1",
+  "runId": "agentic-autofill-unification-20260918",
+  "synthesizedAt": "2026-09-19T06:29:59Z",
+  "subject": {
+    "padloc": "35ca1635",
+    "magicBrowser": "2264cfe2"
+  },
+  "lanes": {
+    "codeReviewer": {
+      "independence": "sol-high-g017e-excerpt-code-reviewer",
+      "recommendation": "APPROVE",
+      "artifact": "code-review-g017.json",
+      "workerAnswer": "/tmp/g017e-code-reviewer-answer.md",
+      "model": "gpt-5.6-luna",
+      "effort": "max"
+    },
+    "architect": {
+      "independence": "sol-high-g017e-excerpt-architect",
+      "architectStatus": "CLEAR",
+      "specAxes": {
+        "standards": "clean",
+        "spec": "clean"
+      },
+      "artifact": "architect-review-g017e.json",
+      "specArtifact": "spec-conformance-g017.json",
+      "workerAnswer": "/tmp/g017e-architect-answer.md",
+      "model": "gpt-5.6-luna",
+      "effort": "max"
+    }
+  },
+  "finalRecommendation": "APPROVE",
+  "architectStatus": "CLEAR",
+  "rule": "architect CLEAR + reviewer APPROVE -> APPROVE",
+  "doNotFastForwardMain": true,
+  "canonicalG009": {
+    "ok": true,
+    "status": "passed",
+    "helperSteps": 38,
+    "violations": []
+  }
+}

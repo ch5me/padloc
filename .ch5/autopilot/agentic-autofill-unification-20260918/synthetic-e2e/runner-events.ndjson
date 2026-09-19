@@ -1,0 +1,3 @@
+{"step":"api.ready","apiUrl":"http://127.0.0.1:8789","fixtureHash":"647bcca04098801708b6701688b0a362ec5686a1316bd019d033a99bfed33e45"}
+{"step":"extension.build","exitCode":0}
+{"step":"helper.complete","exitCode":0}

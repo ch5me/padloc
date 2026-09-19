@@ -1,0 +1,19 @@
+{
+  "schema": "ch5.autopilot.spec-conformance.v1",
+  "reviewedAt": "2026-09-19T06:27:16Z",
+  "subject": {
+    "padloc": "35ca1635",
+    "magicBrowser": "2264cfe2"
+  },
+  "independence": "sol-high-g017e-excerpt-architect",
+  "axes": {
+    "standards": {
+      "status": "clean",
+      "evidence": "Canonical G009 run-summary is passed; helper has 38 steps; checker is ok; violations are empty."
+    },
+    "spec": {
+      "status": "clean",
+      "evidence": "Frozen ownership and broker/privacy contract are closed: broker approval is extension-UI-only; authorizing operations require protocolVersion 2; approvalId and bundleId are opaque; reset preserves claimed form identity for matching documentId; native host forwards inner v2 privacy status; Magic Browser unwraps native v2 and form tools refuse raw values; synthetic E2E passed with leak scanner clean."
+    }
+  }
+}

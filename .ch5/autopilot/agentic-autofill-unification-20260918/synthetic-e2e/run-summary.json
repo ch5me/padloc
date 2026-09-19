@@ -1,0 +1,94 @@
+{
+  "schema": "ch5.agentic-autofill.synthetic-e2e.run-summary.v1",
+  "ok": true,
+  "status": "passed",
+  "fixtureHash": "647bcca04098801708b6701688b0a362ec5686a1316bd019d033a99bfed33e45",
+  "apiUrl": "http://127.0.0.1:8789",
+  "helper": {
+    "ok": true,
+    "schema": "ch5.agentic-autofill.synthetic-e2e.helper.v1",
+    "evidenceDir": "/Users/hassoncs/worktrees/ch5/padloc/agentic-autofill-unification-20260918/.ch5/autopilot/agentic-autofill-unification-20260918/synthetic-e2e",
+    "tokenFile": "/var/folders/xv/zrjs1jvj5cdckty3cn9kjt140000gn/T/padloc-agentic-autofill-32098/raw-synthetic-values.json",
+    "fixtureUrl": "http://127.0.0.1:<ephemeral>/checkout",
+    "steps": [
+      "extension.setup",
+      "browser.session-start",
+      "browser.native-host-manifest",
+      "browser.extension-loaded",
+      "padloc.unlock-and-seed",
+      "bootstrap.target-descriptor",
+      "privacy.bootstrap-status",
+      "privacy.bootstrap-reset",
+      "privacy.bootstrap-clean",
+      "bootstrap.clean-required",
+      "broker.classify",
+      "broker.classified",
+      "broker.plan",
+      "broker.plan",
+      "broker.approval",
+      "broker.mint-grant",
+      "broker.granted",
+      "broker.apply-exact",
+      "broker.applied",
+      "privacy.after-apply",
+      "privacy.blocked",
+      "proof.redacted-privacy-status",
+      "proof.redacted",
+      "privacy.revocation-unknown",
+      "privacy.revocation-reset",
+      "privacy.revocation-bootstrap",
+      "broker.revocation-plan",
+      "broker.revocation-grant",
+      "broker.revoked",
+      "broker.revoked",
+      "broker.stale-apply",
+      "broker.stale-grant-blocked",
+      "padloc.locked",
+      "broker.locked-stale-apply",
+      "broker.locked-stale-blocked",
+      "padloc.service-worker-restart",
+      "broker.restart-stale-apply",
+      "broker.restart-stale-blocked"
+    ],
+    "rawValuePolicy": "synthetic raw values held in memory/temp scanner input only"
+  },
+  "checker": {
+    "schema": "ch5.agentic-autofill.synthetic-e2e.artifact-check.v1",
+    "ok": true,
+    "evidenceDir": ".ch5/autopilot/agentic-autofill-unification-20260918/synthetic-e2e",
+    "scannedFiles": 12,
+    "artifactFiles": 6,
+    "channels": [
+      "stdout",
+      "stderr",
+      "logs",
+      "argv",
+      "screenshots",
+      "artifacts",
+      "receipts"
+    ],
+    "tokenCount": 2,
+    "tokenDigests": [
+      "df5b7acc1b087a58",
+      "ffd0d6d5bdeeafa7"
+    ],
+    "violations": []
+  },
+  "runnerEvents": [
+    {
+      "step": "api.ready",
+      "apiUrl": "http://127.0.0.1:8789",
+      "fixtureHash": "647bcca04098801708b6701688b0a362ec5686a1316bd019d033a99bfed33e45"
+    },
+    {
+      "step": "extension.build",
+      "exitCode": 0
+    },
+    {
+      "step": "helper.complete",
+      "exitCode": 0
+    }
+  ],
+  "evidenceRoot": ".ch5/autopilot/agentic-autofill-unification-20260918/synthetic-e2e",
+  "rawValuePolicy": "synthetic values only; raw values never written to evidence"
+}
