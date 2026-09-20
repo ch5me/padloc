@@ -209,6 +209,27 @@ in `chrome://extensions` after each build.
 
 For hot-reload development, rebuild manually or use a file watcher.
 
+### Managed Chrome distribution
+
+The signed/managed extension identity is `hjlpcicmbdhndefnlekcmcednbbgldmp`.
+It comes from the retained public `key` in `src/manifest.json`; do not remove or
+replace that field without migrating native-messaging allowlists and enterprise
+policy together. The private key is held in Padloc Hush as
+`PADLOC_EXTENSION_SIGNING_KEY`.
+
+After a build, the Hush-backed packager emits a signed CRX and Chrome update
+manifest:
+
+```sh
+PADLOC_EXTENSION_UPDATE_URL=https://mb-extensions.ch5.me/elf-vault/elf-vault-extension-4.3.0.crx \
+PADLOC_EXTENSION_CRX=.ch5/artifacts/elf-vault-extension-4.3.0.crx \
+PADLOC_EXTENSION_UPDATE_MANIFEST=.ch5/artifacts/elf-vault/updates.xml \
+npm run web-extension:package:distribution
+```
+
+The `elf-vault/` URL prefix is deliberate: it keeps Elf Vault artifacts
+separate from Magic Browser artifacts when both use the same HTTPS host.
+
 ## Architecture Notes <!-- oc:id=sec_al -->
 
 -   **Three distinct credential paths**: CH5 Auth WebAuthn authenticates the

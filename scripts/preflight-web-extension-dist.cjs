@@ -53,6 +53,9 @@ if (manifest) {
     if (!manifest.background || manifest.background.service_worker !== "background.js") {
         failures.push("manifest.json: expected background.service_worker background.js");
     }
+    if (typeof manifest.key !== "string" || !manifest.key.trim()) {
+        failures.push("manifest.json: stable signing key is required for native messaging and enterprise updates");
+    }
     const scripts = (manifest.content_scripts || []).flatMap((entry) => entry.js || []);
     for (const required of ["passkey-page.js", "passkey-content-bridge.js", "content.js"]) {
         if (!scripts.includes(required)) {

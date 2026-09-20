@@ -25,33 +25,37 @@ copies. Rewiring it belongs to the guest-image rebuild in
 guest-image `sed`-patches into one rebuild), not to a piecemeal edit of the currently-pinned image
 build script.
 
-## The `allowed_origins` extension ID is a real fragility — read before touching it
+## Stable extension identity and native messaging
 
-`allowed_origins` pins `chrome-extension://gncmiloofnlojbhlckjniipiglejppho/`. This extension ID
-is **not** derived from a `key` field in `packages/extension/src/manifest.json` — there isn't one.
-For an unpacked extension (which is how the guest image loads it — `chrome
---load-extension=/opt/magic-browser/extensions/padloc`), Chrome derives a stable ID by hashing the
-**absolute filesystem path** the extension is loaded from. The value above is only correct because
-every build of the guest image installs the extension at exactly
-`/opt/magic-browser/extensions/padloc` — change that install path in any future image work and
-this ID silently goes stale, breaking the native-messaging bridge with no build-time signal.
+`packages/extension/src/manifest.json` now carries a retained public signing key. Chrome derives
+the stable extension ID `hjlpcicmbdhndefnlekcmcednbbgldmp` from that key, independent of the
+unpacked install path or the hosted CRX path. The native host manifest keeps the two historical
+IDs for already-installed development builds and adds the retained ID for signed/managed
+installs.
 
-**Nothing in this repo, and nothing in `magic-browser`, currently asserts that the extension's
-real loaded ID matches this manifest's `allowed_origins` value.** They are two independently
-hand-maintained copies of the same fact today (this file's `.json` plus
-`magic-browser`'s image-build heredoc), kept in sync only by whoever remembers to update both.
+The private key is provisioned only in Padloc Hush as
+`PADLOC_EXTENSION_SIGNING_KEY` under `env/project/shared`. Never commit it, print it, or copy it
+into a browser profile. If the key is replaced, the extension ID changes and the native host
+allowlist plus every Chrome Enterprise policy must be updated as one coordinated migration.
 
-Two real fixes, either of which should land as part of a future guest-image rebuild rather than
-piecemeal here:
+`magic-browser` must copy this repo's native host manifest into guest images rather than
+re-authoring a second allowlist. Keep the guest-image install path independent of extension
+identity; the retained manifest key is now the source of truth.
 
-1. **Give the extension a fixed `key` field** in `manifest.json`, making its ID deterministic
-   regardless of install path — the standard practice for exactly this problem, and how Chrome
-   Web Store extensions get stable IDs. Changing this changes the extension's real ID and requires
-   updating `allowed_origins` (here) to match, plus re-pinning the guest image — do this as one
-   guest-image-rebuild change, not two separate landings that can drift apart mid-flight.
-2. Short of that, add a build-time assertion (in whichever repo controls the image build) that
-   loads the actual built extension unpacked at the exact install path and confirms Chrome assigns
-   it the ID this manifest expects, failing the build loudly if it doesn't.
+## Signed CRX and update manifest
 
-Until one of those lands, treat this ID as coupled-by-convention, not verified, and never move the
-extension's guest install path without updating this manifest in the same change.
+The local distribution lane is:
+
+```sh
+PL_SERVER_URL=https://api-pad.ch5.me npm run web-extension:build
+PADLOC_EXTENSION_UPDATE_URL=https://mb-extensions.ch5.me/elf-vault/elf-vault-extension-4.3.0.crx \
+PADLOC_EXTENSION_CRX=.ch5/artifacts/elf-vault-extension-4.3.0.crx \
+PADLOC_EXTENSION_UPDATE_MANIFEST=.ch5/artifacts/elf-vault/updates.xml \
+npm run web-extension:package:distribution
+```
+
+The `elf-vault/` path is intentionally distinct from Magic Browser's artifacts when sharing the
+same HTTPS host. The packager validates the manifest key, derives the stable ID, signs through the
+existing CRX packer, and emits Chrome update XML. It reads the private key through Hush and
+deletes its temporary key file before returning. Hosting and Admin Console policy remain separate
+deployment steps; this lane does not publish or mutate managed browsers.

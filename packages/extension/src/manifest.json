@@ -1,5 +1,6 @@
 {
     "manifest_version": 3,
+    "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmkCykL7ZdF8BqVGQ5lhPLQ+q5OYSlwbBMspD3z4JSgYman9T49B70TAmq3kqegyZk2/F4EDfbhqFJH4bqVvgt3R4wYmHuAnovBHnWRllu3ruJQj5WsqlTM496LLHh+6vaGtK13apfHqeCeHBb0qZWUOA9i/dm8nOz4rEbrgnCfLUFYUO2LcHz8FHuu4LORd/JNX4q6Uf4H8iyrFZOUn0YT7SN54t9Pmi2CQYqo4Dg5n9XCqJxWeg4dDLPV405OddihJJzmGOokj5cmj4JHnELHJlDb+VqQNREmXsKfWe7mmwXpbdl/5AJpc9nvvqt5UyVAYWBD2pmizFb3GFio0/NwIDAQAB",
     "icons": {
         "128": "icon.png"
     },

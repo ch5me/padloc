@@ -54,12 +54,50 @@ has a button that starts it. Never `pitchfork stop --all` (box-wide) and never a
     refuses broad fallback tasks unless `--allow-fallback` is explicit.
 -   Extension harness is headless by default. Use `PADLOC_EXTENSION_HEADFUL=1`
     or `npm run test:extension:headful` only for visual debugging.
+-   Signed Chrome distribution uses the retained manifest key and stable ID
+    `hjlpcicmbdhndefnlekcmcednbbgldmp`. Build first, then run
+    `npm run web-extension:package:distribution` through Hush with
+    `PADLOC_EXTENSION_UPDATE_URL`, `PADLOC_EXTENSION_CRX`, and
+    `PADLOC_EXTENSION_UPDATE_MANIFEST` set. Use a distinct `elf-vault/` path
+    when sharing the Magic Browser HTTPS host. Never commit or print
+    `PADLOC_EXTENSION_SIGNING_KEY`; never use the distribution lane to mutate
+    human Chrome or Admin Console policy.
 -   Local dev services: `ch5-svc up` / `ch5-svc status` — see *Running this
     repo's dev services* above.
 -   Runtime contract check: `npm run runtime-config:check`
 -   Worker dry-run: `npm run worker:deploy:dry-run`
 -   Staging deploy: `npm run deploy:staging`
 -   Production deploy: `npm run deploy:production`
+
+## Chrome Extension Distribution and Updates
+
+-   The shipped surface is `@elf-vault/extension` (`packages/extension/src/manifest.json`):
+    MV3, version `4.3.0.0`, and name `Elf Vault`. The source manifest has no
+    `key` or `update_url`; an unpacked `dist/` load therefore is a development
+    install with no stable enterprise identity.
+-   Build the unpacked extension with `npm run web-extension:build` (or
+    `npm --prefix packages/extension run build`). This runs the source and
+    distribution preflights and writes `packages/extension/dist/`. The
+    Playwright proof is `npm run test:extension`; it loads that directory into
+    an isolated Chromium profile. Local development still requires rebuilding
+    and reloading the unpacked extension; no unattended Chrome hot-reload
+    service is provided by this repository.
+-   A Chrome Enterprise force-install/update deployment must use one retained
+    CRX signing key and its resulting stable extension ID, an HTTPS update
+    manifest, and a hosted signed CRX. Keep the private key in governed Hush/CI
+    secrets; never commit it or put it in a profile. Configure Admin Console
+    `ExtensionSettings` with `installation_mode: force_installed`,
+    `update_url`, and (when using a custom update URL)
+    `override_update_url: true`. Do not point policy at `dist/` or the unsigned
+    ZIP.
+-   `scripts/package-chrome-crx.sh` creates a signed CRX from
+    `--private-key-file`; `.forgejo/workflows/build-web-extension.yml` signs
+    only when `PL_WEB_EXTENSION_CHROME_CRX_PRIVATE_KEY` is present. The
+    public staging workflow and `config/platform-support.json` currently
+    publish/claim only an unsigned ZIP, and this repository has no update XML
+    host or Chrome Enterprise policy automation. Treat enterprise
+    auto-update as unproven until the stable ID, update XML, signed CRX, HTTPS
+    response, policy, and managed-profile installation are each verified.
 
 ## Secrets
 

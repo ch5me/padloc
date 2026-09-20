@@ -248,6 +248,12 @@ function checkManifestSource() {
                 "packages/extension/src/manifest.json: passkey-content-bridge.js must run only in the top frame"
             );
     }
+
+    if (typeof manifest.key !== "string" || !manifest.key.trim()) {
+        failures.push(
+            "packages/extension/src/manifest.json: stable signing key is required for native messaging and enterprise updates"
+        );
+    }
 }
 
 function checkWebAuthnPageSource() {

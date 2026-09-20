@@ -52,6 +52,8 @@
         "cache-proof": "node scripts/preflight-web-extension-source.cjs && mkdir -p .cache-proof && node -e \"const fs=require('fs'),c=require('crypto');const files=['package.json','packages/extension/package.json','packages/extension/manifest.json'].filter(fs.existsSync);const hash=c.createHash('sha256');for(const file of files)hash.update(fs.readFileSync(file));fs.writeFileSync('.cache-proof/padloc-extension.json',JSON.stringify({files,sha256:hash.digest('hex')}))\"",
         "web-extension:build": "turbo run web-extension:build:raw",
         "web-extension:build:raw": "node scripts/build-web-extension.cjs",
+        "web-extension:package:distribution": "hush run -t runtime -- node scripts/package-chrome-extension-distribution.mjs",
+        "web-extension:distribution:test": "node --test scripts/package-chrome-extension-distribution.test.mjs",
         "cordova:start:android": "lerna run start:android",
         "cordova:start:ios": "lerna run start:ios",
         "cordova:build": "lerna run build:android && lerna run build:ios",
