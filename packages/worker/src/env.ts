@@ -13,6 +13,8 @@ export interface Env {
     EMAIL_KV?: KVNamespace;
     EMAIL_FROM_ADDRESS?: string;
     EMAIL_VERIFY_ON_SIGNUP?: string;
+    /** Explicit test/dev flag. Ignored in staging/production/preview. */
+    ALLOW_DISABLE_MFA?: string;
     RATE_LIMIT_MAX_REQUESTS?: string;
     RATE_LIMIT_WINDOW_MS?: string;
     HQ_SENTRY_DSN?: string;
@@ -27,4 +29,9 @@ export interface Env {
     FIREFLY_AUDIENCE?: string;
     /** Firefly seat-sync admin route — see src/firefly-seat-sync.ts. G020. */
     FIREFLY_SEAT_SYNC_SECRET?: string;
+}
+
+export function isLiveEnvironment(environment?: string | null): boolean {
+    const value = (environment || "").trim().toLowerCase();
+    return value === "staging" || value === "production" || value === "preview";
 }

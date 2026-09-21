@@ -13,10 +13,10 @@ export class SMTPConfig extends Config {
     }
 
     @ConfigParam()
-    host: string = "localhost";
+    host: string = process.env.NODE_ENV === "development" ? "localhost" : "";
 
     @ConfigParam("number")
-    port: number = 1025;
+    port: number = process.env.NODE_ENV === "development" ? 1025 : 587;
 
     @ConfigParam("boolean")
     secure: boolean = false;
@@ -42,6 +42,16 @@ export class SMTPSender implements Messenger {
     private _templates = new Map<string, string>();
 
     constructor(private config: SMTPConfig) {
+        const nodeEnv = process.env.NODE_ENV || "";
+        if (!config.host) {
+            throw new Error("SMTP host is required when PL_EMAIL_BACKEND is smtp");
+        }
+        if (nodeEnv !== "development") {
+            const host = config.host.toLowerCase();
+            if ((host === "localhost" || host === "127.0.0.1" || host === "::1") && Number(config.port) === 1025) {
+                throw new Error("SMTP host localhost:1025 is only allowed when NODE_ENV is development");
+            }
+        }
         let auth = null;
         if (config.user && config.password) {
             auth = {

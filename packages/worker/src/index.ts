@@ -1,7 +1,7 @@
 import { Request as PlRequest, Response as PlResponse } from "@elf-vault/core/src/transport";
 import { WorkerReceiver, WorkerReceiverConfig } from "./transport";
 import { IdempotencyStore } from "./idempotency";
-import { Env } from "./env";
+import { Env, isLiveEnvironment } from "./env";
 import { createServer } from "./server-factory";
 import { AccountLockDO } from "./locks/account-lock";
 import { Server } from "@elf-vault/core/src/server";
@@ -19,15 +19,27 @@ interface HealthcheckStatus {
     d1: "ok" | "unavailable";
     r2: "ok" | "unavailable";
     resend: "ok" | "unavailable";
+    emailBackend: string;
+}
+
+function hasRealResendClient(env: Env): boolean {
+    return (
+        (env.EMAIL_BACKEND || "").trim().toLowerCase() !== "mock" &&
+        Boolean(env.RESEND_API_KEY) &&
+        Boolean(env.EMAIL_FROM_ADDRESS)
+    );
 }
 
 async function healthcheck(env: Env): Promise<HealthcheckStatus> {
+    const emailBackend =
+        (env.EMAIL_BACKEND || "").trim() || (hasRealResendClient(env) ? "resend" : "unset");
     const health: HealthcheckStatus = {
         status: "ok",
         version: env.VERSION || "0.0.0",
         d1: "unavailable",
         r2: "unavailable",
         resend: "unavailable",
+        emailBackend,
     };
 
     if (env.DB) {
@@ -48,7 +60,7 @@ async function healthcheck(env: Env): Promise<HealthcheckStatus> {
         }
     }
 
-    if (env.EMAIL_BACKEND === "mock" || (env.RESEND_API_KEY && env.EMAIL_FROM_ADDRESS)) {
+    if (hasRealResendClient(env)) {
         health.resend = "ok";
     }
 
@@ -67,16 +79,11 @@ export default {
 
         const allowOrigin = env.ALLOW_ORIGIN || env.ALLOWED_ORIGINS || "*";
         const allowedOrigins = parseAllowedOrigins(env.ALLOWED_ORIGINS || allowOrigin);
+        const live = isLiveEnvironment(env.HQ_ENVIRONMENT);
         const config = new WorkerReceiverConfig();
         config.allowOrigin = allowOrigin;
         config.allowedOrigins = allowedOrigins;
-        config.idempotencyStore = new IdempotencyStore(env.HINTS);
-        config.rateLimiter = new RateLimiter(env.HINTS, {
-            maxRequests: Number(env.RATE_LIMIT_MAX_REQUESTS || 100),
-            windowMs: Number(env.RATE_LIMIT_WINDOW_MS || 60000),
-        });
         config.metricsPath = "/metrics";
-        const receiver = new WorkerReceiver(config);
 
         const url = new URL(request.url);
         if (request.method === "GET" && url.pathname === config.healthCheckPath) {
@@ -85,13 +92,26 @@ export default {
                 { attributes: requestAttributes(request) },
                 () => healthcheck(env)
             );
+            const cannotSendMail = health.resend !== "ok";
+            const status = live && cannotSendMail ? 503 : 200;
             return new Response(JSON.stringify(health), {
-                status: 200,
+                status,
                 headers: responseHeaders(corsConfig(request, allowOrigin, allowedOrigins), undefined, {
                     "Content-Type": "application/json; charset=utf-8",
                 }),
             });
         }
+
+        if (live && !env.HINTS) {
+            throw new Error("HINTS binding is required when HQ_ENVIRONMENT is staging, production, or preview");
+        }
+        config.idempotencyStore = new IdempotencyStore(env.HINTS, { required: live });
+        config.rateLimiter = new RateLimiter(env.HINTS, {
+            maxRequests: Number(env.RATE_LIMIT_MAX_REQUESTS || 100),
+            windowMs: Number(env.RATE_LIMIT_WINDOW_MS || 60000),
+            required: live,
+        });
+        const receiver = new WorkerReceiver(config);
 
         if (request.method === "GET" && url.pathname.startsWith("/public-releases/")) {
             return publicRelease(request, env);

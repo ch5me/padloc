@@ -9,6 +9,20 @@ const { version } = require("./package.json");
 
 const serverUrl = process.env.PL_SERVER_URL || `http://127.0.0.1:${process.env.PL_WORKER_PORT || 8787}`;
 const buildEnvironment = process.env.PL_BUILD_ENV || "development";
+if (buildEnvironment === "production" || buildEnvironment === "staging") {
+    let parsed;
+    try {
+        parsed = new URL(serverUrl);
+    } catch {
+        throw new Error(`PL_SERVER_URL must be a valid https URL for ${buildEnvironment} builds`);
+    }
+    const host = parsed.hostname;
+    if (parsed.protocol !== "https:" || host === "localhost" || host === "127.0.0.1" || host === "::1") {
+        throw new Error(
+            `PL_SERVER_URL must be https and not localhost for ${buildEnvironment} builds (got ${serverUrl})`
+        );
+    }
+}
 const passkeyDiagnostics = process.env.PL_PASSKEY_DIAGNOSTICS || (buildEnvironment === "production" ? "false" : "true");
 const agenticAutofillFixtures = process.env.PL_AGENTIC_AUTOFILL_FIXTURES || "false";
 const publishableFixtureBuild = agenticAutofillFixtures === "true";

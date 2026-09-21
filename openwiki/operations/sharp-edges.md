@@ -8,7 +8,7 @@ tags: [operations, hazards, invariants]
 
 - Use `ch5-svc status` and HTTP liveness, not TCP readiness; the PWA web service can accept connections while serving no bundle.
 - Build the PWA with explicit `PL_SERVER_URL` and keep `clientUrl` on the app host, never the API host.
-- Worker email silently falls back to `MockMessenger` when secrets are incomplete; verify live runtime configuration before changing auth logic.
+- Worker email throws when `RESEND_API_KEY` or `EMAIL_FROM_ADDRESS` is missing. Explicit `EMAIL_BACKEND=mock` is development/test/local only; live environments refuse mock at boot.
 - D1 sessions are authoritative; KV is only hints/idempotency/rate state. Do not add KV-based auth validity.
 - Migrations are forward-only. D1/R2 attachment operations use compensating cleanup and can create orphan records.
 - Platform setup must precede app import; `App.loaded` gates route dispatch and background sync.

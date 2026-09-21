@@ -9,18 +9,33 @@
  */
 export class IdempotencyStore {
     private kv?: KVNamespace;
+    private required: boolean;
 
-    constructor(kv?: KVNamespace) {
+    constructor(kv?: KVNamespace, opts?: { required?: boolean }) {
+        this.required = opts?.required === true;
+        if (this.required && !kv) {
+            throw new Error("HINTS KV binding required for idempotency in live environments");
+        }
         this.kv = kv;
     }
 
     async lookup(requestHash: string): Promise<Record<string, unknown> | null> {
-        if (!this.kv) return null;
+        if (!this.kv) {
+            if (this.required) {
+                throw new Error("HINTS KV binding required for idempotency in live environments");
+            }
+            return null;
+        }
         return this.kv.get<Record<string, unknown>>(`idem:v2:${requestHash}`, "json");
     }
 
     async store(requestHash: string, response: Record<string, unknown>): Promise<void> {
-        if (!this.kv) return;
+        if (!this.kv) {
+            if (this.required) {
+                throw new Error("HINTS KV binding required for idempotency in live environments");
+            }
+            return;
+        }
         await this.kv.put(`idem:v2:${requestHash}`, JSON.stringify(response), {
             expirationTtl: 3600,
         });

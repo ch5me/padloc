@@ -40,6 +40,17 @@ export class ResendMessenger {
                 report: true,
             });
         }
+
+        let messageId: string | null = null;
+        try {
+            const body = (await res.json()) as { id?: unknown };
+            if (typeof body.id === "string") {
+                messageId = body.id;
+            }
+        } catch {
+            messageId = null;
+        }
+        console.log("[ResendMessenger] sent", { template: msg.template, messageId });
     }
 
     private _render<T extends MessageData>(msg: Message<T>): { html: string; txt: string } {
@@ -84,6 +95,7 @@ export class MockMessenger {
             idempotencyKey: key,
             template: msg.template,
         });
+        console.log("[MockMessenger] sent", { template: msg.template, messageId: key });
     }
 
     private _render<T extends MessageData>(msg: Message<T>): { html: string; txt: string } {
@@ -103,19 +115,4 @@ export class MockMessenger {
     messagesFor(addr: string) {
         return this.sent.filter((m) => m.recipient === addr);
     }
-}
-
-export function createMessenger(env: {
-    RESEND_API_KEY?: string;
-    EMAIL_BACKEND?: string;
-    EMAIL_KV?: { put(key: string, value: string): Promise<void> };
-    EMAIL_FROM_ADDRESS?: string;
-}) {
-    if (env.EMAIL_BACKEND === "mock") {
-        return new MockMessenger();
-    }
-    if (!env.RESEND_API_KEY) {
-        throw new Err(ErrorCode.SERVER_ERROR, "RESEND_API_KEY not configured");
-    }
-    return new ResendMessenger(env.RESEND_API_KEY, env.EMAIL_FROM_ADDRESS ?? "Padloc <noreply@padloc.app>");
 }

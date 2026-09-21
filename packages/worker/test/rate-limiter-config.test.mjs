@@ -19,7 +19,7 @@ class MemoryKV {
 
 const workerSource = await readFile(new URL("../src/index.ts", import.meta.url), "utf8");
 const construction = workerSource.match(
-    /new RateLimiter\(env\.HINTS,\s*\{\s*maxRequests:\s*([^,]+),\s*windowMs:\s*([^,]+),\s*\}\)/
+    /new RateLimiter\(env\.HINTS,\s*\{\s*maxRequests:\s*([^,]+),\s*windowMs:\s*([^,]+),\s*required:\s*live,\s*\}\)/
 );
 assert.ok(construction, "Worker RateLimiter construction remains discoverable");
 
@@ -117,4 +117,11 @@ test("Worker construction applies the same coercion to window strings", async ()
     assert.equal(denied.allowed, false);
     assert.equal(denied.remaining, 0);
     assert.ok(denied.retryAfterMs <= 0.5);
+});
+
+test("required RateLimiter throws without KV instead of default-allow", () => {
+    assert.throws(
+        () => new RateLimiter(undefined, { required: true }),
+        /HINTS KV binding required for rate limiting in live environments/
+    );
 });

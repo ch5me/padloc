@@ -7,22 +7,31 @@
  *
  * Returns { allowed: boolean, remaining: number, retryAfterMs?: number }.
  *
- * When KV is unavailable (no binding), rate limiting is a no-op and always
- * allows — this prevents the limiter from becoming a single point of failure.
+ * When KV is unavailable in development/test, rate limiting is a no-op and
+ * always allows. Live environments must pass `required: true` and a KV binding;
+ * missing KV throws instead of default-allow.
  */
 export class RateLimiter {
     private kv?: KVNamespace;
     private maxRequests: number;
     private windowMs: number;
+    private required: boolean;
 
-    constructor(kv?: KVNamespace, opts?: { maxRequests?: number; windowMs?: number }) {
+    constructor(kv?: KVNamespace, opts?: { maxRequests?: number; windowMs?: number; required?: boolean }) {
         this.kv = kv;
         this.maxRequests = opts?.maxRequests ?? 100;
         this.windowMs = opts?.windowMs ?? 60_000;
+        this.required = opts?.required === true;
+        if (this.required && !this.kv) {
+            throw new Error("HINTS KV binding required for rate limiting in live environments");
+        }
     }
 
     async check(identity: string): Promise<{ allowed: boolean; remaining: number; retryAfterMs?: number }> {
         if (!this.kv) {
+            if (this.required) {
+                throw new Error("HINTS KV binding required for rate limiting in live environments");
+            }
             return { allowed: true, remaining: this.maxRequests };
         }
 

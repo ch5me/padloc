@@ -65,6 +65,7 @@ import { KeyStoreEntry } from "./key-store";
 import { Config, ConfigParam } from "./config";
 import { Provisioner, Provisioning, ProvisioningStatus, StubProvisioner } from "./provisioning";
 import { V3Compat } from "./v3-compat";
+import { isLiveEnvironment } from "./environment";
 
 /** Server configuration */
 export class ServerConfig extends Config {
@@ -93,6 +94,14 @@ export class ServerConfig extends Config {
 
     @ConfigParam("string[]")
     admins: string[] = [];
+
+    /** Honor Auth.disableMFA. Ignored in staging/production/preview even when true. */
+    @ConfigParam("boolean")
+    allowDisableMFA = false;
+
+    /** HQ / Node environment name used to refuse live MFA bypass. */
+    @ConfigParam()
+    environment = "development";
 
     constructor(init: Partial<ServerConfig> = {}) {
         super();
@@ -372,7 +381,7 @@ export class Controller extends API {
         auth.authRequests.push(request);
 
         const deviceTrusted =
-            auth.disableMFA ||
+            (this.config.allowDisableMFA && !isLiveEnvironment(this.config.environment) && auth.disableMFA) ||
             (this.context.device && auth.trustedDevices.some(({ id }) => id === this.context.device!.id));
 
         const response = new StartAuthRequestResponse({

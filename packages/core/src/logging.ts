@@ -74,15 +74,40 @@ export interface Logger {
     withContext(context: Context): Logger;
 }
 
+const LOG_SECRET_FIELD = /^(?:code|otp|totp|password|secret|token|authorization|api[_-]?key)$/i;
+
+function redactLogData(data: unknown): unknown {
+    if (data === null || data === undefined) {
+        return data;
+    }
+    if (Array.isArray(data)) {
+        return data.map(redactLogData);
+    }
+    if (typeof data !== "object") {
+        return data;
+    }
+    const redacted: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
+        redacted[key] = LOG_SECRET_FIELD.test(key) ? "[REDACTED]" : redactLogData(value);
+    }
+    return redacted;
+}
+
+export type VoidLoggerOptions = { writeToConsole?: boolean };
+
 export class VoidLogger implements Logger {
-    constructor(public context?: Context) {}
+    constructor(public context?: Context, private options: VoidLoggerOptions = {}) {}
 
     withContext(context: Context) {
-        return new VoidLogger(context);
+        return new VoidLogger(context, this.options);
     }
 
     log(type: string, data?: any) {
-        return new LogEvent(type, data);
+        const event = new LogEvent(type, data, this.context);
+        if (this.options.writeToConsole) {
+            console.log("[VoidLogger]", type, redactLogData(data));
+        }
+        return event;
     }
 
     async list(_opts: LoggerListOptions & { before?: Date; after?: Date }) {

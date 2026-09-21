@@ -26,6 +26,20 @@ if (!process.env.PL_PWA_URL && !pwaPort) {
 const serverUrl = removeTrailingSlash(
     process.env.PL_SERVER_URL || `http://127.0.0.1:${workerPort}`
 );
+if (buildEnvironment === "production" || buildEnvironment === "staging") {
+    let parsed;
+    try {
+        parsed = new URL(serverUrl);
+    } catch {
+        throw new Error(`PL_SERVER_URL must be a valid https URL for ${buildEnvironment} builds`);
+    }
+    const host = parsed.hostname;
+    if (parsed.protocol !== "https:" || host === "localhost" || host === "127.0.0.1" || host === "::1") {
+        throw new Error(
+            `PL_SERVER_URL must be https and not localhost for ${buildEnvironment} builds (got ${serverUrl})`
+        );
+    }
+}
 const pwaUrl = removeTrailingSlash(process.env.PL_PWA_URL || `http://localhost:${pwaPort}`);
 const pwaHost = new URL(pwaUrl).hostname;
 const rootDir = resolve(__dirname, "../..");

@@ -42,6 +42,7 @@ import { DirectoryProvider, DirectorySync } from "@elf-vault/core/src/directory"
 import { PostgresLogger } from "./logging/postgres";
 import { LevelDBLogger } from "./logging/leveldb";
 import { OauthProvisioner, OauthProvisionerConfig } from "./provisioning/oauth";
+import { isLiveEnvironment } from "@elf-vault/core/src/environment";
 
 const rootDir = resolve(__dirname, "../../..");
 const assetsDir = resolve(rootDir, process.env.PL_ASSETS_DIR || "assets");
@@ -52,6 +53,9 @@ if (!process.env.PL_APP_NAME) {
 }
 
 async function initDataStorage(config: DataStorageConfig) {
+    if (process.env.NODE_ENV === "production" && (config.backend === "memory" || config.backend === "void")) {
+        throw new Error(`PL_DATA_STORAGE_BACKEND=${config.backend} is not allowed when NODE_ENV is production`);
+    }
     switch (config.backend) {
         case "leveldb":
             if (!config.leveldb) {
@@ -104,7 +108,7 @@ async function initLogger({ backend, secondaryBackend, mongodb, postgres, leveld
             primaryLogger = new LevelDBLogger(new LevelDBStorage(leveldb));
             break;
         case "void":
-            primaryLogger = new VoidLogger();
+            primaryLogger = new VoidLogger(undefined, { writeToConsole: process.env.NODE_ENV === "production" });
             break;
         default:
             throw `Invalid value for PL_LOGGING_BACKEND: ${backend}! Supported values: void, mongodb, postgres, leveldb`;
@@ -137,6 +141,9 @@ async function initLogger({ backend, secondaryBackend, mongodb, postgres, leveld
 }
 
 async function initEmailSender({ backend, smtp }: EmailConfig) {
+    if (process.env.NODE_ENV === "production" && backend === "console") {
+        throw new Error("PL_EMAIL_BACKEND=console is not allowed when NODE_ENV is production");
+    }
     switch (backend) {
         case "smtp":
             if (!smtp) {
@@ -154,6 +161,9 @@ async function initEmailSender({ backend, smtp }: EmailConfig) {
 }
 
 async function initAttachmentStorage(config: AttachmentStorageConfig) {
+    if (process.env.NODE_ENV === "production" && config.backend === "memory") {
+        throw new Error("PL_ATTACHMENTS_BACKEND=memory is not allowed when NODE_ENV is production");
+    }
     switch (config.backend) {
         case "memory":
             return new MemoryAttachmentStorage();
@@ -321,6 +331,13 @@ async function init(config: PadlocConfig) {
 
     const changeLogger = await initChangeLogger(config.changeLog, storage);
     const requestLogger = await initRequestLogger(config.requestLog, storage);
+
+    config.server.environment = process.env.HQ_ENVIRONMENT || process.env.NODE_ENV || config.server.environment;
+    if (isLiveEnvironment(config.server.environment) || process.env.NODE_ENV === "production") {
+        config.server.allowDisableMFA = false;
+    } else {
+        config.server.allowDisableMFA = process.env.PL_ALLOW_DISABLE_MFA === "true";
+    }
 
     const server = new Server(
         config.server,

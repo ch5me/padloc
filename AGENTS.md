@@ -163,9 +163,11 @@ has a button that starts it. Never `pitchfork stop --all` (box-wide) and never a
 
 ## Sharp Edges
 
--   `packages/worker/src/server-factory.ts` currently falls back to
-    `MockMessenger` if either email secret is missing. That is useful locally
-    and dangerous in production; keep an eye on it when changing auth.
+-   `packages/worker/src/server-factory.ts` `createMessenger` throws when
+    `RESEND_API_KEY` or `EMAIL_FROM_ADDRESS` is missing in every environment.
+    `MockMessenger` is allowed only with explicit `EMAIL_BACKEND=mock` in
+    development/test/local. Live environments (`staging`/`production`/`preview`)
+    refuse mock and missing secrets at boot.
 -   The governed `ch5-padloc-{staging,prod}` deploy tokens are least-privilege
     for every binding across their stage (Workers Scripts / D1 / KV / R2 Storage
     Write, Pages Write, Account Settings Read, Workers Tail Read). Add or remove

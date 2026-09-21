@@ -56,7 +56,6 @@ class_name = "AccountLockDO"
 name = "padloc-worker-preview"
 
 [env.preview.vars]
-EMAIL_BACKEND = "mock"
 ALLOW_ORIGIN = "*"
 CLIENT_URL = "http://localhost:3000"
 HQ_ENVIRONMENT = "preview"

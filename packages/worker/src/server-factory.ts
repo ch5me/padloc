@@ -17,14 +17,26 @@ import { OrgAwareProvisioner } from "./provisioner/org-aware";
 import { R2AttachmentStorage } from "./attachments/r2";
 import { ResendMessenger, MockMessenger } from "./email/resend";
 import { WorkerPlatform } from "./platform";
-import { Env } from "./env";
+import { Env, isLiveEnvironment } from "./env";
 
 export function createServer(env: Env): Server {
     setPlatform(new WorkerPlatform());
 
-    const storage: Storage = env.DB ? new D1Storage(env.DB) : createStubStorage();
-    const logger: Logger = new VoidLogger();
+    if (isLiveEnvironment(env.HQ_ENVIRONMENT)) {
+        if (!env.DB) {
+            throw new Error("DB binding is required when HQ_ENVIRONMENT is staging, production, or preview");
+        }
+        if (!env.ATTACHMENTS) {
+            throw new Error("ATTACHMENTS binding is required when HQ_ENVIRONMENT is staging, production, or preview");
+        }
+        if (!env.HINTS) {
+            throw new Error("HINTS binding is required when HQ_ENVIRONMENT is staging, production, or preview");
+        }
+    }
+
     const messenger: Messenger = createMessenger(env);
+    const storage: Storage = env.DB ? new D1Storage(env.DB) : createStubStorage();
+    const logger: Logger = new VoidLogger(undefined, { writeToConsole: isLiveEnvironment(env.HQ_ENVIRONMENT) });
     const authServers: AuthServer[] = [new EmailAuthServer(messenger), new TotpAuthServer(new TotpAuthConfig())];
     const attachmentStorage: AttachmentStorage = createAttachmentStorage(env);
     const changeLoggerConfig = new ChangeLoggerConfig();
@@ -36,6 +48,8 @@ export function createServer(env: Env): Server {
 
     const config = new ServerConfig();
     config.verifyEmailOnSignup = env.EMAIL_VERIFY_ON_SIGNUP !== "false";
+    config.environment = env.HQ_ENVIRONMENT || "development";
+    config.allowDisableMFA = !isLiveEnvironment(env.HQ_ENVIRONMENT) && env.ALLOW_DISABLE_MFA === "true";
     if (env.CLIENT_URL) {
         config.clientUrl = env.CLIENT_URL;
     } else {
@@ -69,31 +83,46 @@ export function getSharedMockMessenger(): MockMessenger | null {
     return sharedMockMessenger;
 }
 
-function createMessenger(env: Env): Messenger {
-    // Always use shared MockMessenger for testability, regardless of
-    // whether mock mode is explicit or inferred from missing credentials.
-    if (!sharedMockMessenger) {
-        sharedMockMessenger = new MockMessenger();
-    }
-    console.log("[createMessenger] email runtime", {
-        emailBackend: env.EMAIL_BACKEND || null,
-        hasResendApiKey: !!env.RESEND_API_KEY,
-        hasEmailFromAddress: !!env.EMAIL_FROM_ADDRESS,
+export function createMessenger(env: Env): Messenger {
+    const mockRequested = (env.EMAIL_BACKEND || "").trim().toLowerCase() === "mock";
+    const hasResendApiKey = Boolean(env.RESEND_API_KEY);
+    const hasEmailFromAddress = Boolean(env.EMAIL_FROM_ADDRESS);
+    const backend = mockRequested ? "mock" : "resend";
+
+    console.log("[createMessenger]", {
+        backend,
+        hasResendApiKey,
+        hasEmailFromAddress,
+        hqEnvironment: env.HQ_ENVIRONMENT ?? null,
     });
-    if (env.EMAIL_BACKEND === "mock") {
+
+    if (isLiveEnvironment(env.HQ_ENVIRONMENT) && mockRequested) {
+        throw new Error("EMAIL_BACKEND=mock is not allowed when HQ_ENVIRONMENT is staging, production, or preview");
+    }
+
+    if (mockRequested) {
+        if (!sharedMockMessenger) {
+            sharedMockMessenger = new MockMessenger();
+        }
         return sharedMockMessenger;
     }
-    if (env.RESEND_API_KEY && env.EMAIL_FROM_ADDRESS) {
-        console.log("[createMessenger] using ResendMessenger");
-        return new ResendMessenger(env.RESEND_API_KEY, env.EMAIL_FROM_ADDRESS);
+
+    if (!hasResendApiKey) {
+        throw new Error("RESEND_API_KEY is required when EMAIL_BACKEND is not mock");
     }
-    console.warn("[createMessenger] falling back to MockMessenger");
-    return sharedMockMessenger;
+    if (!hasEmailFromAddress) {
+        throw new Error("EMAIL_FROM_ADDRESS is required when EMAIL_BACKEND is not mock");
+    }
+
+    return new ResendMessenger(env.RESEND_API_KEY as string, env.EMAIL_FROM_ADDRESS as string);
 }
 
 function createAttachmentStorage(env: Env): AttachmentStorage {
     if (env.ATTACHMENTS && env.DB) {
         return new R2AttachmentStorage({ bucket: env.ATTACHMENTS, db: env.DB });
+    }
+    if (isLiveEnvironment(env.HQ_ENVIRONMENT)) {
+        throw new Error("ATTACHMENTS and DB bindings are required when HQ_ENVIRONMENT is staging, production, or preview");
     }
     return createStubAttachmentStorage();
 }

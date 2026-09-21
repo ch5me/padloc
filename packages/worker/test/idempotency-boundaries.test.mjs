@@ -64,6 +64,13 @@ test("a missing key returns null, including when KV is not configured", async ()
     await new IdempotencyStore().store("ignored", result("ignored"));
 });
 
+test("required IdempotencyStore throws without KV instead of no-op", () => {
+    assert.throws(
+        () => new IdempotencyStore(undefined, { required: true }),
+        /HINTS KV binding required for idempotency in live environments/
+    );
+});
+
 test("a stored response is replayed and receives the one-hour TTL", async () => {
     const kv = new FakeKV(100);
     const store = new IdempotencyStore(kv);

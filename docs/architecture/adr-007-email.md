@@ -195,38 +195,26 @@ This ensures retry-safe sends without duplicate delivery.
 
 ---
 
-### 5. Preview/Mock Mode (`EMAIL_BACKEND=mock`)
+### 5. Fail-loud mail (`createMessenger`)
 
-When `EMAIL_BACKEND=mock` (or unset in local/dev):
+One factory: `packages/worker/src/server-factory.ts` `createMessenger`. Live
+environments (`HQ_ENVIRONMENT` is `staging`, `production`, or `preview`) have
+zero mock and zero silent fallback.
 
--   Emails are logged to console (`console.log`).
--   No network calls to Resend.
--   In tests: `StubMessenger` from `@elf-vault/core/src/messenger` is used
-    directly.
--   In Worker dev: a `MockResendSender` class returns `{ id: "mock_id_xxx" }`
-    without making HTTP requests.
-
-**Safe test recipient**: When `EMAIL_MOCK_RECIPIENT` is set, all emails are
-redirected to this address. This allows safe testing in staging without risk of
-sending to real addresses.
-
-```typescript
-// packages/worker/src/email/mock-sender.ts
-export class MockResendSender implements Messenger {
-    constructor(private testRecipient?: string) {}
-
-    async send<T extends MessageData>(
-        email: string,
-        msg: Message<T>
-    ): Promise<void> {
-        const recipient = this.testRecipient ?? email;
-        console.log(`[MOCK EMAIL] to=${recipient} subject=${msg.title}`);
-        console.log(
-            `  template=${msg.template} data=${JSON.stringify(msg.data)}`
-        );
-    }
-}
-```
+-   Live env throws if `EMAIL_BACKEND=mock`, or `RESEND_API_KEY` is missing, or
+    `EMAIL_FROM_ADDRESS` is missing. It never returns `MockMessenger`.
+-   `development` / `test` / `local` may use `MockMessenger` only when
+    `EMAIL_BACKEND=mock` is set explicitly (`[env.dev]` in `wrangler.toml`).
+    Preview is live and must not set `EMAIL_BACKEND=mock`.
+-   Missing `RESEND_API_KEY` or `EMAIL_FROM_ADDRESS` throws in every
+    environment, including development. There is no "falling back to
+    `MockMessenger`" path.
+-   `/healthcheck` reports `resend: "ok"` only for a real Resend client, and
+    includes `emailBackend`. A live env that cannot send mail must not return
+    HTTP 200.
+-   Boot logs one line: chosen backend, secret presence as booleans, and
+    `HQ_ENVIRONMENT`. On send, log template name and provider message id.
+    Never log OTP codes or secret values.
 
 ---
 
@@ -236,9 +224,9 @@ Replace `PL_EMAIL_SMTP_*` with:
 
 | Variable                                    | Description                                          |
 | ------------------------------------------- | ---------------------------------------------------- |
-| `EMAIL_BACKEND`                             | `resend` \| `mock` \| `console` (default: `console`) |
-| `RESEND_API_KEY`                            | Resend API key (required for `resend` backend)       |
-| `EMAIL_FROM`                                | From address, e.g., `Padloc <no-reply@padloc.app>`   |
+| `EMAIL_BACKEND`                             | `resend` or `mock`. `mock` is allowed only in development/test/local. Live env throws. |
+| `RESEND_API_KEY`                            | Resend API key (required unless explicit `EMAIL_BACKEND=mock`) |
+| `EMAIL_FROM_ADDRESS`                        | From address, e.g., `Elf Vault <no-reply@example.com>` |
 | `RESEND_TEMPLATE_EMAIL_AUTH`                | Resend template ID for `email-auth`                  |
 | `RESEND_TEMPLATE_JOIN_ORG_INVITE`           | Resend template ID for `join-org-invite`             |
 | `RESEND_TEMPLATE_CONFIRM_ORG_MEMBER_INVITE` | Resend template ID for `confirm-org-member-invite`   |
@@ -247,7 +235,6 @@ Replace `PL_EMAIL_SMTP_*` with:
 | `RESEND_TEMPLATE_FAILED_LOGIN_ATTEMPT`      | Resend template ID for `failed-login-attempt`        |
 | `RESEND_TEMPLATE_NEW_LOGIN`                 | Resend template ID for `new-login`                   |
 | `RESEND_TEMPLATE_PLAIN`                     | Resend template ID for `plain`                       |
-| `EMAIL_MOCK_RECIPIENT`                      | Redirect all emails to this address (mock/dev only)  |
 
 ---
 
