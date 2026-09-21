@@ -42,7 +42,7 @@ import { DirectoryProvider, DirectorySync } from "@elf-vault/core/src/directory"
 import { PostgresLogger } from "./logging/postgres";
 import { LevelDBLogger } from "./logging/leveldb";
 import { OauthProvisioner, OauthProvisionerConfig } from "./provisioning/oauth";
-import { isLiveEnvironment } from "@elf-vault/core/src/environment";
+import { isLiveEnvironment, isLiveProcessEnvironment } from "@elf-vault/core/src/environment";
 
 const rootDir = resolve(__dirname, "../../..");
 const assetsDir = resolve(rootDir, process.env.PL_ASSETS_DIR || "assets");
@@ -53,8 +53,10 @@ if (!process.env.PL_APP_NAME) {
 }
 
 async function initDataStorage(config: DataStorageConfig) {
-    if (process.env.NODE_ENV === "production" && (config.backend === "memory" || config.backend === "void")) {
-        throw new Error(`PL_DATA_STORAGE_BACKEND=${config.backend} is not allowed when NODE_ENV is production`);
+    if (isLiveProcessEnvironment() && (config.backend === "memory" || config.backend === "void")) {
+        throw new Error(
+            `PL_DATA_STORAGE_BACKEND=${config.backend} is not allowed when HQ_ENVIRONMENT or NODE_ENV is staging, production, or preview`
+        );
     }
     switch (config.backend) {
         case "leveldb":
@@ -108,7 +110,7 @@ async function initLogger({ backend, secondaryBackend, mongodb, postgres, leveld
             primaryLogger = new LevelDBLogger(new LevelDBStorage(leveldb));
             break;
         case "void":
-            primaryLogger = new VoidLogger(undefined, { writeToConsole: process.env.NODE_ENV === "production" });
+            primaryLogger = new VoidLogger(undefined, { writeToConsole: isLiveProcessEnvironment() });
             break;
         default:
             throw `Invalid value for PL_LOGGING_BACKEND: ${backend}! Supported values: void, mongodb, postgres, leveldb`;
@@ -141,8 +143,10 @@ async function initLogger({ backend, secondaryBackend, mongodb, postgres, leveld
 }
 
 async function initEmailSender({ backend, smtp }: EmailConfig) {
-    if (process.env.NODE_ENV === "production" && backend === "console") {
-        throw new Error("PL_EMAIL_BACKEND=console is not allowed when NODE_ENV is production");
+    if (isLiveProcessEnvironment() && backend === "console") {
+        throw new Error(
+            "PL_EMAIL_BACKEND=console is not allowed when HQ_ENVIRONMENT or NODE_ENV is staging, production, or preview"
+        );
     }
     switch (backend) {
         case "smtp":
@@ -161,8 +165,10 @@ async function initEmailSender({ backend, smtp }: EmailConfig) {
 }
 
 async function initAttachmentStorage(config: AttachmentStorageConfig) {
-    if (process.env.NODE_ENV === "production" && config.backend === "memory") {
-        throw new Error("PL_ATTACHMENTS_BACKEND=memory is not allowed when NODE_ENV is production");
+    if (isLiveProcessEnvironment() && config.backend === "memory") {
+        throw new Error(
+            "PL_ATTACHMENTS_BACKEND=memory is not allowed when HQ_ENVIRONMENT or NODE_ENV is staging, production, or preview"
+        );
     }
     switch (config.backend) {
         case "memory":

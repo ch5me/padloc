@@ -5,6 +5,7 @@ import { readFileSync, readdirSync } from "fs";
 import { Err, ErrorCode } from "@elf-vault/core/src/error";
 import { resolve } from "path";
 import dompurify from "../tools/dompurify";
+import { isLiveProcessEnvironment } from "@elf-vault/core/src/environment";
 
 export class SMTPConfig extends Config {
     constructor(init: Partial<SMTPConfig> = {}) {
@@ -46,10 +47,12 @@ export class SMTPSender implements Messenger {
         if (!config.host) {
             throw new Error("SMTP host is required when PL_EMAIL_BACKEND is smtp");
         }
-        if (nodeEnv !== "development") {
+        if (isLiveProcessEnvironment() || nodeEnv !== "development") {
             const host = config.host.toLowerCase();
             if ((host === "localhost" || host === "127.0.0.1" || host === "::1") && Number(config.port) === 1025) {
-                throw new Error("SMTP host localhost:1025 is only allowed when NODE_ENV is development");
+                throw new Error(
+                    "SMTP host localhost:1025 is only allowed when NODE_ENV is development and HQ_ENVIRONMENT is not staging, production, or preview"
+                );
             }
         }
         let auth = null;

@@ -167,6 +167,12 @@ test("allowDisableMFA stays false in live env even when the flag is set", () => 
     assert.equal(server.config.environment, "staging");
 });
 
+test("development stub storage cannot report a successful save", async () => {
+    const server = serverFor({ EMAIL_BACKEND: "mock", HQ_ENVIRONMENT: "development" });
+    await assert.rejects(() => server.storage.save({}), /stub storage: save is not available/);
+    await assert.rejects(() => server.attachmentStorage.delete("vault", "file"), /stub storage: attachment delete/);
+});
+
 test("allowDisableMFA requires an explicit test/dev flag", () => {
     const off = serverFor({ EMAIL_BACKEND: "mock", HQ_ENVIRONMENT: "development" });
     assert.equal(off.config.allowDisableMFA, false);

@@ -127,25 +127,27 @@ function createAttachmentStorage(env: Env): AttachmentStorage {
     return createStubAttachmentStorage();
 }
 
+function stubUnavailable(operation: string): never {
+    throw new Error(`stub storage: ${operation} is not available without a real backend`);
+}
+
 function createStubStorage(): Storage {
     return {
-        get: async () => {
-            throw new Error("stub storage: get not implemented");
-        },
-        save: async () => {},
-        delete: async () => {},
-        clear: async () => {},
-        list: async () => [],
-    } as unknown as Storage;
+        get: async () => stubUnavailable("get"),
+        save: async () => stubUnavailable("save"),
+        delete: async () => stubUnavailable("delete"),
+        clear: async () => stubUnavailable("clear"),
+        list: async () => stubUnavailable("list"),
+        count: async () => stubUnavailable("count"),
+    };
 }
 
 function createStubAttachmentStorage(): AttachmentStorage {
     return {
-        upload: async () => {
-            throw new Error("stub attachment storage: upload not implemented");
-        },
-        delete: async () => {},
-        getUrl: async () => "",
-        getSignedUrl: async () => "",
-    } as unknown as AttachmentStorage;
+        put: async () => stubUnavailable("attachment put"),
+        get: async () => stubUnavailable("attachment get"),
+        delete: async () => stubUnavailable("attachment delete"),
+        deleteAll: async () => stubUnavailable("attachment deleteAll"),
+        getUsage: async () => stubUnavailable("attachment getUsage"),
+    };
 }
