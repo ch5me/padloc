@@ -66,3 +66,7 @@ packages/macos/.signed-build
 
 # Generated synthetic autofill proof runtime (browser profile, native host state)
 .ch5/autopilot/*/synthetic-e2e/runtime/
+
+# Per-run synthetic autofill logs. The tracked summaries are the durable proof.
+.ch5/autopilot/*/synthetic-e2e/cli-events.ndjson
+.ch5/autopilot/*/synthetic-e2e/events.ndjson
